@@ -1,0 +1,24 @@
+{
+  "development": {
+    "username": "root",
+    "password": "jayskeralapilot#213",
+    "database": "jayskeralahm",
+    "host": "localhost",
+    "dialect": "mysql"
+  },
+  "test": {
+    "username": "root",
+    "password": "jayskeralapilot#213",
+    "database": "jayskeralahm_test",
+    "host": "localhost",
+    "dialect": "mysql",
+    "logging": false
+  },
+  "production": {
+    "username": "root",
+    "password": "jayskeralapilot#213",
+    "database": "jayskeralahm",
+    "host": "localhost",
+    "dialect": "mysql"
+  }
+}
