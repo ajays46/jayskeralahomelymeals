@@ -5,16 +5,16 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 exports.verifyToken = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const accessToken = req.cookies.accessToken;
     
-    if (!token) {
+    if (!accessToken) {
       return res.status(401).json({
         success: false,
-        message: 'No token provided'
+        message: 'No access token provided'
       });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(accessToken, JWT_SECRET);
     
     // Get user with auth details
     const user = await User.findOne({
@@ -41,9 +41,19 @@ exports.verifyToken = async (req, res, next) => {
     }
 
     // Add user to request object
-    req.user = user;
+    req.user = {
+      userId: user.id,
+      email: user.auth.email,
+      companyId: user.company_id
+    };
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Access token expired'
+      });
+    }
     return res.status(401).json({
       success: false,
       message: 'Invalid token',
