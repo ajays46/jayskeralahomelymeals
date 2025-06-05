@@ -1,8 +1,8 @@
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Auth, User, Company, Session } = require('../../models');
-const { sequelize } = require('../../models');
+const { Auth, User, Company, Session } = require('../models');
+const { sequelize } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const TOKEN_EXPIRY = process.env.TOKEN_EXPIRY || '24h';

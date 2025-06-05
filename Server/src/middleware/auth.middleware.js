@@ -1,20 +1,19 @@
-const jwt = require('jsonwebtoken');
-const { Auth, User } = require('../../models');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const { verifyAccessToken } = require('../config/jwt.config');
+const { User, Auth } = require('../models');
 
 exports.verifyToken = async (req, res, next) => {
   try {
     const accessToken = req.cookies.accessToken;
-    
+
     if (!accessToken) {
       return res.status(401).json({
         success: false,
-        message: 'No access token provided'
+        message: 'Access token not found'
       });
     }
 
-    const decoded = jwt.verify(accessToken, JWT_SECRET);
+    // Verify access token
+    const decoded = verifyAccessToken(accessToken);
     
     // Get user with auth details
     const user = await User.findOne({
@@ -44,8 +43,9 @@ exports.verifyToken = async (req, res, next) => {
     req.user = {
       userId: user.id,
       email: user.auth.email,
-      companyId: user.company_id
+      role: user.role
     };
+
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -56,8 +56,7 @@ exports.verifyToken = async (req, res, next) => {
     }
     return res.status(401).json({
       success: false,
-      message: 'Invalid token',
-      error: error.message
+      message: 'Invalid token'
     });
   }
 }; 

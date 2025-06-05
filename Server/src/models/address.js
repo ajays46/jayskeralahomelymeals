@@ -1,19 +1,24 @@
-const { Model, DataTypes } = require('sequelize');
+const { Model } = require('sequelize');
 
-module.exports = (sequelize) => {
-  class Addresses extends Model {
+module.exports = (sequelize, DataTypes) => {
+  class Address extends Model {
     static associate(models) {
-      Addresses.belongsTo(models.User, {
+      Address.belongsTo(models.User, {
         foreignKey: 'user_id',
         as: 'user'
+      });
+      Address.hasMany(models.Company, {
+        foreignKey: 'address_id',
+        as: 'companies'
       });
     }
   }
 
-  Addresses.init({
+  Address.init({
     id: {
       type: DataTypes.STRING(36),
-      primaryKey: true
+      primaryKey: true,
+      allowNull: false
     },
     user_id: {
       type: DataTypes.STRING(36),
@@ -21,7 +26,9 @@ module.exports = (sequelize) => {
       references: {
         model: 'users',
         key: 'id'
-      }
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'CASCADE'
     },
     street: {
       type: DataTypes.STRING,
@@ -43,15 +50,23 @@ module.exports = (sequelize) => {
       type: DataTypes.ENUM('Home', 'Billing', 'Shipping', 'Other'),
       allowNull: false,
       defaultValue: 'Home'
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      allowNull: false
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      allowNull: false
     }
   }, {
     sequelize,
-    modelName: 'Addresses',
+    modelName: 'Address',
     tableName: 'addresses',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    timestamps: false
   });
 
-  return Addresses;
+  return Address;
 }; 

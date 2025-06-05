@@ -1,0 +1,38 @@
+{
+  "development": {
+    "username": "root",
+    "password": "jayskeralapilot#213",
+    "database": "jayskeralahm",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "logging": false,
+    "pool": {
+      "max": 5,
+      "min": 0,
+      "acquire": 30000,
+      "idle": 10000
+    }
+  },
+  "test": {
+    "username": "root",
+    "password": "jayskeralapilot#213",
+    "database": "jayskeralahm_test",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "logging": false
+  },
+  "production": {
+    "username": "root",
+    "password": "jayskeralapilot#213",
+    "database": "jayskeralahm_prod",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "logging": false,
+    "pool": {
+      "max": 10,
+      "min": 0,
+      "acquire": 30000,
+      "idle": 10000
+    }
+  }
+} 

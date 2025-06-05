@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
   // Function to handle login
   const handleLogin = async (credentials) => {
     try {
-      const result = await loginMutation(credentials, {
+      await loginMutation(credentials, {
         onSuccess: (data) => {
           showLoginSuccess();
           setAuth({
@@ -30,7 +30,6 @@ export const AuthProvider = ({ children }) => {
           showLoginError(error);
         }
       });
-      return result;
     } catch (error) {
       throw error;
     }

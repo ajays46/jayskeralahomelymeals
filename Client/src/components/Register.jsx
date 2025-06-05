@@ -16,8 +16,10 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [errors, setErrors] = useState({});
-  
-  const { mutate: register, isPending } = useRegister();
+
+  const { mutate: register, isPending, error } = useRegister();
+
+
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -40,17 +42,17 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       // Validate all fields
       registerSchema.parse(formData);
-      
+
       // Add default name based on email
       const registrationData = {
         ...formData,
         name: formData.email.split('@')[0] // Use part of email as default name
       };
-      
+
       // If validation passes, proceed with registration
       register(registrationData, {
         onSuccess: () => {
@@ -68,7 +70,7 @@ const Register = () => {
           }
         }
       });
-      
+
     } catch (error) {
       if (error instanceof z.ZodError) {
         const newErrors = {};

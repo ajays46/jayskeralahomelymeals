@@ -1,12 +1,22 @@
+const { Model } = require('sequelize');
+
 module.exports = (sequelize, DataTypes) => {
-  const Auth = sequelize.define('Auth', {
+  class Auth extends Model {
+    static associate(models) {
+      Auth.hasOne(models.User, { foreignKey: 'auth_id', as: 'user' });
+    }
+  }
+
+  Auth.init({
     id: {
-      type: DataTypes.STRING,
-      primaryKey: true
+      type: DataTypes.STRING(36),
+      primaryKey: true,
+      allowNull: false
     },
     email: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: true,
       validate: {
         isEmail: true
       }
@@ -17,12 +27,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     phone_number: {
       type: DataTypes.STRING,
-      allowNull: true,
-      defaultValue: ''
+      allowNull: true
     },
     api_key: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true
     },
     status: {
       type: DataTypes.ENUM('active', 'blocked', 'inactive'),
@@ -37,18 +46,10 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.NOW
     }
   }, {
+    sequelize,
+    modelName: 'Auth',
     tableName: 'auths',
-    timestamps: false,
-    hooks: {
-      beforeCreate: async (auth) => {
-        const existingAuth = await sequelize.models.Auth.findOne({
-          where: { email: auth.email }
-        });
-        if (existingAuth) {
-          throw new Error('Email already registered');
-        }
-      }
-    }
+    timestamps: false
   });
 
   return Auth;

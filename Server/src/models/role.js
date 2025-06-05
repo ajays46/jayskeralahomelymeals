@@ -1,8 +1,9 @@
-const { Model, DataTypes } = require('sequelize');
+const { Model } = require('sequelize');
 
-module.exports = (sequelize) => {
+module.exports = (sequelize, DataTypes) => {
   class Role extends Model {
     static associate(models) {
+      // Define associations here if needed
       Role.hasMany(models.User, {
         foreignKey: 'role_id',
         as: 'users'
@@ -12,12 +13,16 @@ module.exports = (sequelize) => {
 
   Role.init({
     id: {
-      type: DataTypes.STRING(36),
+      type: DataTypes.STRING,
       primaryKey: true
     },
     name: {
-      type: DataTypes.STRING,
-      allowNull: false
+      type: DataTypes.ENUM('user', 'seller', 'admin'),
+      allowNull: false,
+      unique: true,
+      validate: {
+        isIn: [['user', 'seller', 'admin']]
+      }
     },
     description: {
       type: DataTypes.STRING,
@@ -34,14 +39,22 @@ module.exports = (sequelize) => {
       set(value) {
         this.setDataValue('permissions', JSON.stringify(value));
       }
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      allowNull: false
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      allowNull: false
     }
   }, {
     sequelize,
     modelName: 'Role',
     tableName: 'roles',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    timestamps: false
   });
 
   return Role;

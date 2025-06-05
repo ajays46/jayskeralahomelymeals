@@ -1,26 +1,26 @@
-const { Model, DataTypes } = require('sequelize');
+const { Model } = require('sequelize');
 
-module.exports = (sequelize) => {
-  class Contacts extends Model {
+module.exports = (sequelize, DataTypes) => {
+  class Contact extends Model {
     static associate(models) {
-      Contacts.belongsTo(models.User, {
+      Contact.belongsTo(models.User, {
         foreignKey: 'user_id',
         as: 'user'
       });
-      Contacts.hasMany(models.PhoneNumbers, {
+      Contact.hasMany(models.PhoneNumber, {
         foreignKey: 'contact_id',
-        as: 'phone_numbers'
+        as: 'phoneNumbers'
       });
     }
   }
 
-  Contacts.init({
+  Contact.init({
     id: {
-      type: DataTypes.STRING(36),
+      type: DataTypes.STRING,
       primaryKey: true
     },
     user_id: {
-      type: DataTypes.STRING(36),
+      type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'users',
@@ -42,15 +42,23 @@ module.exports = (sequelize) => {
     whatsapp_number: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      allowNull: false
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+      allowNull: false
     }
   }, {
     sequelize,
-    modelName: 'Contacts',
+    modelName: 'Contact',
     tableName: 'contacts',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    timestamps: false
   });
 
-  return Contacts;
+  return Contact;
 }; 
