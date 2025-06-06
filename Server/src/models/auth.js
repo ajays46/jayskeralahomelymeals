@@ -1,5 +1,5 @@
-const { Model, DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+import { Model, DataTypes } from 'sequelize';
+import sequelize from '../config/database.js';
 
 class Auth extends Model {}
 
@@ -43,4 +43,4 @@ Auth.init({
   updatedAt: 'updated_at'
 });
 
-module.exports = Auth; 
+export default Auth; 

@@ -1,4 +1,6 @@
-const { Sequelize } = require('sequelize');
+import { Sequelize } from 'sequelize';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const config = require('../../config/config.json');
 
 const env = process.env.NODE_ENV || 'development';
@@ -30,4 +32,4 @@ sequelize.authenticate()
     console.error('Unable to connect to the database:', err);
   });
 
-module.exports = sequelize; 
+export default sequelize; 

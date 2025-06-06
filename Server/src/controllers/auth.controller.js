@@ -1,16 +1,14 @@
-
-const authService = require('../services/auth.service');
-const AppError = require('../utils/AppError');
+import { registerUser, loginUser } from '../services/auth.service.js';
+import AppError from '../utils/AppError.js';
 
 // Register new user
-exports.register = async (req, res, next) => {
+export const register = async (req, res, next) => {
   try {
-    const userData = await authService.registerUser(req.body);
+    const { email, password, phone } = req.body;
+    const user = await registerUser({ email, password, phone });
     res.status(201).json({
-      success: true,
-      data: {
-        auth: userData
-      }
+      status: 'success',
+      data: user
     });
   } catch (error) {
     next(error);
@@ -18,27 +16,13 @@ exports.register = async (req, res, next) => {
 };
 
 // Login user
-exports.login = async (req, res, next) => {
+export const login = async (req, res, next) => {
   try {
-    const result = await authService.loginUser(req.body);
-
-    // Set cookies
-    res.cookie('accessToken', result.tokens.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 3600000 // 1 hour in milliseconds
-    });
-
-    res.cookie('refreshToken', result.tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 3600000 // 7 days in milliseconds
-    });
-
-    res.json({
-      success: true,
+    const { email, password } = req.body;
+    const result = await loginUser({ email, password });
+    res.status(200).json({
+      success: true,    
+      message: 'Login successful',
       data: result
     });
   } catch (error) {
@@ -46,50 +30,11 @@ exports.login = async (req, res, next) => {
   }
 };
 
-// Refresh token
-exports.refreshToken = async (req, res, next) => {
-  try {
-    const refreshToken = req.cookies.refreshToken;
-    const tokens = await authService.refreshAuthToken(refreshToken);
-
-    // Set new cookies
-    res.cookie('accessToken', tokens.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 3600000 // 1 hour in milliseconds
-    });
-
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 3600000 // 7 days in milliseconds
-    });
-
-    res.json({
-      success: true,
-      data: tokens
-    });
-  } catch (error) {    
-    next(error);
-  }
-};
-
 // Logout user
-exports.logout = async (req, res, next) => {
-  try {
-    await authService.logoutUser();
-
-    // Clear cookies
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
-
-    res.json({
-      success: true,
-      message: 'Logged out successfully'
-    });
-  } catch (error) {
-    next(error);
-  }
+export const logout = (req, res) => {
+  res.clearCookie('refreshToken');
+  res.status(200).json({
+    success: true,
+    message: 'Logged out successfully'
+  });
 };

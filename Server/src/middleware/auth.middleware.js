@@ -1,71 +1,45 @@
-const jwt = require('jsonwebtoken');
-const Auth = require('../models/auth');
-const AppError = require('../utils/AppError');
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+import AppError from '../utils/AppError.js';
 
-exports.protect = async (req, res, next) => {
-  try {
-    // Get tokens from cookies
-    const accessToken = req.cookies.accessToken;
-    const refreshToken = req.cookies.refreshToken;
+dotenv.config();
 
-    // If no tokens found, return unauthorized
-    if (!accessToken && !refreshToken) {
-      return res.status(401).json({
-        success: false,
-        message: 'Please login to access this resource'
-      });
+export const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(" ")?.[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Access token required' });
     }
-
-    let decoded;
-    let auth;
 
     try {
-      // Try to verify access token first
-      decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
-      auth = await Auth.findByPk(decoded.id);
-    } catch (error) {
-      // If access token is invalid/expired, try refresh token
-      if (refreshToken) {
-        try {
-          decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
-          auth = await Auth.findByPk(decoded.id);
-        } catch (refreshError) {
-          return res.status(401).json({
-            success: false,
-            message: 'Session expired. Please login again.'
-          });
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ error: 'Token expired', expired: true });
         }
-      } else {
-        return res.status(401).json({
-          success: false,
-          message: 'Session expired. Please login again.'
-        });
-      }
+        return res.status(400).json({ error: 'Invalid token' });
     }
+};
 
-    // Check if user exists and is active
-    if (!auth) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found'
-      });
+export const protect = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(" ")?.[1];
+
+        if (!token) {
+            throw new AppError('No token provided', 401);
+        }
+
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ error: 'Token expired', expired: true });
+        }
+        return res.status(401).json({ error: 'Not authorized' });
     }
-
-    if (auth.status !== 'active') {
-      return res.status(403).json({
-        success: false,
-        message: 'Account is not active'
-      });
-    }
-
-    // Add user to request object
-    req.user = {
-      id: auth.id,
-      email: auth.email
-    };
-
-    next();
-  } catch (error) {
-    next(new AppError('Authentication failed', 401));
-  }
 }; 
