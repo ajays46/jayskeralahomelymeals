@@ -20,7 +20,10 @@ instance.interceptors.response.use(
 
       try {
         // Try to refresh the token
-        await instance.post('/auth/refresh-token');
+        const response = await instance.post('/auth/refresh-token');
+        
+        // Update the original request with new tokens
+        originalRequest.headers['Authorization'] = `Bearer ${response.data.data.accessToken}`;
         
         // Retry the original request
         return instance(originalRequest);

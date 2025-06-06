@@ -13,6 +13,8 @@ const Register = () => {
     password: '',
     agree: false,
   });
+  console.log(formData);
+  
   const [showPassword, setShowPassword] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [errors, setErrors] = useState({});

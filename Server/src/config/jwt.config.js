@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const JWT_CONFIG = {
   access: {
     secret: process.env.JWT_ACCESS_SECRET || 'your-access-token-secret',
-    expiresIn: process.env.JWT_ACCESS_EXPIRY || '15m'
+    expiresIn: process.env.JWT_ACCESS_EXPIRY || '1m'
   },
   refresh: {
     secret: process.env.JWT_REFRESH_SECRET || 'your-refresh-token-secret',

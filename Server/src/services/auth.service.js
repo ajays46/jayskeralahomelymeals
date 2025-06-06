@@ -1,284 +1,107 @@
-const { v4: uuidv4 } = require('uuid');
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Auth, User, Company, Session } = require('../models');
-const { sequelize } = require('../models');
+const Auth = require('../models/auth');
+const AppError = require('../utils/AppError');
+const { generateApiKey } = require('../utils/helpers');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const TOKEN_EXPIRY = process.env.TOKEN_EXPIRY || '24h';
-
-class AuthService {
-  // Helper function to generate token
-  static generateToken(user, auth) {
-    return jwt.sign(
-      { 
-        userId: user.id,
-        email: auth.email,
-        companyId: user.company_id
-      },
-      JWT_SECRET,
-      { expiresIn: TOKEN_EXPIRY }
-    );
+exports.registerUser = async ({ email, password, phone }) => {
+  if (!email || !password) {
+    throw new AppError('Email and password are required', 400);
   }
 
-  // Helper function to check email existence
-  static async checkEmailExists(email) {
-    const existingAuth = await Auth.findOne({ where: { email } });
-    return !!existingAuth;
+  const existingAuth = await Auth.findOne({ where: { email } });
+  if (existingAuth) {
+    throw new AppError('Email already registered', 409);
   }
 
-  // Signup service
-  static async signupService(name, email, phone, password) {
-    try {
-      // Check if user already exists
-      const emailExists = await this.checkEmailExists(email);
-      if (emailExists) {
-        throw new Error('Email already registered');
-      }
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const api_key = generateApiKey();
 
-      // Validate phone number
-      if (!phone) {
-        throw new Error('Phone number is required');
-      }
+  try {
+    const auth = await Auth.create({
+      email,
+      password: hashedPassword,
+      phone_number: phone,
+      api_key,
+      status: 'active'
+    });
 
-      // Generate API key
-      const api_key = uuidv4();
-
-      // Hash password
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-
-      // Create auth record
-      const auth = await Auth.create({
-        id: uuidv4(),
-        email,
-        password: hashedPassword,
-        phone_number: phone || '',
-        api_key,
-        status: 'active'
-      });
-
-      // Get the default user role
-      const [userRole] = await sequelize.query(
-        'SELECT id FROM roles WHERE name = "user" LIMIT 1'
-      );
-
-      if (!userRole || !userRole[0]) {
-        throw new Error('Default user role not found');
-      }
-
-      // Create user record
-      const user = await User.create({
-        id: uuidv4(),
-        auth_id: auth.id,
-        role_id: userRole[0].id,
-        name: name,
-        status: 'active'
-      });
-
-      // Generate token
-      const token = this.generateToken(user, auth);
-
-      // Create session
-      await Session.create({
-        id: uuidv4(),
-        user_id: user.id,
-        access_token: token
-      });
-
-      return {
-        user_id: user.id,
-        name: user.name,
-        email: auth.email,
-        phone_number: auth.phone_number,
-        token
-      };
-    } catch (error) {
-      throw error;
+    return {
+      id: auth.id,
+      email: auth.email,
+      phone_number: auth.phone_number,
+      api_key: auth.api_key,
+      status: auth.status
+    };
+  } catch (err) {
+    if (err.name === 'SequelizeValidationError') {
+      throw new AppError('Validation error: ' + err.message, 400);
+    } else if (err.name === 'SequelizeUniqueConstraintError') {
+      throw new AppError('Email or API key already exists', 409);
     }
+    throw new AppError('Database error occurred', 500);
+  }
+};
+
+exports.loginUser = async ({ email, password }) => {
+  const auth = await Auth.findOne({ where: { email } });
+
+  if (!auth || !(await bcrypt.compare(password, auth.password))) {
+    throw new AppError('Invalid credentials', 401);
   }
 
-  // Login service
-  static async loginService(email, password) {
-    try {
-      if (!email || !password) {
-        throw new Error('Email and password are required');
-      }
-
-      // Find auth record
-      const auth = await Auth.findOne({ where: { email } });
-      if (!auth) {
-        throw new Error('Invalid email or password');
-      }
-
-      // Check if account is active
-      if (auth.status !== 'active') {
-        throw new Error('Account is not active');
-      }
-
-      // Verify password
-      const isValidPassword = await bcrypt.compare(password, auth.password);
-      if (!isValidPassword) {
-        throw new Error('Invalid email or password');
-      }
-
-      // Find user record
-      const user = await User.findOne({
-        where: { auth_id: auth.id },
-        include: [
-          {
-            model: Company,
-            as: 'company',
-            attributes: ['id', 'name']
-          }
-        ]
-      });
-
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Generate token
-      const token = this.generateToken(user, auth);
-
-      // Create or update session
-      await Session.create({
-        id: uuidv4(),
-        user_id: user.id,
-        access_token: token
-      });
-
-      return {
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: auth.email,
-          phone_number: auth.phone_number,
-          company: user.company ? {
-            id: user.company.id,
-            name: user.company.name
-          } : null
-        }
-      };
-    } catch (error) {
-      throw error;
-    }
+  if (auth.status !== 'active') {
+    throw new AppError('Account is not active', 403);
   }
 
-  // Logout service
-  // static async logoutService(token) {
-  //   try {
-  //     if (!token) {
-  //       throw new Error('Token is required');
-  //     }
+  const accessToken = jwt.sign(
+    { id: auth.id, email: auth.email },
+    process.env.JWT_SECRET || 'your-secret-key',
+    { expiresIn: '1m' }
+  );
 
-  //     const result = await Session.destroy({
-  //       where: { access_token: token }
-  //     });
+  const refreshToken = jwt.sign(
+    { id: auth.id },
+    process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+    { expiresIn: '7d' }
+  );
 
-  //     if (!result) {
-  //       throw new Error('Session not found');
-  //     }
+  return {
+    user: {
+      id: auth.id,
+      email: auth.email,
+      phone: auth.phone_number,
+      api_key: auth.api_key,
+      status: auth.status
+    },
+    tokens: { accessToken, refreshToken }
+  };
+};
 
-  //     return true;
-  //   } catch (error) {
-  //     throw error;
-  //   }
-  // }
+exports.refreshAuthToken = async (refreshToken) => {
+  if (!refreshToken) throw new AppError('Refresh token is required', 400);
 
-  // Register with company service
-  static async registerWithCompanyService(name, email, phone, password, company_name) {
-    try {
-      // Validate required fields
-      if (!name) {
-        throw new Error('Name is required');
-      }
-      if (!email) {
-        throw new Error('Email is required');
-      }
-      if (!phone) {
-        throw new Error('Phone number is required');
-      }
-      if (!password) {
-        throw new Error('Password is required');
-      }
-      if (!company_name) {
-        throw new Error('Company name is required');
-      }
+  const decoded = jwt.verify(
+    refreshToken,
+    process.env.JWT_REFRESH_SECRET || 'your-refresh-secret'
+  );
 
-      // Check if user already exists
-      const emailExists = await this.checkEmailExists(email);
-      if (emailExists) {
-        throw new Error('Email already registered');
-      }
+  const auth = await Auth.findByPk(decoded.id);
+  if (!auth) throw new AppError('User not found', 404);
+  if (auth.status !== 'active') throw new AppError('Account is not active', 403);
 
-      // Generate API key
-      const api_key = uuidv4();
+  const newAccessToken = jwt.sign(
+    { id: auth.id, email: auth.email },
+    process.env.JWT_SECRET || 'your-secret-key',
+    { expiresIn: '1h' }
+  );
 
-      // Hash password
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
+  const newRefreshToken = jwt.sign(
+    { id: auth.id },
+    process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+    { expiresIn: '7d' }
+  );
 
-      // Create auth record
-      const auth = await Auth.create({
-        id: uuidv4(),
-        email,
-        password: hashedPassword,
-        phone_number: phone || '',
-        api_key,
-        status: 'active'
-      });
-
-      // Create company
-      const company = await Company.create({
-        id: uuidv4(),
-        name: company_name,
-        status: 'active'
-      });
-
-      // Get the default user role
-      const [userRole] = await sequelize.query(
-        'SELECT id FROM roles WHERE name = "user" LIMIT 1'
-      );
-
-      if (!userRole || !userRole[0]) {
-        throw new Error('Default user role not found');
-      }
-
-      // Create user record with explicit name field
-      const user = await User.create({
-        id: uuidv4(),
-        auth_id: auth.id,
-        company_id: company.id,
-        role_id: userRole[0].id,
-        name: name.trim(), // Ensure name is trimmed
-        status: 'active'
-      });
-
-      // Generate token
-      const token = this.generateToken(user, auth);
-
-      // Create session
-      await Session.create({
-        id: uuidv4(),
-        user_id: user.id,
-        access_token: token
-      });
-
-      return {
-        user_id: user.id,
-        name: user.name,
-        email: auth.email,
-        phone_number: auth.phone_number,
-        company_id: company.id,
-        company_name: company.name,
-        token
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-}
-
-module.exports = AuthService; 
+  return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+};

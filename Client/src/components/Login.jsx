@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+// import { useAuth } from '../context/AuthContext';
 import { useLogin } from '../hooks/useLogin';
 
 const Login = () => {
-  const { login } = useAuth();
+  // const { login } = useAuth();
   const { mutate: loginMutation, isPending ,error } = useLogin();
   const [formData, setFormData] = useState({
     email: '',
@@ -42,7 +42,7 @@ const Login = () => {
       loginSchema.parse(formData);
       
       // If validation passes, proceed with login
-      await login(formData);
+      await loginMutation(formData);
       
     } catch (error) {
       if (error instanceof z.ZodError) {

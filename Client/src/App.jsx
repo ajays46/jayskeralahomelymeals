@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from './context/AuthContext';
+// import { AuthProvider } from './context/AuthContext';
 import Terms from './components/Terms';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
@@ -15,21 +15,21 @@ const queryClient = new QueryClient({
   },
 });
 
-function App() {
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <AuthProvider>
+        {/* <AuthProvider> */}
           <Routes>
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/login" element={<LoginPage />} />
             {/* Add more routes as needed */}
           </Routes>
-        </AuthProvider>
+        {/* </AuthProvider> */}
       </Router>
     </QueryClientProvider>
   );
-}
+};
 
 export default App;

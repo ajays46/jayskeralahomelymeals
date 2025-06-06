@@ -1,62 +1,71 @@
-const { verifyAccessToken } = require('../config/jwt.config');
-const { User, Auth } = require('../models');
+const jwt = require('jsonwebtoken');
+const Auth = require('../models/auth');
+const AppError = require('../utils/AppError');
 
-exports.verifyToken = async (req, res, next) => {
+exports.protect = async (req, res, next) => {
   try {
+    // Get tokens from cookies
     const accessToken = req.cookies.accessToken;
+    const refreshToken = req.cookies.refreshToken;
 
-    if (!accessToken) {
+    // If no tokens found, return unauthorized
+    if (!accessToken && !refreshToken) {
       return res.status(401).json({
         success: false,
-        message: 'Access token not found'
+        message: 'Please login to access this resource'
       });
     }
 
-    // Verify access token
-    const decoded = verifyAccessToken(accessToken);
-    
-    // Get user with auth details
-    const user = await User.findOne({
-      where: { id: decoded.userId },
-      include: [{
-        model: Auth,
-        as: 'auth',
-        attributes: ['email', 'status']
-      }]
-    });
+    let decoded;
+    let auth;
 
-    if (!user) {
+    try {
+      // Try to verify access token first
+      decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+      auth = await Auth.findByPk(decoded.id);
+    } catch (error) {
+      // If access token is invalid/expired, try refresh token
+      if (refreshToken) {
+        try {
+          decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
+          auth = await Auth.findByPk(decoded.id);
+        } catch (refreshError) {
+          return res.status(401).json({
+            success: false,
+            message: 'Session expired. Please login again.'
+          });
+        }
+      } else {
+        return res.status(401).json({
+          success: false,
+          message: 'Session expired. Please login again.'
+        });
+      }
+    }
+
+    // Check if user exists and is active
+    if (!auth) {
       return res.status(401).json({
         success: false,
         message: 'User not found'
       });
     }
 
-    if (user.auth.status !== 'active') {
-      return res.status(401).json({
+    if (auth.status !== 'active') {
+      return res.status(403).json({
         success: false,
-        message: 'User account is not active'
+        message: 'Account is not active'
       });
     }
 
     // Add user to request object
     req.user = {
-      userId: user.id,
-      email: user.auth.email,
-      role: user.role
+      id: auth.id,
+      email: auth.email
     };
 
     next();
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Access token expired'
-      });
-    }
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token'
-    });
+    next(new AppError('Authentication failed', 401));
   }
 }; 

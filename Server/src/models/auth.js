@@ -1,56 +1,46 @@
-const { Model } = require('sequelize');
+const { Model, DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-module.exports = (sequelize, DataTypes) => {
-  class Auth extends Model {
-    static associate(models) {
-      Auth.hasOne(models.User, { foreignKey: 'auth_id', as: 'user' });
+class Auth extends Model {}
+
+Auth.init({
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+    validate: {
+      isEmail: true
     }
+  },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  phone_number: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  api_key: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true
+  },
+  status: {
+    type: DataTypes.ENUM('active', 'inactive', 'suspended'),
+    defaultValue: 'active'
   }
+}, {
+  sequelize,
+  modelName: 'Auth',
+  tableName: 'auths',
+  timestamps: true, // This will automatically add created_at and updated_at
+  createdAt: 'created_at',
+  updatedAt: 'updated_at'
+});
 
-  Auth.init({
-    id: {
-      type: DataTypes.STRING(36),
-      primaryKey: true,
-      allowNull: false
-    },
-    email: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
-      validate: {
-        isEmail: true
-      }
-    },
-    password: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-    phone_number: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    api_key: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    status: {
-      type: DataTypes.ENUM('active', 'blocked', 'inactive'),
-      defaultValue: 'active'
-    },
-    created_at: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW
-    },
-    updated_at: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW
-    }
-  }, {
-    sequelize,
-    modelName: 'Auth',
-    tableName: 'auths',
-    timestamps: false
-  });
-
-  return Auth;
-}; 
+module.exports = Auth; 
