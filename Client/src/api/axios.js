@@ -9,24 +9,56 @@ const axiosInstance = axios.create({
   }
 });
 
+axiosInstance.interceptors.request.use(
+  config => {
+    const store = useAuthStore.getState();
+    const accessToken = store.accessToken; // Adjust this based on your store structure
+
+    if (accessToken) {
+      config.headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  error => Promise.reject(error)
+);
+
+// IMPROVED RESPONSE INTERCEPTOR
 axiosInstance.interceptors.response.use(
   response => response,
   async error => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Only retry once and avoid infinite loops
+    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/refresh-token') {
       originalRequest._retry = true;
+
       try {
+        console.log('Attempting to refresh token...');
         const res = await axiosInstance.post('/auth/refresh-token');
         const { accessToken } = res.data;
 
-        // Update Zustand store with new access token
-        const store = useAuthStore.getState();
-        store.updateAccessToken(accessToken);
+        console.log('Token refreshed successfully:', accessToken);
 
-        // Retry the original request
+        // ✅ Update Zustand store
+        const store = useAuthStore.getState();
+        if (store.setAccessToken) {
+          store.setAccessToken(accessToken);
+        }
+
+        // Set the new token for the failed request
+        originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+
         return axiosInstance(originalRequest);
       } catch (refreshError) {
+        console.error('Refresh token failed:', refreshError);
+
+        // Clear the store
+        const store = useAuthStore.getState();
+        if (store.logout) {
+          store.logout();
+        }
+
+        // Redirect to login
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
@@ -35,7 +67,5 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-
 
 export default axiosInstance; 

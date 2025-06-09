@@ -5,7 +5,7 @@ import useAuthStore from '../stores/Zustand.store';
 
 export const useLogin = () => {
 
-  const login = useAuthStore(state => state.login);
+  const setAccessToken = useAuthStore((state) => state.setAccessToken);
 
   return useMutation({
     mutationFn: async (credentials) => {
@@ -14,7 +14,7 @@ export const useLogin = () => {
     },
     onSuccess: (data) => {
       if (data.success) {
-        login(data.data.user, data.data.token);
+        setAccessToken(data.accessToken);
         showLoginSuccess();
       }
     },
@@ -33,7 +33,6 @@ export const useRefreshToken = () => {
       return response.data;
     },
     onError: (error) => {
-      // Only show error if it's not a silent refresh
       if (!error.config?._retry) {
         const errorMessage = error.response?.data?.message || 'Session expired. Please login again.';
         showLoginError({ response: { data: { message: errorMessage } } });

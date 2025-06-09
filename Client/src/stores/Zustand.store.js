@@ -6,10 +6,10 @@ const useAuthStore = create(
         (set) => ({
             user: null,
             isAuthenticated: false,
-            token: null,
-            login: (user, token) => set({ user, token,}),
-            updateAccessToken: (token) => set({ token }),
-        }),
+            accessToken: null,
+            setAccessToken: (token) => set({ accessToken: token }),
+            clearAccessToken: () => set({ accessToken: null })
+        }),{name:"_app"},
     )
 )
 

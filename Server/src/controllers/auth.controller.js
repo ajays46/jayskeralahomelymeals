@@ -52,37 +52,47 @@ export const login = async (req, res, next) => {
 
 export const refreshToken = async (req, res, next) => {
   try {
-    const token = req.cookies.jwt;
-    if (!token) throw new AppError("No refresh token provided", 401);
+      // ADDED DEBUGGING
+      console.log('All cookies:', req.cookies);
+      const token = req.cookies.jwt;
+      console.log('Refresh token from cookie:', token);
+      
+      if (!token) {
+          console.log('No refresh token found in cookies');
+          throw new AppError("No refresh token provided", 401);
+      }
 
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+      console.log('Decoded token:', decoded);
 
-    const auth = await Auth.findByPk(decoded.authId);
-    if (!auth) throw new AppError("Invalid refresh token", 401);
+      const auth = await Auth.findByPk(decoded.authId);
+      console.log('Found auth:', auth ? 'Yes' : 'No');
+      
+      if (!auth) throw new AppError("Invalid refresh token", 401);
 
-    const newAccessToken = generateAccessToken(auth.id);
-    const newRefreshToken = generateRefreshToken(auth.id);
+      const newAccessToken = generateAccessToken(auth.id);
+      const newRefreshToken = generateRefreshToken(auth.id);
 
-    // Update cookie with new refresh token
-    res.cookie('jwt', newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+      // Update cookie with new refresh token
+      res.cookie('jwt', newRefreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+          path: '/',
+          maxAge: 7 * 24 * 60 * 60 * 1000
+      });
 
-    return res.status(200).json({
-      success: true,
-      message: 'Token refreshed successfully',
-      accessToken: newAccessToken,
-    });
+      return res.status(200).json({
+          success: true,
+          message: 'Token refreshed successfully',
+          accessToken: newAccessToken,
+      });
 
   } catch (error) {
-    next(error);
+      console.error('Refresh token error:', error);
+      next(error);
   }
 };
-
 
 
 

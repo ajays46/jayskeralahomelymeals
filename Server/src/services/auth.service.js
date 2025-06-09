@@ -102,14 +102,3 @@ export const loginUser = async ({ identifier, password }) => {
         }
     };
 };
-
-// export const refreshTokenUser = async (refreshToken) => {               
-//     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-//     const auth = await Auth.findByPk(decoded.authId);
-//     if (!auth) {
-//         throw new AppError('Invalid refresh token', 401);
-//     }
-//     const newAccessToken = generateAccessToken(auth.id);
-//     const newRefreshToken = generateRefreshToken(auth.id);
-//     return { accessToken:newAccessToken, refreshToken:newRefreshToken };
-// };
