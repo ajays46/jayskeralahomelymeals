@@ -1,15 +1,20 @@
 import { useMutation } from '@tanstack/react-query';
 import api from '../api/axios';
 import { showLoginSuccess, showLoginError } from '../utils/toastConfig';
+import useAuthStore from '../stores/Zustand.store';
 
 export const useLogin = () => {
+
+  const login = useAuthStore(state => state.login);
+
   return useMutation({
     mutationFn: async (credentials) => {
-      const response = await api.post('/auth/login', credentials);      
+      const response = await api.post('/auth/login', credentials);  
       return response.data;
     },
     onSuccess: (data) => {
       if (data.success) {
+        login(data.data.user, data.data.token);
         showLoginSuccess();
       }
     },

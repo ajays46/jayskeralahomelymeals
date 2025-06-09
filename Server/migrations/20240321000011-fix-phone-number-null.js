@@ -1,6 +1,6 @@
 'use strict';
 
-module.exports = {
+export default {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.changeColumn('auths', 'phone_number', {
       type: Sequelize.STRING,

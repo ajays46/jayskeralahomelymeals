@@ -1,6 +1,7 @@
 import axios from 'axios';
+import useAuthStore from '../stores/Zustand.store';
 
-const instance = axios.create({
+const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   withCredentials: true, // This is important for cookies
   headers: {
@@ -8,27 +9,24 @@ const instance = axios.create({
   }
 });
 
-// Response interceptor for handling token refresh
-instance.interceptors.response.use(
-  (response) => response,
-  async (error) => {
+axiosInstance.interceptors.response.use(
+  response => response,
+  async error => {
     const originalRequest = error.config;
 
-    // If error is 401 and we haven't tried to refresh token yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
       try {
-        // Try to refresh the token
-        const response = await instance.post('/auth/refresh-token');
-        
-        // Update the original request with new tokens
-        originalRequest.headers['Authorization'] = `Bearer ${response.data.data.accessToken}`;
-        
+        const res = await axiosInstance.post('/auth/refresh-token');
+        const { accessToken } = res.data;
+
+        // Update Zustand store with new access token
+        const store = useAuthStore.getState();
+        store.updateAccessToken(accessToken);
+
         // Retry the original request
-        return instance(originalRequest);
+        return axiosInstance(originalRequest);
       } catch (refreshError) {
-        // If refresh fails, redirect to login
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
@@ -38,4 +36,6 @@ instance.interceptors.response.use(
   }
 );
 
-export default instance; 
+
+
+export default axiosInstance; 

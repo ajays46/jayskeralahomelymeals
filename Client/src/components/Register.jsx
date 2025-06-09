@@ -14,7 +14,7 @@ const Register = () => {
     agree: false,
   });
   console.log(formData);
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [errors, setErrors] = useState({});
@@ -63,14 +63,19 @@ const Register = () => {
           }, 2000);
         },
         onError: (error) => {
-          if (error.response?.data?.message?.includes('already registered')) {
+          const message = error.response?.data?.message || '';
+
+          if (message.includes('Email already registered')) {
             setErrors({ email: 'This email is already registered. Please login instead.' });
+          } else if (message.includes('phone number is already registered')) {
+            setErrors({ phone: 'This phone number is already registered. Please login instead.' });
           } else if (error.response?.data?.errors) {
             setErrors(error.response.data.errors);
           } else {
             setErrors({ submit: 'Registration failed. Please try again.' });
           }
         }
+
       });
 
     } catch (error) {

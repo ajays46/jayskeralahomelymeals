@@ -9,7 +9,7 @@ const Login = () => {
   // const { login } = useAuth();
   const { mutate: loginMutation, isPending ,error } = useLogin();
   const [formData, setFormData] = useState({
-    email: '',
+    identifier: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -60,19 +60,19 @@ const Login = () => {
       <p className="text-gray-500 mb-6 text-sm">Welcome back! Please login to your account</p>
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+          <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">Email or Phone Number</label>
           <input
-            id="email"
-            name="email"
-            type="email"
-            className={`block w-full rounded-lg border ${errors.email ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900`}
-            placeholder="Albertstevano@gmail.com"
-            value={formData.email}
+            id="identifier"
+            name="identifier"
+            type="text"
+            className={`block w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900`}
+            placeholder="Enter your email or phone number"
+            value={formData.identifier}
             onChange={handleChange}
             onBlur={handleBlur}
             disabled={isPending}
           />
-          {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
+          {errors.identifier && <p className="mt-1 text-sm text-red-500">{errors.identifier}</p>}
         </div>
         <div className="relative">
           <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>

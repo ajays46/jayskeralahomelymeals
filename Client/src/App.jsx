@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Terms from './components/Terms';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
+import GustPage from './pages/GustPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -24,6 +25,7 @@ const App = () => {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<GustPage />} />
             {/* Add more routes as needed */}
           </Routes>
         {/* </AuthProvider> */}

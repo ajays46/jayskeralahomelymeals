@@ -39,15 +39,7 @@ const validateLogin = (req, res, next) => {
   next();
 };
 
-const validateRefreshToken = (req, res, next) => {
-  const { refreshToken } = req.body;
 
-  if (!refreshToken) {
-    throw new AppError('Refresh token is required', 400);
-  }
-
-  next();
-};
 
 module.exports = {
   validateRegistration,

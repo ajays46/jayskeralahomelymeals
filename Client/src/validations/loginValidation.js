@@ -1,9 +1,9 @@
 import { z } from 'zod';
+import { ZodError } from 'zod';
 
 export const loginSchema = z.object({
-  email: z.string()
-    .email('Please enter a valid email address')
-    .min(1, 'Email is required'),
+  identifier: z.string()
+    .min(1, 'Email or phone is required'),
   password: z.string()
     .min(1, 'Password is required')
 });
@@ -13,6 +13,9 @@ export const validateField = (schema, name, value) => {
     schema.shape[name].parse(value);
     return '';
   } catch (error) {
-    return error.errors[0].message;
+    if (error instanceof ZodError && error.errors[0]) {
+      return error.errors[0].message;
+    }
+    return 'Invalid input';
   }
-}; 
+};
