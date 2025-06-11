@@ -1,12 +1,16 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// import { AuthProvider } from './context/AuthContext';
+
 import Terms from './components/Terms';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import GustPage from './pages/GustPage';
+import HomePage from './pages/HomePage';
+import ProtectedRoute from './protectRoute/Protect';
+import AdminPage from './pages/AdminPage';
+import SellerPage from './pages/SellerPage';
 
-// Create a client
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -20,15 +24,21 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        {/* <AuthProvider> */}
-          <Routes>
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<GustPage />} />
-            {/* Add more routes as needed */}
-          </Routes>
-        {/* </AuthProvider> */}
+        <Routes>
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<GustPage />} />
+
+          {/* ✅ Protected Route */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/home" element={<HomePage />} />
+            <Route path='/admin' element={<AdminPage/>} ></Route>
+            <Route path='/seller' element={<SellerPage />}></Route>
+          </Route>
+
+          {/* Add more protected routes here */}
+        </Routes>
       </Router>
     </QueryClientProvider>
   );

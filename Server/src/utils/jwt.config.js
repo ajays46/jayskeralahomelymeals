@@ -5,11 +5,11 @@ dotenv.config();
 
 
 
-export const generateAccessToken = (authId) => {
+export const generateAccessToken = (userId,role) => {
 
-    return jwt.sign({ authId }, process.env.JWT_ACCESS_SECRET, { expiresIn: '10s' });
+    return jwt.sign({ userId,role }, process.env.JWT_ACCESS_SECRET, { expiresIn: '1m' });
 }
 
-export const generateRefreshToken = (authId) => {
-    return jwt.sign({ authId }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+export const generateRefreshToken = (userId,role) => {
+    return jwt.sign({ userId,role }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
 }

@@ -29,7 +29,7 @@ axiosInstance.interceptors.response.use(
     const originalRequest = error.config;
 
     // Only retry once and avoid infinite loops
-    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/refresh-token') {
+    if (error.response?.status === 401 && !originalRequest._retry && error.response?.data?.expired) {
       originalRequest._retry = true;
 
       try {

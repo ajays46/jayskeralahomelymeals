@@ -1,21 +1,35 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation,useQuery } from '@tanstack/react-query';
 import api from '../api/axios';
 import { showLoginSuccess, showLoginError } from '../utils/toastConfig';
 import useAuthStore from '../stores/Zustand.store';
+import { useNavigate } from 'react-router-dom';
 
 export const useLogin = () => {
 
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
+  const setRole = useAuthStore((state) => state.setRole);
+  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: async (credentials) => {
       const response = await api.post('/auth/login', credentials);  
+      console.log(response.data,"response.data");
+      
       return response.data;
     },
     onSuccess: (data) => {
       if (data.success) {
+        const role = data.data.role;
         setAccessToken(data.accessToken);
+        setRole(role);
         showLoginSuccess();
+        if (role === 'admin') {
+          navigate('/admin');
+        } else if (role === 'seller') {
+          navigate('/seller');
+        } else if (role === 'user') {
+          navigate('/home');
+        }   
       }
     },
     onError: (error) => {
@@ -30,6 +44,8 @@ export const useRefreshToken = () => {
   return useMutation({
     mutationFn: async () => {
       const response = await api.post('/auth/refresh-token');
+      console.log(response, "response refresh");
+      
       return response.data;
     },
     onError: (error) => {
@@ -40,3 +56,13 @@ export const useRefreshToken = () => {
     }
   });
 }; 
+
+export const useUsersList = () => {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const response = await api.get('/auth/home');
+      return response.data;
+    }
+  });
+};

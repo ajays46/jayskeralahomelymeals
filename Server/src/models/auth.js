@@ -11,11 +11,7 @@ Auth.init({
   },
   email: {
     type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-    validate: {
-      isEmail: true
-    }
+    allowNull: false
   },
   password: {
     type: DataTypes.STRING,
@@ -27,8 +23,7 @@ Auth.init({
   },
   api_key: {
     type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
+    allowNull: false
   },
   status: {
     type: DataTypes.ENUM('active', 'inactive', 'suspended'),
@@ -38,9 +33,9 @@ Auth.init({
   sequelize,
   modelName: 'Auth',
   tableName: 'auths',
-  timestamps: true, // This will automatically add created_at and updated_at
+  timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at'
 });
 
-export default Auth; 
+export default Auth;

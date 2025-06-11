@@ -2,6 +2,10 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    // First drop the existing table if it exists
+    await queryInterface.dropTable('auths').catch(() => {});
+
+    // Create the table with proper structure
     await queryInterface.createTable('auths', {
       id: {
         type: Sequelize.UUID,
@@ -10,8 +14,7 @@ module.exports = {
       },
       email: {
         type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
+        allowNull: false
       },
       password: {
         type: Sequelize.STRING,
@@ -23,8 +26,7 @@ module.exports = {
       },
       api_key: {
         type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
+        allowNull: false
       },
       status: {
         type: Sequelize.ENUM('active', 'inactive', 'suspended'),
@@ -40,6 +42,17 @@ module.exports = {
         allowNull: false,
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       }
+    });
+
+    // Add unique constraints one at a time
+    await queryInterface.addIndex('auths', ['email'], {
+      unique: true,
+      name: 'auths_email_unique'
+    });
+
+    await queryInterface.addIndex('auths', ['api_key'], {
+      unique: true,
+      name: 'auths_api_key_unique'
     });
   },
 

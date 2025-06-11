@@ -3,6 +3,8 @@ import AppError from '../utils/AppError.js';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
 import Auth from '../models/auth.js';
+import User from '../models/user.js';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
@@ -10,6 +12,7 @@ dotenv.config();
 export const register = async (req, res, next) => {
   try {
     const { email, password, phone } = req.body;
+    
     const user = await registerUser({ email, password, phone });
     res.status(201).json({
       status: 'success',
@@ -31,10 +34,14 @@ export const login = async (req, res, next) => {
     res.cookie('jwt', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       path: '/', // important
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
+
+    console.log(accessToken, "accessToken");
+    console.log(refreshToken, "refreshToken");
+    
 
     res.status(200).json({
       success: true,
@@ -48,58 +55,65 @@ export const login = async (req, res, next) => {
   }
 };
 
-
-
 export const refreshToken = async (req, res, next) => {
   try {
-      // ADDED DEBUGGING
-      console.log('All cookies:', req.cookies);
-      const token = req.cookies.jwt;
-      console.log('Refresh token from cookie:', token);
+    const token = req.cookies.jwt;
+    
+    if (!token) {
+      throw new AppError("No refresh token provided", 401);
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+      const user = await User.findByPk(decoded.userId);
       
-      if (!token) {
-          console.log('No refresh token found in cookies');
-          throw new AppError("No refresh token provided", 401);
+      if (!user) {
+        throw new AppError("Invalid refresh token", 401);
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-      console.log('Decoded token:', decoded);
+      const newAccessToken = generateAccessToken(user.id, user.role);
+      const newRefreshToken = generateRefreshToken(user.id, user.role);
 
-      const auth = await Auth.findByPk(decoded.authId);
-      console.log('Found auth:', auth ? 'Yes' : 'No');
-      
-      if (!auth) throw new AppError("Invalid refresh token", 401);
-
-      const newAccessToken = generateAccessToken(auth.id);
-      const newRefreshToken = generateRefreshToken(auth.id);
-
-      // Update cookie with new refresh token
       res.cookie('jwt', newRefreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-          path: '/',
-          maxAge: 7 * 24 * 60 * 60 * 1000
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
       return res.status(200).json({
-          success: true,
-          message: 'Token refreshed successfully',
-          accessToken: newAccessToken,
+        success: true,
+        message: 'Token refreshed successfully',
+        accessToken: newAccessToken,
       });
 
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        throw new AppError("Refresh token expired", 401);
+      }
+      throw new AppError("Invalid refresh token", 401);
+    }
+
   } catch (error) {
-      console.error('Refresh token error:', error);
-      next(error);
+    next(error);
   }
 };
 
-
-
+export const usersList = async (req, res, next) => {
+  try {
+    const users = await User.findAll();
+    // console.log(users);
+    
+    res.status(200).json({ users });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Logout user
 export const logout = (req, res) => {
-  res.clearCookie('refreshToken');
+  res.clearCookie('jwt');
   res.status(200).json({
     success: true,
     message: 'Logged out successfully'

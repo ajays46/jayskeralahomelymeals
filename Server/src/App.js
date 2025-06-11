@@ -3,6 +3,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
+import './models/index.js'; // Import models to ensure associations are loaded
+import sequelize from './config/database.js';
 
 dotenv.config();
 
@@ -33,6 +35,16 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+(async () => {
+    try {
+      await sequelize.sync({ alter: true }); 
+  
+      console.log('Database synced successfully.');
+  
+      app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+      });
+    } catch (error) {
+      console.error('Unable to sync database:', error);
+    }
+  })();

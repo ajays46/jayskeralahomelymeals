@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import Auth from '../models/auth.js';
 import User from '../models/user.js';
+import UserRole from '../models/userRole.js';
 import AppError from '../utils/AppError.js';
 import { generateApiKey } from '../utils/helpers.js';
 import validator from 'validator';
@@ -24,27 +25,43 @@ export const registerUser = async ({ email, password, phone }) => {
         throw new AppError('This phone number is already registered. Please login instead.', 400);
     }
 
-
     const hashedPassword = await bcrypt.hash(password, 10);
     const api_key = generateApiKey();
+    const now = new Date();
 
     try {
+        console.log('Creating auth record...');
         const auth = await Auth.create({
             email,
             password: hashedPassword,
             phone_number: phone,
             api_key,
-            status: 'active'
+            status: 'active',
+            created_at: now,
+            updated_at: now
         });
 
-        console.log('auth.id:', auth.id);
+        console.log('Auth created with ID:', auth.id);
 
+        console.log('Creating user record...');
         const user = await User.create({
             auth_id: auth.id,
             status: 'active',
-            created_at: new Date(),
-            updated_at: new Date(),
+            created_at: now,
+            updated_at: now
         });
+
+        console.log('User created with ID:', user.id);
+
+        console.log('Creating user role...');
+        const userRole = await UserRole.create({
+            user_id: user.id,
+            name: 'user',
+            created_at: now,
+            updated_at: now
+        });
+
+        console.log('User role created:', userRole);
 
         return {
             id: auth.id,
@@ -57,48 +74,73 @@ export const registerUser = async ({ email, password, phone }) => {
         };
 
     } catch (err) {
-        console.error('User creation error:', err);
+        console.error('Registration error details:', {
+            name: err.name,
+            message: err.message,
+            stack: err.stack
+        });
+        
         if (err.name === 'SequelizeValidationError') {
             throw new AppError('Validation error: ' + err.message, 400);
         } else if (err.name === 'SequelizeUniqueConstraintError') {
             throw new AppError('Email or API key already exists', 409);
         }
-        throw new AppError('Database error occurred', 500);
+        throw new AppError('Database error occurred: ' + err.message, 500);
     }
 };
 
 export const loginUser = async ({ identifier, password }) => {
-    let where = {};
-    if (validator.isEmail(identifier)) {
-        where.email = identifier;
-    } else {
-        where.phone_number = identifier;
-    }
-
-    const auth = await Auth.findOne({ where });
-
-    if (!auth || !(await bcrypt.compare(password, auth.password))) {
-        throw new AppError('Invalid credentials', 401);
-    }
-
-    if (auth.status !== 'active') {
-        throw new AppError('Account is not active', 403);
-    }
-
-    const accessToken = generateAccessToken(auth.id);
-    const refreshToken = generateRefreshToken(auth.id);
-
-    return {
-        user: {
-            id: auth.id,
-            email: auth.email,
-            phone: auth.phone_number,
-            api_key: auth.api_key,
-            status: auth.status,
-        },
-        token: {
-            accessToken,
-            refreshToken
+    try {
+        let where = {};
+        if (validator.isEmail(identifier)) {
+            where.email = identifier;
+        } else {
+            where.phone_number = identifier;
         }
-    };
+
+        const auth = await Auth.findOne({ where });
+        console.log('auth:', auth);
+
+        if (!auth || !(await bcrypt.compare(password, auth.password))) {
+            throw new AppError('Invalid credentials', 401);
+        }
+
+        if (auth.status !== 'active') {
+            throw new AppError('Account is not active', 403);
+        }
+
+        const user = await User.findOne({ where: { auth_id: auth.id } });
+        console.log(user);
+
+        const userRole = await UserRole.findOne({
+            where: { user_id: user.id }
+        });
+
+        console.log("userRole", userRole);
+
+        if (!user || !userRole) {
+            throw new AppError('User or role not found', 404);
+        }
+
+        const accessToken = generateAccessToken(user.id, userRole.name);
+        const refreshToken = generateRefreshToken(user.id, userRole.name);
+
+        return {
+            user: {
+                id: user.id,
+                email: auth.email,
+                phone: auth.phone_number,
+                api_key: auth.api_key,
+                status: auth.status,
+                role: userRole.name
+            },
+            token: {
+                accessToken,
+                refreshToken
+            }
+        };
+    } catch (error) {
+        console.error('Login error:', error);
+        throw error;
+    }
 };
