@@ -10,6 +10,7 @@ const useAuthStore = create(
             role: null,
             setAccessToken: (token) => set({ accessToken: token }),
             setRole: (role) => set({ role }), 
+            setUser: (user) => set({ user }),
             clearAccessToken: () => set({ accessToken: null })
         }),{name:"_app"},
     )

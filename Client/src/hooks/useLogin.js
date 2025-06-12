@@ -8,6 +8,7 @@ export const useLogin = () => {
 
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const setRole = useAuthStore((state) => state.setRole);
+  const setUser = useAuthStore((state) => state.setUser);
   const navigate = useNavigate();
 
   return useMutation({
@@ -22,14 +23,9 @@ export const useLogin = () => {
         const role = data.data.role;
         setAccessToken(data.accessToken);
         setRole(role);
+        setUser(data.data);
         showLoginSuccess();
-        if (role === 'admin') {
-          navigate('/admin');
-        } else if (role === 'seller') {
-          navigate('/seller');
-        } else if (role === 'user') {
-          navigate('/home');
-        }   
+        navigate('/home');
       }
     },
     onError: (error) => {
