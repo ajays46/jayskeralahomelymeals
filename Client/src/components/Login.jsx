@@ -7,7 +7,8 @@ import { useLogin } from '../hooks/useLogin';
 
 const Login = ({ onClose }) => {
   // const { login } = useAuth();
-  const { mutate: loginMutation, isPending ,error } = useLogin();
+  const { mutate: loginMutation, isPending } = useLogin();
+  
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
@@ -44,7 +45,17 @@ const Login = ({ onClose }) => {
       // If validation passes, proceed with login
       await loginMutation(formData, {
         onSuccess: () => {
-          onClose(); // Close the slider after successful login
+          onClose();
+        },
+        onError: (error) => {
+          const errorMessage = error.response?.data?.message;
+          if (errorMessage?.toLowerCase().includes('invalid')) {
+            setErrors(prev => ({ ...prev, password: 'Invalid credentials please try again' }));
+          } else if (errorMessage?.toLowerCase().includes('not active')) {
+            setErrors(prev => ({ ...prev, identifier: 'Your account is not active yet' }));
+          } else {
+            setErrors(prev => ({ ...prev, submit: errorMessage || 'Login failed' }));
+          }
         }
       });
       
@@ -107,7 +118,11 @@ const Login = ({ onClose }) => {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" /></svg>
               )}
             </button>
-            {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
+            {errors.password && (
+              <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                {errors.password}
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -145,12 +160,6 @@ const Login = ({ onClose }) => {
             <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="h-6 w-6" />
           </button>
         </div>
-        {/* <p className="text-center text-sm text-gray-600">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-orange-500 font-medium hover:underline">
-            Register here
-          </Link>
-        </p> */}
       </div>
     </>
   );

@@ -7,16 +7,16 @@ import {
 import { FaUserCircle } from 'react-icons/fa';
 import useAuthStore from '../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
-import AuthSlider from './AuthSlider';
 
-const Navbar = () => {
+const Navbar = ({ onSignInClick }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [authSliderOpen, setAuthSliderOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
+  const [showNavbar, setShowNavbar] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   // Function to check user roles
   const isAdmin = user?.role?.toLowerCase().includes('admin');
@@ -28,9 +28,18 @@ const Navbar = () => {
     console.log('Is Seller:', isSeller);
   }, [user, isAdmin, isSeller]);
 
-  const handleSignIn = () => {
-    setAuthSliderOpen(true);
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > lastScrollY && window.scrollY > 50) {
+        setShowNavbar(false); // scrolling down
+      } else {
+        setShowNavbar(true); // scrolling up
+      }
+      setLastScrollY(window.scrollY);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   const handleLogout = () => {
     logout();
@@ -38,13 +47,8 @@ const Navbar = () => {
     navigate('/');
   };
 
-  const handleAuthClose = () => {
-    setAuthSliderOpen(false);
-    setMenuOpen(false);
-  };
-
   return (
-    <nav className="bg-[#989494]/50 shadow-md w-full z-50 fixed top-0 left-0">
+    <nav className={`bg-[#989494]/50 shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-24">
           {/* Logo */}
@@ -54,7 +58,7 @@ const Navbar = () => {
               alt="Logo"
               className="w-20 h-20 object-contain rounded-full"
             />
-            <span className="ml-3 font-bold font-marcellus sm:text-xl md:text-2xl text-yellow-200 whitespace-nowrap">
+            <span className="ml-3 font-bold font-marcellus  sm:text-xl md:text-2xl text-yellow-200 whitespace-nowrap">
               Jay's Kerala Homely Meals
             </span>
           </div>
@@ -131,7 +135,7 @@ const Navbar = () => {
               </div>
             ) : (
               <button 
-                onClick={handleSignIn}
+                onClick={onSignInClick}
                 className="text-white hover:text-[#FE8C00] transition font-medium flex items-center gap-1"
               >
                 <MdPerson className="text-xl" /> Sign In
@@ -215,22 +219,22 @@ const Navbar = () => {
           {/* Navigation Links */}
           <div className="px-4 py-3">
             <div className="flex flex-wrap gap-2">
-              <a href="/" className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full">
+              <a href="/" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                 <MdRestaurant className="text-xl" /> Home
               </a>
-              <a href="/menu" className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full">
+              <a href="/menu" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                 <MdRestaurantMenu className="text-xl" /> Menu
               </a>
-                <a href="/contact" className="text-gray-700 hover:text-[#FE8C00] transition font-medium flex items-center gap-1">
-              <MdCalendarToday className="text-xl" /> Bookings
-            </a>
-              <a href="/help" className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full">
+              <a href="/contact" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
+                <MdCalendarToday className="text-xl" /> Bookings
+              </a>
+              <a href="/help" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                 <MdHelp className="text-xl" /> Help
               </a>
-              <a href="/contact" className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full">
+              <a href="/contact" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                 <MdCalendarToday className="text-xl" /> Contact
               </a>
-              <a href="/cart" className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full">
+              <a href="/cart" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                 <MdShoppingCart className="text-xl" /> Cart
               </a>
             </div>
@@ -241,35 +245,35 @@ const Navbar = () => {
             <div className="border-t border-gray-100">
               <div className="px-4 py-3">
                 <div className="flex items-center gap-2 mb-3">
-                  <FaUserCircle className="text-2xl text-gray-700" />
-                  <span className="font-medium text-gray-900">{user.name?.split(' ')[0] || 'User'}</span>
+                  <FaUserCircle className="text-2xl text-white" />
+                  <span className="font-medium text-white">{user.name?.split(' ')[0] || 'User'}</span>
                 </div>
                 
                 <div className="flex flex-wrap gap-2">
-                  <a href="/profile" className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full">
+                  <a href="/profile" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                     <MdPerson className="text-xl" /> Profile
                   </a>
-                  <a href="/orders" className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full">
+                  <a href="/orders" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                     <MdRestaurantMenu className="text-xl" /> Orders
                   </a>
 
                   {/* Admin Options */}
                   {isAdmin && (
-                    <a href="/admin" className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full">
+                    <a href="/admin" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                       <MdAdminPanelSettings className="text-xl" /> Admin
                     </a>
                   )}
 
                   {/* Seller Options */}
                   {isSeller && (
-                    <a href="/seller" className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full">
+                    <a href="/seller" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                       <MdStore className="text-xl" /> Seller
                     </a>
                   )}
 
                   <button 
                     onClick={handleLogout}
-                    className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full"
+                    className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full"
                   >
                     <MdLogout className="text-xl" /> Logout
                   </button>
@@ -279,8 +283,8 @@ const Navbar = () => {
           ) : (
             <div className="border-t border-gray-100 px-4 py-3">
               <button 
-                onClick={handleSignIn}
-                className="flex items-center gap-1 px-3 py-2 text-gray-700 hover:text-[#FE8C00] bg-gray-50 rounded-full"
+                onClick={onSignInClick}
+                className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full"
               >
                 <MdPerson className="text-xl" /> Sign In
               </button>
@@ -288,12 +292,6 @@ const Navbar = () => {
           )}
         </div>
       )}
-
-      {/* Auth Slider */}
-      <AuthSlider 
-        isOpen={authSliderOpen} 
-        onClose={handleAuthClose}
-      />
     </nav>
   );
 };

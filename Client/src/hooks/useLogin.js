@@ -13,9 +13,7 @@ export const useLogin = () => {
 
   return useMutation({
     mutationFn: async (credentials) => {
-      const response = await api.post('/auth/login', credentials);  
-      console.log(response.data,"response.data");
-      
+      const response = await api.post('/auth/login', credentials);       
       return response.data;
     },
     onSuccess: (data) => {
@@ -29,8 +27,11 @@ export const useLogin = () => {
       }
     },
     onError: (error) => {
-      // Get the error message from the server response
-      const errorMessage = error.response?.data?.message 
+      const errorMessage = error.response?.data?.message;
+      if (errorMessage && errorMessage.toLowerCase().includes('invalid')) {
+        // Do not show Toastify for invalid credentials, let Login.jsx handle it inline
+        return;
+      }
       showLoginError({ response: { data: { message: errorMessage } } });
     }
   });

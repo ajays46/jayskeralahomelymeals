@@ -99,10 +99,10 @@ export const loginUser = async ({ identifier, password }) => {
         }
 
         const auth = await Auth.findOne({ where });
-        console.log('auth:', auth);
 
+        
         if (!auth || !(await bcrypt.compare(password, auth.password))) {
-            throw new AppError('Invalid credentials', 401);
+            throw new AppError('Invalid credentials Please try again', 401);
         }
 
         if (auth.status !== 'active') {
