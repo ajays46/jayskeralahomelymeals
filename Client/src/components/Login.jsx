@@ -1,22 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
 import { Link } from 'react-router-dom';
 // import { useAuth } from '../context/AuthContext';
 import { useLogin } from '../hooks/useLogin';
+import SuccessPopup from './SuccessPopup';
 
-const Login = ({ onClose }) => {
+const Login = ({ onClose, onForgotPassword }) => {
   // const { login } = useAuth();
   const { mutate: loginMutation, isPending } = useLogin();
-  
+  const [userRole, setUserRole] = useState('');
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showPopup, setShowPopup] = useState(false);
 
-  
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prevState => ({
@@ -37,15 +39,18 @@ const Login = ({ onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       // Validate all fields
       loginSchema.parse(formData);
-      
+
       // If validation passes, proceed with login
       await loginMutation(formData, {
         onSuccess: () => {
-          onClose();
+        
+            setShowPopup(true);
+        
+          
         },
         onError: (error) => {
           const errorMessage = error.response?.data?.message;
@@ -58,7 +63,7 @@ const Login = ({ onClose }) => {
           }
         }
       });
-      
+
     } catch (error) {
       if (error instanceof z.ZodError) {
         const newErrors = {};
@@ -72,6 +77,16 @@ const Login = ({ onClose }) => {
 
   return (
     <>
+      {showPopup && (
+        <SuccessPopup
+          role={userRole} 
+          buttonText="CONTINUE"
+          onClose={() => {
+            setShowPopup(false);
+            onClose();
+          }}
+        />
+      )}
       <h2 className="text-3xl font-bold text-gray-900 mb-4 lg:text-start text-center">Login to your account</h2>
       <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md">
         <p className="text-gray-500 mb-6 text-sm">Welcome back! Please login to your account</p>
@@ -137,9 +152,14 @@ const Login = ({ onClose }) => {
                 Remember me
               </label>
             </div>
-            <Link to="/forgot-password" className="text-sm text-orange-500 hover:underline">
+            <button
+              type="button"
+              className="text-sm text-orange-500 hover:underline bg-transparent border-none p-0"
+              onClick={onForgotPassword}
+              disabled={isPending}
+            >
               Forgot password?
-            </Link>
+            </button>
           </div>
           {errors.submit && <p className="mt-1 text-sm text-red-500">{errors.submit}</p>}
           <button
@@ -147,7 +167,17 @@ const Login = ({ onClose }) => {
             disabled={isPending}
             className={`w-full py-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold text-lg shadow-md transition-colors ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {isPending ? 'Logging in...' : 'Login'}
+            {isPending ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                </svg>
+                Logging in...
+              </span>
+            ) : (
+              'Login'
+            )}
           </button>
         </form>
         <div className="flex items-center my-6">

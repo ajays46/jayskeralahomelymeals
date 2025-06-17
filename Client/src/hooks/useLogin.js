@@ -22,7 +22,7 @@ export const useLogin = () => {
         setAccessToken(data.accessToken);
         setRole(role);
         setUser(data.data);
-        showLoginSuccess();
+        // showLoginSuccess();
         navigate('/home');
       }
     },
@@ -60,6 +60,19 @@ export const useUsersList = () => {
     queryFn: async () => {
       const response = await api.get('/auth/home');
       return response.data;
+    }
+  });
+};
+
+export const useForgotPassword = () => {
+  return useMutation({
+    mutationFn: async (identifier) => {
+      const response = await api.post('/auth/forgot-password', { identifier });
+      return response.data;
+    },
+    onError: (error) => {
+      const errorMessage = error.response?.data?.message || 'Failed to send reset link.';
+      showLoginError({ response: { data: { message: errorMessage } } });
     }
   });
 };

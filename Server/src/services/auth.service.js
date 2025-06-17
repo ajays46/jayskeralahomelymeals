@@ -5,9 +5,10 @@ import User from '../models/user.js';
 import UserRole from '../models/userRole.js';
 import AppError from '../utils/AppError.js';
 import { generateApiKey } from '../utils/helpers.js';
+import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
-
+import nodemailer from 'nodemailer';
 dotenv.config();
 
 export const registerUser = async ({ email, password, phone }) => {
@@ -144,3 +145,72 @@ export const loginUser = async ({ identifier, password }) => {
         throw error;
     }
 };
+
+export const forgotPasswordService = async (identifier) => {
+    let where = {};
+    if (validator.isEmail(identifier)) {
+        where.email = identifier;
+    } else {
+        where.phone_number = identifier;
+    }
+    const auth = await Auth.findOne({ where });
+    console.log(auth, "auth");
+    
+    if (!auth) {
+        throw new AppError('No user found with this email or phone number', 404);
+    }
+
+    const token = jwt.sign({ id: auth.id }, process.env.JWT_ACCESS_SECRET, { expiresIn: '1d' });
+    
+
+    var transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user:process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+
+    const mailOptions = {
+        from: '"Jay\'s Kerala Enterprises" <ajay.g@jayskeralaenterprises.com>',
+        to: auth.email,
+        subject: 'Reset Your Password',
+        html: `
+            <p>Hello,</p>
+            <p>You requested a password reset. Please click the link below to reset your password:</p>
+            <a href="http://localhost:5173/reset-password/${token}/${auth.id}">
+                Reset Password
+            </a>
+            <p>If you didn’t request this, you can ignore this email.</p>
+        `    };
+    
+    transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+            console.log(error);
+        } else {
+            console.log('Email sent: ' + info.response);
+        }
+    });
+    return { success: true, message: 'If an account exists, a reset link has been sent.' };
+};
+
+
+export const resetPasswordService = async (token, id, newPassword) => {
+    try{
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    const auth = await Auth.findByPk(decoded.id);
+    if(auth.id !== id){
+        throw new AppError('Invalid token', 401);
+    }
+   
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    auth.password = hashedPassword;
+    await auth.save();
+    return { success: true, message: 'Password reset successfully' };  
+    }
+    catch(error){
+        console.error('Reset password error:', error);
+        throw error;
+    }
+             
+}

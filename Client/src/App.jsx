@@ -9,6 +9,7 @@ import HomePage from './pages/HomePage';
 import ProtectedRoute from './protectRoute/Protect';
 import AdminPage from './pages/AdminPage';
 import SellerPage from './pages/SellerPage';
+import ResetPassword from './components/ResetPassword';
 
 
 const queryClient = new QueryClient({
@@ -30,6 +31,7 @@ const App = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<GustPage />} />
           <Route path="/home" element={<HomePage />} />
+          <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
 
           {/* ✅ Protected Route */}
           <Route element={<ProtectedRoute />}>

@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import Login from './Login';
 import Register from './Register';
+import ForgotPassword from './ForgotPassword';
 import { IoClose } from 'react-icons/io5';
 
 const AuthSlider = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('login');
+  const [showForgot, setShowForgot] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     const handleSwitchToLogin = (event) => {
       setActiveTab('login');
+      setShowForgot(false);
       setSuccessMessage(event.detail.message);
       // Clear success message after 5 seconds
       setTimeout(() => setSuccessMessage(''), 5000);
@@ -38,9 +41,9 @@ const AuthSlider = ({ isOpen, onClose }) => {
               <div className="flex justify-between items-center">
                 <div className="flex space-x-4">
                   <button
-                    onClick={() => setActiveTab('login')}
+                    onClick={() => { setActiveTab('login'); setShowForgot(false); }}
                     className={`px-4 py-2 text-sm font-medium rounded-md ${
-                      activeTab === 'login'
+                      activeTab === 'login' && !showForgot
                         ? 'text-orange-500 border-b-2 border-orange-500'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
@@ -48,7 +51,7 @@ const AuthSlider = ({ isOpen, onClose }) => {
                     Login
                   </button>
                   <button
-                    onClick={() => setActiveTab('register')}
+                    onClick={() => { setActiveTab('register'); setShowForgot(false); }}
                     className={`px-4 py-2 text-sm font-medium rounded-md ${
                       activeTab === 'register'
                         ? 'text-orange-500 border-b-2 border-orange-500'
@@ -75,7 +78,13 @@ const AuthSlider = ({ isOpen, onClose }) => {
                     {successMessage}
                   </div>
                 )}
-                {activeTab === 'login' ? <Login onClose={onClose} /> : <Register />}
+                {showForgot ? (
+                  <ForgotPassword onBackToLogin={() => setShowForgot(false)} />
+                ) : activeTab === 'login' ? (
+                  <Login onClose={onClose} onForgotPassword={() => setShowForgot(true)} />
+                ) : (
+                  <Register />
+                )}
               </div>
             </div>
           </div>

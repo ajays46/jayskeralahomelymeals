@@ -36,7 +36,7 @@
       "category": "Veg"
     },
     {
-      "image": "https://images.unsplash.com/photo-1506089676908-3592f7389d4d?auto=format&fit=crop&w=600&q=80",
+      
       "product_name": "Spicy Chicken Tacos (3pcs)",
       "price": 11.20,
       "category": "Non-veg"
@@ -78,7 +78,7 @@
       "category": "Drinks"
     },
     {
-      "image": "https://images.unsplash.com/photo-1506089676908-3592f7389d4d?auto=format&fit=crop&w=600&q=80",
+      
       "product_name": "French Fries",
       "price": 3.50,
       "category": "Snacks"

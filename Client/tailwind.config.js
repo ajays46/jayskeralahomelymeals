@@ -8,7 +8,9 @@ const textShadow = require('tailwindcss-textshadow');
   theme: {
     extend: {
       fontFamily: {
-        marcellus: ['Marcellus', 'serif'],
+        marcellus: ['Marcellus', 'serif',
+          'Merriweather', 'serif'
+        ],
         roboto: ['Roboto', 'sans-serif'],
       },
     },

@@ -1,4 +1,4 @@
-import { registerUser, loginUser } from '../services/auth.service.js';
+import { registerUser, loginUser,  forgotPasswordService, resetPasswordService } from '../services/auth.service.js';
 import AppError from '../utils/AppError.js';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
@@ -108,6 +108,29 @@ export const usersList = async (req, res, next) => {
     res.status(200).json({ users });
   } catch (error) {
     next(error);
+  }
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { identifier } = req.body;
+    console.log(identifier, "identifier");
+    
+    const result = await forgotPasswordService(identifier);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { token, id, newPassword} = req.body;
+    console.log(token, id, newPassword, "token, id, newPassword");
+    const result = await resetPasswordService(token, id, newPassword);
+    res.status(200).json(result);
+  } catch (error) { 
+    next(error);  
   }
 };
 
