@@ -14,7 +14,7 @@ const roles = {
     description: 'Handle products and view orders.'
   },
   user: {
-    title: 'User',
+    title: 'Customer',
     icon: <FaUser className="text-green-600 text-3xl" />,
     description: 'Browse and place orders.'
   }

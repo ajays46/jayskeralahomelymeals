@@ -122,7 +122,7 @@ export const loginUser = async ({ identifier, password }) => {
         if (!user || !userRole) {
             throw new AppError('User or role not found', 404);
         }
-
+        console.log("userRole.name", userRole.name);
         const accessToken = generateAccessToken(user.id, userRole.name);
         const refreshToken = generateRefreshToken(user.id, userRole.name);
 
@@ -213,4 +213,25 @@ export const resetPasswordService = async (token, id, newPassword) => {
         throw error;
     }
              
+}
+
+export const adminLoginService = async (userId) => {
+    const user = await User.findOne({ where:{id:userId}});
+    if(!user){  
+        throw new AppError('User not found', 404);
+    }
+    const userRole = await UserRole.findOne({ where:{user_id:userId}});
+    if(!userRole){
+        throw new AppError('User role not found', 404);
+    }
+    const auth = await Auth.findOne({ where: { id: user.auth_id } });
+
+    return {
+    id: user.id,
+    name: user.name,
+    email: auth?.email ,
+    phone: auth?.phone_number ,
+    role: userRole?.name ,
+    status: auth?.status 
+  };
 }

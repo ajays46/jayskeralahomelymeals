@@ -1,10 +1,11 @@
-import { registerUser, loginUser,  forgotPasswordService, resetPasswordService } from '../services/auth.service.js';
+import { registerUser, loginUser, forgotPasswordService, resetPasswordService, adminLoginService } from '../services/auth.service.js';
 import AppError from '../utils/AppError.js';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
 import Auth from '../models/auth.js';
 import User from '../models/user.js';
 import jwt from 'jsonwebtoken';
+import UserRole from '../models/userRole.js';
 
 dotenv.config();
 
@@ -12,7 +13,7 @@ dotenv.config();
 export const register = async (req, res, next) => {
   try {
     const { email, password, phone } = req.body;
-    
+
     const user = await registerUser({ email, password, phone });
     res.status(201).json({
       status: 'success',
@@ -41,7 +42,7 @@ export const login = async (req, res, next) => {
 
     console.log(accessToken, "accessToken");
     console.log(refreshToken, "refreshToken");
-    
+
 
     res.status(200).json({
       success: true,
@@ -55,10 +56,25 @@ export const login = async (req, res, next) => {
   }
 };
 
+export const adminLogin = async (req, res, next) => {
+
+  try {
+    const { userId, role } = req.user;
+    const admin = await adminLoginService(userId);
+    res.status(200).json({
+      success: true,
+      message: 'Admin login successful',
+      user: admin,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const refreshToken = async (req, res, next) => {
   try {
     const token = req.cookies.jwt;
-    
+
     if (!token) {
       throw new AppError("No refresh token provided", 401);
     }
@@ -66,13 +82,18 @@ export const refreshToken = async (req, res, next) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
       const user = await User.findByPk(decoded.userId);
-      
+
       if (!user) {
         throw new AppError("Invalid refresh token", 401);
       }
 
-      const newAccessToken = generateAccessToken(user.id, user.role);
-      const newRefreshToken = generateRefreshToken(user.id, user.role);
+      const userRole = await UserRole.findOne({ where: { user_id: user.id } });
+      if (!userRole) {
+        throw new AppError("User role not found", 403);
+      }
+
+      const newAccessToken = generateAccessToken(user.id, userRole.name);
+      const newRefreshToken = generateRefreshToken(user.id, userRole.name);
 
       res.cookie('jwt', newRefreshToken, {
         httpOnly: true,
@@ -104,7 +125,7 @@ export const usersList = async (req, res, next) => {
   try {
     const users = await User.findAll();
     // console.log(users);
-    
+
     res.status(200).json({ users });
   } catch (error) {
     next(error);
@@ -115,7 +136,7 @@ export const forgotPassword = async (req, res, next) => {
   try {
     const { identifier } = req.body;
     console.log(identifier, "identifier");
-    
+
     const result = await forgotPasswordService(identifier);
     res.status(200).json(result);
   } catch (error) {
@@ -125,12 +146,12 @@ export const forgotPassword = async (req, res, next) => {
 
 export const resetPassword = async (req, res, next) => {
   try {
-    const { token, id, newPassword} = req.body;
+    const { token, id, newPassword } = req.body;
     console.log(token, id, newPassword, "token, id, newPassword");
     const result = await resetPasswordService(token, id, newPassword);
     res.status(200).json(result);
-  } catch (error) { 
-    next(error);  
+  } catch (error) {
+    next(error);
   }
 };
 

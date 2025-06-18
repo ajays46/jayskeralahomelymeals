@@ -4,9 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 
-
 export const generateAccessToken = (userId,role) => {
-
     return jwt.sign({ userId,role }, process.env.JWT_ACCESS_SECRET, { expiresIn: '1m' });
 }
 

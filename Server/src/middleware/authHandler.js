@@ -13,12 +13,12 @@ export const authenticateToken = (req, res, next) => {
     if (!token) {
         return res.status(401).json({ message: 'No token provided' });
     }
-    console.log(token, "token auth");
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-        console.log(decoded, "decoded");
+        console.log("DECODED JWT:", decoded);
         req.user = decoded;
+       
         next();
     } catch (err) {
         if (err.name === 'TokenExpiredError') {

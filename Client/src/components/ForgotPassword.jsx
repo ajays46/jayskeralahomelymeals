@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { validateForgotIdentifier } from '../validations/forgotValidation';
-import { useForgotPassword } from '../hooks/useLogin';
+import { useForgotPassword } from '../hooks/userHooks/useLogin';
 
 const ForgotPassword = ({ onBackToLogin }) => {
   const [identifier, setIdentifier] = useState('');

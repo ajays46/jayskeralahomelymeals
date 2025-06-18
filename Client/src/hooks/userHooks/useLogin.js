@@ -1,7 +1,7 @@
 import { useMutation,useQuery } from '@tanstack/react-query';
-import api from '../api/axios';
-import { showLoginSuccess, showLoginError } from '../utils/toastConfig';
-import useAuthStore from '../stores/Zustand.store';
+import api from '../../api/axios';
+import { showLoginSuccess, showLoginError } from '../../utils/toastConfig';
+import useAuthStore from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 
 export const useLogin = () => {
@@ -23,7 +23,7 @@ export const useLogin = () => {
         setRole(role);
         setUser(data.data);
         // showLoginSuccess();
-        navigate('/home');
+        navigate('/');
       }
     },
     onError: (error) => {

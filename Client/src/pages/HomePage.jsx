@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useUsersList } from '../hooks/useLogin';
+import { useUsersList } from '../hooks/userHooks/useLogin';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
 import dummyData from '../dummy.json';

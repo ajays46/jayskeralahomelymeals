@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Terms from './Terms';
 import { z } from 'zod';
 import { registerSchema, validateField } from '../validations/registerValidation';
-import { useRegister } from '../hooks/useRegister';
+import { useRegister } from '../hooks/userHooks/useRegister';
 import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
