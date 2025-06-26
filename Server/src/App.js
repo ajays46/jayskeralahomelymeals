@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import './models/index.js'; // Import models to ensure associations are loaded
-import sequelize from './config/database.js';
+// import sequelize from './config/database.js';
 
 dotenv.config();
 
@@ -39,7 +39,7 @@ const PORT = process.env.PORT || 5000;
 
 (async () => {
     try {
-      await sequelize.sync({ alter: true }); 
+      // await sequelize.sync({ alter: true }); 
   
       console.log('Database synced successfully.');
   

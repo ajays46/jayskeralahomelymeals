@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model Auth {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  email       String   @unique @db.VarChar(255)
+  password    String   @db.VarChar(255)
+  phoneNumber String?  @map("phone_number") @db.VarChar(255)
+  apiKey      String   @map("api_key") @db.VarChar(255)
+  status      Status   @default(ACTIVE)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User?
+
+  @@map("auths")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  authId    String   @unique @map("auth_id") @db.VarChar(36)
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  auth     Auth      @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userRole UserRole?
+
+  @@map("users")
+}
+
+model UserRole {
+  userId    String   @id @map("user_id") @db.VarChar(36)
+  name      RoleName @default(USER)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("user_roles")
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  INACTIVE
+}
+
+enum RoleName {
+  USER
+  SELLER
+  ADMIN
+}

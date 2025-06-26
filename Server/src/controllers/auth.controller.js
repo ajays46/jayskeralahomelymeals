@@ -2,10 +2,8 @@ import { registerUser, loginUser, forgotPasswordService, resetPasswordService, a
 import AppError from '../utils/AppError.js';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
-import Auth from '../models/auth.js';
-import User from '../models/user.js';
+import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
-import UserRole from '../models/userRole.js';
 
 dotenv.config();
 
@@ -43,7 +41,6 @@ export const login = async (req, res, next) => {
     console.log(accessToken, "accessToken");
     console.log(refreshToken, "refreshToken");
 
-
     res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -57,7 +54,6 @@ export const login = async (req, res, next) => {
 };
 
 export const adminLogin = async (req, res, next) => {
-
   try {
     const { userId, role } = req.user;
     const admin = await adminLoginService(userId);
@@ -81,19 +77,23 @@ export const refreshToken = async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-      const user = await User.findByPk(decoded.userId);
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        include: {
+          userRole: true
+        }
+      });
 
       if (!user) {
         throw new AppError("Invalid refresh token", 401);
       }
 
-      const userRole = await UserRole.findOne({ where: { user_id: user.id } });
-      if (!userRole) {
+      if (!user.userRole) {
         throw new AppError("User role not found", 403);
       }
 
-      const newAccessToken = generateAccessToken(user.id, userRole.name);
-      const newRefreshToken = generateRefreshToken(user.id, userRole.name);
+      const newAccessToken = generateAccessToken(user.id, user.userRole.name);
+      const newRefreshToken = generateRefreshToken(user.id, user.userRole.name);
 
       res.cookie('jwt', newRefreshToken, {
         httpOnly: true,
@@ -123,8 +123,12 @@ export const refreshToken = async (req, res, next) => {
 
 export const usersList = async (req, res, next) => {
   try {
-    const users = await User.findAll();
-    // console.log(users);
+    const users = await prisma.user.findMany({
+      include: {
+        auth: true,
+        userRole: true
+      }
+    });
 
     res.status(200).json({ users });
   } catch (error) {
