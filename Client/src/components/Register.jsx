@@ -3,10 +3,8 @@ import Terms from './Terms';
 import { z } from 'zod';
 import { registerSchema, validateField } from '../validations/registerValidation';
 import { useRegister } from '../hooks/userHooks/useRegister';
-import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -19,9 +17,7 @@ const Register = () => {
   const [showTerms, setShowTerms] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const { mutate: register, isPending, error } = useRegister();
-
-
+  const { mutate: register, isPending } = useRegister();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

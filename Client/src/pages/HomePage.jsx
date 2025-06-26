@@ -6,7 +6,7 @@ import dummyData from '../dummy.json';
 import { FiChevronRight } from 'react-icons/fi';
 
 const HomePage = () => {
-    const { data, isLoading, error } = useUsersList();
+    const { data } = useUsersList();
     const [authSliderOpen, setAuthSliderOpen] = useState(false);
     const handleOpenAuthSlider = () => setAuthSliderOpen(true);
     const handleCloseAuthSlider = () => setAuthSliderOpen(false);

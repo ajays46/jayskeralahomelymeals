@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
 import { Link } from 'react-router-dom';
@@ -9,7 +9,7 @@ import SuccessPopup from './SuccessPopup';
 const Login = ({ onClose, onForgotPassword }) => {
   // const { login } = useAuth();
   const { mutate: loginMutation, isPending } = useLogin();
-  const [userRole, setUserRole] = useState('');
+  const [userRole] = useState('');
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
