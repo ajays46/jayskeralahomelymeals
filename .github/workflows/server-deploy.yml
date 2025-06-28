@@ -47,7 +47,7 @@ jobs:
         port: ${{ secrets.EC2_PORT }}
         script: |
           # Define common variables
-          PROJECT_DIR="jayskeralahomelymeals/Server"
+          PROJECT_DIR="/home/${{ secrets.EC2_USERNAME }}/jayskeralahomelymeals/Server"
           PM2_APP_NAME="jayskeralahm-server"
 
           # Navigate to project directory
