@@ -1,0 +1,98 @@
+name: Deploy Server to EC2
+
+on:
+  push:
+    branches:
+      - main  # or your default branch
+    paths:
+      - 'Server/**'  # Only trigger on changes in Server folder
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: Server/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: ./Server
+      run: npm ci
+      
+    - name: Generate Prisma client
+      working-directory: ./Server
+      run: npm run db:generate
+      
+    - name: Run database migrations
+      working-directory: ./Server
+      run: npm run db:migrate
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        
+    - name: Create environment file
+      working-directory: ./Server
+      run: |
+        cat > .env << EOF
+        NODE_ENV=production
+        DATABASE_URL="${{ secrets.DATABASE_URL }}"
+        JWT_SECRET="${{ secrets.JWT_SECRET }}"
+        PORT=3000
+        FRONTEND_URL="${{ secrets.FRONTEND_URL }}"
+        EMAIL_HOST="${{ secrets.EMAIL_HOST }}"
+        EMAIL_PORT="${{ secrets.EMAIL_PORT }}"
+        EMAIL_USER="${{ secrets.EMAIL_USER }}"
+        EMAIL_PASS="${{ secrets.EMAIL_PASS }}"
+        EOF
+        
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: ${{ secrets.EC2_PORT }}
+        script: |
+          # Navigate to project directory
+          cd /home/${{ secrets.EC2_USERNAME }}/jayskeralahm/Server
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Install dependencies
+          npm ci
+          
+          # Generate Prisma client
+          npm run db:generate
+          
+          # Run database migrations
+          npm run db:migrate
+          
+          # Create environment file on server
+          cat > .env << 'EOF'
+          NODE_ENV=production
+          DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          JWT_SECRET="${{ secrets.JWT_SECRET }}"
+          PORT="${{ secrets.PORT }}"
+          FRONTEND_PROD_URL="${{ secrets.FRONTEND_PROD_URL }}"
+          FRONTEND_DEV_URL="${{ secrets.FRONTEND_DEV_URL }}"
+          EMAIL_HOST="${{ secrets.EMAIL_HOST }}"
+          EMAIL_PORT="${{ secrets.EMAIL_PORT }}"
+          EMAIL_USER="${{ secrets.EMAIL_USER }}"
+          EMAIL_PASS="${{ secrets.EMAIL_PASS }}"
+          EOF
+          
+          # Set proper permissions for .env file
+          chmod 600 .env
+          
+          # Restart the application
+          pm2 restart jayskeralahm-server || pm2 start src/App.js --name jayskeralahm-server
+          
+          echo "Deployment completed successfully!" 
