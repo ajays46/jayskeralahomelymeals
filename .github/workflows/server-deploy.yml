@@ -11,6 +11,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: deployment
 
     steps:
     - name: Checkout code
@@ -30,27 +31,7 @@ jobs:
     - name: Generate Prisma client
       working-directory: ./Server
       run: npm run db:generate
-
-    # --- REFINED DEBUG STEP ---
-    - name: Debug DATABASE_URL presence
-      working-directory: ./Server
-      run: |
-        echo "Attempting to read DATABASE_URL..."
-        if [ -z "${{ secrets.DATABASE_URL }}" ]; then
-          echo "Error: The secret 'DATABASE_URL' is truly empty or not found by the workflow system."
-          echo "Please double-check GitHub Repository/Environment Secrets."
-          exit 1
-        else
-          echo "Secret 'DATABASE_URL' is being passed from GitHub (value masked)."
-          # Print the variable directly to confirm it's seen as existing by the shell
-          echo "Raw DATABASE_URL (masked): ${{ secrets.DATABASE_URL }}"
-          # Get length of the masked string (should be > 0 if secret is set)
-          echo "Length of masked DATABASE_URL: ${#DATABASE_URL}"
-        fi
-      env: # Ensure DATABASE_URL is available for the shell command in this step
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-    # --- END REFINED DEBUG STEP ---
-
+      
     - name: Run database migrations
       working-directory: ./Server
       run: npm run db:migrate
