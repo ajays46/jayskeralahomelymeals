@@ -5,7 +5,6 @@ import { validateResetPassword } from '../validations/resetValidation';
 
 const ResetPassword = () => {
     const { token, id } = useParams();
-    console.log(token, id, "token and id");
     
     const [newPassword, setNewPassword] = useState('');
     const [confirm, setConfirm] = useState('');
@@ -43,7 +42,7 @@ const ResetPassword = () => {
             await api.post('/auth/reset-password', { token, id, newPassword });
             setSuccess('Password reset successful! You can now log in.');
             setShowPopup(true);
-            setTimeout(() => navigate('/home'), 2000);
+            setTimeout(() => navigate('/'), 2000);
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to reset password.');
         } finally {

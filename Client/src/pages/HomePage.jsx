@@ -10,7 +10,6 @@ const HomePage = () => {
     const [authSliderOpen, setAuthSliderOpen] = useState(false);
     const handleOpenAuthSlider = () => setAuthSliderOpen(true);
     const handleCloseAuthSlider = () => setAuthSliderOpen(false);
-    console.log(data);
   return (
     <div>
       <header>

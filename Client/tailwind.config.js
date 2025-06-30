@@ -10,9 +10,10 @@ module.exports = {
     extend: {
       fontFamily: {
         marcellus: ['Marcellus', 'serif',
-          'Merriweather', 'serif'
+          'Merriweather', 'serif',
         ],
         roboto: ['Roboto', 'sans-serif'],
+        leagueSpartan: ['League Spartan', 'sans-serif'],
       },
     },
   },

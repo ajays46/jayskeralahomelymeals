@@ -41,8 +41,6 @@ export const useRefreshToken = () => {
   return useMutation({
     mutationFn: async () => {
       const response = await api.post('/auth/refresh-token');
-      console.log(response, "response refresh");
-      
       return response.data;
     },
     onError: (error) => {

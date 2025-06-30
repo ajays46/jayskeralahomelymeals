@@ -23,12 +23,6 @@ const Navbar = ({ onSignInClick }) => {
   const isSeller = user?.role?.toLowerCase().includes('seller');
 
   useEffect(() => {
-    console.log('Current user:', user);
-    console.log('Is Admin:', isAdmin);
-    console.log('Is Seller:', isSeller);
-  }, [user, isAdmin, isSeller]);
-
-  useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > lastScrollY && window.scrollY > 50) {
         setShowNavbar(false); // scrolling down
@@ -58,7 +52,7 @@ const Navbar = ({ onSignInClick }) => {
               alt="Logo"
               className="w-20 h-20 object-contain rounded-full"
             />
-            <span className="ml-3 font-bold font-marcellus  sm:text-xl md:text-2xl text-yellow-200 whitespace-nowrap">
+            <span className="ml-3 font-bold font-leagueSpartan  sm:text-xl md:text-2xl text-yellow-200 whitespace-nowrap">
               Jay's Kerala Homely Meals
             </span>
           </div>

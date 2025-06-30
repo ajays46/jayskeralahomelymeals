@@ -33,11 +33,8 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        console.log('Attempting to refresh token...');
         const res = await axiosInstance.post('/auth/refresh-token');
         const { accessToken } = res.data;
-
-        console.log('Token refreshed successfully:', accessToken);
 
         // ✅ Update Zustand store
         const store = useAuthStore.getState();
@@ -50,8 +47,6 @@ axiosInstance.interceptors.response.use(
 
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        console.error('Refresh token failed:', refreshError);
-
         // Clear the store
         const store = useAuthStore.getState();
         if (store.logout) {
