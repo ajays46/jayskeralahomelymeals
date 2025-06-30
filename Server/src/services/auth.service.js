@@ -160,7 +160,7 @@ export const forgotPasswordService = async (identifier) => {
     const token = jwt.sign({ id: auth.id }, process.env.JWT_ACCESS_SECRET, { expiresIn: '1d' });
     
 
-    var transporter = nodemailer.createTransporter({
+    var transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
             user:process.env.EMAIL_USER,
