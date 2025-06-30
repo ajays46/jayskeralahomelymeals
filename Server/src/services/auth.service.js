@@ -175,7 +175,7 @@ export const forgotPasswordService = async (identifier) => {
         html: `
             <p>Hello,</p>
             <p>You requested a password reset. Please click the link below to reset your password:</p>
-            <a href="http://localhost:5173/reset-password/${token}/${auth.id}">
+            <a href="${process.env.FRONTEND_URL}/reset-password/${token}/${auth.id}">
                 Reset Password
             </a>
             <p>If you didn't request this, you can ignore this email.</p>
