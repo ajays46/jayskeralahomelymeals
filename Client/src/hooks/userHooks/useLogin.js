@@ -23,7 +23,7 @@ export const useLogin = () => {
         setRole(role);
         setUser(data.data);
         // showLoginSuccess();
-        navigate('/');
+        navigate('/jayskeralahomelymeals');
       }
     },
     onError: (error) => {

@@ -43,7 +43,7 @@ const Navbar = ({ onSignInClick }) => {
 
   return (
     <nav className={`bg-[#989494]/50 shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-3">
         <div className="flex justify-between items-center h-24">
           {/* Logo */}
           <div className="flex items-center">
@@ -52,9 +52,11 @@ const Navbar = ({ onSignInClick }) => {
               alt="Logo"
               className="w-20 h-20 object-contain rounded-full"
             />
-            <span className="ml-3 font-bold font-leagueSpartan  sm:text-xl md:text-2xl text-yellow-200 whitespace-nowrap">
+            <span className=" sm:text-xl md:text-[26px] text-[#F36D16] bg-gradient-to-r from-[#F36D16] to-[#FF8C42] bg-clip-text text-transparent tracking-wider whitespace-nowrap font-leagueSpartan font-black ml-3" style={{ textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>
               Jay's Kerala Homely Meals
             </span>
+
+
           </div>
 
           {/* Desktop Navigation */}
@@ -71,11 +73,11 @@ const Navbar = ({ onSignInClick }) => {
             <a href="/help" className="text-white hover:text-[#FE8C00] transition font-medium flex items-center gap-1">
               <MdHelp className="text-xl" /> Help
             </a>
-           
+
             {/* User Profile Section */}
             {user ? (
               <div className="relative">
-                <button 
+                <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                   className="text-white font-medium flex items-center gap-2 hover:text-[#FE8C00] cursor-pointer"
                 >
@@ -118,7 +120,7 @@ const Navbar = ({ onSignInClick }) => {
 
                     {/* Logout Option */}
                     <div className="border-t border-gray-200 my-1"></div>
-                    <button 
+                    <button
                       onClick={handleLogout}
                       className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 w-full text-left"
                     >
@@ -128,7 +130,7 @@ const Navbar = ({ onSignInClick }) => {
                 )}
               </div>
             ) : (
-              <button 
+              <button
                 onClick={onSignInClick}
                 className="text-white hover:text-[#FE8C00] transition font-medium flex items-center gap-1"
               >
@@ -242,7 +244,7 @@ const Navbar = ({ onSignInClick }) => {
                   <FaUserCircle className="text-2xl text-white" />
                   <span className="font-medium text-white">{user.name?.split(' ')[0] || 'User'}</span>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-2">
                   <a href="/profile" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
                     <MdPerson className="text-xl" /> Profile
@@ -265,7 +267,7 @@ const Navbar = ({ onSignInClick }) => {
                     </a>
                   )}
 
-                  <button 
+                  <button
                     onClick={handleLogout}
                     className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full"
                   >
@@ -276,7 +278,7 @@ const Navbar = ({ onSignInClick }) => {
             </div>
           ) : (
             <div className="border-t border-gray-100 px-4 py-3">
-              <button 
+              <button
                 onClick={onSignInClick}
                 className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full"
               >
