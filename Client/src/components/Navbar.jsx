@@ -54,7 +54,7 @@ const Navbar = ({ onSignInClick }) => {
           {/* Logo */}
           <div className="flex items-center">
             <img
-              src="/homely meals.png"
+              src="/logo.png"
               alt="Logo"
               className="w-20 h-20 object-contain rounded-full"
             />
