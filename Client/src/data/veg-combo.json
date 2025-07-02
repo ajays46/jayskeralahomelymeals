@@ -1,0 +1,52 @@
+[
+  {
+    "image": "/veg.png",
+    "product_name": "Veg Rice & Curry Combo",
+    "malayalam_name": "വെജ് റൈസ് ആൻഡ് കറി കോമ്പോ",
+    "price": 16.25,
+    "category": "Veg Combo",
+    "description": "Steamed rice with choice of veg curry and naan bread",
+    "rating": 4.4,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Paneer & Salad Combo",
+    "malayalam_name": "പനീർ ആൻഡ് സാലഡ് കോമ്പോ",
+    "price": 18.50,
+    "category": "Veg Combo",
+    "description": "Grilled paneer with fresh garden salad and rice",
+    "rating": 4.3,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Veg Biryani & Raita",
+    "malayalam_name": "വെജ് ബിരിയാണി ആൻഡ് റൈറ്റ",
+    "price": 22.00,
+    "category": "Veg Combo",
+    "description": "Aromatic veg biryani with cooling raita and papad",
+    "rating": 4.6,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Dal Khichdi & Pickle",
+    "malayalam_name": "ദാൽ ഖിച്ചഡി ആൻഡ് പിക്കിൾ",
+    "price": 14.75,
+    "category": "Veg Combo",
+    "description": "Comforting dal khichdi with tangy pickle and ghee",
+    "rating": 4.2,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Veg Thali Special",
+    "malayalam_name": "വെജ് താളി സ്പെഷൽ",
+    "price": 25.99,
+    "category": "Veg Combo",
+    "description": "Complete veg thali with 3 curries, rice, roti, and dessert",
+    "rating": 4.7,
+    "prep_time": "30-35 min"
+  }
+] 

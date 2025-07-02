@@ -20,13 +20,7 @@
       "price": 24.00,
       "category": "Veg Curry"
     },
-    {
-      "image": "/combo.png",
-      "product_name": "Fresh Caesar Salad",
-      "malayalam_name": "ഫ്രഷ് സീസർ സാലഡ്",
-      "price": 8.75,
-      "category": "Combo"
-    },
+
     {
       "image": "/rice.png",
       "product_name": "Decadent Chocolate Cake Slice",

@@ -1,0 +1,52 @@
+[
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Chicken Rice & Curry Combo",
+    "malayalam_name": "ചിക്കൻ റൈസ് ആൻഡ് കറി കോമ്പോ",
+    "price": 19.99,
+    "category": "Non-veg Combo",
+    "description": "Steamed rice with chicken curry and naan bread",
+    "rating": 4.5,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Beef Biryani & Raita",
+    "malayalam_name": "ബീഫ് ബിരിയാണി ആൻഡ് റൈറ്റ",
+    "price": 28.75,
+    "category": "Non-veg Combo",
+    "description": "Aromatic beef biryani with cooling raita and papad",
+    "rating": 4.8,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Fish & Rice Combo",
+    "malayalam_name": "ഫിഷ് ആൻഡ് റൈസ് കോമ്പോ",
+    "price": 24.50,
+    "category": "Non-veg Combo",
+    "description": "Grilled fish fillet with steamed rice and vegetables",
+    "rating": 4.6,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Chicken & Salad Combo",
+    "malayalam_name": "ചിക്കൻ ആൻഡ് സാലഡ് കോമ്പോ",
+    "price": 21.50,
+    "category": "Non-veg Combo",
+    "description": "Grilled chicken breast with fresh garden salad and rice",
+    "rating": 4.4,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Non-veg Thali Special",
+    "malayalam_name": "നോൺ-വെജ് താളി സ്പെഷൽ",
+    "price": 32.99,
+    "category": "Non-veg Combo",
+    "description": "Complete non-veg thali with 3 curries, rice, roti, and dessert",
+    "rating": 4.9,
+    "prep_time": "30-35 min"
+  }
+] 

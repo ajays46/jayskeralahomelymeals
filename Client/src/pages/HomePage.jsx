@@ -5,7 +5,8 @@ import AuthSlider from '../components/AuthSlider';
 import dummyData from '../data/dummy.json';
 import vegData from '../data/veg.json';
 import nonVegData from '../data/non-veg.json';
-import comboData from '../data/combo.json';
+import vegComboData from '../data/veg-combo.json';
+import nonVegComboData from '../data/non-veg-combo.json';
 import riceData from '../data/rice.json';
 import sidesData from '../data/sides.json';
 import saladData from '../data/salad.json';
@@ -39,7 +40,8 @@ const HomePage = () => {
           default: return dummyData.find(item => item.category === cat)?.image || '/combo.png';
         }
       })()
-    }))
+    })),
+    { name: 'Combo', image: '/combo.png' }
   ];
 
   // Filter data based on selected category
@@ -52,7 +54,7 @@ const HomePage = () => {
       case 'Non-veg':
         return nonVegData;
       case 'Combo':
-        return comboData;
+        return [...vegComboData, ...nonVegComboData];
       case 'Rice':
         return riceData;
       case 'Sides':
@@ -128,26 +130,16 @@ const HomePage = () => {
         {/* Category Avatars - Dynamic rendering */}
         {!showCategoryGrid && (
           <div ref={categoryRef} className="category-scroll-section flex gap-3 sm:gap-6 mb-8 sm:mb-10 lg:pt-2 pt-1 scrollbar-hide overflow-x-auto pb-2">
-            {/* All Categories Option */}
-            <div
-              onClick={() => setSelectedCategory('All')}
-              className="flex flex-col items-center group cursor-pointer min-w-[70px] sm:min-w-[90px]"
-            >
-              <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-full border-4 ${selectedCategory === 'All' ? 'border-[#FE8C00] bg-orange-50' : 'border-gray-200 bg-white'} flex items-center justify-center overflow-hidden mb-1 sm:mb-2 shadow-lg group-hover:scale-105 group-hover:shadow-xl transition`}>
-                <img src="/combo.png" alt="All" className="object-cover w-full h-full" />
-              </div>
-              <span className={`text-xs sm:text-sm font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow ${selectedCategory === 'All' ? 'bg-[#FE8C00] text-white' : 'bg-gray-100 text-gray-700'} group-hover:bg-[#FE8C00] group-hover:text-white transition`}>All</span>
-            </div>
-            {[...new Set(dummyData.map(item => item.category))].map((cat) => (
+            {allCategories.map((cat) => (
               <div
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
+                key={cat.name}
+                onClick={() => setSelectedCategory(cat.name)}
                 className="flex flex-col items-center group cursor-pointer min-w-[70px] sm:min-w-[90px]"
               >
-                <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-full border-4 ${selectedCategory === cat ? 'border-[#FE8C00] bg-orange-50' : 'border-gray-200 bg-white'} flex items-center justify-center overflow-hidden mb-1 sm:mb-2 shadow-lg group-hover:scale-105 group-hover:shadow-xl transition`}>
-                  <img src={getCategoryImage(cat)} alt={cat} className="object-cover w-full h-full" />
+                <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-full border-4 ${selectedCategory === cat.name ? 'border-[#FE8C00] bg-orange-50' : 'border-gray-200 bg-white'} flex items-center justify-center overflow-hidden mb-1 sm:mb-2 shadow-lg group-hover:scale-105 group-hover:shadow-xl transition`}>
+                  <img src={cat.image} alt={cat.name} className="object-cover w-full h-full" />
                 </div>
-                <span className={`text-xs sm:text-sm font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow ${selectedCategory === cat ? 'bg-[#FE8C00] text-white' : 'bg-gray-100 text-gray-700'} group-hover:bg-[#FE8C00] group-hover:text-white transition`}>{cat}</span>
+                <span className={`text-xs sm:text-sm font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow ${selectedCategory === cat.name ? 'bg-[#FE8C00] text-white' : 'bg-gray-100 text-gray-700'} group-hover:bg-[#FE8C00] group-hover:text-white transition`}>{cat.name}</span>
               </div>
             ))}
           </div>
@@ -181,56 +173,191 @@ const HomePage = () => {
         {/* Food Cards */}
         <div className="relative">
           {/* Mobile horizontal scroll grid */}
-          <div className="block lg:hidden overflow-x-auto">
-            <div className="grid grid-rows-2 grid-flow-col gap-x-2 gap-y-4 min-w-[320px]" style={{ minHeight: '150px' }}>
-              {filteredData.map((item, idx) => (
-                <div key={idx} className="bg-white rounded-xl shadow-xl hover:shadow-2xl border border-gray-100 hover:border-[#FE8C00] p-0 flex flex-col items-center transition group cursor-pointer w-[calc(50vw-1rem)] min-w-[140px] max-w-[180px] overflow-hidden">
-                  <div className="relative w-full h-[80px] flex-shrink-0">
-                    <img src={item.image} alt={item.product_name} className="w-full h-full object-cover" />
-                    {/* Overlay gradient and promo text */}
-                    <div className="absolute bottom-0 left-0 w-full h-7 bg-gradient-to-t from-black/80 to-transparent flex items-end px-2 pb-1">
-                      <span className="text-white font-bold text-[10px] tracking-wide drop-shadow">ITEMS AT ₹{item.price}</span>
+          <div className="block lg:hidden">
+            {selectedCategory === 'Combo' ? (
+              <>
+                {/* Veg Combo Section */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-green-600 mb-4 px-2 flex items-center gap-2">
+                    <img src="/veg.png" alt="Veg" className="w-6 h-6" />
+                    Veg Combo
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <div className="grid grid-rows-2 grid-flow-col gap-x-2 gap-y-4 min-w-[320px]" style={{ minHeight: '150px' }}>
+                      {vegComboData.map((item, idx) => (
+                        <div key={idx} className="bg-white rounded-xl shadow-xl hover:shadow-2xl border border-gray-100 hover:border-[#FE8C00] p-0 flex flex-col items-center transition group cursor-pointer w-[calc(50vw-1rem)] min-w-[140px] max-w-[180px] overflow-hidden">
+                          <div className="relative w-full h-[80px] flex-shrink-0">
+                            <img src={item.image} alt={item.product_name} className="w-full h-full object-cover" />
+                            {/* Overlay gradient and promo text */}
+                            <div className="absolute bottom-0 left-0 w-full h-7 bg-gradient-to-t from-black/80 to-transparent flex items-end px-2 pb-1">
+                              <span className="text-white font-bold text-[10px] tracking-wide drop-shadow">ITEMS AT ₹{item.price}</span>
+                            </div>
+                          </div>
+                          <div className="w-full flex flex-col items-start px-2 pt-1 pb-2">
+                            <span className="font-bold text-gray-900 text-[11px] mb-1 group-hover:text-[#FE8C00] transition line-clamp-2">{item.product_name}</span>
+                            {item.malayalam_name && (
+                              <span className="font-medium text-gray-700 text-[9px] mb-1 line-clamp-1">{item.malayalam_name}</span>
+                            )}
+                            <span className={`flex items-center gap-2 font-semibold text-[10px] mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
+                              <svg xmlns='http://www.w3.org/2000/svg' className='inline w-2.5 h-2.5' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
+                              {item.rating || 4.3}
+                            </span>
+                            <span className="text-gray-500 text-[9px] mb-1 capitalize">{item.category}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="w-full flex flex-col items-start px-2 pt-1 pb-2">
-                    <span className="font-bold text-gray-900 text-[11px] mb-1 group-hover:text-[#FE8C00] transition line-clamp-2">{item.product_name}</span>
-                    {item.malayalam_name && (
-                      <span className="font-medium text-gray-700 text-[9px] mb-1 line-clamp-1">{item.malayalam_name}</span>
-                    )}
-                    <span className={`flex items-center gap-2 font-semibold text-[10px] mb-1 ${item.category === 'Non-veg' ? 'text-red-600' : 'text-green-600'}`}>
-                      <svg xmlns='http://www.w3.org/2000/svg' className='inline w-2.5 h-2.5' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                      {item.rating || 4.3}
-                    </span>
-                    <span className="text-gray-500 text-[9px] mb-1 capitalize">{item.category}</span>
+                </div>
+                
+                {/* Non-veg Combo Section */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-red-600 mb-4 px-2 flex items-start gap-2">
+                    <img src="/Non-veg.png" alt="Non-veg" className="w-6 h-6" />
+                    Non-veg Combo
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <div className="grid grid-rows-2 grid-flow-col gap-x-2 gap-y-4 min-w-[320px]" style={{ minHeight: '150px' }}>
+                      {nonVegComboData.map((item, idx) => (
+                        <div key={idx} className="bg-white rounded-xl shadow-xl hover:shadow-2xl border border-gray-100 hover:border-[#FE8C00] p-0 flex flex-col items-center transition group cursor-pointer w-[calc(50vw-1rem)] min-w-[140px] max-w-[180px] overflow-hidden">
+                          <div className="relative w-full h-[80px] flex-shrink-0">
+                            <img src={item.image} alt={item.product_name} className="w-full h-full object-cover" />
+                            {/* Overlay gradient and promo text */}
+                            <div className="absolute bottom-0 left-0 w-full h-7 bg-gradient-to-t from-black/80 to-transparent flex items-end px-2 pb-1">
+                              <span className="text-white font-bold text-[10px] tracking-wide drop-shadow">ITEMS AT ₹{item.price}</span>
+                            </div>
+                          </div>
+                          <div className="w-full flex flex-col items-start px-2 pt-1 pb-2">
+                            <span className="font-bold text-gray-900 text-[11px] mb-1 group-hover:text-[#FE8C00] transition line-clamp-2">{item.product_name}</span>
+                            {item.malayalam_name && (
+                              <span className="font-medium text-gray-700 text-[9px] mb-1 line-clamp-1">{item.malayalam_name}</span>
+                            )}
+                            <span className={`flex items-center gap-2 font-semibold text-[10px] mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
+                              <svg xmlns='http://www.w3.org/2000/svg' className='inline w-2.5 h-2.5' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
+                              {item.rating || 4.3}
+                            </span>
+                            <span className="text-gray-500 text-[9px] mb-1 capitalize">{item.category}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-          {/* Desktop grid */}
-          <div className="hidden lg:grid mx-auto grid-cols-5 gap-x-[280px] gap-y-20 justify-items-center">
-            {filteredData.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-3xl shadow-xl hover:shadow-2xl border border-gray-100 hover:border-[#FE8C00] p-0 flex flex-col w-[95%] min-w-[270px] max-w-[320px] transition group cursor-pointer overflow-hidden">
-                <div className="relative w-full h-[180px] flex-shrink-0">
-                  <img src={item.image} alt={item.product_name} className="w-full h-full object-cover" />
-                  {/* Overlay gradient and promo text */}
-                  <div className="absolute bottom-0 left-0 w-full h-14 bg-gradient-to-t from-black/80 to-transparent flex items-end px-4 pb-2">
-                    <span className="text-white font-bold text-lg tracking-wide drop-shadow">ITEMS AT ₹{item.price}</span>
-                  </div>
-                </div>
-                <div className="w-full flex flex-col items-start px-4 pt-3 pb-6">
-                  <span className="font-bold text-gray-900 text-lg mb-1 group-hover:text-[#FE8C00] transition">{item.product_name}</span>
-                  {item.malayalam_name && (
-                    <span className="font-medium text-gray-700 text-sm mb-1 line-clamp-1">{item.malayalam_name}</span>
-                  )}
-                  <span className={`flex items-center gap-2 font-semibold text-sm mb-1 ${item.category === 'Non-veg' ? 'text-red-600' : 'text-green-600'}`}>
-                    <svg xmlns='http://www.w3.org/2000/svg' className='inline w-4 h-4' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                    {item.rating || 4.3}
-                  </span>
-                  <span className="text-gray-500 text-sm mb-1 capitalize">{item.category}</span>
+              </>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="grid grid-rows-2 grid-flow-col gap-x-2 gap-y-4 min-w-[320px]" style={{ minHeight: '150px' }}>
+                  {filteredData.map((item, idx) => (
+                    <div key={idx} className="bg-white rounded-xl shadow-xl hover:shadow-2xl border border-gray-100 hover:border-[#FE8C00] p-0 flex flex-col items-center transition group cursor-pointer w-[calc(50vw-1rem)] min-w-[140px] max-w-[180px] overflow-hidden">
+                      <div className="relative w-full h-[80px] flex-shrink-0">
+                        <img src={item.image} alt={item.product_name} className="w-full h-full object-cover" />
+                        {/* Overlay gradient and promo text */}
+                        <div className="absolute bottom-0 left-0 w-full h-7 bg-gradient-to-t from-black/80 to-transparent flex items-end px-2 pb-1">
+                          <span className="text-white font-bold text-[10px] tracking-wide drop-shadow">ITEMS AT ₹{item.price}</span>
+                        </div>
+                      </div>
+                      <div className="w-full flex flex-col items-start px-2 pt-1 pb-2">
+                        <span className="font-bold text-gray-900 text-[11px] mb-1 group-hover:text-[#FE8C00] transition line-clamp-2">{item.product_name}</span>
+                        {item.malayalam_name && (
+                          <span className="font-medium text-gray-700 text-[9px] mb-1 line-clamp-1">{item.malayalam_name}</span>
+                        )}
+                        <span className={`flex items-center gap-2 font-semibold text-[10px] mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
+                          <svg xmlns='http://www.w3.org/2000/svg' className='inline w-2.5 h-2.5' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
+                          {item.rating || 4.3}
+                        </span>
+                        <span className="text-gray-500 text-[9px] mb-1 capitalize">{item.category}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+          </div>
+          {/* Desktop grid */}
+          <div className="hidden lg:grid mx-auto grid-cols-5 gap-x-[280px] gap-y-10 justify-items-center">
+            {selectedCategory === 'Combo' ? (
+              <>
+                {/* Veg Combo Section */}
+                <div className="col-span-5 mb-8">
+                 
+                  <div className="grid grid-cols-5 gap-x-[280px] gap-y-20 justify-items-center">
+                    {vegComboData.map((item, idx) => (
+                      <div key={idx} className="bg-white rounded-3xl shadow-xl hover:shadow-2xl border border-gray-100 hover:border-[#FE8C00] p-0 flex flex-col w-[95%] min-w-[270px] max-w-[320px] transition group cursor-pointer overflow-hidden">
+                        <div className="relative w-full h-[180px] flex-shrink-0">
+                          <img src={item.image} alt={item.product_name} className="w-full h-full object-cover" />
+                          {/* Overlay gradient and promo text */}
+                          <div className="absolute bottom-0 left-0 w-full h-14 bg-gradient-to-t from-black/80 to-transparent flex items-end px-4 pb-2">
+                            <span className="text-white font-bold text-lg tracking-wide drop-shadow">ITEMS AT ₹{item.price}</span>
+                          </div>
+                        </div>
+                        <div className="w-full flex flex-col items-start px-4 pt-3 pb-6">
+                          <span className="font-bold text-gray-900 text-lg mb-1 group-hover:text-[#FE8C00] transition">{item.product_name}</span>
+                          {item.malayalam_name && (
+                            <span className="font-medium text-gray-700 text-sm mb-1 line-clamp-1">{item.malayalam_name}</span>
+                          )}
+                          <span className={`flex items-center gap-2 font-semibold text-sm mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
+                            <svg xmlns='http://www.w3.org/2000/svg' className='inline w-4 h-4' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
+                            {item.rating || 4.3}
+                          </span>
+                          <span className="text-gray-500 text-sm mb-1 capitalize">{item.category}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Non-veg Combo Section */}
+                <div className="col-span-5">
+                  <div className="grid grid-cols-5 gap-x-[280px] gap-y-20 justify-items-center">
+                    {nonVegComboData.map((item, idx) => (
+                      <div key={idx} className="bg-white rounded-3xl shadow-xl hover:shadow-2xl border border-gray-100 hover:border-[#FE8C00] p-0 flex flex-col w-[95%] min-w-[270px] max-w-[320px] transition group cursor-pointer overflow-hidden">
+                        <div className="relative w-full h-[180px] flex-shrink-0">
+                          <img src={item.image} alt={item.product_name} className="w-full h-full object-cover" />
+                          {/* Overlay gradient and promo text */}
+                          <div className="absolute bottom-0 left-0 w-full h-14 bg-gradient-to-t from-black/80 to-transparent flex items-end px-4 pb-2">
+                            <span className="text-white font-bold text-lg tracking-wide drop-shadow">ITEMS AT ₹{item.price}</span>
+                          </div>
+                        </div>
+                        <div className="w-full flex flex-col items-start px-4 pt-3 pb-6">
+                          <span className="font-bold text-gray-900 text-lg mb-1 group-hover:text-[#FE8C00] transition">{item.product_name}</span>
+                          {item.malayalam_name && (
+                            <span className="font-medium text-gray-700 text-sm mb-1 line-clamp-1">{item.malayalam_name}</span>
+                          )}
+                          <span className={`flex items-center gap-2 font-semibold text-sm mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
+                            <svg xmlns='http://www.w3.org/2000/svg' className='inline w-4 h-4' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
+                            {item.rating || 4.3}
+                          </span>
+                          <span className="text-gray-500 text-sm mb-1 capitalize">{item.category}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              filteredData.map((item, idx) => (
+                <div key={idx} className="bg-white rounded-3xl shadow-xl hover:shadow-2xl border border-gray-100 hover:border-[#FE8C00] p-0 flex flex-col w-[95%] min-w-[270px] max-w-[320px] transition group cursor-pointer overflow-hidden">
+                  <div className="relative w-full h-[180px] flex-shrink-0">
+                    <img src={item.image} alt={item.product_name} className="w-full h-full object-cover" />
+                    {/* Overlay gradient and promo text */}
+                    <div className="absolute bottom-0 left-0 w-full h-14 bg-gradient-to-t from-black/80 to-transparent flex items-end px-4 pb-2">
+                      <span className="text-white font-bold text-lg tracking-wide drop-shadow">ITEMS AT ₹{item.price}</span>
+                    </div>
+                  </div>
+                  <div className="w-full flex flex-col items-start px-4 pt-3 pb-6">
+                    <span className="font-bold text-gray-900 text-lg mb-1 group-hover:text-[#FE8C00] transition">{item.product_name}</span>
+                    {item.malayalam_name && (
+                      <span className="font-medium text-gray-700 text-sm mb-1 line-clamp-1">{item.malayalam_name}</span>
+                    )}
+                    <span className={`flex items-center gap-2 font-semibold text-sm mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
+                      <svg xmlns='http://www.w3.org/2000/svg' className='inline w-4 h-4' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
+                      {item.rating || 4.3}
+                    </span>
+                    <span className="text-gray-500 text-sm mb-1 capitalize">{item.category}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
