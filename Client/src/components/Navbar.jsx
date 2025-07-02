@@ -257,124 +257,115 @@ const Navbar = ({ onSignInClick }) => {
               </div>
 
               {/* Quick Actions */}
-              <div className="p-6 pb-4">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <MdRestaurant className="text-lg" />
-                  Quick Actions
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
+              <div className="p-4">
+                <div className="grid grid-cols-2 gap-2">
                   <motion.a 
                     href="/jayskeralahomelymeals" 
-                    className="flex flex-col items-center gap-2 p-4 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
-                    whileHover={{ y: -2, scale: 1.02 }}
+                    className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                    whileHover={{ y: -1, scale: 1.01 }}
                     onClick={() => setMenuOpen(false)}
                   >
-                    <MdRestaurant className="text-2xl group-hover:scale-110 transition-transform duration-300" /> 
-                    <span className="font-medium text-sm text-center">Home</span>
+                    <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium text-xs text-center">Home</span>
                   </motion.a>
                   <motion.a 
                     href="/menu" 
-                    className="flex flex-col items-center gap-2 p-4 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
-                    whileHover={{ y: -2, scale: 1.02 }}
+                    className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                    whileHover={{ y: -1, scale: 1.01 }}
                     onClick={() => setMenuOpen(false)}
                   >
-                    <MdRestaurantMenu className="text-2xl group-hover:scale-110 transition-transform duration-300" /> 
-                    <span className="font-medium text-sm text-center">Menu</span>
+                    <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium text-xs text-center">Menu</span>
                   </motion.a>
                   <motion.a 
                     href="/cart" 
-                    className="flex flex-col items-center gap-2 p-4 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200 relative"
-                    whileHover={{ y: -2, scale: 1.02 }}
+                    className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200 relative"
+                    whileHover={{ y: -1, scale: 1.01 }}
                     onClick={() => setMenuOpen(false)}
                   >
-                    <MdShoppingCart className="text-2xl group-hover:scale-110 transition-transform duration-300" /> 
-                    <span className="font-medium text-sm text-center">Cart</span>
-                    <span className="absolute -top-1 -right-1 bg-[#FE8C00] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                    <MdShoppingCart className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium text-xs text-center">Cart</span>
+                    <span className="absolute -top-1 -right-1 bg-[#FE8C00] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">0</span>
                   </motion.a>
                   <motion.a 
                     href="/contact" 
-                    className="flex flex-col items-center gap-2 p-4 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
-                    whileHover={{ y: -2, scale: 1.02 }}
+                    className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                    whileHover={{ y: -1, scale: 1.01 }}
                     onClick={() => setMenuOpen(false)}
                   >
-                    <MdCalendarToday className="text-2xl group-hover:scale-110 transition-transform duration-300" /> 
-                    <span className="font-medium text-sm text-center">Bookings</span>
+                    <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium text-xs text-center">Bookings</span>
                   </motion.a>
                 </div>
               </div>
 
               {/* Additional Links */}
-              <div className="px-6 pb-4">
-                <div className="space-y-2">
-                  <motion.a 
-                    href="/help" 
-                    className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group"
-                    whileHover={{ x: 5 }}
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <MdHelp className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
-                    <span className="font-medium">Help & Support</span>
-                  </motion.a>
-                </div>
+              <div className="px-4 pb-2">
+                <motion.a 
+                  href="/help" 
+                  className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group"
+                  whileHover={{ x: 3 }}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <MdHelp className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                  <span className="font-medium text-sm">Help</span>
+                </motion.a>
               </div>
 
-              {/* User Section */}
+                            {/* User Section */}
               {user ? (
-                <div className="border-t border-gray-100 p-6 bg-gradient-to-b from-orange-50/50 to-white">    
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <MdPerson className="text-lg" />
+                <div className="border-t border-gray-100 p-4 bg-gradient-to-b from-orange-50/50 to-white">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <MdPerson className="text-base" />
                     My Account
                   </h3>
                   
                   {/* Primary Actions */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="grid grid-cols-2 gap-2 mb-3">
                     <motion.a 
                       href="/profile" 
-                      className="flex flex-col items-center gap-2 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
-                      whileHover={{ y: -2, scale: 1.02 }}
+                      className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                      whileHover={{ y: -1, scale: 1.01 }}
                       onClick={() => setMenuOpen(false)}
                     >
-                      <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
+                      <MdPerson className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
                       <span className="font-medium text-xs text-center">Profile</span>
                     </motion.a>
                     <motion.a 
                       href="/orders" 
-                      className="flex flex-col items-center gap-2 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
-                      whileHover={{ y: -2, scale: 1.02 }}
+                      className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                      whileHover={{ y: -1, scale: 1.01 }}
                       onClick={() => setMenuOpen(false)}
                     >
-                      <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
-                      <span className="font-medium text-xs text-center">My Orders</span>
+                      <MdRestaurantMenu className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
+                      <span className="font-medium text-xs text-center">Orders</span>
                     </motion.a>
                   </div>
 
                   {/* Admin/Seller Options */}
                   {(isAdmin || isSeller) && (
-                    <div className="mb-4">
-                      <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                        {isAdmin ? 'Admin Panel' : 'Seller Panel'}
-                      </h4>
-                      <div className="space-y-2">
+                    <div className="mb-3">
+                      <div className="space-y-1">
                         {isAdmin && (
                           <motion.a 
                             href="/admin" 
-                            className="flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group"
-                            whileHover={{ x: 5 }}
+                            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group"
+                            whileHover={{ x: 3 }}
                             onClick={() => setMenuOpen(false)}
                           >
-                            <MdAdminPanelSettings className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
-                            <span className="font-medium text-sm">Admin Dashboard</span>
+                            <MdAdminPanelSettings className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                            <span className="font-medium text-xs">Admin</span>
                           </motion.a>
                         )}
                         {isSeller && (
                           <motion.a 
                             href="/seller" 
-                            className="flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group"
-                            whileHover={{ x: 5 }}
+                            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group"
+                            whileHover={{ x: 3 }}
                             onClick={() => setMenuOpen(false)}
                           >
-                            <MdStore className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
-                            <span className="font-medium text-sm">Seller Dashboard</span>
+                            <MdStore className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                            <span className="font-medium text-xs">Seller</span>
                           </motion.a>
                         )}
                       </div>
@@ -384,34 +375,33 @@ const Navbar = ({ onSignInClick }) => {
                   {/* Logout Button */}
                   <motion.button
                     onClick={handleLogout}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-600 hover:text-white hover:bg-red-500 rounded-xl transition-all duration-300 group border border-red-200 hover:border-red-500"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-red-600 hover:text-white hover:bg-red-500 rounded-lg transition-all duration-300 group border border-red-200 hover:border-red-500"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                   >
-                    <MdLogout className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
-                    <span className="font-medium">Sign Out</span>
+                    <MdLogout className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium text-sm">Sign Out</span>
                   </motion.button>
                 </div>
               ) : (
-                <div className="border-t border-gray-100 p-6 bg-gradient-to-b from-gray-50 to-white">
-                  <div className="text-center mb-4">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <MdPerson className="text-2xl text-gray-400" />
+                <div className="border-t border-gray-100 p-4 bg-gradient-to-b from-gray-50 to-white">
+                  <div className="text-center mb-3">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <MdPerson className="text-xl text-gray-400" />
                     </div>
-                    <p className="text-sm text-gray-500 mb-1">Welcome to Jay's Kerala</p>
-                    <p className="text-xs text-gray-400">Sign in to access your account</p>
+                    <p className="text-xs text-gray-500 mb-2">Welcome to Jay's Kerala</p>
                   </div>
                   <motion.button
                     onClick={() => {
                       onSignInClick();
                       setMenuOpen(false);
                     }}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-[#FE8C00] to-orange-500 rounded-xl font-medium hover:shadow-lg transition-all duration-300 group"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-white bg-gradient-to-r from-[#FE8C00] to-orange-500 rounded-lg font-medium hover:shadow-lg transition-all duration-300 group"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                   >
-                    <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
-                    Sign In
+                    <MdPerson className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="text-sm">Sign In</span>
                   </motion.button>
                 </div>
               )}
