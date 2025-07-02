@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useUsersList } from '../hooks/userHooks/useLogin';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
@@ -10,14 +10,37 @@ import riceData from '../data/rice.json';
 import sidesData from '../data/sides.json';
 import saladData from '../data/salad.json';
 import vegCurryData from '../data/veg-curry.json';
-import { FiChevronRight } from 'react-icons/fi';
+import { FiChevronRight, FiX } from 'react-icons/fi';
+import CategoryGridModal from '../components/CategoryGridModal';
 
 const HomePage = () => {
   const { data } = useUsersList();
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [showCategoryGrid, setShowCategoryGrid] = useState(false);
+  const categoryRef = useRef(null);
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);
   const handleCloseAuthSlider = () => setAuthSliderOpen(false);
+
+  // Unique categories with images
+  const allCategories = [
+    { name: 'All', image: '/combo.png' },
+    ...[...new Set(dummyData.map(item => item.category))].map(cat => ({
+      name: cat,
+      image: (() => {
+        switch (cat) {
+          case 'Veg': return '/veg.png';
+          case 'Non-veg': return '/Non-veg.png';
+          case 'Combo': return '/combo.png';
+          case 'Rice': return '/rice.png';
+          case 'Sides': return '/Sides.png';
+          case 'Salad': return '/salad.png';
+          case 'Veg Curry': return '/thaninadan.png';
+          default: return dummyData.find(item => item.category === cat)?.image || '/combo.png';
+        }
+      })()
+    }))
+  ];
 
   // Filter data based on selected category
   const getCategoryData = (category) => {
@@ -82,45 +105,76 @@ const HomePage = () => {
             backgroundColor: "rgba(255,255,255,0.97)",
             backgroundBlendMode: "lighten"
           }}>
-      <div
-          className=" p-4 pt-10"
-         
-        >
-        <div className="flex items-center justify-between   mb-8">
-          <div className="flex items-center  gap-2 sm:gap-3">
+      <div className="p-4 pt-10">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2 sm:gap-3">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-[#FE8C00] to-orange-500 bg-clip-text text-transparent drop-shadow">Find by Category</h2>
           </div>
-          <a href="#" className="flex lg:hidden items-center gap-1 text-[#FE8C00] font-semibold text-base sm:text-lg px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-[#FE8C00] hover:bg-[#FE8C00] hover:text-white transition shadow-sm">
-            See All <FiChevronRight className="inline text-lg sm:text-xl" />
-          </a>
+          <button 
+            onClick={() => setShowCategoryGrid(v => !v)}
+            className="flex lg:hidden items-center gap-1 text-[#FE8C00] font-semibold text-base sm:text-lg px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-[#FE8C00] hover:bg-[#FE8C00] hover:text-white transition shadow-sm"
+          >
+            {showCategoryGrid ? (
+              <>
+                Close <FiX className="inline text-lg sm:text-xl" />
+              </>
+            ) : (
+              <>
+                See All <FiChevronRight className="inline text-lg sm:text-xl" />
+              </>
+            )}
+          </button>
         </div>
         {/* Category Avatars - Dynamic rendering */}
-        <div className="flex gap-3 sm:gap-6 mb-8 sm:mb-10 lg:pt-2 pt-1 scrollbar-hide overflow-x-auto pb-2">
-          {/* All Categories Option */}
-          <div
-            onClick={() => setSelectedCategory('All')}
-            className="flex flex-col items-center group cursor-pointer min-w-[70px] sm:min-w-[90px]"
-          >
-            <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-full border-4 ${selectedCategory === 'All' ? 'border-[#FE8C00] bg-orange-50' : 'border-gray-200 bg-white'} flex items-center justify-center overflow-hidden mb-1 sm:mb-2 shadow-lg group-hover:scale-105 group-hover:shadow-xl transition`}>
-              <img src="/combo.png" alt="All" className="object-cover w-full h-full" />
-            </div>
-            <span className={`text-xs sm:text-sm font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow ${selectedCategory === 'All' ? 'bg-[#FE8C00] text-white' : 'bg-gray-100 text-gray-700'} group-hover:bg-[#FE8C00] group-hover:text-white transition`}>All</span>
-          </div>
-
-          {[...new Set(dummyData.map(item => item.category))].map((cat) => (
+        {!showCategoryGrid && (
+          <div ref={categoryRef} className="category-scroll-section flex gap-3 sm:gap-6 mb-8 sm:mb-10 lg:pt-2 pt-1 scrollbar-hide overflow-x-auto pb-2">
+            {/* All Categories Option */}
             <div
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
+              onClick={() => setSelectedCategory('All')}
               className="flex flex-col items-center group cursor-pointer min-w-[70px] sm:min-w-[90px]"
             >
-              <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-full border-4 ${selectedCategory === cat ? 'border-[#FE8C00] bg-orange-50' : 'border-gray-200 bg-white'} flex items-center justify-center overflow-hidden mb-1 sm:mb-2 shadow-lg group-hover:scale-105 group-hover:shadow-xl transition`}>
-                <img src={getCategoryImage(cat)} alt={cat} className="object-cover w-full h-full" />
+              <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-full border-4 ${selectedCategory === 'All' ? 'border-[#FE8C00] bg-orange-50' : 'border-gray-200 bg-white'} flex items-center justify-center overflow-hidden mb-1 sm:mb-2 shadow-lg group-hover:scale-105 group-hover:shadow-xl transition`}>
+                <img src="/combo.png" alt="All" className="object-cover w-full h-full" />
               </div>
-              <span className={`text-xs sm:text-sm font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow ${selectedCategory === cat ? 'bg-[#FE8C00] text-white' : 'bg-gray-100 text-gray-700'} group-hover:bg-[#FE8C00] group-hover:text-white transition`}>{cat}</span>
+              <span className={`text-xs sm:text-sm font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow ${selectedCategory === 'All' ? 'bg-[#FE8C00] text-white' : 'bg-gray-100 text-gray-700'} group-hover:bg-[#FE8C00] group-hover:text-white transition`}>All</span>
             </div>
-          ))}
-        </div>
-        </div>
+            {[...new Set(dummyData.map(item => item.category))].map((cat) => (
+              <div
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className="flex flex-col items-center group cursor-pointer min-w-[70px] sm:min-w-[90px]"
+              >
+                <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-full border-4 ${selectedCategory === cat ? 'border-[#FE8C00] bg-orange-50' : 'border-gray-200 bg-white'} flex items-center justify-center overflow-hidden mb-1 sm:mb-2 shadow-lg group-hover:scale-105 group-hover:shadow-xl transition`}>
+                  <img src={getCategoryImage(cat)} alt={cat} className="object-cover w-full h-full" />
+                </div>
+                <span className={`text-xs sm:text-sm font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow ${selectedCategory === cat ? 'bg-[#FE8C00] text-white' : 'bg-gray-100 text-gray-700'} group-hover:bg-[#FE8C00] group-hover:text-white transition`}>{cat}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Category Grid - show when showCategoryGrid is true */}
+        {showCategoryGrid && (
+          <div className="mb-8">
+            <div className="grid grid-cols-3 gap-4">
+              {allCategories.map((cat, idx) => (
+                <div
+                  key={cat.name}
+                  onClick={() => {
+                    setSelectedCategory(cat.name);
+                    setShowCategoryGrid(false);
+                  }}
+                  className="flex flex-col items-center cursor-pointer group"
+                >
+                  <div className={`w-16 h-16 rounded-full border-2 ${selectedCategory === cat.name ? 'border-[#FE8C00] bg-orange-50' : 'border-gray-200 bg-white'} flex items-center justify-center overflow-hidden mb-1 shadow group-hover:scale-105 group-hover:shadow-xl transition`}>
+                    <img src={cat.image} alt={cat.name} className="object-cover w-full h-full" />
+                  </div>
+                  <span className={`text-xs font-semibold text-gray-700 text-center group-hover:text-[#FE8C00] transition`}>{cat.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       </main>
       <section className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-20 py-0">
         
