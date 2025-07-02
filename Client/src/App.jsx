@@ -9,6 +9,7 @@ import HomePage from './pages/HomePage';
 import ProtectedRoute from './protectRoute/Protect';
 import AdminPage from './pages/AdminPage';
 import SellerPage from './pages/SellerPage';
+import ProfilePage from './pages/ProfilePage';
 import ResetPassword from './components/ResetPassword';
 
 
@@ -38,6 +39,7 @@ const App = () => {
      
             <Route path='/admin' element={<AdminPage/>} ></Route>
             <Route path='/seller' element={<SellerPage />}></Route>
+            <Route path='/profile' element={<ProfilePage />}></Route>
           </Route>
 
           {/* Add more protected routes here */}

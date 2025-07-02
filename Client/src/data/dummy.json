@@ -1,0 +1,100 @@
+[
+    {
+      "image": "/veg.png",
+      "product_name": "Classic Margherita Pizza",
+      "malayalam_name": "ക്ലാസിക് മാർഗരിറ്റ പിസ്സ",
+      "price": 12.99,
+      "category": "Veg"
+    },
+    {
+      "image": "/Non-veg.png",
+      "product_name": "Gourmet Cheeseburger",
+      "malayalam_name": "ഗോർമെറ്റ് ചീസ്ബർഗർ",
+      "price": 9.50,
+      "category": "Non-veg"
+    },
+    {
+      "image": "/thaninadan.png",
+      "product_name": "Assorted Sushi Platter",
+      "malayalam_name": "വിവിധ സുഷി പ്ലാറ്റർ",
+      "price": 24.00,
+      "category": "Veg Curry"
+    },
+    {
+      "image": "/combo.png",
+      "product_name": "Fresh Caesar Salad",
+      "malayalam_name": "ഫ്രഷ് സീസർ സാലഡ്",
+      "price": 8.75,
+      "category": "Combo"
+    },
+    {
+      "image": "/rice.png",
+      "product_name": "Decadent Chocolate Cake Slice",
+      "malayalam_name": "ഡെക്കഡന്റ് ചോക്ലേറ്റ് കേക്ക് സ്ലൈസ്",
+      "price": 6.25,
+      "category": "Rice"
+    },
+    {
+      "image": "/Sides.png",
+      "product_name": "Spaghetti Carbonara",
+      "malayalam_name": "സ്പഗെറ്റി കാർബോനാറ",
+      "price": 15.75,
+      "category": "Sides"
+    },
+    {
+      "image": "/salad.png",
+      "product_name": "Spicy Chicken Tacos (3pcs)",
+      "malayalam_name": "മസാല ചിക്കൻ ടാക്കോസ് (3 കഷണങ്ങൾ)",
+      "price": 11.20,
+      "category": "Salad"
+    },
+    {
+      "image": "/Non-veg.png",
+      "product_name": "Grilled Chicken Breast",
+      "price": 18.99,
+      "category": "Non-veg"
+    },
+    {
+      "image": "/Non-veg.png",
+      "product_name": "Beef Steak with Herbs",
+      "price": 25.50,
+      "category": "Non-veg"
+    },
+    {
+      "image": "/Non-veg.png",
+      "product_name": "Fish & Chips",
+      "price": 16.75,
+      "category": "Non-veg"
+    },
+    {
+      "image": "/Non-veg.png",
+      "product_name": "Lamb Curry",
+      "price": 22.00,
+      "category": "Non-veg"
+    },
+    {
+      "image": "/Non-veg.png",
+      "product_name": "Chicken Biryani",
+      "price": 19.99,
+      "category": "Non-veg"
+    },
+    {
+      "image": "/Non-veg.png",
+      "product_name": "Pork Chops",
+      "price": 21.50,
+      "category": "Non-veg"
+    },
+    {
+      "image": "/Non-veg.png",
+      "product_name": "Shrimp Scampi",
+      "price": 28.75,
+      "category": "Non-veg"
+    },
+    {
+      "image": "/Non-veg.png",
+      "product_name": "Duck Confit",
+      "price": 32.00,
+      "category": "Non-veg"
+    }
+]
+  

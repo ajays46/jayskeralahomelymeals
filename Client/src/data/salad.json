@@ -1,0 +1,102 @@
+[
+  {
+    "image": "/salad.png",
+    "product_name": "Spicy Chicken Tacos (3pcs)",
+    "malayalam_name": "മസാല ചിക്കൻ ടാക്കോസ് (3 കഷണങ്ങൾ)",
+    "price": 11.20,
+    "category": "Salad",
+    "description": "Crispy tacos filled with spicy chicken and fresh vegetables",
+    "rating": 4.3,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/salad.png",
+    "product_name": "Garden Fresh Salad",
+    "malayalam_name": "ഗാർഡൻ ഫ്രഷ് സാലഡ്",
+    "price": 8.50,
+    "category": "Salad",
+    "description": "Mixed greens with cherry tomatoes, cucumber, and vinaigrette",
+    "rating": 4.2,
+    "prep_time": "8-12 min"
+  },
+  {
+    "image": "/salad.png",
+    "product_name": "Greek Salad",
+    "malayalam_name": "ഗ്രീക്ക് സാലഡ്",
+    "price": 9.75,
+    "category": "Salad",
+    "description": "Cucumber, olives, feta cheese with olive oil dressing",
+    "rating": 4.4,
+    "prep_time": "10-15 min"
+  },
+  {
+    "image": "/salad.png",
+    "product_name": "Cobb Salad",
+    "malayalam_name": "കോബ് സാലഡ്",
+    "price": 12.99,
+    "category": "Salad",
+    "description": "Lettuce, bacon, eggs, avocado, and blue cheese",
+    "rating": 4.6,
+    "prep_time": "12-18 min"
+  },
+  {
+    "image": "/salad.png",
+    "product_name": "Asian Noodle Salad",
+    "malayalam_name": "ഏഷ്യൻ നൂഡിൽ സാലഡ്",
+    "price": 10.25,
+    "category": "Salad",
+    "description": "Cold noodles with vegetables and sesame dressing",
+    "rating": 4.3,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/salad.png",
+    "product_name": "Mediterranean Salad",
+    "malayalam_name": "മെഡിറ്ററേനിയൻ സാലഡ്",
+    "price": 11.50,
+    "category": "Salad",
+    "description": "Quinoa, chickpeas, olives, and feta with lemon dressing",
+    "rating": 4.5,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/salad.png",
+    "product_name": "Waldorf Salad",
+    "malayalam_name": "വാൾഡോർഫ് സാലഡ്",
+    "price": 9.25,
+    "category": "Salad",
+    "description": "Apples, walnuts, celery, and grapes with mayo dressing",
+    "rating": 4.1,
+    "prep_time": "10-15 min"
+  },
+  {
+    "image": "/salad.png",
+    "product_name": "Southwest Salad",
+    "malayalam_name": "സൗത്ത്‌വെസ്റ്റ് സാലഡ്",
+    "price": 13.75,
+    "category": "Salad",
+    "description": "Mixed greens with corn, beans, and chipotle dressing",
+    "rating": 4.4,
+    "prep_time": "12-18 min"
+  },
+  {
+    "image": "/salad.png",
+    "product_name": "Spinach and Strawberry Salad",
+    "malayalam_name": "ചീരയും സ്ട്രോബെറിയും സാലഡ്",
+    "price": 10.99,
+    "category": "Salad",
+    "description": "Fresh spinach with strawberries, nuts, and balsamic",
+    "rating": 4.6,
+    "prep_time": "8-12 min"
+  },
+  {
+    "image": "/salad.png",
+    "product_name": "Kale Caesar Salad",
+    "malayalam_name": "കേൽ സീസർ സാലഡ്",
+    "price": 11.25,
+    "category": "Salad",
+    "description": "Kale leaves with parmesan and caesar dressing",
+    "rating": 4.3,
+    "prep_time": "10-15 min"
+  }
+] 

@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   MdRestaurant, MdRestaurantMenu, MdHelp,
   MdContactPhone, MdPerson, MdShoppingCart, MdSearch,
-  MdAdminPanelSettings, MdDashboard, MdLogout, MdStore, MdCalendarToday
+  MdAdminPanelSettings, MdDashboard, MdLogout, MdStore, MdCalendarToday,
+  MdClose, MdMenu
 } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
 import useAuthStore from '../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion'
 
 const Navbar = ({ onSignInClick }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -41,37 +43,49 @@ const Navbar = ({ onSignInClick }) => {
     navigate('/');
   };
 
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [menuOpen]);
+
   return (
     <nav className={`bg-[#989494]/50 shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-3">
-        <div className="flex justify-between items-center h-24">
+        <div className="flex justify-between items-center h-20 lg:h-24">
           {/* Logo */}
           <div className="flex items-center">
-            <img
-              src="/logo.png"
-              alt="Logo"
-              className="w-20 h-20 object-contain rounded-full"
-            />
-            <span className=" sm:text-xl md:text-[26px] text-[#F36D16] bg-gradient-to-r from-[#F36D16] to-[#FF8C42] bg-clip-text text-transparent tracking-wider whitespace-nowrap font-leagueSpartan font-black ml-3" style={{ textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>
-              Jay's Kerala Homely Meals
-            </span>
-
-
+            <a href="/jayskeralahomelymeals" className="flex items-center group">
+              <motion.img
+                src="/logo.png"
+                alt="Logo"
+                className="w-16 h-16 lg:w-20 lg:h-20 object-contain rounded-full shadow-lg group-hover:scale-105 transition-transform duration-300"
+                whileHover={{ rotate: 5 }}
+              />
+              <span className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 ml-3">
+                <span className="text-lg sm:text-xl md:text-[26px] text-[#FE8C00] tracking-wider whitespace-nowrap font-leagueSpartan font-black" style={{ textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>
+                  Jay's Kerala Homely Meals
+                </span>
+              </span>
+            </a>
           </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
-            <a href="/" className="text-white hover:text-[#FE8C00] transition font-medium flex items-center gap-1">
-              <MdRestaurant className="text-xl" /> Home
+            <a href="/jayskeralahomelymeals" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+              <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
             </a>
-            <a href="/menu" className="text-white hover:text-[#FE8C00] transition font-medium flex items-center gap-1">
-              <MdRestaurantMenu className="text-xl" /> Menu
+            <a href="/menu" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+              <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> Menu
             </a>
-            <a href="/contact" className="text-white hover:text-[#FE8C00] transition font-medium flex items-center gap-1">
-              <MdCalendarToday className="text-xl" /> Bookings
+            <a href="/contact" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+              <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> Bookings
             </a>
-            <a href="/help" className="text-white hover:text-[#FE8C00] transition font-medium flex items-center gap-1">
-              <MdHelp className="text-xl" /> Help
+            <a href="/help" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+              <MdHelp className="text-xl group-hover:scale-110 transition-transform duration-300" /> Help
             </a>
 
             {/* User Profile Section */}
@@ -79,215 +93,332 @@ const Navbar = ({ onSignInClick }) => {
               <div className="relative">
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="text-white font-medium flex items-center gap-2 hover:text-[#FE8C00] cursor-pointer"
+                  className="text-white font-medium flex items-center gap-2 hover:text-[#FE8C00] cursor-pointer transition-all duration-300 group"
                 >
-                  <FaUserCircle className="text-2xl" />
+                  <FaUserCircle className="text-2xl group-hover:scale-110 transition-transform duration-300" />
                   <span>{user.name?.split(' ')[0] || 'User'}</span>
                 </button>
 
                 {/* Dropdown Menu */}
-                {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                    {/* User Profile Options */}
-                    <a href="/profile" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100">
-                      <MdPerson className="text-xl" /> Profile
-                    </a>
-                    <a href="/orders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100">
-                      <MdRestaurantMenu className="text-xl" /> My Orders
-                    </a>
-
-                    {/* Admin Options */}
-                    {isAdmin && (
-                      <>
-                        <div className="border-t border-gray-200 my-1"></div>
-                        <div className="px-4 py-1 text-xs text-gray-500">Admin Panel</div>
-                        <a href="/admin" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100">
-                          <MdAdminPanelSettings className="text-xl" /> Admin Dashboard
-                        </a>
-                      </>
-                    )}
-
-                    {/* Seller Options */}
-                    {isSeller && (
-                      <>
-                        <div className="border-t border-gray-200 my-1"></div>
-                        <div className="px-4 py-1 text-xs text-gray-500">Seller Panel</div>
-                        <a href="/seller" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100">
-                          <MdStore className="text-xl" /> Seller Dashboard
-                        </a>
-                      </>
-                    )}
-
-                    {/* Logout Option */}
-                    <div className="border-t border-gray-200 my-1"></div>
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 w-full text-left"
+                <AnimatePresence>
+                  {userDropdownOpen && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl py-2 z-50 border border-gray-100"
                     >
-                      <MdLogout className="text-xl" /> Logout
-                    </button>
-                  </div>
-                )}
+                      {/* User Profile Options */}
+                      <a href="/profile" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
+                        <MdPerson className="text-xl" /> Profile
+                      </a>
+                      <a href="/orders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
+                        <MdRestaurantMenu className="text-xl" /> My Orders
+                      </a>
+
+                      {/* Admin Options */}
+                      {isAdmin && (
+                        <>
+                          <div className="border-t border-gray-200 my-1"></div>
+                          <div className="px-4 py-1 text-xs text-gray-500 font-medium">Admin Panel</div>
+                          <a href="/admin" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
+                            <MdAdminPanelSettings className="text-xl" /> Admin Dashboard
+                          </a>
+                        </>
+                      )}
+
+                      {/* Seller Options */}
+                      {isSeller && (
+                        <>
+                          <div className="border-t border-gray-200 my-1"></div>
+                          <div className="px-4 py-1 text-xs text-gray-500 font-medium">Seller Panel</div>
+                          <a href="/seller" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
+                            <MdStore className="text-xl" /> Seller Dashboard
+                          </a>
+                        </>
+                      )}
+
+                      {/* Logout Option */}
+                      <div className="border-t border-gray-200 my-1"></div>
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600 w-full text-left transition-all duration-200"
+                      >
+                        <MdLogout className="text-xl" /> Logout
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
               <button
                 onClick={onSignInClick}
-                className="text-white hover:text-[#FE8C00] transition font-medium flex items-center gap-1"
+                className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group"
               >
-                <MdPerson className="text-xl" /> Sign In
+                <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> Sign In
               </button>
             )}
 
-            <a href="/cart" className="text-white hover:text-[#FE8C00] transition font-medium flex items-center gap-1">
-              <MdShoppingCart className="text-xl" /> Cart
+            <a href="/cart" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group relative">
+              <MdShoppingCart className="text-xl group-hover:scale-110 transition-transform duration-300" /> Cart
+              <span className="absolute -top-2 -right-2 bg-[#FE8C00] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
             </a>
 
             {/* Search */}
-            <div className="relative">
+            <div className="relative group">
               <input
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search food..."
-                className="pl-10 pr-4 py-1.5 text-sm rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FE8C00] text-gray-700 bg-white"
+                className="pl-10 pr-4 py-2 text-sm rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FE8C00] focus:border-transparent text-gray-700 bg-white/90 backdrop-blur-sm transition-all duration-300 group-hover:bg-white"
               />
-              <span className="absolute left-3 top-2 text-gray-400">
+              <span className="absolute left-3 top-2.5 text-gray-400 group-hover:text-[#FE8C00] transition-colors duration-300">
                 <MdSearch className="w-5 h-5" />
               </span>
             </div>
           </div>
 
-          {/* Hamburger Menu */}
+          {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center">
-            <button
+            <motion.button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="text-gray-700 hover:text-[#FE8C00] focus:outline-none"
+              className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
+              whileTap={{ scale: 0.95 }}
             >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+              {menuOpen ? (
+                <MdClose className="w-8 h-8" />
+              ) : (
+                <MdMenu className="w-8 h-8" />
+              )}
+            </motion.button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {menuOpen && (
-        <div className="md:hidden bg-white shadow-lg fixed top-0 left-0 w-full h-screen z-50">
-          {/* Header with Logo and Close button */}
-          <div className="flex justify-between items-center p-4 border-b border-gray-100">
-            <div className="flex items-center">
-              <img
-                src="/logo.png"
-                alt="Logo"
-                className="w-16 h-16 object-contain rounded-full"
-              />
-              <span className="ml-3 font-bold font-marcellus text-xl text-gray-800">
-                Jay's Kerala Homely Meals
-              </span>
-            </div>
-            <button
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
               onClick={() => setMenuOpen(false)}
-              className="text-gray-700 hover:text-[#FE8C00] focus:outline-none"
+            />
+            
+            {/* Mobile Menu */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="md:hidden fixed top-0 right-0 w-80 h-screen z-50 bg-gradient-to-b from-white to-gray-50 shadow-2xl overflow-y-auto"
             >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Search Bar */}
-          <div className="p-4 border-b border-gray-100">
-            <div className="relative">
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search food..."
-                className="pl-10 pr-4 py-2.5 w-full rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FE8C00] text-gray-700 bg-white"
-              />
-              <span className="absolute left-3 top-3 text-gray-400">
-                <MdSearch className="w-5 h-5" />
-              </span>
-            </div>
-          </div>
-
-          {/* Navigation Links */}
-          <div className="px-4 py-3">
-            <div className="flex flex-wrap gap-2">
-              <a href="/" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                <MdRestaurant className="text-xl" /> Home
-              </a>
-              <a href="/menu" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                <MdRestaurantMenu className="text-xl" /> Menu
-              </a>
-              <a href="/contact" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                <MdCalendarToday className="text-xl" /> Bookings
-              </a>
-              <a href="/help" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                <MdHelp className="text-xl" /> Help
-              </a>
-              <a href="/contact" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                <MdCalendarToday className="text-xl" /> Contact
-              </a>
-              <a href="/cart" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                <MdShoppingCart className="text-xl" /> Cart
-              </a>
-            </div>
-          </div>
-
-          {/* User Section */}
-          {user ? (
-            <div className="border-t border-gray-100">
-              <div className="px-4 py-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <FaUserCircle className="text-2xl text-white" />
-                  <span className="font-medium text-white">{user.name?.split(' ')[0] || 'User'}</span>
+              {/* Header with Logo and Close button */}
+              <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gradient-to-r from-[#FE8C00] to-orange-500">
+                <div className="flex items-center">
+                  <img
+                    src="/logo.png"
+                    alt="Logo"
+                    className="w-14 h-14 object-contain rounded-full shadow-lg"
+                  />
+                  <span className="ml-3 font-bold text-white text-lg font-leagueSpartan " style={{ textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>
+                    Jay's Kerala Homely Meals
+                  </span>
                 </div>
+                <motion.button
+                  onClick={() => setMenuOpen(false)}
+                  className="text-white hover:text-gray-200 focus:outline-none p-2 rounded-full hover:bg-white/20 transition-all duration-300"
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <MdClose className="w-6 h-6" />
+                </motion.button>
+              </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <a href="/profile" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                    <MdPerson className="text-xl" /> Profile
-                  </a>
-                  <a href="/orders" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                    <MdRestaurantMenu className="text-xl" /> Orders
-                  </a>
-
-                  {/* Admin Options */}
-                  {isAdmin && (
-                    <a href="/admin" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                      <MdAdminPanelSettings className="text-xl" /> Admin
-                    </a>
-                  )}
-
-                  {/* Seller Options */}
-                  {isSeller && (
-                    <a href="/seller" className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full">
-                      <MdStore className="text-xl" /> Seller
-                    </a>
-                  )}
-
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full"
-                  >
-                    <MdLogout className="text-xl" /> Logout
-                  </button>
+              {/* Search Bar */}
+              <div className="p-6 border-b border-gray-100 bg-white">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search food..."
+                    className="pl-12 pr-4 py-3 w-full rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#FE8C00] focus:border-transparent text-gray-700 bg-gray-50 transition-all duration-300"
+                  />
+                  <span className="absolute left-4 top-3.5 text-gray-400">
+                    <MdSearch className="w-5 h-5" />
+                  </span>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="border-t border-gray-100 px-4 py-3">
-              <button
-                onClick={onSignInClick}
-                className="flex items-center gap-1 px-3 py-2 text-white bg-[#FE8C00] rounded-full"
-              >
-                <MdPerson className="text-xl" /> Sign In
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+
+              {/* Quick Actions */}
+              <div className="p-6 pb-4">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <MdRestaurant className="text-lg" />
+                  Quick Actions
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.a 
+                    href="/jayskeralahomelymeals" 
+                    className="flex flex-col items-center gap-2 p-4 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                    whileHover={{ y: -2, scale: 1.02 }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <MdRestaurant className="text-2xl group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium text-sm text-center">Home</span>
+                  </motion.a>
+                  <motion.a 
+                    href="/menu" 
+                    className="flex flex-col items-center gap-2 p-4 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                    whileHover={{ y: -2, scale: 1.02 }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <MdRestaurantMenu className="text-2xl group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium text-sm text-center">Menu</span>
+                  </motion.a>
+                  <motion.a 
+                    href="/cart" 
+                    className="flex flex-col items-center gap-2 p-4 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200 relative"
+                    whileHover={{ y: -2, scale: 1.02 }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <MdShoppingCart className="text-2xl group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium text-sm text-center">Cart</span>
+                    <span className="absolute -top-1 -right-1 bg-[#FE8C00] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                  </motion.a>
+                  <motion.a 
+                    href="/contact" 
+                    className="flex flex-col items-center gap-2 p-4 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                    whileHover={{ y: -2, scale: 1.02 }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <MdCalendarToday className="text-2xl group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium text-sm text-center">Bookings</span>
+                  </motion.a>
+                </div>
+              </div>
+
+              {/* Additional Links */}
+              <div className="px-6 pb-4">
+                <div className="space-y-2">
+                  <motion.a 
+                    href="/help" 
+                    className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group"
+                    whileHover={{ x: 5 }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <MdHelp className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium">Help & Support</span>
+                  </motion.a>
+                </div>
+              </div>
+
+              {/* User Section */}
+              {user ? (
+                <div className="border-t border-gray-100 p-6 bg-gradient-to-b from-orange-50/50 to-white">    
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <MdPerson className="text-lg" />
+                    My Account
+                  </h3>
+                  
+                  {/* Primary Actions */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <motion.a 
+                      href="/profile" 
+                      className="flex flex-col items-center gap-2 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                      whileHover={{ y: -2, scale: 1.02 }}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
+                      <span className="font-medium text-xs text-center">Profile</span>
+                    </motion.a>
+                    <motion.a 
+                      href="/orders" 
+                      className="flex flex-col items-center gap-2 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-xl transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                      whileHover={{ y: -2, scale: 1.02 }}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
+                      <span className="font-medium text-xs text-center">My Orders</span>
+                    </motion.a>
+                  </div>
+
+                  {/* Admin/Seller Options */}
+                  {(isAdmin || isSeller) && (
+                    <div className="mb-4">
+                      <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        {isAdmin ? 'Admin Panel' : 'Seller Panel'}
+                      </h4>
+                      <div className="space-y-2">
+                        {isAdmin && (
+                          <motion.a 
+                            href="/admin" 
+                            className="flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group"
+                            whileHover={{ x: 5 }}
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <MdAdminPanelSettings className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
+                            <span className="font-medium text-sm">Admin Dashboard</span>
+                          </motion.a>
+                        )}
+                        {isSeller && (
+                          <motion.a 
+                            href="/seller" 
+                            className="flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group"
+                            whileHover={{ x: 5 }}
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <MdStore className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
+                            <span className="font-medium text-sm">Seller Dashboard</span>
+                          </motion.a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Logout Button */}
+                  <motion.button
+                    onClick={handleLogout}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-600 hover:text-white hover:bg-red-500 rounded-xl transition-all duration-300 group border border-red-200 hover:border-red-500"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <MdLogout className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
+                    <span className="font-medium">Sign Out</span>
+                  </motion.button>
+                </div>
+              ) : (
+                <div className="border-t border-gray-100 p-6 bg-gradient-to-b from-gray-50 to-white">
+                  <div className="text-center mb-4">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <MdPerson className="text-2xl text-gray-400" />
+                    </div>
+                    <p className="text-sm text-gray-500 mb-1">Welcome to Jay's Kerala</p>
+                    <p className="text-xs text-gray-400">Sign in to access your account</p>
+                  </div>
+                  <motion.button
+                    onClick={() => {
+                      onSignInClick();
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-[#FE8C00] to-orange-500 rounded-xl font-medium hover:shadow-lg transition-all duration-300 group"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
+                    Sign In
+                  </motion.button>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </nav>
   );
 };

@@ -1,0 +1,122 @@
+[
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Gourmet Cheeseburger",
+    "malayalam_name": "ഗോർമെറ്റ് ചീസ്ബർഗർ",
+    "price": 9.50,
+    "category": "Non-veg",
+    "description": "Juicy beef patty with melted cheese, fresh lettuce, and special sauce",
+    "rating": 4.4,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Grilled Chicken Breast",
+    "malayalam_name": "ഗ്രിൽഡ് ചിക്കൻ ബ്രെസ്റ്റ്",
+    "price": 18.99,
+    "category": "Non-veg",
+    "description": "Herb-marinated chicken breast grilled to perfection",
+    "rating": 4.6,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Beef Steak with Herbs",
+    "malayalam_name": "ബീഫ് സ്റ്റീക്ക് ഹെർബ്സ്",
+    "price": 25.50,
+    "category": "Non-veg",
+    "description": "Premium cut beef steak seasoned with fresh herbs and garlic",
+    "rating": 4.7,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Fish & Chips",
+    "malayalam_name": "ഫിഷ് ആൻഡ് ചിപ്സ്",
+    "price": 16.75,
+    "category": "Non-veg",
+    "description": "Crispy battered cod with golden fries and tartar sauce",
+    "rating": 4.3,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Lamb Curry",
+    "malayalam_name": "ആട്ടിറച്ചി കറി",
+    "price": 22.00,
+    "category": "Non-veg",
+    "description": "Tender lamb pieces in aromatic Indian curry sauce",
+    "rating": 4.5,
+    "prep_time": "35-40 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Chicken Biryani",
+    "malayalam_name": "ചിക്കൻ ബിരിയാണി",
+    "price": 19.99,
+    "category": "Non-veg",
+    "description": "Fragrant basmati rice with tender chicken and aromatic spices",
+    "rating": 4.6,
+    "prep_time": "30-35 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Pork Chops",
+    "malayalam_name": "പന്നി ചോപ്സ്",
+    "price": 21.50,
+    "category": "Non-veg",
+    "description": "Grilled pork chops with apple sauce and roasted vegetables",
+    "rating": 4.4,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Shrimp Scampi",
+    "malayalam_name": "ചെമ്മീൻ സ്കാമ്പി",
+    "price": 28.75,
+    "category": "Non-veg",
+    "description": "Garlic butter shrimp served over linguine pasta",
+    "rating": 4.7,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Duck Confit",
+    "malayalam_name": "താറാവ് കോൺഫിറ്റ്",
+    "price": 32.00,
+    "category": "Non-veg",
+    "description": "Slow-cooked duck leg with crispy skin and red wine reduction",
+    "rating": 4.8,
+    "prep_time": "40-45 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Salmon Teriyaki",
+    "malayalam_name": "സാൽമൺ ടെറിയാക്കി",
+    "price": 24.50,
+    "category": "Non-veg",
+    "description": "Grilled salmon with sweet teriyaki glaze and steamed rice",
+    "rating": 4.5,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Chicken Tikka Masala",
+    "malayalam_name": "ചിക്കൻ ടിക്ക മസാല",
+    "price": 18.75,
+    "category": "Non-veg",
+    "description": "Tender chicken in creamy tomato-based curry sauce",
+    "rating": 4.6,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/Non-veg.png",
+    "product_name": "Beef Tacos",
+    "malayalam_name": "ബീഫ് ടാക്കോസ്",
+    "price": 14.25,
+    "category": "Non-veg",
+    "description": "Seasoned ground beef in corn tortillas with fresh salsa",
+    "rating": 4.3,
+    "prep_time": "15-20 min"
+  }
+] 

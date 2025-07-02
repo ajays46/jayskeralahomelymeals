@@ -1,0 +1,102 @@
+[
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Assorted Sushi Platter",
+    "malayalam_name": "വിവിധ സുഷി പ്ലാറ്റർ",
+    "price": 24.00,
+    "category": "Veg Curry",
+    "description": "Fresh sushi rolls with avocado, cucumber, and pickled vegetables",
+    "rating": 4.7,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Paneer Butter Masala",
+    "malayalam_name": "പനീർ ബട്ടർ മസാല",
+    "price": 16.50,
+    "category": "Veg Curry",
+    "description": "Cottage cheese in rich tomato and cream sauce",
+    "rating": 4.5,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Mixed Vegetable Curry",
+    "malayalam_name": "മിക്സഡ് വെജിറ്റബിൾ കറി",
+    "price": 14.75,
+    "category": "Veg Curry",
+    "description": "Assorted vegetables in aromatic Indian spices",
+    "rating": 4.3,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Dal Makhani",
+    "malayalam_name": "ദാൽ മഖനി",
+    "price": 12.99,
+    "category": "Veg Curry",
+    "description": "Slow-cooked black lentils with cream and butter",
+    "rating": 4.4,
+    "prep_time": "30-35 min"
+  },
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Chana Masala",
+    "malayalam_name": "ചണ മസാല",
+    "price": 13.25,
+    "category": "Veg Curry",
+    "description": "Chickpeas in spicy tomato-based curry",
+    "rating": 4.2,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Mushroom Curry",
+    "malayalam_name": "മഷ്റൂം കറി",
+    "price": 15.50,
+    "category": "Veg Curry",
+    "description": "Button mushrooms in creamy onion gravy",
+    "rating": 4.4,
+    "prep_time": "18-22 min"
+  },
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Aloo Gobi",
+    "malayalam_name": "ആലൂ ഗോബി",
+    "price": 11.75,
+    "category": "Veg Curry",
+    "description": "Potatoes and cauliflower in dry curry",
+    "rating": 4.1,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Baingan Bharta",
+    "malayalam_name": "വഴുതനങ്ങ ഭർത്ത",
+    "price": 13.99,
+    "category": "Veg Curry",
+    "description": "Roasted eggplant mashed with spices",
+    "rating": 4.3,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Rajma Masala",
+    "malayalam_name": "രാജ്മാ മസാല",
+    "price": 14.25,
+    "category": "Veg Curry",
+    "description": "Kidney beans in thick tomato gravy",
+    "rating": 4.2,
+    "prep_time": "30-35 min"
+  },
+  {
+    "image": "/thaninadan.png",
+    "product_name": "Malai Kofta",
+    "malayalam_name": "മലൈ കോഫ്ത",
+    "price": 17.50,
+    "category": "Veg Curry",
+    "description": "Vegetable dumplings in creamy cashew gravy",
+    "rating": 4.6,
+    "prep_time": "35-40 min"
+  }
+] 

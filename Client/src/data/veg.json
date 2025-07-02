@@ -1,0 +1,122 @@
+[
+  {
+    "image": "/veg.png",
+    "product_name": "Classic Margherita Pizza",
+    "malayalam_name": "ക്ലാസിക് മാർഗരിറ്റ പിസ്സ",
+    "price": 12.99,
+    "category": "Veg",
+    "description": "Fresh mozzarella, tomato sauce, and basil on crispy crust",
+    "rating": 4.5,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Paneer Tikka",
+    "malayalam_name": "പനീർ ടിക്ക",
+    "price": 14.50,
+    "category": "Veg",
+    "description": "Marinated cottage cheese grilled to perfection with spices",
+    "rating": 4.3,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Vegetable Biryani",
+    "malayalam_name": "വെജിറ്റബിൾ ബിരിയാണി",
+    "price": 16.75,
+    "category": "Veg",
+    "description": "Aromatic basmati rice with mixed vegetables and spices",
+    "rating": 4.4,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Mushroom Risotto",
+    "malayalam_name": "മഷ്റൂം റിസോട്ടോ",
+    "price": 18.99,
+    "category": "Veg",
+    "description": "Creamy Italian risotto with wild mushrooms and parmesan",
+    "rating": 4.6,
+    "prep_time": "30-35 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Falafel Wrap",
+    "malayalam_name": "ഫലാഫൽ റാപ്",
+    "price": 11.25,
+    "category": "Veg",
+    "description": "Crispy chickpea patties with fresh vegetables in pita bread",
+    "rating": 4.2,
+    "prep_time": "10-15 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Vegetable Lasagna",
+    "malayalam_name": "വെജിറ്റബിൾ ലസാഗ്ന",
+    "price": 19.50,
+    "category": "Veg",
+    "description": "Layered pasta with roasted vegetables and melted cheese",
+    "rating": 4.7,
+    "prep_time": "35-40 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Quinoa Buddha Bowl",
+    "malayalam_name": "ക്വിനോവ ബുദ്ധ ബൗൾ",
+    "price": 13.75,
+    "category": "Veg",
+    "description": "Nutritious quinoa with roasted vegetables and tahini dressing",
+    "rating": 4.4,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Spinach and Ricotta Ravioli",
+    "malayalam_name": "ചീരയും റിക്കോട്ടയും റാവിയോളി",
+    "price": 17.25,
+    "category": "Veg",
+    "description": "Homemade pasta filled with creamy spinach and ricotta",
+    "rating": 4.5,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Vegetable Curry",
+    "malayalam_name": "വെജിറ്റബിൾ കറി",
+    "price": 15.99,
+    "category": "Veg",
+    "description": "Mixed vegetables in aromatic Indian curry sauce",
+    "rating": 4.3,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Caprese Salad",
+    "malayalam_name": "കപ്രെസെ സാലഡ്",
+    "price": 12.50,
+    "category": "Veg",
+    "description": "Fresh mozzarella, tomatoes, and basil with balsamic glaze",
+    "rating": 4.6,
+    "prep_time": "10-15 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Vegetable Spring Rolls",
+    "malayalam_name": "വെജിറ്റബിൾ സ്പ്രിംഗ് റോളുകൾ",
+    "price": 9.75,
+    "category": "Veg",
+    "description": "Crispy rolls filled with fresh vegetables and sweet chili sauce",
+    "rating": 4.1,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/veg.png",
+    "product_name": "Mushroom Stroganoff",
+    "malayalam_name": "മഷ്റൂം സ്ട്രോഗനോഫ്",
+    "price": 16.80,
+    "category": "Veg",
+    "description": "Creamy mushroom sauce served over egg noodles",
+    "rating": 4.4,
+    "prep_time": "25-30 min"
+  }
+] 

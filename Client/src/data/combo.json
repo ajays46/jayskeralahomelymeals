@@ -1,0 +1,102 @@
+[
+  {
+    "image": "/combo.png",
+    "product_name": "Fresh Caesar Salad",
+    "malayalam_name": "ഫ്രഷ് സീസർ സാലഡ്",
+    "price": 8.75,
+    "category": "Combo",
+    "description": "Crisp romaine lettuce with parmesan cheese and caesar dressing",
+    "rating": 4.2,
+    "prep_time": "10-15 min"
+  },
+  {
+    "image": "/combo.png",
+    "product_name": "Burger & Fries Combo",
+    "malayalam_name": "ബർഗർ ആൻഡ് ഫ്രൈസ് കോമ്പോ",
+    "price": 12.99,
+    "category": "Combo",
+    "description": "Classic burger with golden fries and soft drink",
+    "rating": 4.5,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/combo.png",
+    "product_name": "Pizza & Wings Combo",
+    "malayalam_name": "പിസ്സ ആൻഡ് വിംഗ്സ് കോമ്പോ",
+    "price": 18.50,
+    "category": "Combo",
+    "description": "Medium pizza with 8 buffalo wings and dipping sauce",
+    "rating": 4.6,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/combo.png",
+    "product_name": "Pasta & Garlic Bread",
+    "malayalam_name": "പാസ്ത ആൻഡ് ഗാർലിക് ബ്രെഡ്",
+    "price": 14.75,
+    "category": "Combo",
+    "description": "Spaghetti with marinara sauce and toasted garlic bread",
+    "rating": 4.3,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/combo.png",
+    "product_name": "Rice & Curry Combo",
+    "malayalam_name": "അരി ആൻഡ് കറി കോമ്പോ",
+    "price": 16.25,
+    "category": "Combo",
+    "description": "Steamed rice with choice of curry and naan bread",
+    "rating": 4.4,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/combo.png",
+    "product_name": "Sandwich & Soup",
+    "malayalam_name": "സാൻഡ്വിച്ച് ആൻഡ് സൂപ്പ്",
+    "price": 11.50,
+    "category": "Combo",
+    "description": "Grilled sandwich with hot soup of the day",
+    "rating": 4.1,
+    "prep_time": "10-15 min"
+  },
+  {
+    "image": "/combo.png",
+    "product_name": "Sushi & Miso Soup",
+    "malayalam_name": "സുഷി ആൻഡ് മിസോ സൂപ്പ്",
+    "price": 22.00,
+    "category": "Combo",
+    "description": "Assorted sushi rolls with traditional miso soup",
+    "rating": 4.7,
+    "prep_time": "15-20 min"
+  },
+  {
+    "image": "/combo.png",
+    "product_name": "Steak & Potatoes",
+    "malayalam_name": "സ്റ്റീക്ക് ആൻഡ് പൊട്ടേറ്റോസ്",
+    "price": 28.75,
+    "category": "Combo",
+    "description": "Grilled steak with mashed potatoes and vegetables",
+    "rating": 4.8,
+    "prep_time": "25-30 min"
+  },
+  {
+    "image": "/combo.png",
+    "product_name": "Fish & Rice",
+    "malayalam_name": "മത്സ്യം ആൻഡ് അരി",
+    "price": 19.99,
+    "category": "Combo",
+    "description": "Grilled fish fillet with steamed rice and vegetables",
+    "rating": 4.5,
+    "prep_time": "20-25 min"
+  },
+  {
+    "image": "/combo.png",
+    "product_name": "Chicken & Salad",
+    "malayalam_name": "ചിക്കൻ ആൻഡ് സാലഡ്",
+    "price": 15.50,
+    "category": "Combo",
+    "description": "Grilled chicken breast with fresh garden salad",
+    "rating": 4.3,
+    "prep_time": "15-20 min"
+  }
+] 
