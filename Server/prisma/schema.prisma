@@ -74,3 +74,14 @@ enum RoleName {
   SELLER
   ADMIN
 }
+
+
+model Company {
+  id         String   @id @default(uuid())
+  name       String
+  address_id String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  @@map("company")
+}

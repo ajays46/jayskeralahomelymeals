@@ -11,6 +11,7 @@ import AdminPage from './pages/AdminPage';
 import SellerPage from './pages/SellerPage';
 import ProfilePage from './pages/ProfilePage';
 import ResetPassword from './components/ResetPassword';
+import CompanyCreatePage from './pages/CompanyCreatePage';
 
 
 const queryClient = new QueryClient({
@@ -38,6 +39,7 @@ const App = () => {
           <Route element={<ProtectedRoute />}>
      
             <Route path='/admin' element={<AdminPage/>} ></Route>
+            <Route path='/admin/company-create' element={<CompanyCreatePage/>} ></Route>
             <Route path='/seller' element={<SellerPage />}></Route>
             <Route path='/profile' element={<ProfilePage />}></Route>
           </Route>

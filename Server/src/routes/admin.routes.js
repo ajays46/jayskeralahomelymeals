@@ -3,6 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
+import { createCompany } from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -12,6 +13,13 @@ router.get('/dashboard',
     checkRole('admin', 'seller'),
     adminLogin
 );
+
+router.post('/company-create',
+    authenticateToken,
+    // checkRole('admin'),
+    createCompany
+);
+
 
 // Example of a route that requires either admin or seller role
 router.get('/products',
