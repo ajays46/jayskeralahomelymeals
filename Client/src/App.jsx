@@ -32,7 +32,7 @@ const App = () => {
           <Route path="/terms" element={<Terms />} />
           {/* <Route path="/login" element={<LoginPage />} /> */}
           {/* <Route path="/" element={<GustPage />} /> */}
-          <Route path="/jayskeralahomelymeals" element={<HomePage />} />
+          <Route path="/jkhm" element={<HomePage />} />
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
 
           {/* ✅ Protected Route */}

@@ -58,7 +58,7 @@ const Navbar = ({ onSignInClick }) => {
         <div className="flex justify-between items-center h-20 lg:h-24">
           {/* Logo */}
           <div className="flex items-center">
-            <a href="/jayskeralahomelymeals" className="flex items-center group">
+            <a href="/jkhm" className="flex items-center group">
               <motion.img
                 src="/logo.png"
                 alt="Logo"
