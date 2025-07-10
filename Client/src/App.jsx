@@ -41,7 +41,7 @@ const App = () => {
             <Route path='/admin' element={<AdminPage/>} ></Route>
             <Route path='/admin/company-create' element={<CompanyCreatePage/>} ></Route>
             <Route path='/seller' element={<SellerPage />}></Route>
-            <Route path='/profile' element={<ProfilePage />}></Route>
+            <Route path='/jkhm/profile' element={<ProfilePage />}></Route>
           </Route>
 
           {/* Add more protected routes here */}

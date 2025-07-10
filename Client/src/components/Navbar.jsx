@@ -75,7 +75,7 @@ const Navbar = ({ onSignInClick }) => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
-            <a href="/jayskeralahomelymeals" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+            <a href="/jkhm" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
             </a>
             <a href="/menu" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
@@ -110,7 +110,7 @@ const Navbar = ({ onSignInClick }) => {
                       className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl py-2 z-50 border border-gray-100"
                     >
                       {/* User Profile Options */}
-                      <a href="/profile" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
+                      <a href="/jkhm/profile" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
                         <MdPerson className="text-xl" /> Profile
                       </a>
                       <a href="/orders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
