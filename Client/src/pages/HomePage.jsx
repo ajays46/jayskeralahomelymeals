@@ -244,9 +244,8 @@ const HomePage = () => {
                             )}
                             <span className={`flex items-center gap-2 font-semibold text-[10px] mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
                               <svg xmlns='http://www.w3.org/2000/svg' className='inline w-2.5 h-2.5' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                              {item.rating || 4.3}
+                              <span className="capitalize">{item.category}</span>
                             </span>
-                            <span className="text-gray-500 text-[9px] mb-1 capitalize">{item.category}</span>
                           </div>
                         </div>
                       ))}
@@ -278,9 +277,8 @@ const HomePage = () => {
                             )}
                             <span className={`flex items-center gap-2 font-semibold text-[10px] mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
                               <svg xmlns='http://www.w3.org/2000/svg' className='inline w-2.5 h-2.5' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                              {item.rating || 4.3}
+                              <span className="capitalize">{item.category}</span>
                             </span>
-                            <span className="text-gray-500 text-[9px] mb-1 capitalize">{item.category}</span>
                           </div>
                         </div>
                       ))}
@@ -320,9 +318,8 @@ const HomePage = () => {
                               )}
                               <span className={`flex items-center gap-2 font-semibold text-[10px] mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
                                 <svg xmlns='http://www.w3.org/2000/svg' className='inline w-2.5 h-2.5' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                                {item.rating || 4.3}
+                                <span className="capitalize">{item.category}</span>
                               </span>
-                              <span className="text-gray-500 text-[9px] mb-1 capitalize">{item.category}</span>
                             </div>
                           </div>
                         ))}
@@ -350,9 +347,8 @@ const HomePage = () => {
                         )}
                         <span className={`flex items-center gap-2 font-semibold text-[10px] mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
                           <svg xmlns='http://www.w3.org/2000/svg' className='inline w-2.5 h-2.5' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                          {item.rating || 4.3}
+                          <span className="capitalize">{item.category}</span>
                         </span>
-                        <span className="text-gray-500 text-[9px] mb-1 capitalize">{item.category}</span>
                       </div>
                     </div>
                   ))}
@@ -393,9 +389,8 @@ const HomePage = () => {
                           )}
                           <span className={`flex items-center gap-2 font-semibold text-sm mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
                             <svg xmlns='http://www.w3.org/2000/svg' className='inline w-4 h-4' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                            {item.rating || 4.3}
+                            <span className="capitalize">{item.category}</span>
                           </span>
-                          <span className="text-gray-500 text-sm mb-1 capitalize">{item.category}</span>
                         </div>
                       </div>
                     ))}
@@ -430,9 +425,8 @@ const HomePage = () => {
                           )}
                           <span className={`flex items-center gap-2 font-semibold text-sm mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
                             <svg xmlns='http://www.w3.org/2000/svg' className='inline w-4 h-4' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                            {item.rating || 4.3}
+                            <span className="capitalize">{item.category}</span>
                           </span>
-                          <span className="text-gray-500 text-sm mb-1 capitalize">{item.category}</span>
                         </div>
                       </div>
                     ))}
@@ -470,9 +464,8 @@ const HomePage = () => {
                             )}
                             <span className={`flex items-center gap-2 font-semibold text-sm mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
                               <svg xmlns='http://www.w3.org/2000/svg' className='inline w-4 h-4' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                              {item.rating || 4.3}
+                              <span className="capitalize">{item.category}</span>
                             </span>
-                            <span className="text-gray-500 text-sm mb-1 capitalize">{item.category}</span>
                           </div>
                         </div>
                       ))}
@@ -497,9 +490,8 @@ const HomePage = () => {
                     )}
                     <span className={`flex items-center gap-2 font-semibold text-sm mb-1 ${item.category === 'Non-veg' || item.category === 'Non-veg Combo' ? 'text-red-600' : 'text-green-600'}`}>
                       <svg xmlns='http://www.w3.org/2000/svg' className='inline w-4 h-4' fill='currentColor' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' /></svg>
-                      {item.rating || 4.3}
+                      <span className="capitalize">{item.category}</span>
                     </span>
-                    <span className="text-gray-500 text-sm mb-1 capitalize">{item.category}</span>
                   </div>
                 </div>
               ))

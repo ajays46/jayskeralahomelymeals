@@ -235,12 +235,6 @@ const ProfilePage = () => {
             </div>
             <div className="flex justify-between items-center">
               <span className="font-semibold text-gray-800">₹{order.total}</span>
-              {order.rating && (
-                <div className="flex items-center gap-1">
-                  <MdStar className="text-yellow-400" />
-                  <span className="text-sm text-gray-600">{order.rating}/5</span>
-                </div>
-              )}
             </div>
           </div>
         ))}

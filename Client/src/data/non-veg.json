@@ -6,7 +6,6 @@
     "price": 80.00,
     "category": "Non-veg",
     "description": "Juicy beef patty with melted cheese, fresh lettuce, and special sauce",
-    "rating": 4.4,
     "prep_time": "15-20 min"
   },
   {
@@ -16,7 +15,6 @@
     "price": 100.00,
     "category": "Non-veg",
     "description": "Herb-marinated chicken breast grilled to perfection",
-    "rating": 4.6,
     "prep_time": "25-30 min"
   },
   {
@@ -26,7 +24,6 @@
     "price": 130.00,
     "category": "Non-veg",
     "description": "Premium cut beef steak seasoned with fresh herbs and garlic",
-    "rating": 4.7,
     "prep_time": "20-25 min"
   },
   {
@@ -36,7 +33,6 @@
     "price": 70.00,
     "category": "Non-veg",
     "description": "Crispy battered cod with golden fries and tartar sauce",
-    "rating": 4.3,
     "prep_time": "15-20 min"
   },
   {
@@ -46,7 +42,6 @@
     "price": 100.00,
     "category": "Non-veg",
     "description": "Tender lamb pieces in aromatic Indian curry sauce",
-    "rating": 4.5,
     "prep_time": "35-40 min"
   },
   {
@@ -56,7 +51,6 @@
     "price": 75.00,
     "category": "Non-veg",
     "description": "Fragrant basmati rice with tender chicken and aromatic spices",
-    "rating": 4.6,
     "prep_time": "30-35 min"
   },
   {
@@ -66,7 +60,6 @@
     "price": 120.00,
     "category": "Non-veg",
     "description": "Grilled pork chops with apple sauce and roasted vegetables",
-    "rating": 4.4,
     "prep_time": "25-30 min"
   },
   {
@@ -76,7 +69,6 @@
     "price": 90.00,
     "category": "Non-veg",
     "description": "Garlic butter shrimp served over linguine pasta",
-    "rating": 4.7,
     "prep_time": "20-25 min"
   },
   {
@@ -86,7 +78,6 @@
     "price": 12.00,
     "category": "Non-veg",
     "description": "Slow-cooked duck leg with crispy skin and red wine reduction",
-    "rating": 4.8,
     "prep_time": "40-45 min"
   },
   {
@@ -96,7 +87,6 @@
     "price": 30.00,
     "category": "Non-veg",
     "description": "Grilled salmon with sweet teriyaki glaze and steamed rice",
-    "rating": 4.5,
     "prep_time": "20-25 min"
   },
   {
@@ -106,7 +96,6 @@
     "price": 95.00,
     "category": "Non-veg",
     "description": "Tender chicken in creamy tomato-based curry sauce",
-    "rating": 4.6,
     "prep_time": "25-30 min"
   },
   {
@@ -116,7 +105,6 @@
     "price": 80.00,
     "category": "Non-veg",
     "description": "Seasoned ground beef in corn tortillas with fresh salsa",
-    "rating": 4.3,
     "prep_time": "15-20 min"
   }
 ] 

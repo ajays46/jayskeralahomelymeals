@@ -16,3 +16,15 @@ export const createCompanyService = async ({ name, address_id }) => {
     },
   });
 };
+
+export const companyListService = async () => {
+ const companies = await prisma.company.findMany();
+//  console.log(companies);
+ return companies;
+};
+
+export const companyDeleteService = async (id) => {
+  return await prisma.company.delete({
+    where: { id },
+  });
+};

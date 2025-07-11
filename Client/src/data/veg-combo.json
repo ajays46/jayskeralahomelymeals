@@ -1,33 +1,33 @@
 [
   {
-    "image": "/veg.png",
-    "product_name": "Veg Rice & Curry Combo",
-    "malayalam_name": "വെജ് റൈസ് ആൻഡ് കറി കോമ്പോ",
-    "price": 16.25,
-    "category": "Veg Combo",
-    "description": "Steamed rice with choice of veg curry and naan bread",
-    "rating": 4.4,
+    "image": "/rice and parripu curry.jpg",
+    "product_name": "Parippu & Rice Combo",
+    "malayalam_name": "പരിപ്പ് കറി",
+    "price": 70.00,
+    "category": "veg Combo",
+    "description": "Grilled fish fillet with steamed rice and vegetables",
+    "rating": 4.6,
     "prep_time": "20-25 min"
   },
   {
-    "image": "/veg.png",
-    "product_name": "Paneer & Salad Combo",
-    "malayalam_name": "പനീർ ആൻഡ് സാലഡ് കോമ്പോ",
-    "price": 18.50,
-    "category": "Veg Combo",
-    "description": "Grilled paneer with fresh garden salad and rice",
-    "rating": 4.3,
-    "prep_time": "15-20 min"
+    "image": "/porotta sambar.jpg",
+    "product_name": "Parotta Sambar",
+    "malayalam_name": "പൊറോട്ട സാമ്പാർ",
+    "price": 30.00,
+    "category": "veg Combo",
+    "description": "Steamed rice with chicken curry and naan bread",
+    "rating": 4.5,
+    "prep_time": "20-25 min"
   },
   {
-    "image": "/veg.png",
-    "product_name": "Veg Biryani & Raita",
-    "malayalam_name": "വെജ് ബിരിയാണി ആൻഡ് റൈറ്റ",
-    "price": 22.00,
-    "category": "Veg Combo",
-    "description": "Aromatic veg biryani with cooling raita and papad",
+    "image": "/rice and parripu curry.jpg",
+    "product_name": "Parippu & Rice Combo",
+    "malayalam_name": "പരിപ്പ് കറി",
+    "price": 70.00,
+    "category": "veg Combo",
+    "description": "Grilled fish fillet with steamed rice and vegetables",
     "rating": 4.6,
-    "prep_time": "25-30 min"
+    "prep_time": "20-25 min"
   },
   {
     "image": "/veg.png",
