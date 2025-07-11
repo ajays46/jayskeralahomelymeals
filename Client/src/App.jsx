@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import Terms from './components/Terms';
@@ -32,6 +32,7 @@ const App = () => {
           <Route path="/terms" element={<Terms />} />
           {/* <Route path="/login" element={<LoginPage />} /> */}
           {/* <Route path="/" element={<GustPage />} /> */}
+          <Route path='/' element={<Navigate to='/jkhm' replace />} ></Route>
           <Route path="/jkhm" element={<HomePage />} />
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
 
