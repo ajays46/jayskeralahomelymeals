@@ -329,7 +329,7 @@ const ProfilePage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Back Button */}
         <button
-          onClick={() => navigate('/jayskeralahomelymeals')}
+          onClick={() => navigate('/jkhm')}
           className="flex items-center gap-2 text-[#FE8C00] hover:text-orange-600 mb-6 transition"
         >
           <MdArrowBack className="text-xl" />

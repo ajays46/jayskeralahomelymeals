@@ -20,10 +20,10 @@
     "prep_time": "20-25 min"
   },
   {
-    "image": "/rice and parripu curry.jpg",
-    "product_name": "Parippu & Rice Combo",
-    "malayalam_name": "പരിപ്പ് കറി",
-    "price": 70.00,
+    "image": "/paneer.jpg",
+    "product_name": "Chapati with Paneer Butter Masala",
+    "malayalam_name": "ചപ്പാത്തി പനീർ ബട്ടർ മസാല",
+    "price": 200,
     "category": "veg Combo",
     "description": "Grilled fish fillet with steamed rice and vegetables",
     "rating": 4.6,
