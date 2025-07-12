@@ -12,6 +12,7 @@ import SellerPage from './pages/SellerPage';
 import ProfilePage from './pages/ProfilePage';
 import ResetPassword from './components/ResetPassword';
 import CompanyCreatePage from './pages/CompanyCreatePage';
+import MenuPage from './pages/MenuPage';
 
 
 const queryClient = new QueryClient({
@@ -35,6 +36,7 @@ const App = () => {
           <Route path='/' element={<Navigate to='/jkhm' replace />} ></Route>
           <Route path="/jkhm" element={<HomePage />} />
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
+          <Route path="/jkhm/menu" element={<MenuPage />} />
 
           {/* ✅ Protected Route */}
           <Route element={<ProtectedRoute />}>

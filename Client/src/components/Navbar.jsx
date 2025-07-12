@@ -78,7 +78,7 @@ const Navbar = ({ onSignInClick }) => {
             <a href="/jkhm" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
             </a>
-            <a href="/menu" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+            <a href="/jkhm/menu" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> Menu
             </a>
             <a href="/contact" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
@@ -260,7 +260,7 @@ const Navbar = ({ onSignInClick }) => {
               <div className="p-4">
                 <div className="grid grid-cols-2 gap-2">
                   <motion.a 
-                    href="/jayskeralahomelymeals" 
+                    href="/jkhm" 
                     className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
                     whileHover={{ y: -1, scale: 1.01 }}
                     onClick={() => setMenuOpen(false)}
@@ -269,7 +269,7 @@ const Navbar = ({ onSignInClick }) => {
                     <span className="font-medium text-xs text-center">Home</span>
                   </motion.a>
                   <motion.a 
-                    href="/menu" 
+                    href="/jkhm/menu" 
                     className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
                     whileHover={{ y: -1, scale: 1.01 }}
                     onClick={() => setMenuOpen(false)}
