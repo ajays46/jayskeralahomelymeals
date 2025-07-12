@@ -89,8 +89,8 @@ const MenuPage = () => {
         <div className="bg-[url('/banner_one.jpg')] bg-cover bg-center bg-no-repeat h-64 sm:h-56 md:h-64 lg:h-72 xl:h-80 flex items-center justify-center pt-16 sm:pt-18 md:pt-20 lg:pt-22">
           <div className="absolute inset-0 bg-black/50 sm:bg-black/35 md:bg-black/30"></div>
           <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16 md:py-20 lg:py-24 xl:py-28">
-            <div className="text-center max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto pt-14 sm:pt-12 md:pt-16 lg:pt-28 pb-8 sm:pb-12 md:pb-16 lg:pb-20">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
+            <div className="text-left sm:text-center max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto pt-14 sm:pt-12 md:pt-16 lg:pt-28 pb-8 sm:pb-12 md:pb-16 lg:pb-20">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl lg:pt-2 xl:text-6xl font-bold text-white mb-4 sm:mb-6 pl-2 leading-tight">
                 Discover Authentic
                 <span className="block text-yellow-300 mt-1 sm:mt-2">Kerala Cuisine</span>
               </h1>
@@ -104,14 +104,14 @@ const MenuPage = () => {
       </div>
 
       {/* Find by Category Section */}
-      <section className="py-16 lg:py-20 bg-white">
+      <section className="py-10 lg:py-20 bg-white">
         <div className="container mx-auto px-4">
           {/* Section Header */}
-          <div className="text-center mb-12">
+          <div className="text-left sm:text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Find by Category
             </h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            <p className="text-gray-600 text-lg max-w-2xl sm:mx-auto">
               Choose your preference and discover our carefully curated selection of traditional Kerala dishes
             </p>
           </div>
@@ -121,9 +121,7 @@ const MenuPage = () => {
             {/* All Items Card */}
             <div 
               onClick={() => handleCategoryChange('All')}
-              className={`relative group cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                selectedCategory === 'All' ? 'ring-4 ring-orange-500 ring-opacity-50' : ''
-              }`}
+              className="relative group cursor-pointer transition-all duration-300 transform hover:scale-105"
             >
               <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-6 h-40 md:h-48 flex flex-col justify-between text-white shadow-lg hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between">
@@ -152,9 +150,7 @@ const MenuPage = () => {
             {/* Veg Items Card */}
             <div 
               onClick={() => handleCategoryChange('Veg')}
-              className={`relative group cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                selectedCategory === 'Veg' ? 'ring-4 ring-green-500 ring-opacity-50' : ''
-              }`}
+              className="relative group cursor-pointer transition-all duration-300 transform hover:scale-105"
             >
               <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 h-40 md:h-48 flex flex-col justify-between text-white shadow-lg hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between">
@@ -183,9 +179,7 @@ const MenuPage = () => {
             {/* Non-Veg Items Card */}
             <div 
               onClick={() => handleCategoryChange('Non-veg')}
-              className={`relative group cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                selectedCategory === 'Non-veg' ? 'ring-4 ring-red-500 ring-opacity-50' : ''
-              }`}
+              className="relative group cursor-pointer transition-all duration-300 transform hover:scale-105"
             >
               <div className="bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl p-6 h-40 md:h-48 flex flex-col justify-between text-white shadow-lg hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between">

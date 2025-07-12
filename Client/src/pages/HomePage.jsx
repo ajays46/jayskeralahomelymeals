@@ -26,7 +26,7 @@ const HomePage = () => {
         <div className="bg-[url('/banner_one.jpg')] bg-cover bg-center bg-no-repeat h-64 sm:h-80 md:h-96 lg:h-[400px] xl:h-[500px] flex items-center justify-center pt-16 sm:pt-18 md:pt-20 lg:pt-22">
           <div className="absolute inset-0 bg-black/40 sm:bg-black/35 md:bg-black/30"></div>
           <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-20 xl:py-24">
-            <div className="text-center max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto">
+            <div className="text-left sm:text-center max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto pl-2">
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
                 Discover Authentic
                 <span className="block text-yellow-300 mt-1 sm:mt-2">Kerala Cuisine</span>
@@ -35,7 +35,7 @@ const HomePage = () => {
                 Experience the rich flavors and traditional recipes from God's Own Country. 
                 From spicy curries to aromatic rice dishes, every bite tells a story.
               </p>
-              <div className="flex flex-row gap-3 sm:gap-4 justify-center items-center">
+              <div className="flex flex-row gap-3 sm:gap-4 justify-start sm:justify-center items-start sm:items-center">
                 <a href="/jkhm/menu" className="w-auto">
                   <button className="w-auto bg-white hover:bg-gray-100 text-orange-600 px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full font-semibold text-xs sm:text-sm md:text-base transition-all duration-300 transform hover:scale-105 shadow-lg">
                     Explore Menu
