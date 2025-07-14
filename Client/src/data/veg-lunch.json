@@ -1,0 +1,42 @@
+[
+    {
+        "image": "/oonu.jpg",
+        "product_name": "Ilayil Oonu",
+        "malayalam_name": "ഇലയിൽ ഊണ്",
+        "price": 120.00,
+        "category": "Veg-lunch",
+        "description": "Traditional Kerala meal served on banana leaf with rice, curries, and sides"
+    },
+    {
+        "image": "/Kappa Puzhukku.jpg",
+        "product_name": "Kappa Puzhukku",
+        "malayalam_name": "കപ്പപുഴുക്ക്",
+        "price": 50.00,
+        "category": "Veg-lunch",
+        "description": "Tapioca cooked with coconut and spices"
+    },
+    {
+        "image": "/parippu curry.jpg",
+        "product_name": "Parippu Curry",
+        "malayalam_name": "പരിപ്പ് കറി",
+        "price": 50.00,
+        "category": "Veg-lunch",
+        "description": "Traditional dal curry with coconut and spices"
+    },
+    {
+        "image": "/kadala curry.jpg",
+        "product_name": "Kadala Curry",
+        "malayalam_name": "കടല കറി",
+        "price": 40.00,
+        "category": "Veg-lunch",
+        "description": "Black chickpea curry with coconut and spices"
+    },
+    {
+        "image": "/aviyal.jpg",
+        "product_name": "Aviyal",
+        "malayalam_name": "അവിയൽ",
+        "price": 40.00,
+        "category": "Veg-lunch",
+        "description": "Mixed vegetables in coconut and yogurt gravy"
+    }
+] 

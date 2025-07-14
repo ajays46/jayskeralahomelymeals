@@ -1,0 +1,42 @@
+[
+    {
+        "image": "/sambar.jpg",
+        "product_name": "Sambar",
+        "malayalam_name": "സാമ്പാർ",
+        "price": 40.00,
+        "category": "Veg-dinner",
+        "description": "Traditional sambar with vegetables and tamarind"
+    },
+    {
+        "image": "/olan.jpg",
+        "product_name": "Olan",
+        "malayalam_name": "ഓലൻ",
+        "price": 30.00,
+        "category": "Veg-dinner",
+        "description": "White pumpkin and cowpeas in coconut milk"
+    },
+    {
+        "image": "/kalan.jpg",
+        "product_name": "Kalan",
+        "malayalam_name": "കാളൻ",
+        "price": 30.00,
+        "category": "Veg-dinner",
+        "description": "Yam and plantain in yogurt and coconut gravy"
+    },
+    {
+        "image": "/theeyal.jpg",
+        "product_name": "Theeyal",
+        "malayalam_name": "തിയൽ",
+        "price": 35.00,
+        "category": "Veg-dinner",
+        "description": "Roasted coconut curry with vegetables"
+    },
+    {
+        "image": "/puliserry.jpg",
+        "product_name": "Mambazha Pulissery",
+        "malayalam_name": "മാമ്പഴ പുളിശേരി",
+        "price": 45.00,
+        "category": "Veg-dinner",
+        "description": "Mango in yogurt and coconut gravy"
+    }
+] 

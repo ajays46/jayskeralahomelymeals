@@ -1,0 +1,42 @@
+[
+    {
+        "image": "/chapati chicken roast salad.jpeg",
+        "product_name": "Chapati Chicken Roast Salad",
+        "malayalam_name": "ചപ്പാത്തി  ചിക്കൻ  റോസ്സ്റ്റ്  സാലഡ് ",
+        "price": 60.00,
+        "category": "Non-veg-lunch",
+        "description": "Spicy chicken curry with coconut and spices"
+    },
+    {
+        "image": "/palappam egg curry salad.jpeg",
+        "product_name": "Palappam Egg curry Salad",
+        "malayalam_name": "പാലപ്പം  മുട്ടകറി  സാലഡ് ",
+        "price": 75.00,
+        "category": "Non-veg-dinner",
+        "description": "Chicken in roasted coconut gravy"
+    },
+    {
+        "image": "/chicken biriyani.jpeg",
+        "product_name": "Chicken Biriyani",
+        "malayalam_name": "ചിക്കൻ ബിരിയാണി",
+        "price": 65.00,
+        "category": "Non-veg-dinner",
+        "description": "Minced chicken with coconut and spices"
+    },
+    {
+        "image": "/palappam chicken salad.jpeg",
+        "product_name": "Palappam Chicken Curry Salad",
+        "malayalam_name": "പാലപ്പം  ചിക്കൻകറി  സാലഡ് ",
+        "price": 85.00,
+        "category": "Non-veg-dinner",
+        "description": "Beef with plantain fritters"
+    },
+    {
+        "image": "/weetputtu chicken salad.jpeg",
+        "product_name": "Wheat Puttu Chicken Salad",
+        "malayalam_name": " ഗോതമ്പ് പുട്ട്  ചിക്കൻ  സാലഡ് ",
+        "price": 70.00,
+        "category": "Non-veg-dinner",
+        "description": "Layered bread with beef curry"
+    }
+] 

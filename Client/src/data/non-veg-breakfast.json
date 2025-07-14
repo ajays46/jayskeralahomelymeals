@@ -1,0 +1,42 @@
+[
+    {
+        "image": "/idly sambar.jpg",
+        "product_name": "Idly Sambar Chutney",
+        "malayalam_name": "ഇഡ്ഡെി (4), സാമ്പാർ, ചട്ണി ",
+        "price": 20.00,
+        "category": "Veg-breakfast",
+        "description": "Fresh mozzarella, tomato sauce, and basil on crispy crust"
+    },
+    {
+        "image": "/ariputt kadala pazham.jpg",
+        "product_name": "Ariputt Kadala Curry Pazham",
+        "malayalam_name": "അരിപ്പുട്ട്, കടലകറി, പഴം",
+        "price": 20.00,
+        "category": "Veg-breakfast",
+        "description": "Fresh mozzarella, tomato sauce, and basil on crispy crust"
+    },
+    {
+        "image": "/idiyappam peas curry.JPG",
+        "product_name": "Idiyappam Green Peas Curry",
+        "malayalam_name": "ഇടിയപ്പം  ഗ്രീൻപീസ്  കറി ",
+        "price": 20.00,
+        "category": "Veg-breakfast",
+        "description": "Fresh mozzarella, tomato sauce, and basil on crispy crust"
+    },
+    {
+        "image": "/kallapam kadala curry.jpg",
+        "product_name": "kalapam kadala curry",
+        "malayalam_name": "കല്ലപ്പം (3), കടലകറി ",
+        "price": 20.00,
+        "category": "Veg-breakfast",
+        "description": "Fresh mozzarella, tomato sauce, and basil on crispy crust"
+    },
+    {
+        "image": "/palappam veg kuruma.jpg",
+        "product_name": "Palappam Vegetable Kurma",
+        "malayalam_name": "പാലപ്പം വെജ് കുറുമ  ",
+        "price": 20.00,
+        "category": "Veg-breakfast",
+        "description": "Fresh mozzarella, tomato sauce, and basil on crispy crust"
+    }
+]

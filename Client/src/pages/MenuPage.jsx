@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
-import combinedVegData from '../data/combined-veg.json';
-import combinedNonVegData from '../data/combined-non-veg.json';
+import vegBreakfastData from '../data/veg-breakfast.json';
+import vegLunchData from '../data/veg-lunch.json';
+import vegDinnerData from '../data/veg-dinner.json';
+import nonVegBreakfastData from '../data/non-veg-breakfast.json';
+import nonVegLunchData from '../data/non-veg-lunch.json';
+import nonVegDinnerData from '../data/non-veg-dinner.json';
 import { FiChevronRight, FiX, FiGrid, FiHeart, FiZap } from 'react-icons/fi';
 import CategoryGridModal from '../components/CategoryGridModal';
 
@@ -31,25 +35,42 @@ const MenuPage = () => {
     
     switch (category) {
       case 'All':
-        data = [...combinedVegData, ...combinedNonVegData];
+        // Combine all meal-specific data for 'All' category
+        data = [
+          ...vegBreakfastData, 
+          ...vegLunchData, 
+          ...vegDinnerData,
+          ...nonVegBreakfastData,
+          ...nonVegLunchData,
+          ...nonVegDinnerData
+        ];
         break;
       case 'Veg':
-        data = combinedVegData;
+        if (mealType === 'breakfast') {
+          data = vegBreakfastData;
+        } else if (mealType === 'lunch') {
+          data = vegLunchData;
+        } else if (mealType === 'dinner') {
+          data = vegDinnerData;
+        } else {
+          // For 'All' meal type, combine all veg meal data
+          data = [...vegBreakfastData, ...vegLunchData, ...vegDinnerData];
+        }
         break;
       case 'Non-veg':
-        data = combinedNonVegData;
+        if (mealType === 'breakfast') {
+          data = nonVegBreakfastData;
+        } else if (mealType === 'lunch') {
+          data = nonVegLunchData;
+        } else if (mealType === 'dinner') {
+          data = nonVegDinnerData;
+        } else {
+          // For 'All' meal type, combine all non-veg meal data
+          data = [...nonVegBreakfastData, ...nonVegLunchData, ...nonVegDinnerData];
+        }
         break;
       default:
-        data = [...combinedVegData, ...combinedNonVegData];
-    }
-
-    // Filter by meal type if not 'All'
-    if (mealType !== 'All') {
-      const itemsPerMeal = Math.ceil(data.length / 3);
-      const mealTypeIndex = mealTypes.findIndex(mt => mt.key === mealType) - 1;
-      const startIndex = mealTypeIndex * itemsPerMeal;
-      const endIndex = startIndex + itemsPerMeal;
-      data = data.slice(startIndex, endIndex);
+        data = [];
     }
 
     return data;
@@ -129,7 +150,7 @@ const MenuPage = () => {
                     <FiGrid className="w-5 h-5 md:w-6 md:h-6" />
                   </div>
                   <div className="text-right">
-                    <div className="text-xl md:text-2xl font-bold">{combinedVegData.length + combinedNonVegData.length}</div>
+                    <div className="text-xl md:text-2xl font-bold">{vegBreakfastData.length + vegLunchData.length + vegDinnerData.length + nonVegBreakfastData.length + nonVegLunchData.length + nonVegDinnerData.length}</div>
                     <div className="text-xs md:text-sm opacity-90">Total Items</div>
                   </div>
                 </div>
@@ -158,7 +179,7 @@ const MenuPage = () => {
                     <FiHeart className="w-5 h-5 md:w-6 md:h-6" />
                   </div>
                   <div className="text-right">
-                    <div className="text-xl md:text-2xl font-bold">{combinedVegData.length}</div>
+                    <div className="text-xl md:text-2xl font-bold">{vegBreakfastData.length + vegLunchData.length + vegDinnerData.length}</div>
                     <div className="text-xs md:text-sm opacity-90">Veg Items</div>
                   </div>
                 </div>
@@ -187,7 +208,7 @@ const MenuPage = () => {
                     <FiZap className="w-5 h-5 md:w-6 md:h-6" />
                   </div>
                   <div className="text-right">
-                    <div className="text-xl md:text-2xl font-bold">{combinedNonVegData.length}</div>
+                    <div className="text-xl md:text-2xl font-bold">{nonVegBreakfastData.length + nonVegLunchData.length + nonVegDinnerData.length}</div>
                     <div className="text-xs md:text-sm opacity-90">Non-Veg Items</div>
                   </div>
                 </div>

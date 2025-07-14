@@ -1,0 +1,42 @@
+[
+    {
+        "image": "/chapati chicken roast salad.jpeg",
+        "product_name": "Chapati Chicken Roast Salad",
+        "malayalam_name": "ചപ്പാത്തി  ചിക്കൻ  റോസ്സ്റ്റ്  സാലഡ് ",
+        "price": 60.00,
+        "category": "Non-veg-lunch",
+        "description": "Spicy chicken curry with coconut and spices"
+    },
+    {
+        "image": "/beef fry.jpg",
+        "product_name": "Beef Fry",
+        "malayalam_name": "ബീഫ് ഫ്രൈ",
+        "price": 80.00,
+        "category": "Non-veg-lunch",
+        "description": "Crispy beef fry with onions and spices"
+    },
+    {
+        "image": "/chicken 65.jpg",
+        "product_name": "Chicken 65",
+        "malayalam_name": "ചിക്കൻ 65",
+        "price": 70.00,
+        "category": "Non-veg-lunch",
+        "description": "Spicy deep-fried chicken with curry leaves"
+    },
+    {
+        "image": "/kappa unakka meen curry.JPG",
+        "product_name": "Kappa Unakka Meen Curry",
+        "malayalam_name": "കപ്പ ഉണക്ക മീൻ കറി",
+        "price": 90.00,
+        "category": "Non-veg-lunch",
+        "description": "Tapioca with dried fish curry"
+    },
+    {
+        "image": "/half chicken roast.jpg",
+        "product_name": "Half Chicken Roast",
+        "malayalam_name": "ഹാഫ് ചിക്കൻ റോസ്റ്റ്",
+        "price": 120.00,
+        "category": "Non-veg-lunch",
+        "description": "Spicy roasted chicken with masala"
+    }
+] 
