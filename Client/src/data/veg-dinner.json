@@ -1,42 +1,50 @@
 [
     {
-        "image": "/sambar.jpg",
-        "product_name": "Sambar",
-        "malayalam_name": "സാമ്പാർ",
+        "image": "/chapati kizhangkari salad.jpeg",
+        "product_name": "Chapati Kizhang Curry Salad",
+        "malayalam_name": "ചപ്പാത്തി  കിഴങ്ങ്കറി  സാലഡ് ",
         "price": 40.00,
         "category": "Veg-dinner",
         "description": "Traditional sambar with vegetables and tamarind"
     },
     {
-        "image": "/olan.jpg",
-        "product_name": "Olan",
-        "malayalam_name": "ഓലൻ",
+        "image": "/palappam veg kuruma salad.jpeg",
+        "product_name": "Palappam Veg Kuruma Salad",
+        "malayalam_name": "പാലപ്പം  വെജ്കുറുമ  സാലഡ് ",
         "price": 30.00,
         "category": "Veg-dinner",
         "description": "White pumpkin and cowpeas in coconut milk"
     },
     {
-        "image": "/kalan.jpg",
-        "product_name": "Kalan",
-        "malayalam_name": "കാളൻ",
+        "image": "/vegitable biriyani.jpg",
+        "product_name": "Vegetable Biryani",
+        "malayalam_name": "വെജിറ്റബിൾ  ബിരിയാണി",
         "price": 30.00,
         "category": "Veg-dinner",
         "description": "Yam and plantain in yogurt and coconut gravy"
     },
     {
-        "image": "/theeyal.jpg",
-        "product_name": "Theeyal",
-        "malayalam_name": "തിയൽ",
+        "image": "/chapati kadalacurry salad.jpeg",
+        "product_name": "Chapati KadalaCurry Salad",
+        "malayalam_name": "ചപ്പാത്തി  കടലക്കറി  സാലഡ് ",
         "price": 35.00,
         "category": "Veg-dinner",
         "description": "Roasted coconut curry with vegetables"
     },
     {
-        "image": "/puliserry.jpg",
-        "product_name": "Mambazha Pulissery",
-        "malayalam_name": "മാമ്പഴ പുളിശേരി",
+        "image": "/chapati parripu curry salad.jpeg",
+        "product_name": "Chapati Parripu Curry Salad",
+        "malayalam_name": "ചപ്പാത്തി  പരിപ്കറി  സാലഡ് ",
         "price": 45.00,
         "category": "Veg-dinner",
         "description": "Mango in yogurt and coconut gravy"
+    },
+    {
+        "image": "/weatputt greenpease curry salad.png",
+        "product_name": "Wheat Puttu Greenpease Curry Salad",
+        "malayalam_name": "ഗോതമ്പ്പുട്ട്  ഗ്രീൻപീസ്കറി  സാലഡ് ",
+        "price": 40.00,
+        "category": "Veg-dinner",
+        "description": "Traditional sambar with vegetables and tamarind"
     }
 ] 

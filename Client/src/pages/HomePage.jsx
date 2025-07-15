@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { useUsersList } from '../hooks/userHooks/useLogin';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
-import combinedVegData from '../data/combined-veg.json';
-import combinedNonVegData from '../data/combined-non-veg.json';
+import vegBreakfastData from '../data/veg-breakfast.json';
+import vegLunchData from '../data/veg-lunch.json';
+import vegDinnerData from '../data/veg-dinner.json';
+import nonVegBreakfastData from '../data/non-veg-breakfast.json';
+import nonVegLunchData from '../data/non-veg-lunch.json';
+import nonVegDinnerData from '../data/non-veg-dinner.json';
 
 const HomePage = () => {
   const { data } = useUsersList();
@@ -12,9 +16,13 @@ const HomePage = () => {
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);
   const handleCloseAuthSlider = () => setAuthSliderOpen(false);
 
-  // Get some sample items from each category
-  const sampleVegItems = combinedVegData.slice(0, 6);
-  const sampleNonVegItems = combinedNonVegData.slice(0, 6);
+  // Get sample items from each meal category
+  const sampleVegBreakfast = vegBreakfastData.slice(0, 3);
+  const sampleVegLunch = vegLunchData.slice(0, 3);
+  const sampleVegDinner = vegDinnerData.slice(0, 3);
+  const sampleNonVegBreakfast = nonVegBreakfastData.slice(0, 3);
+  const sampleNonVegLunch = nonVegLunchData.slice(0, 3);
+  const sampleNonVegDinner = nonVegDinnerData.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50">
@@ -61,89 +69,259 @@ const HomePage = () => {
               Our Featured Dishes
             </h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Explore our carefully curated selection of traditional Kerala dishes
+              Explore our carefully curated selection of traditional Kerala dishes by meal type
             </p>
           </div>
 
-          {/* Vegetarian Items */}
+          {/* Breakfast Section */}
           <div className="mb-16">
             <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-green-700 mb-2">Vegetarian Delights</h3>
-              <p className="text-gray-600">Fresh vegetables and traditional vegetarian delicacies</p>
+              <h3 className="text-2xl font-bold text-yellow-600 mb-2">Breakfast Delights</h3>
+              <p className="text-gray-600">Start your day with traditional Kerala breakfast items</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 max-w-6xl mx-auto">
-              {sampleVegItems.map((item, index) => (
-                <div
-                  key={index}
-                  className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-md hover:shadow-lg sm:hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
-                >
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={item.image}
-                      alt={item.product_name}
-                      className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                    <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-                      <span className="bg-green-100 text-green-800 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-semibold">
-                        Veg
-                      </span>
+            
+            {/* Vegetarian Breakfast */}
+            <div className="mb-8">
+              <h4 className="text-lg font-semibold text-green-700 mb-4 text-center">Vegetarian Breakfast</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 max-w-6xl mx-auto">
+                {sampleVegBreakfast.map((item, index) => (
+                  <div
+                    key={index}
+                    className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-md hover:shadow-lg sm:hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
+                  >
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={item.image}
+                        alt={item.product_name}
+                        className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                        <span className="bg-green-100 text-green-800 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-semibold">
+                          Veg
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-2 sm:p-3 lg:p-4">
+                      <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base">{item.product_name}</h3>
+                      {item.malayalam_name && (
+                        <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-2 sm:mt-3">
+                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
+                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
+                          Add to Cart
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-2 sm:p-3 lg:p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base">{item.product_name}</h3>
-                    {item.malayalam_name && (
-                      <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
-                    )}
-                    <div className="flex items-center justify-between mt-2 sm:mt-3">
-                      <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
-                      <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
-                        Add to Cart
-                      </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Non-Vegetarian Breakfast */}
+            <div className="mb-8">
+              <h4 className="text-lg font-semibold text-red-700 mb-4 text-center">Non-Vegetarian Breakfast</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 max-w-6xl mx-auto">
+                {sampleNonVegBreakfast.map((item, index) => (
+                  <div
+                    key={index}
+                    className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-md hover:shadow-lg sm:hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
+                  >
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={item.image}
+                        alt={item.product_name}
+                        className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                        <span className="bg-red-100 text-red-800 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-semibold">
+                          Non-Veg
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-2 sm:p-3 lg:p-4">
+                      <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base">{item.product_name}</h3>
+                      {item.malayalam_name && (
+                        <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-2 sm:mt-3">
+                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
+                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
+                          Add to Cart
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Non-Vegetarian Items */}
+          {/* Lunch Section */}
           <div className="mb-16">
             <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-red-700 mb-2">Non-Vegetarian Specials</h3>
-              <p className="text-gray-600">Spicy meat and seafood dishes with authentic flavors</p>
+              <h3 className="text-2xl font-bold text-green-600 mb-2">Lunch Specials</h3>
+              <p className="text-gray-600">Traditional Kerala lunch with rice, curries, and sides</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 max-w-6xl mx-auto">
-              {sampleNonVegItems.map((item, index) => (
-                <div
-                  key={index}
-                  className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-md hover:shadow-lg sm:hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
-                >
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={item.image}
-                      alt={item.product_name}
-                      className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                    <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-                      <span className="bg-red-100 text-red-800 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-semibold">
-                        Non-Veg
-                      </span>
+            
+            {/* Vegetarian Lunch */}
+            <div className="mb-8">
+              <h4 className="text-lg font-semibold text-green-700 mb-4 text-center">Vegetarian Lunch</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 max-w-6xl mx-auto">
+                {sampleVegLunch.map((item, index) => (
+                  <div
+                    key={index}
+                    className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-md hover:shadow-lg sm:hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
+                  >
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={item.image}
+                        alt={item.product_name}
+                        className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                        <span className="bg-green-100 text-green-800 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-semibold">
+                          Veg
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-2 sm:p-3 lg:p-4">
+                      <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base">{item.product_name}</h3>
+                      {item.malayalam_name && (
+                        <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-2 sm:mt-3">
+                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
+                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
+                          Add to Cart
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-2 sm:p-3 lg:p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base">{item.product_name}</h3>
-                    {item.malayalam_name && (
-                      <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
-                    )}
-                    <div className="flex items-center justify-between mt-2 sm:mt-3">
-                      <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
-                      <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
-                        Add to Cart
-                      </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Non-Vegetarian Lunch */}
+            <div className="mb-8">
+              <h4 className="text-lg font-semibold text-red-700 mb-4 text-center">Non-Vegetarian Lunch</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 max-w-6xl mx-auto">
+                {sampleNonVegLunch.map((item, index) => (
+                  <div
+                    key={index}
+                    className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-md hover:shadow-lg sm:hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
+                  >
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={item.image}
+                        alt={item.product_name}
+                        className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                        <span className="bg-red-100 text-red-800 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-semibold">
+                          Non-Veg
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-2 sm:p-3 lg:p-4">
+                      <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base">{item.product_name}</h3>
+                      {item.malayalam_name && (
+                        <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-2 sm:mt-3">
+                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
+                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
+                          Add to Cart
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Dinner Section */}
+          <div className="mb-16">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-purple-600 mb-2">Dinner Favorites</h3>
+              <p className="text-gray-600">Light and delicious dinner options with traditional flavors</p>
+            </div>
+            
+            {/* Vegetarian Dinner */}
+            <div className="mb-8">
+              <h4 className="text-lg font-semibold text-green-700 mb-4 text-center">Vegetarian Dinner</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 max-w-6xl mx-auto">
+                {sampleVegDinner.map((item, index) => (
+                  <div
+                    key={index}
+                    className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-md hover:shadow-lg sm:hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
+                  >
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={item.image}
+                        alt={item.product_name}
+                        className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                        <span className="bg-green-100 text-green-800 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-semibold">
+                          Veg
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-2 sm:p-3 lg:p-4">
+                      <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base">{item.product_name}</h3>
+                      {item.malayalam_name && (
+                        <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-2 sm:mt-3">
+                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
+                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
+                          Add to Cart
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Non-Vegetarian Dinner */}
+            <div className="mb-8">
+              <h4 className="text-lg font-semibold text-red-700 mb-4 text-center">Non-Vegetarian Dinner</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 max-w-6xl mx-auto">
+                {sampleNonVegDinner.map((item, index) => (
+                  <div
+                    key={index}
+                    className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-md hover:shadow-lg sm:hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
+                  >
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={item.image}
+                        alt={item.product_name}
+                        className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                        <span className="bg-red-100 text-red-800 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-semibold">
+                          Non-Veg
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-2 sm:p-3 lg:p-4">
+                      <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base">{item.product_name}</h3>
+                      {item.malayalam_name && (
+                        <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-2 sm:mt-3">
+                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
+                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
+                          Add to Cart
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
