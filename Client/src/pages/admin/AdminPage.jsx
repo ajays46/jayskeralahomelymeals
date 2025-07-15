@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import AdminSlide from '../components/AdminSlide';
+import AdminSlide from '../../components/AdminSlide';
 
 const AdminPage = () => {
   const [adminData, setAdminData] = useState(null);

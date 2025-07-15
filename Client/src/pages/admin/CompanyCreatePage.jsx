@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaBuilding, FaTrash } from 'react-icons/fa';
-import AdminSlide from '../components/AdminSlide';
-import { useCreateCompany, useCompanyList, useCompanyDelete } from '../hooks/adminHook/adminHook';
+import AdminSlide from '../../components/AdminSlide';
+import { useCreateCompany, useCompanyList, useCompanyDelete } from '../../hooks/adminHook/adminHook';
 import { Popconfirm, Button } from 'antd';
 import 'antd/dist/reset.css'; // or 'antd/dist/antd.css' for older versions
 

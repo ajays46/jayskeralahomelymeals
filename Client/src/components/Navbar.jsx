@@ -81,7 +81,7 @@ const Navbar = ({ onSignInClick }) => {
             <a href="/jkhm/menu" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> Menu
             </a>
-            <a href="/contact" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+            <a href="/jkhm/bookings" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> Bookings
             </a>
             <a href="/help" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
@@ -288,7 +288,7 @@ const Navbar = ({ onSignInClick }) => {
                     <span className="absolute -top-1 -right-1 bg-[#FE8C00] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">0</span>
                   </motion.a>
                   <motion.a 
-                    href="/contact" 
+                    href="/bookings" 
                     className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
                     whileHover={{ y: -1, scale: 1.01 }}
                     onClick={() => setMenuOpen(false)}

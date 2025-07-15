@@ -7,12 +7,13 @@ import Terms from './components/Terms';
 // import GustPage from './pages/GustPage';
 import HomePage from './pages/HomePage';
 import ProtectedRoute from './protectRoute/Protect';
-import AdminPage from './pages/AdminPage';
+import AdminPage from './pages/admin/AdminPage';
 import SellerPage from './pages/SellerPage';
 import ProfilePage from './pages/ProfilePage';
 import ResetPassword from './components/ResetPassword';
-import CompanyCreatePage from './pages/CompanyCreatePage';
+import CompanyCreatePage from './pages/admin/CompanyCreatePage';
 import MenuPage from './pages/MenuPage';
+import BookingPage from './pages/BookingPage';
 
 
 const queryClient = new QueryClient({
@@ -37,6 +38,7 @@ const App = () => {
           <Route path="/jkhm" element={<HomePage />} />
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
           <Route path="/jkhm/menu" element={<MenuPage />} />
+          <Route path="/jkhm/bookings" element={<BookingPage />} />
 
           {/* ✅ Protected Route */}
           <Route element={<ProtectedRoute />}>

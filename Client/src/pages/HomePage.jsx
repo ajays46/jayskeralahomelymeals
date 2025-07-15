@@ -106,12 +106,6 @@ const HomePage = () => {
                       {item.malayalam_name && (
                         <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
                       )}
-                      <div className="flex items-center justify-between mt-2 sm:mt-3">
-                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
-                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
-                          Add to Cart
-                        </button>
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -144,12 +138,6 @@ const HomePage = () => {
                       {item.malayalam_name && (
                         <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
                       )}
-                      <div className="flex items-center justify-between mt-2 sm:mt-3">
-                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
-                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
-                          Add to Cart
-                        </button>
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -190,12 +178,6 @@ const HomePage = () => {
                       {item.malayalam_name && (
                         <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
                       )}
-                      <div className="flex items-center justify-between mt-2 sm:mt-3">
-                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
-                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
-                          Add to Cart
-                        </button>
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -228,12 +210,6 @@ const HomePage = () => {
                       {item.malayalam_name && (
                         <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
                       )}
-                      <div className="flex items-center justify-between mt-2 sm:mt-3">
-                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
-                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
-                          Add to Cart
-                        </button>
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -274,12 +250,6 @@ const HomePage = () => {
                       {item.malayalam_name && (
                         <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
                       )}
-                      <div className="flex items-center justify-between mt-2 sm:mt-3">
-                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
-                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
-                          Add to Cart
-                        </button>
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -312,12 +282,6 @@ const HomePage = () => {
                       {item.malayalam_name && (
                         <p className="text-gray-500 text-xs mb-1 sm:mb-2 italic">{item.malayalam_name}</p>
                       )}
-                      <div className="flex items-center justify-between mt-2 sm:mt-3">
-                        <span className="text-orange-600 font-bold text-sm sm:text-base lg:text-lg">₹{item.price}</span>
-                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200">
-                          Add to Cart
-                        </button>
-                      </div>
                     </div>
                   </div>
                 ))}
