@@ -299,3 +299,117 @@ export const deleteProductService = async (productId) => {
   });
 };
 
+// New service for booking page - fetch products by meal category
+export const getProductsByMealCategoryService = async (mealCategory) => {
+  const products = await prisma.product.findMany({
+    where: {
+      status: 'ACTIVE',
+      categories: {
+        some: {
+          productCategoryName: {
+            contains: mealCategory,
+            mode: 'insensitive'
+          }
+        }
+      }
+    },
+    include: {
+      company: true,
+      categories: true,
+      prices: {
+        orderBy: {
+          date: 'desc'
+        },
+        take: 1 // Get only the latest price
+      },
+      quantities: {
+        orderBy: {
+          date: 'desc'
+        },
+        take: 1 // Get only the latest quantity
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+  
+  // Transform the data to match the booking page format
+  return products.map(product => ({
+    id: product.id,
+    image: product.imageUrl,
+    product_name: product.productName,
+    malayalam_name: product.categories[0]?.description || '',
+    price: product.prices[0]?.price || 0,
+    category: product.categories[0]?.productCategoryName || '',
+    description: product.categories[0]?.description || '',
+    code: product.code,
+    company: product.company?.name || '',
+    status: product.status,
+    quantity: product.quantities[0]?.quantity || 0
+  }));
+};
+
+// Service to get all active products for booking page
+export const getAllActiveProductsService = async () => {
+  const products = await prisma.product.findMany({
+    where: {
+      status: 'ACTIVE'
+    },
+    include: {
+      company: true,
+      categories: true,
+      prices: {
+        orderBy: {
+          date: 'desc'
+        },
+        take: 1
+      },
+      quantities: {
+        orderBy: {
+          date: 'desc'
+        },
+        take: 1
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+  
+  // Transform and categorize the data
+  const categorizedProducts = {
+    breakfast: [],
+    lunch: [],
+    dinner: []
+  };
+  
+  products.forEach(product => {
+    const transformedProduct = {
+      id: product.id,
+      image: product.imageUrl,
+      product_name: product.productName,
+      malayalam_name: product.categories[0]?.description || '',
+      price: product.prices[0]?.price || 0,
+      category: product.categories[0]?.productCategoryName || '',
+      description: product.categories[0]?.description || '',
+      code: product.code,
+      company: product.company?.name || '',
+      status: product.status,
+      quantity: product.quantities[0]?.quantity || 0
+    };
+    
+    // Categorize based on category name
+    const categoryName = product.categories[0]?.productCategoryName?.toLowerCase() || '';
+    if (categoryName.includes('breakfast')) {
+      categorizedProducts.breakfast.push(transformedProduct);
+    } else if (categoryName.includes('lunch')) {
+      categorizedProducts.lunch.push(transformedProduct);
+    } else if (categoryName.includes('dinner')) {
+      categorizedProducts.dinner.push(transformedProduct);
+    }
+  });
+  
+  return categorizedProducts;
+};
+

@@ -17,12 +17,7 @@ import {
 import { FaRegCalendarAlt } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
-import vegBreakfastData from '../data/veg-breakfast.json';
-import vegLunchData from '../data/veg-lunch.json';
-import vegDinnerData from '../data/veg-dinner.json';
-import nonVegBreakfastData from '../data/non-veg-breakfast.json';
-import nonVegLunchData from '../data/non-veg-lunch.json';
-import nonVegDinnerData from '../data/non-veg-dinner.json';
+import { useAllActiveProducts } from '../hooks/adminHook/adminHook';
 
 const BookingPage = () => {
   const navigate = useNavigate();
@@ -47,6 +42,9 @@ const BookingPage = () => {
     dinner: '',
     full: ''
   });
+
+  // Fetch admin-added products
+  const { data: adminProducts, isLoading: productsLoading, error: productsError } = useAllActiveProducts(selectedDate);
 
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);
   const handleCloseAuthSlider = () => setAuthSliderOpen(false);
@@ -127,8 +125,14 @@ const BookingPage = () => {
   };
 
   const getTotalPrice = () => {
-    // Since we're not showing prices, return 0 or you can implement a different pricing logic
-    return 0;
+    // Calculate total price from ordered items
+    let total = 0;
+    Object.values(orderedItems).forEach(mealItems => {
+      mealItems.forEach(item => {
+        total += item.price || 0;
+      });
+    });
+    return total;
   };
 
   const handleSaveOrder = () => {
@@ -178,8 +182,9 @@ const BookingPage = () => {
     return date.toDateString() === selectedDate.toDateString();
   };
 
-  const MealSection = ({ mealType, title, icon, color, data }) => {
+  const MealSection = ({ mealType, title, icon, color }) => {
     const hasOrders = orderedItems[mealType].length > 0;
+    const mealProducts = adminProducts?.[mealType] || [];
     
     return (
       <div className="mb-4 sm:mb-6">
@@ -200,7 +205,6 @@ const BookingPage = () => {
                 Ordered
               </span>
             )}
-            <MdAdd className="text-white text-lg sm:text-xl lg:text-2xl" />
             {expandedSections[mealType] ? (
               <MdExpandLess className="text-white text-lg sm:text-xl lg:text-2xl" />
             ) : (
@@ -219,28 +223,58 @@ const BookingPage = () => {
                   Ordered
                 </span>
               )}
-              <button className="text-green-600 hover:text-green-700">
-                <MdAdd className="text-lg sm:text-xl lg:text-2xl" />
-              </button>
             </div>
+
+            {/* Loading State */}
+            {productsLoading && (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+                <p className="text-gray-500 mt-2">Loading {title.toLowerCase()} items...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {productsError && (
+              <div className="text-center py-8">
+                <p className="text-red-500">Error loading {title.toLowerCase()} items</p>
+                <p className="text-gray-500 text-sm mt-1">Please try again later</p>
+              </div>
+            )}
 
             {/* Food Items Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6">
-              {data.slice(0, 8).map((item, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group">
-                  <img 
-                    src={item.image} 
-                    alt={item.product_name}
-                    className="w-full h-16 sm:h-20 lg:h-32 object-cover rounded-lg mb-1.5 sm:mb-2 lg:mb-3 group-hover:scale-105 transition-transform"
-                  />
-                  <h4 className="font-medium text-xs sm:text-sm lg:text-base text-gray-800 mb-0.5 sm:mb-1">{item.product_name}</h4>
-                  {item.malayalam_name && (
-                    <p className="text-xs lg:text-sm text-gray-500 mb-1 sm:mb-2">{item.malayalam_name}</p>
-                  )}
-
-                </div>
-              ))}
-            </div>
+            {!productsLoading && !productsError && (
+              <>
+                {mealProducts.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6">
+                    {mealProducts.slice(0, 8).map((item, index) => (
+                      <div 
+                        key={item.id || index} 
+                        className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer"
+                        onClick={() => addToOrder(mealType, item)}
+                      >
+                        <img 
+                          src={item.image} 
+                          alt={item.product_name}
+                          className="w-full h-16 sm:h-20 lg:h-32 object-cover rounded-lg mb-1.5 sm:mb-2 lg:mb-3 group-hover:scale-105 transition-transform"
+                          onError={(e) => {
+                            e.target.src = '/placeholder-food.jpg'; // Fallback image
+                          }}
+                        />
+                        <h4 className="font-medium text-xs sm:text-sm lg:text-base text-gray-800 mb-0.5 sm:mb-1">{item.product_name}</h4>
+                        {item.malayalam_name && (
+                          <p className="text-xs lg:text-sm text-gray-500 mb-1 sm:mb-2">{item.malayalam_name}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No {title.toLowerCase()} items available</p>
+                    <p className="text-gray-400 text-sm mt-1">Check back later for updates</p>
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Delivery Location */}
             <div className="border-t pt-3 sm:pt-4 lg:pt-6">
@@ -339,7 +373,6 @@ const BookingPage = () => {
                 title="Breakfast"
                 icon="B"
                 color="bg-green-500"
-                data={[...vegBreakfastData, ...nonVegBreakfastData]}
               />
 
               <MealSection 
@@ -347,7 +380,6 @@ const BookingPage = () => {
                 title="Lunch"
                 icon="L"
                 color="bg-yellow-500"
-                data={[...vegLunchData, ...nonVegLunchData]}
               />
 
               <MealSection 
@@ -355,7 +387,6 @@ const BookingPage = () => {
                 title="Dinner"
                 icon="D"
                 color="bg-pink-500"
-                data={[...vegDinnerData, ...nonVegDinnerData]}
               />
             </div>
           </div>
@@ -393,11 +424,17 @@ const BookingPage = () => {
                                   src={item.image} 
                                   alt={item.product_name}
                                   className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 object-cover rounded-lg"
+                                  onError={(e) => {
+                                    e.target.src = '/placeholder-food.jpg';
+                                  }}
                                 />
                                 <div className="flex-1">
                                   <h5 className="font-medium text-xs sm:text-sm lg:text-base text-gray-800">{item.product_name}</h5>
                                   {item.malayalam_name && (
                                     <p className="text-xs lg:text-sm text-gray-500">{item.malayalam_name}</p>
+                                  )}
+                                  {item.price > 0 && (
+                                    <p className="text-xs sm:text-sm font-semibold text-orange-600">₹{item.price}</p>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 sm:gap-2">
@@ -444,6 +481,9 @@ const BookingPage = () => {
               <div className="bg-white rounded-lg p-3 sm:p-4 lg:p-6 shadow-md">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <span className="text-gray-700 text-sm sm:text-lg">Selected Items {getTotalItems()}</span>
+                  {getTotalPrice() > 0 && (
+                    <span className="text-orange-600 font-semibold text-sm sm:text-lg">Total: ₹{getTotalPrice()}</span>
+                  )}
                 </div>
                 <div className="flex gap-2 sm:gap-3">
                   <button

@@ -23,7 +23,7 @@ const AdminSlide = ({ isFooter = false }) => {
 
   const containerClasses = isFooter 
     ? "flex justify-around items-center w-full h-16 bg-[#232328] px-4 border-t border-gray-700"
-    : "flex flex-col justify-between items-center h-screen w-14 bg-[#232328] py-4";
+    : "flex flex-col justify-between items-center h-screen w-14 bg-[#232328] py-6 fixed left-0 top-0 z-50";
 
   const buttonClasses = isFooter
     ? "flex items-center justify-center w-10 h-10 rounded-full bg-white text-[#232328] transition-all duration-200"
@@ -32,15 +32,15 @@ const AdminSlide = ({ isFooter = false }) => {
   return (
     <div className={containerClasses}>
       {!isFooter && (
-        <div className="flex flex-col gap-4 mt-2">
+        <div className="flex flex-col gap-3 lg:gap-4 mt-6 px-1 h-[calc(100vh-160px)] overflow-y-auto">
           {navItems.map((item, index) => (
             <button
               key={index}
-              className={`${buttonClasses} ${item.color} ${isActive(item.path) ? 'ring-2 ring-blue-500 bg-blue-100' : ''}`}
+              className={`${buttonClasses} ${item.color} ${isActive(item.path) ? 'ring-2 ring-blue-500 bg-blue-100' : ''} flex-shrink-0`}
               title={item.title}
               onClick={() => navigate(item.path)}
             >
-              <item.icon size={20} />
+              <item.icon size={18} className="lg:w-5 lg:h-5" />
             </button>
           ))}
         </div>
@@ -62,13 +62,13 @@ const AdminSlide = ({ isFooter = false }) => {
       )}
       
       {!isFooter && (
-        <div className="mb-2">
+        <div className="mb-6 flex-shrink-0">
           <button 
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-white text-[#232328] hover:bg-gray-200 transition-all duration-200"
+            className="flex items-center justify-center w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white text-[#232328] hover:bg-gray-200 transition-all duration-200"
             title="Profile"
             onClick={() => navigate('/admin')}
           >
-            <FaUser size={22} />
+            <FaUser size={20} className="lg:w-6 lg:h-6" />
           </button>
         </div>
       )}

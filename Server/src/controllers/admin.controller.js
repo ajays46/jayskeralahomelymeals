@@ -1,6 +1,6 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
-import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService } from '../services/admin.service.js';
+import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, getProductsByMealCategoryService, getAllActiveProductsService } from '../services/admin.service.js';
 
 export const createCompany = async (req, res, next) => {
     try {
@@ -144,6 +144,42 @@ export const deleteProduct = async (req, res, next) => {
             status: 'success',
             message: 'Product deleted successfully',
             data: deletedProduct
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// New controller for booking page - get products by meal category
+export const getProductsByMealCategory = async (req, res, next) => {
+    try {
+        const { mealCategory } = req.params;
+        
+        // Validate meal category
+        const validCategories = ['breakfast', 'lunch', 'dinner'];
+        if (!validCategories.includes(mealCategory.toLowerCase())) {
+            throw new AppError('Invalid meal category. Must be breakfast, lunch, or dinner', 400);
+        }
+        
+        const products = await getProductsByMealCategoryService(mealCategory);
+        
+        res.status(200).json({
+            status: 'success',
+            data: products
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// New controller for booking page - get all active products categorized
+export const getAllActiveProducts = async (req, res, next) => {
+    try {
+        const categorizedProducts = await getAllActiveProductsService();
+        
+        res.status(200).json({
+            status: 'success',
+            data: categorizedProducts
         });
     } catch (error) {
         next(error);

@@ -3,7 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, getProductsByMealCategory, getAllActiveProducts} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -60,6 +60,19 @@ router.delete('/product/:productId',
     // authenticateToken,
     // checkRole('admin'),
     deleteProduct
+);
+
+// New routes for booking page
+router.get('/products/meal/:mealCategory',
+    // authenticateToken,
+    // checkRole('admin'),
+    getProductsByMealCategory
+);
+
+router.get('/products/active',
+    // authenticateToken,
+    // checkRole('admin'),
+    getAllActiveProducts
 );
 
 export default router; 

@@ -99,3 +99,29 @@ export const useDeleteProduct = () => {
     });
 };
 
+// New hooks for booking page
+export const useProductsByMealCategory = (mealCategory) => {
+  return useQuery({
+    queryKey: ['products', 'meal', mealCategory],
+    queryFn: async () => {
+      const response = await api.get(`/admin/products/meal/${mealCategory}`);
+      return response.data.data;
+    },
+    enabled: !!mealCategory,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const useAllActiveProducts = () => {
+  return useQuery({
+    queryKey: ['products', 'active'],
+    queryFn: async () => {
+      const response = await api.get('/admin/products/active');      
+      return response.data.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+

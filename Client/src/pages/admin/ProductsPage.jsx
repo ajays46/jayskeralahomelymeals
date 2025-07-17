@@ -11,11 +11,20 @@ const ProductsPage = () => {
   const deleteProductMutation = useDeleteProduct();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
 
   // Extract products from the response
   const products = productListData?.data || [];
 
-  // Filter products based on search and status
+  // Automatically extracts unique categories
+  const uniqueCategories = [...new Set(
+    products
+      .filter(product => product.categories && product.categories.length > 0)
+      .map(product => product.categories[0].productCategoryName)
+  )].sort();
+
+  // Filter products based on search, status, category, and price
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -23,7 +32,15 @@ const ProductsPage = () => {
     
     const matchesStatus = statusFilter === 'ALL' || product.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const matchesCategory = categoryFilter === 'ALL' || 
+      (product.categories && product.categories.length > 0 && 
+       product.categories[0].productCategoryName === categoryFilter);
+    
+    const productPrice = product.prices && product.prices.length > 0 ? product.prices[0].price : 0;
+    const matchesMinPrice = !priceRange.min || productPrice >= parseFloat(priceRange.min);
+    const matchesMaxPrice = !priceRange.max || productPrice <= parseFloat(priceRange.max);
+    
+    return matchesSearch && matchesStatus && matchesCategory && matchesMinPrice && matchesMaxPrice;
   });
 
   const getStatusColor = (status) => {
@@ -124,7 +141,7 @@ const ProductsPage = () => {
 
             {/* Filters */}
             <div className="bg-gray-800 rounded-xl shadow-2xl p-4 sm:p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-sm text-gray-300 mb-2">Search Products</label>
                   <input
@@ -149,10 +166,59 @@ const ProductsPage = () => {
                     <option value="DISCONTINUED">Discontinued</option>
                   </select>
                 </div>
-                <div className="flex items-end">
-                  <div className="text-sm text-gray-400">
-                    Showing {filteredProducts.length} of {products.length} products
-                  </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Category Filter</label>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2 text-gray-100 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                  >
+                    <option value="ALL">All Categories</option>
+                    {uniqueCategories.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Min Price (₹)</label>
+                  <input
+                    type="number"
+                    placeholder="Min price"
+                    value={priceRange.min}
+                    onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2 text-gray-100 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Max Price (₹)</label>
+                  <input
+                    type="number"
+                    placeholder="Max price"
+                    value={priceRange.max}
+                    onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2 text-gray-100 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                  />
+                </div>
+              </div>
+              
+              {/* Results Summary */}
+              <div className="mt-4 pt-4 border-t border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="text-sm text-gray-400">
+                  Showing {filteredProducts.length} of {products.length} products
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setStatusFilter('ALL');
+                      setCategoryFilter('ALL');
+                      setPriceRange({ min: '', max: '' });
+                    }}
+                    className="bg-gray-600 hover:bg-gray-700 border-gray-600 text-white"
+                  >
+                    Clear Filters
+                  </Button>
                 </div>
               </div>
             </div>

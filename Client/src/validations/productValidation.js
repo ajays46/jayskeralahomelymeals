@@ -6,7 +6,7 @@ export const productSchema = z.object({
   productName: z.string()
     .min(1, 'Product name is required')
     .min(2, 'Product name must be at least 2 characters')
-    .max(100, 'Product name must be less than 100 characters')
+    .max(200, 'Product name must be less than 100 characters')
     .regex(/^[a-zA-Z0-9\s\-_.,&()\u0D00-\u0D7F]+$/, 'Product name contains invalid characters'),
   
   code: z.string()
