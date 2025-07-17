@@ -1,41 +1,57 @@
 [
     {
-        "image": "/chapati chicken roast salad.jpeg",
-        "product_name": "Chapati Chicken Roast Salad",
-        "malayalam_name": "ചപ്പാത്തി  ചിക്കൻ  റോസ്സ്റ്റ്  സാലഡ് ",
+        "image": "/non-veg-mon.jpeg",
+        "product_name": "Rice Meencurry Pulissery Thoran Chamanthi Achar ",
+        "malayalam_name": "ചോറ്   മീൻകറി  പുളിശ്ശേരി  തോരൻ  ചമ്മന്തി  അച്ചാർ  ",
         "price": 60.00,
         "category": "Non-veg-lunch",
         "description": "Spicy chicken curry with coconut and spices"
     },
     {
-        "image": "/beef fry.jpg",
-        "product_name": "Beef Fry",
-        "malayalam_name": "ബീഫ് ഫ്രൈ",
+        "image": "/non-veg-tue.jpg",
+        "product_name": "Rice Chickencurry Rasam Mezhukppuratty Chamanthi Achar ",
+        "malayalam_name": "ചോറ്  ചിക്കൻകറി  രസം  മെഴുക്കുപുരട്ടി  ചമ്മന്തി  അച്ചാർ  ",
         "price": 80.00,
         "category": "Non-veg-lunch",
         "description": "Crispy beef fry with onions and spices"
     },
     {
-        "image": "/chicken 65.jpg",
-        "product_name": "Chicken 65",
-        "malayalam_name": "ചിക്കൻ 65",
+        "image": "/non-veg-wed.jpg",
+        "product_name": "Rice Sambar Moru Meenfry Thoran Chamanthi Achar",
+        "malayalam_name": "ചോറ്  സാമ്പാർ  മോര്  മീൻവറുത്തത്  തോരൻ  ചമ്മന്തി  അച്ചാർ ",
         "price": 70.00,
         "category": "Non-veg-lunch",
         "description": "Spicy deep-fried chicken with curry leaves"
     },
     {
-        "image": "/kappa unakka meen curry.JPG",
-        "product_name": "Kappa Unakka Meen Curry",
-        "malayalam_name": "കപ്പ ഉണക്ക മീൻ കറി",
+        "image": "/non-veg-mon.jpeg",
+        "product_name": "Rice Chickencurry Ullipuli Mezhukppuratty Chamnthi Achar",
+        "malayalam_name": "ചോറ്  ചിക്കൻകറി ഉള്ളിപുളി  മെഴുക്കുപുരട്ടി  ചമ്മന്തി  അച്ചാർ ",
         "price": 90.00,
         "category": "Non-veg-lunch",
         "description": "Tapioca with dried fish curry"
     },
     {
-        "image": "/half chicken roast.jpg",
-        "product_name": "Half Chicken Roast",
-        "malayalam_name": "ഹാഫ് ചിക്കൻ റോസ്റ്റ്",
+        "image": "/non-veg-fri.jpeg",
+        "product_name": "Rice Theeyal Meenfry Pulinkari Thoran Chamanthi Achar ",
+        "malayalam_name": "ചോറ്  തീയൽ  മീൻവറുത്തത്  പുളിങ്കറി  തോരൻ  ചമ്മന്തി  അച്ചാർ  ",
         "price": 120.00,
+        "category": "Non-veg-lunch",
+        "description": "Spicy roasted chicken with masala"
+    },
+    {
+        "image": "/non-veg-sat.jpeg",
+        "product_name": "Rice Meencurry Pulissery Aviyal Chamanthi Achar ",
+        "malayalam_name": "ചോറ്  മീൻകറി  പുളിശ്ശേരി  അവിയൽ  ചമ്മന്തി  അച്ചാർ ",
+        "price": 100.00,
+        "category": "Non-veg-lunch",
+        "description": "Spicy roasted chicken with masala"
+    },
+    {   
+        "image": "/non-veg-sun.jpg",
+        "product_name": "Rice Omlate Erissery Moru Mezhukppuratty Chamanthi Achar ",
+        "malayalam_name": "ചോറ് ഓംലറ്റ്  എരിശ്ശേരി  മോര്  മെഴുക്കുപുരട്ടി  ചമ്മന്തി  അച്ചാർ   ",
+        "price": 100.00,
         "category": "Non-veg-lunch",
         "description": "Spicy roasted chicken with masala"
     }

@@ -75,6 +75,19 @@ enum RoleName {
   ADMIN
 }
 
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+enum MenuStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+  PUBLISHED
+}
 
 model Company {
   id         String   @id @default(uuid())
@@ -83,5 +96,104 @@ model Company {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   
+  // Relations
+  products Product[]
+  menus Menu[]
+  productCategories ProductCategory[]
+  
   @@map("company")
+}
+
+model Product {
+  id          String        @id @default(uuid()) @db.VarChar(36)
+  companyId   String        @map("company_id") @db.VarChar(36)
+  imageUrl    String        @map("image_url") @db.Text
+  code        String        @unique @db.VarChar(255)
+  productName String        @map("product_name") @db.VarChar(255)
+  status      ProductStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  prices ProductPrice[]
+  quantities ProductQuantity[]
+  menuItems MenuItem[]
+  categories ProductCategory[]
+
+  @@map("products")
+}
+
+model ProductPrice {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  date      DateTime @db.Date
+  productId String   @map("product_id") @db.VarChar(36)
+  price     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("product_prices")
+}
+
+model ProductQuantity {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  date      DateTime @db.Date
+  productId String   @map("product_id") @db.VarChar(36)
+  quantity  Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("product_quantities")
+}
+
+model MenuItem {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  productId String   @map("product_id") @db.VarChar(36)
+  menuId    String   @map("menu_id") @db.VarChar(36)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menu    Menu    @relation(fields: [menuId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("menu_items")
+}
+
+model Menu {
+  id        String    @id @default(uuid()) @db.VarChar(36)
+  companyId String    @map("company_id") @db.VarChar(36)
+  name      String    @db.VarChar(255)
+  status    MenuStatus @default(ACTIVE)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menuItems MenuItem[]
+
+  @@map("menus")
+}
+
+model ProductCategory {
+  id                   String   @id @default(uuid()) @db.VarChar(36)
+  companyId            String   @map("company_id") @db.VarChar(36)
+  productId            String   @map("product_id") @db.VarChar(36)
+  productCategoryName  String   @map("product_category_name") @db.VarChar(255)
+  description          String   @db.Text
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("product_categories")
 }

@@ -28,7 +28,7 @@ export const useCompanyDelete = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id) => {
-            const response = await api.put('/admin/company-delete', { id });
+            const response = await api.put('/admin/admin/company-delete', { id });
             return response.data;
         },
         onSuccess: () => {
@@ -36,3 +36,66 @@ export const useCompanyDelete = () => {
         }
     });
 };
+
+export const useCreateProduct = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (productData) => {
+            const response = await api.post('/admin/product-create', productData);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['productList']);
+            queryClient.invalidateQueries(['companyList']);
+        }
+    });
+};
+
+export const useProductList = () => {
+    return useQuery({
+        queryKey: ['productList'],
+        queryFn: async () => {
+            const response = await api.get('/admin/product-list');
+            return response.data;
+        }
+    });
+};
+
+export const useProductById = (productId) => {
+    return useQuery({
+        queryKey: ['product', productId],
+        queryFn: async () => {
+            const response = await api.get(`/admin/product/${productId}`);
+            return response.data;
+        },
+        enabled: !!productId
+    });
+};
+
+export const useUpdateProduct = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ productId, productData }) => {
+            const response = await api.put(`/admin/product/${productId}`, productData);
+            return response.data;
+        },
+        onSuccess: (data, variables) => {
+            queryClient.invalidateQueries(['productList']);
+            queryClient.invalidateQueries(['product', variables.productId]);
+        }
+    });
+};
+
+export const useDeleteProduct = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (productId) => {
+            const response = await api.delete(`/admin/product/${productId}`);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['productList']);
+        }
+    });
+};
+

@@ -14,6 +14,9 @@ import ResetPassword from './components/ResetPassword';
 import CompanyCreatePage from './pages/admin/CompanyCreatePage';
 import MenuPage from './pages/MenuPage';
 import BookingPage from './pages/BookingPage';
+import AddProductPage from './pages/admin/AddProductPage';
+import ProductsPage from './pages/admin/ProductsPage';
+
 
 
 const queryClient = new QueryClient({
@@ -45,6 +48,10 @@ const App = () => {
      
             <Route path='/admin' element={<AdminPage/>} ></Route>
             <Route path='/admin/company-create' element={<CompanyCreatePage/>} ></Route>
+            <Route path='/admin/add-product' element={<AddProductPage/>} ></Route>
+            <Route path='/admin/add-product/:productId' element={<AddProductPage/>} ></Route>
+            <Route path='/admin/products' element={<ProductsPage/>} ></Route>
+    
             <Route path='/seller' element={<SellerPage />}></Route>
             <Route path='/jkhm/profile' element={<ProfilePage />}></Route>
           </Route>

@@ -3,7 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -21,7 +21,7 @@ router.post('/company-create',
 );
 
 router.get('/company-list',
-    authenticateToken,
+    // authenticateToken,
     // checkRole('admin'),
     companyList
 );
@@ -32,13 +32,34 @@ router.put('/company-delete',
     companyDelete
 );
 
-// Example of a route that requires either admin or seller role
-router.get('/products',
+router.post('/product-create',
     authenticateToken,
-    checkRole('admin', 'seller'),
-    (req, res) => {
-        res.json({ message: 'Product management access granted' });
-    }
+    // checkRole('admin'),
+    createProduct
+);
+
+router.get('/product-list',
+    // authenticateToken,
+    // checkRole('admin'),
+    productList
+);
+
+router.get('/product/:productId',
+    // authenticateToken,
+    // checkRole('admin'),
+    getProductById
+);
+
+router.put('/product/:productId',
+    // authenticateToken,
+    // checkRole('admin'),
+    updateProduct
+);
+
+router.delete('/product/:productId',
+    // authenticateToken,
+    // checkRole('admin'),
+    deleteProduct
 );
 
 export default router; 
