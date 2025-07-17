@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaHome, FaRegChartBar, FaUsers, FaClipboardList, FaRegSquare, FaUser, FaBuilding, FaPlus, FaList } from 'react-icons/fa';
+import { FaHome, FaRegChartBar, FaUsers, FaClipboardList, FaRegSquare, FaUser, FaBuilding, FaPlus, FaList, FaGlobe } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const AdminSlide = ({ isFooter = false }) => {
@@ -10,6 +10,7 @@ const AdminSlide = ({ isFooter = false }) => {
 
   const navItems = [
     { icon: FaHome, path: '/admin', title: 'Dashboard', color: 'hover:bg-blue-200' },
+    { icon: FaGlobe, path: '/jkhm', title: 'Website Home', color: 'hover:bg-emerald-200' },
     { icon: FaRegChartBar, path: '/admin/analytics', title: 'Analytics', color: 'hover:bg-purple-200' },
     { icon: FaUsers, path: '/admin/users', title: 'Users', color: 'hover:bg-green-200' },
     { icon: FaClipboardList, path: '/admin/orders', title: 'Orders', color: 'hover:bg-yellow-200' },
