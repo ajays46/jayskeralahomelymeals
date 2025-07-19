@@ -1,10 +1,11 @@
-import React from 'react';
-import { FaHome, FaRegChartBar, FaUsers, FaClipboardList, FaRegSquare, FaUser, FaBuilding, FaPlus, FaList, FaGlobe } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaHome, FaRegChartBar, FaUsers, FaClipboardList, FaRegSquare, FaUser, FaBuilding, FaPlus, FaList, FaGlobe, FaUtensils, FaChevronDown, FaChevronUp } from 'react-icons/fa'; 
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const AdminSlide = ({ isFooter = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isMenuExpanded, setIsMenuExpanded] = useState(false);
 
   const isActive = (path) => location.pathname === path;
 
@@ -16,9 +17,12 @@ const AdminSlide = ({ isFooter = false }) => {
     { icon: FaClipboardList, path: '/admin/orders', title: 'Orders', color: 'hover:bg-yellow-200' },
     { icon: FaPlus, path: '/admin/add-product', title: 'Add Product', color: 'hover:bg-red-200' },
     { icon: FaList, path: '/admin/products', title: 'View Products', color: 'hover:bg-teal-200' },
-    { icon: FaRegSquare, path: '/admin/settings', title: 'Settings', color: 'hover:bg-indigo-200' },
     { icon: FaBuilding, path: '/admin/company-create', title: 'Create Company', color: 'hover:bg-orange-200' },
+  ];
 
+  const menuSubItems = [
+    { icon: FaPlus, path: '/admin/add-menu', title: 'Add Menu', color: 'hover:bg-indigo-200' },
+    { icon: FaList, path: '/admin/menu-items', title: 'Add Menu Item', color: 'hover:bg-pink-200' },
   ];
 
   const containerClasses = isFooter 
@@ -28,6 +32,10 @@ const AdminSlide = ({ isFooter = false }) => {
   const buttonClasses = isFooter
     ? "flex items-center justify-center w-10 h-10 rounded-full bg-white text-[#232328] transition-all duration-200"
     : "flex items-center justify-center w-10 h-10 rounded-full bg-white text-[#232328] transition-all duration-200";
+
+  const toggleMenu = () => {
+    setIsMenuExpanded(!isMenuExpanded);
+  };
 
   return (
     <div className={containerClasses}>
@@ -43,6 +51,33 @@ const AdminSlide = ({ isFooter = false }) => {
               <item.icon size={18} className="lg:w-5 lg:h-5" />
             </button>
           ))}
+          
+          {/* Menu Toggle Button */}
+          <div className="flex flex-col gap-1">
+            <button
+              className={`${buttonClasses} hover:bg-indigo-200 ${isMenuExpanded ? 'ring-2 ring-blue-500 bg-blue-100' : ''} flex-shrink-0`}
+              title="Menu Management"
+              onClick={toggleMenu}
+            >
+              <FaUtensils size={18} className="lg:w-5 lg:h-5" />
+            </button>
+            
+            {/* Menu Sub Items */}
+            {isMenuExpanded && (
+              <div className="flex flex-col gap-1 ml-2">
+                {menuSubItems.map((item, index) => (
+                  <button
+                    key={index}
+                    className={`${buttonClasses} ${item.color} ${isActive(item.path) ? 'ring-2 ring-blue-500 bg-blue-100' : ''} flex-shrink-0 w-8 h-8`}
+                    title={item.title}
+                    onClick={() => navigate(item.path)}
+                  >
+                    <item.icon size={14} className="lg:w-4 lg:h-4" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
       
@@ -58,6 +93,33 @@ const AdminSlide = ({ isFooter = false }) => {
               <item.icon size={18} />
             </button>
           ))}
+          
+          {/* Menu Toggle for Footer */}
+          <div className="relative">
+            <button
+              className={`${buttonClasses} hover:bg-indigo-200 ${isMenuExpanded ? 'ring-2 ring-blue-500 bg-blue-100' : ''}`}
+              title="Menu Management"
+              onClick={toggleMenu}
+            >
+              <FaUtensils size={18} />
+            </button>
+            
+            {/* Menu Sub Items for Footer */}
+            {isMenuExpanded && (
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 flex flex-col gap-1">
+                {menuSubItems.map((item, index) => (
+                  <button
+                    key={index}
+                    className={`${buttonClasses} ${item.color} ${isActive(item.path) ? 'ring-2 ring-blue-500 bg-blue-100' : ''} w-8 h-8`}
+                    title={item.title}
+                    onClick={() => navigate(item.path)}
+                  >
+                    <item.icon size={14} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
       

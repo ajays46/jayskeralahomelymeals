@@ -38,8 +38,7 @@ export const login = async (req, res, next) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    console.log(accessToken, "accessToken");
-    console.log(refreshToken, "refreshToken");
+
 
     res.status(200).json({
       success: true,
@@ -139,7 +138,6 @@ export const usersList = async (req, res, next) => {
 export const forgotPassword = async (req, res, next) => {
   try {
     const { identifier } = req.body;
-    console.log(identifier, "identifier");
 
     const result = await forgotPasswordService(identifier);
     res.status(200).json(result);
@@ -151,7 +149,6 @@ export const forgotPassword = async (req, res, next) => {
 export const resetPassword = async (req, res, next) => {
   try {
     const { token, id, newPassword } = req.body;
-    console.log(token, id, newPassword, "token, id, newPassword");
     const result = await resetPasswordService(token, id, newPassword);
     res.status(200).json(result);
   } catch (error) {

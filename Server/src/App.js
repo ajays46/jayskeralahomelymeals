@@ -12,7 +12,6 @@ dotenv.config();
 const app = express();
 
 // Middleware
-console.log(process.env.NODE_ENV === 'production' ? process.env.FRONTEND_PROD_URL : process.env.FRONTEND_DEV_URL);
 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_PROD_URL : process.env.FRONTEND_DEV_URL,
@@ -54,12 +53,12 @@ const PORT = process.env.PORT || 5000;
     try {
       // await sequelize.sync({ alter: true }); 
   
-      console.log('Database synced successfully.');
+      // Database synced successfully
   
       app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+        // Server is running on port ${PORT}
       });
     } catch (error) {
-      console.error('Unable to sync database:', error);
+      // Unable to sync database
     }
   })();

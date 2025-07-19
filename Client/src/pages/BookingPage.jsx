@@ -17,7 +17,7 @@ import {
 import { FaRegCalendarAlt } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
-import { useAllActiveProducts } from '../hooks/adminHook/adminHook';
+import { useMenuItemsByDate } from '../hooks/adminHook/adminHook';
 
 const BookingPage = () => {
   const navigate = useNavigate();
@@ -43,8 +43,15 @@ const BookingPage = () => {
     full: ''
   });
 
-  // Fetch admin-added products
-  const { data: adminProducts, isLoading: productsLoading, error: productsError } = useAllActiveProducts(selectedDate);
+  // Fetch menu items for the selected date
+  const { data: menuData, isLoading: productsLoading, error: productsError } = useMenuItemsByDate(selectedDate);
+  
+  // Extract menu items from the response
+  const adminProducts = menuData?.menuItems || {
+    breakfast: [],
+    lunch: [],
+    dinner: []
+  };
 
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);
   const handleCloseAuthSlider = () => setAuthSliderOpen(false);
@@ -247,11 +254,11 @@ const BookingPage = () => {
                 {mealProducts.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6">
                     {mealProducts.slice(0, 8).map((item, index) => (
-                      <div 
-                        key={item.id || index} 
-                        className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer"
-                        onClick={() => addToOrder(mealType, item)}
-                      >
+                                              <div 
+                          key={item.id || index} 
+                          className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer"
+                          onClick={() => addToOrder(mealType, item)}
+                        >
                         <img 
                           src={item.image} 
                           alt={item.product_name}
@@ -260,17 +267,16 @@ const BookingPage = () => {
                             e.target.src = '/placeholder-food.jpg'; // Fallback image
                           }}
                         />
-                        <h4 className="font-medium text-xs sm:text-sm lg:text-base text-gray-800 mb-0.5 sm:mb-1">{item.product_name}</h4>
-                        {item.malayalam_name && (
-                          <p className="text-xs lg:text-sm text-gray-500 mb-1 sm:mb-2">{item.malayalam_name}</p>
-                        )}
+                        <h4 className="font-medium text-xs sm:text-xs lg:text-sm text-gray-800 mb-0.5 sm:mb-1 leading-tight min-h-[2rem] sm:min-h-[2.5rem] lg:min-h-[3rem] flex items-center justify-center text-center">
+                          {item.product_name.split(',')[0]}
+                        </h4>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">No {title.toLowerCase()} items available</p>
-                    <p className="text-gray-400 text-sm mt-1">Check back later for updates</p>
+                    <p className="text-gray-500">No {title.toLowerCase()} items available for {menuData?.dayOfWeek || 'this day'}</p>
+                    <p className="text-gray-400 text-sm mt-1">Check back later for updates or try a different date</p>
                   </div>
                 )}
               </>
@@ -324,6 +330,11 @@ const BookingPage = () => {
             <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">
               {formatMonth(dates[0])} {dates[0].getFullYear()}
             </h2>
+            {menuData && (
+              <p className="text-gray-600 text-sm sm:text-base mt-1">
+                Showing menu for <span className="font-semibold text-blue-600">{menuData.dayOfWeek}</span>
+              </p>
+            )}
           </div>
           
           <div className="flex items-center justify-between">
@@ -429,10 +440,7 @@ const BookingPage = () => {
                                   }}
                                 />
                                 <div className="flex-1">
-                                  <h5 className="font-medium text-xs sm:text-sm lg:text-base text-gray-800">{item.product_name}</h5>
-                                  {item.malayalam_name && (
-                                    <p className="text-xs lg:text-sm text-gray-500">{item.malayalam_name}</p>
-                                  )}
+                                  <h5 className="font-medium text-xs sm:text-sm lg:text-base text-gray-800">{item.product_name.split(',')[0]}</h5>
                                   {item.price > 0 && (
                                     <p className="text-xs sm:text-sm font-semibold text-orange-600">₹{item.price}</p>
                                   )}

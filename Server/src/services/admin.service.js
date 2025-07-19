@@ -19,7 +19,6 @@ export const createCompanyService = async ({ name, address_id }) => {
 
 export const companyListService = async () => {
  const companies = await prisma.company.findMany();
-//  console.log(companies);
  return companies;
 };
 
@@ -411,5 +410,290 @@ export const getAllActiveProductsService = async () => {
   });
   
   return categorizedProducts;
+};
+
+// New service to get menu items by date (day of week)
+export const getMenuItemsByDateService = async (selectedDate) => {
+  // Convert date to day of week
+  const dayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+  
+  // Get menus for the specific day of week
+  const menus = await prisma.menu.findMany({
+    where: {
+      dayOfWeek: dayOfWeek,
+      status: 'ACTIVE'
+    },
+    include: {
+      company: true,
+      menuItems: {
+        include: {
+          product: {
+            include: {
+              company: true,
+              categories: true,
+              prices: {
+                orderBy: {
+                  date: 'desc'
+                },
+                take: 1
+              },
+              quantities: {
+                orderBy: {
+                  date: 'desc'
+                },
+                take: 1
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  // Transform and categorize the data
+  const categorizedMenuItems = {
+    breakfast: [],
+    lunch: [],
+    dinner: []
+  };
+  
+  menus.forEach(menu => {
+    menu.menuItems.forEach(menuItem => {
+      const product = menuItem.product;
+      
+      // Only include active products
+      if (product.status === 'ACTIVE') {
+        const transformedProduct = {
+          id: product.id,
+          image: product.imageUrl,
+          product_name: product.productName,
+          malayalam_name: product.categories[0]?.description || '',
+          price: product.prices[0]?.price || 0,
+          category: product.categories[0]?.productCategoryName || '',
+          description: product.categories[0]?.description || '',
+          code: product.code,
+          company: product.company?.name || '',
+          status: product.status,
+          quantity: product.quantities[0]?.quantity || 0,
+          menuItemId: menuItem.id,
+          menuName: menu.name,
+          dayOfWeek: menu.dayOfWeek
+        };
+        
+        // Categorize based on category name
+        const categoryName = product.categories[0]?.productCategoryName?.toLowerCase() || '';
+        if (categoryName.includes('breakfast')) {
+          categorizedMenuItems.breakfast.push(transformedProduct);
+        } else if (categoryName.includes('lunch')) {
+          categorizedMenuItems.lunch.push(transformedProduct);
+        } else if (categoryName.includes('dinner')) {
+          categorizedMenuItems.dinner.push(transformedProduct);
+        }
+      }
+    });
+  });
+  
+  return {
+    dayOfWeek,
+    date: selectedDate,
+    menuItems: categorizedMenuItems
+  };
+};
+
+// Menu services
+export const createMenuService = async (menuData) => {
+  const { name, companyId, dayOfWeek, status } = menuData;
+
+  // Check if company exists
+  const company = await prisma.company.findUnique({
+    where: { id: companyId }
+  });
+
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  // Create the menu
+  const menu = await prisma.menu.create({
+    data: {
+      name,
+      companyId,
+      dayOfWeek,
+      status,
+    },
+    include: {
+      company: true,
+      menuItems: true,
+    },
+  });
+
+  return menu;
+};
+
+export const menuListService = async () => {
+  const menus = await prisma.menu.findMany({
+    include: {
+      company: true,
+      menuItems: {
+        include: {
+          product: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+  
+  return menus;
+};
+
+export const getMenuByIdService = async (menuId) => {
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId },
+    include: {
+      company: true,
+      menuItems: {
+        include: {
+          product: true,
+        },
+      },
+    }
+  });
+  
+  if (!menu) {
+    throw new Error('Menu not found');
+  }
+  
+  return menu;
+};
+
+export const updateMenuService = async (menuId, menuData) => {
+  const { name, companyId, dayOfWeek, status } = menuData;
+
+  // Check if menu exists
+  const existingMenu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!existingMenu) {
+    throw new Error('Menu not found');
+  }
+
+  // Check if company exists
+  const company = await prisma.company.findUnique({
+    where: { id: companyId }
+  });
+
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  // Update the menu
+  const updatedMenu = await prisma.menu.update({
+    where: { id: menuId },
+    data: {
+      name,
+      companyId,
+      dayOfWeek,
+      status,
+    },
+    include: {
+      company: true,
+      menuItems: {
+        include: {
+          product: true,
+        },
+      },
+    },
+  });
+
+  return updatedMenu;
+};
+
+export const deleteMenuService = async (menuId) => {
+  // Check if menu exists
+  const existingMenu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!existingMenu) {
+    throw new Error('Menu not found');
+  }
+
+  // Use transaction to ensure all related records are deleted together
+  return await prisma.$transaction(async (tx) => {
+    // Delete menu items first (due to foreign key constraints)
+    await tx.menuItem.deleteMany({
+      where: { menuId }
+    });
+
+    // Delete the menu
+    const deletedMenu = await tx.menu.delete({
+      where: { id: menuId }
+    });
+
+    return deletedMenu;
+  });
+};
+
+// Menu Item services
+export const createMenuItemService = async (menuItemData) => {
+  const { name, productId, menuId } = menuItemData;
+
+  // Check if product exists
+  const product = await prisma.product.findUnique({
+    where: { id: productId }
+  });
+
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  // Check if menu exists
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!menu) {
+    throw new Error('Menu not found');
+  }
+
+  // Create the menu item
+  const menuItem = await prisma.menuItem.create({
+    data: {
+      name,
+      productId,
+      menuId,
+    },
+    include: {
+      product: true,
+      menu: {
+        include: {
+          company: true,
+        },
+      },
+    },
+  });
+
+  return menuItem;
+};
+
+export const menuItemListService = async () => {
+  const menuItems = await prisma.menuItem.findMany({
+    include: {
+      product: true,
+      menu: {
+        include: {
+          company: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+  
+  return menuItems;
 };
 

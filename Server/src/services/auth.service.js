@@ -32,7 +32,6 @@ export const registerUser = async ({ email, password, phone }) => {
     const api_key = generateApiKey();
 
     try {
-        console.log('Creating auth record...');
         const auth = await prisma.auth.create({
             data: {
                 email,
@@ -43,9 +42,6 @@ export const registerUser = async ({ email, password, phone }) => {
             }
         });
 
-        console.log('Auth created with ID:', auth.id);
-
-        console.log('Creating user record...');
         const user = await prisma.user.create({
             data: {
                 authId: auth.id,
@@ -53,17 +49,12 @@ export const registerUser = async ({ email, password, phone }) => {
             }
         });
 
-        console.log('User created with ID:', user.id);
-
-        console.log('Creating user role...');
         const userRole = await prisma.userRole.create({
             data: {
                 userId: user.id,
                 name: 'USER'
             }
         });
-
-        console.log('User role created:', userRole);
 
         return {
             id: auth.id,
@@ -114,12 +105,10 @@ export const loginUser = async ({ identifier, password }) => {
                 userRole: true
             }
         });
-        console.log(user);
 
         if (!user || !user.userRole) {
             throw new AppError('User or role not found', 404);
         }
-        console.log("userRole.name", user.userRole.name);
         const accessToken = generateAccessToken(user.id, user.userRole.name);
         const refreshToken = generateRefreshToken(user.id, user.userRole.name);
 
@@ -151,7 +140,6 @@ export const forgotPasswordService = async (identifier) => {
         where.phoneNumber = identifier;
     }
     const auth = await prisma.auth.findFirst({ where });
-    console.log(auth, "auth");
     
     if (!auth) {
         throw new AppError('No user found with this email or phone number', 404);
@@ -183,9 +171,9 @@ export const forgotPasswordService = async (identifier) => {
     
     transporter.sendMail(mailOptions, function(error, info){
         if (error) {
-            console.log(error);
+            // Email sending failed
         } else {
-            console.log('Email sent: ' + info.response);
+            // Email sent successfully
         }
     });
     return { success: true, message: 'If an account exists, a reset link has been sent.' };

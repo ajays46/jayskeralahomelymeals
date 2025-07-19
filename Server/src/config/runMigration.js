@@ -18,15 +18,15 @@ const sequelize = new Sequelize(
 async function runMigration() {
     try {
         await sequelize.authenticate();
-        console.log('Database connection established.');
+        // Database connection established
 
-        console.log('Creating roles table...');
+        // Creating roles table
         await up(sequelize.getQueryInterface());
-        console.log('Roles table created successfully!');
+        // Roles table created successfully
 
         process.exit(0);
     } catch (error) {
-        console.error('Migration failed:', error);
+        // Migration failed
         process.exit(1);
     }
 }

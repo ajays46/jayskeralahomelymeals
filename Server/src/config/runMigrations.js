@@ -19,21 +19,21 @@ const sequelize = new Sequelize(
 async function runMigrations() {
     try {
         await sequelize.authenticate();
-        console.log('Database connection established.');
+        // Database connection established
 
         // Run migrations
-        console.log('Creating roles table...');
+        // Creating roles table
         await createRolesTable(sequelize.getQueryInterface());
-        console.log('Roles table created successfully.');
+        // Roles table created successfully
 
-        console.log('Adding role_id to users table...');
+        // Adding role_id to users table
         await addRoleIdToUsers(sequelize.getQueryInterface());
-        console.log('Role_id column added successfully.');
+        // Role_id column added successfully
 
-        console.log('All migrations completed successfully!');
+        // All migrations completed successfully
         process.exit(0);
     } catch (error) {
-        console.error('Migration failed:', error);
+        // Migration failed
         process.exit(1);
     }
 }

@@ -3,7 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, getProductsByMealCategory, getAllActiveProducts} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, getProductsByMealCategory, getAllActiveProducts, getMenuItemsByDate, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -73,6 +73,56 @@ router.get('/products/active',
     // authenticateToken,
     // checkRole('admin'),
     getAllActiveProducts
+);
+
+router.get('/menu-items/date/:date',
+    // authenticateToken,
+    // checkRole('admin'),
+    getMenuItemsByDate
+);
+
+// Menu routes
+router.post('/menu-create',
+    // authenticateToken,
+    // checkRole('admin'),
+    createMenu
+);
+
+router.get('/menu-list',
+    // authenticateToken,
+    // checkRole('admin'),
+    menuList
+);
+
+router.get('/menu/:menuId',
+    // authenticateToken,
+    // checkRole('admin'),
+    getMenuById
+);
+
+router.put('/menu/:menuId',
+    // authenticateToken,
+    // checkRole('admin'),
+    updateMenu
+);
+
+router.delete('/menu/:menuId',
+    // authenticateToken,
+    // checkRole('admin'),
+    deleteMenu
+);
+
+// Menu Item routes
+router.post('/menu-item-create',
+    // authenticateToken,
+    // checkRole('admin'),
+    createMenuItem
+);
+
+router.get('/menu-item-list',
+    // authenticateToken,
+    // checkRole('admin'),
+    menuItemList
 );
 
 export default router; 

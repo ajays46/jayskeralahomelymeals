@@ -16,6 +16,8 @@ import MenuPage from './pages/MenuPage';
 import BookingPage from './pages/BookingPage';
 import AddProductPage from './pages/admin/AddProductPage';
 import ProductsPage from './pages/admin/ProductsPage';
+import AddMenuPage from './pages/admin/AddMenuPage';
+import MenuItemPage from './pages/admin/MenuItemPage';
 
 
 
@@ -51,6 +53,8 @@ const App = () => {
             <Route path='/admin/add-product' element={<AddProductPage/>} ></Route>
             <Route path='/admin/add-product/:productId' element={<AddProductPage/>} ></Route>
             <Route path='/admin/products' element={<ProductsPage/>} ></Route>
+            <Route path='/admin/add-menu' element={<AddMenuPage/>} ></Route>
+            <Route path='/admin/menu-items' element={<MenuItemPage/>} ></Route>
     
             <Route path='/seller' element={<SellerPage />}></Route>
             <Route path='/jkhm/profile' element={<ProfilePage />}></Route>
