@@ -288,7 +288,7 @@ const Navbar = ({ onSignInClick }) => {
                     <span className="absolute -top-1 -right-1 bg-[#FE8C00] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">0</span>
                   </motion.a>
                   <motion.a 
-                    href="/bookings" 
+                    href="/jkhm/bookings" 
                     className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
                     whileHover={{ y: -1, scale: 1.01 }}
                     onClick={() => setMenuOpen(false)}
