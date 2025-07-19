@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import AdminSlide from '../../components/AdminSlide';
-import { FiArrowLeft, FiPlus, FiSave, FiX, FiGrid } from 'react-icons/fi';
-import { useCompanyList, useMenuList, useProductList, useCreateMenuItem, useMenuItemList } from '../../hooks/adminHook/adminHook';
+import { FiArrowLeft, FiPlus, FiSave, FiX, FiEdit } from 'react-icons/fi';
+import { useCompanyList, useMenuList, useProductList, useCreateMenuItem, useMenuItemById, useUpdateMenuItem } from '../../hooks/adminHook/adminHook';
 import { validateMenuItemForm, validateField, menuItemSchema } from '../../validations/menuItemValidation';
 
 const MenuItemPage = () => {
   const navigate = useNavigate();
+  const { menuItemId } = useParams();
+  const isEditMode = !!menuItemId;
   
   // Form states
   const [menuItemForm, setMenuItemForm] = useState({
@@ -24,8 +26,10 @@ const MenuItemPage = () => {
   const { data: companyListData } = useCompanyList();
   const { data: menuListData } = useMenuList();
   const { data: productListData } = useProductList();
-  const { data: menuItemListData } = useMenuItemList();
+
+  const { data: menuItemData, isLoading: isMenuItemLoading } = useMenuItemById(menuItemId);
   const { mutate: createMenuItem, isLoading: isCreating, isError, isSuccess: menuItemCreated, error: menuItemError, reset } = useCreateMenuItem();
+  const { mutate: updateMenuItem, isLoading: isUpdating, isError: isUpdateError, isSuccess: menuItemUpdated, error: updateError, reset: resetUpdate } = useUpdateMenuItem();
 
   // Form handlers
   const handleMenuItemChange = (e) => {
@@ -96,14 +100,30 @@ const MenuItemPage = () => {
 
       setIsLoading(true);
 
-      // Call the create menu item API
-      createMenuItem(menuItemForm);
+      // Call the create or update menu item API
+      if (isEditMode) {
+        updateMenuItem({ menuItemId, menuItemData: menuItemForm });
+      } else {
+        createMenuItem(menuItemForm);
+      }
 
     } catch (err) {
       console.error('Form submission error:', err);
-      setError(err.message || 'Failed to create menu item');
+      setError(err.message || `Failed to ${isEditMode ? 'update' : 'create'} menu item`);
     }
   };
+
+  // Load menu item data for editing
+  useEffect(() => {
+    if (isEditMode && menuItemData?.data) {
+      const menuItem = menuItemData.data;
+      setMenuItemForm({
+        name: menuItem.name || '',
+        productId: menuItem.productId || '',
+        menuId: menuItem.menuId || '',
+      });
+    }
+  }, [isEditMode, menuItemData]);
 
   // Handle mutation success/error states
   useEffect(() => {
@@ -126,18 +146,47 @@ const MenuItemPage = () => {
   }, [menuItemCreated]);
 
   useEffect(() => {
+    if (menuItemUpdated) {
+      console.log('Menu item updated successfully');
+      setIsSuccess(true);
+      
+      // Show success message
+      setTimeout(() => {
+        setIsSuccess(false);
+        navigate('/admin/menu-items-table');
+      }, 2000);
+    }
+  }, [menuItemUpdated, navigate]);
+
+  useEffect(() => {
     if (isError && menuItemError) {
       console.error('Menu item creation error:', menuItemError);
       setError(menuItemError.response?.data?.message || menuItemError.message || 'Failed to create menu item');
     }
   }, [isError, menuItemError]);
 
+  useEffect(() => {
+    if (isUpdateError && updateError) {
+      console.error('Menu item update error:', updateError);
+      setError(updateError.response?.data?.message || updateError.message || 'Failed to update menu item');
+    }
+  }, [isUpdateError, updateError]);
+
   const resetMenuItemForm = () => {
-    setMenuItemForm({
-      name: '',
-      productId: '',
-      menuId: '',
-    });
+    if (isEditMode && menuItemData?.data) {
+      const menuItem = menuItemData.data;
+      setMenuItemForm({
+        name: menuItem.name || '',
+        productId: menuItem.productId || '',
+        menuId: menuItem.menuId || '',
+      });
+    } else {
+      setMenuItemForm({
+        name: '',
+        productId: '',
+        menuId: '',
+      });
+    }
     setTouchedFields({});
     setValidationErrors({});
     setError('');
@@ -148,7 +197,23 @@ const MenuItemPage = () => {
   const companies = companyListData?.data || [];
   const menus = menuListData?.data || [];
   const products = productListData?.data || [];
-  const menuItems = menuItemListData?.data || [];
+
+  // Show loading state when fetching menu item data for editing
+  if (isEditMode && isMenuItemLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <div className="hidden md:block">
+          <AdminSlide />
+        </div>
+        <div className="md:ml-14 min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading menu item data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -176,22 +241,27 @@ const MenuItemPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Add Menu Item Form */}
-            <div className="bg-gray-800 rounded-lg shadow-lg p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Add New Menu Item</h2>
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                  <FiPlus className="w-4 h-4 text-white" />
-                </div>
+          <div className="flex justify-center">
+            <div className="w-full max-w-2xl">
+              {/* Add Menu Item Form */}
+              <div className="bg-gray-800 rounded-lg shadow-lg p-6">
+                          <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">
+                {isEditMode ? 'Edit Menu Item' : 'Add New Menu Item'}
+              </h2>
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                {isEditMode ? <FiEdit className="w-4 h-4 text-white" /> : <FiPlus className="w-4 h-4 text-white" />}
               </div>
+            </div>
 
               {/* Success/Error Messages */}
               {isSuccess && (
                 <div className="mb-6 p-4 bg-green-900/30 border border-green-500/50 rounded-lg">
                   <div className="flex items-center gap-2 text-green-400">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="font-medium">Menu item created successfully!</span>
+                    <span className="font-medium">
+                      Menu item {isEditMode ? 'updated' : 'created'} successfully!
+                    </span>
                   </div>
                 </div>
               )}
@@ -254,20 +324,83 @@ const MenuItemPage = () => {
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Select Product *
                   </label>
-                  <select
-                    name="productId"
-                    value={menuItemForm.productId}
-                    onChange={handleMenuItemChange}
-                    onBlur={handleMenuItemBlur}
-                    className={getFieldClassName('productId', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white')}
-                  >
-                    <option value="">Select a product</option>
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.productName} - {product.code}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      name="productId"
+                      value={menuItemForm.productId}
+                      onChange={handleMenuItemChange}
+                      onBlur={handleMenuItemBlur}
+                      className={getFieldClassName('productId', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white')}
+                    >
+                      <option value="">Select a product</option>
+                      {products.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.productName} - {product.code}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {/* Selected Product Image Preview */}
+                    {menuItemForm.productId && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        {(() => {
+                          const selectedProduct = products.find(p => p.id === menuItemForm.productId);
+                          return selectedProduct?.imageUrl ? (
+                            <img 
+                              src={selectedProduct.imageUrl} 
+                              alt={selectedProduct.productName}
+                              className="w-8 h-8 rounded object-cover border border-gray-500"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded bg-gray-600 border border-gray-500 flex items-center justify-center">
+                              <span className="text-xs text-gray-400">No img</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Product Image Preview Below */}
+                  {menuItemForm.productId && (
+                    <div className="mt-3 p-3 bg-gray-700 rounded-lg border border-gray-600">
+                      {(() => {
+                        const selectedProduct = products.find(p => p.id === menuItemForm.productId);
+                        return selectedProduct ? (
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={selectedProduct.imageUrl} 
+                              alt={selectedProduct.productName}
+                              className="w-16 h-16 rounded-lg object-cover border border-gray-500"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                            <div className="flex-1">
+                              <h4 className="text-white font-medium">{selectedProduct.productName}</h4>
+                              <p className="text-gray-400 text-sm">Code: {selectedProduct.code}</p>
+                              {selectedProduct.categories?.[0] && (
+                                <p className="text-gray-400 text-sm">Category: {selectedProduct.categories[0].productCategoryName}</p>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 rounded-lg bg-gray-600 border border-gray-500 flex items-center justify-center">
+                              <span className="text-sm text-gray-400">No image</span>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-gray-400 text-sm">Product not found</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  
                   {getFieldError('productId') && (
                     <p className="mt-1 text-sm text-red-400">{getFieldError('productId')}</p>
                   )}
@@ -284,66 +417,24 @@ const MenuItemPage = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={isLoading || isCreating}
+                    disabled={isLoading || isCreating || isUpdating || isMenuItemLoading}
                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {isLoading || isCreating ? (
+                    {isLoading || isCreating || isUpdating ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Creating...
+                        {isEditMode ? 'Updating...' : 'Creating...'}
                       </>
                     ) : (
                       <>
                         <FiSave size={16} />
-                        Create Menu Item
+                        {isEditMode ? 'Update Menu Item' : 'Create Menu Item'}
                       </>
                     )}
                   </button>
                 </div>
               </form>
             </div>
-
-            {/* Menu Items List */}
-            <div className="bg-gray-800 rounded-lg shadow-lg p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Menu Items ({menuItems.length})</h3>
-                <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                  <FiGrid className="w-4 h-4 text-white" />
-                </div>
-              </div>
-              
-              {menuItems.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-700 rounded-full flex items-center justify-center">
-                    <FiGrid className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">No menu items found</h3>
-                  <p className="text-gray-400">Create your first menu item using the form on the left.</p>
-                </div>
-              ) : (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {menuItems.map((menuItem) => (
-                    <div key={menuItem.id} className="border border-gray-600 rounded-lg p-4 hover:bg-gray-700 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-white mb-2">{menuItem.name}</h4>
-                          <div className="space-y-1 text-sm text-gray-300">
-                            <p><span className="font-medium">Product:</span> {menuItem.product?.productName}</p>
-                            <p><span className="font-medium">Menu:</span> {menuItem.menu?.name}</p>
-                            <p><span className="font-medium">Day:</span> {menuItem.menu?.dayOfWeek}</p>
-                            <p><span className="font-medium">Company:</span> {menuItem.menu?.company?.name}</p>
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
-                            Active
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>

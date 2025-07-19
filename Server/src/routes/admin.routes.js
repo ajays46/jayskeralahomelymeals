@@ -3,7 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, getProductsByMealCategory, getAllActiveProducts, getMenuItemsByDate, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, getProductsByMealCategory, getAllActiveProducts, getMenuItemsByDate, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -123,6 +123,24 @@ router.get('/menu-item-list',
     // authenticateToken,
     // checkRole('admin'),
     menuItemList
+);
+
+router.get('/menu-item/:menuItemId',
+    // authenticateToken,
+    // checkRole('admin'),
+    getMenuItemById
+);
+
+router.put('/menu-item/:menuItemId',
+    // authenticateToken,
+    // checkRole('admin'),
+    updateMenuItem
+);
+
+router.delete('/menu-item/:menuItemId',
+    // authenticateToken,
+    // checkRole('admin'),
+    deleteMenuItem
 );
 
 export default router; 

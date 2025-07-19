@@ -1,6 +1,6 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
-import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, getProductsByMealCategoryService, getAllActiveProductsService, getMenuItemsByDateService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService } from '../services/admin.service.js';
+import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, getProductsByMealCategoryService, getAllActiveProductsService, getMenuItemsByDateService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService } from '../services/admin.service.js';
 
 export const createCompany = async (req, res, next) => {
     try {
@@ -312,6 +312,56 @@ export const menuItemList = async (req, res, next) => {
         res.status(200).json({
             status: 'success',
             data: menuItems
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getMenuItemById = async (req, res, next) => {
+    try {
+        const { menuItemId } = req.params;
+        const menuItem = await getMenuItemByIdService(menuItemId);
+        res.status(200).json({
+            status: 'success',
+            data: menuItem
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const updateMenuItem = async (req, res, next) => {
+    try {
+        const { menuItemId } = req.params;
+        const menuItemData = req.body;
+        
+        // Validate required fields
+        if (!menuItemData.name || !menuItemData.productId || !menuItemData.menuId) {
+            throw new AppError('Missing required fields: name, productId, menuId', 400);
+        }
+
+        const menuItem = await updateMenuItemService(menuItemId, menuItemData);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu item updated successfully',
+            data: menuItem
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const deleteMenuItem = async (req, res, next) => {
+    try {
+        const { menuItemId } = req.params;
+        const deletedMenuItem = await deleteMenuItemService(menuItemId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu item deleted successfully',
+            data: deletedMenuItem
         });
     } catch (error) {
         next(error);

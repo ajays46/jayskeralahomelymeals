@@ -18,6 +18,7 @@ import { FaRegCalendarAlt } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
 import { useMenuItemsByDate } from '../hooks/adminHook/adminHook';
+import LocationPicker from '../components/LocationPicker';
 
 const BookingPage = () => {
   const navigate = useNavigate();
@@ -288,16 +289,17 @@ const BookingPage = () => {
                 <h4 className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">{title} Delivery Location (optional)</h4>
                 <MdEdit className="text-gray-500 text-sm sm:text-base" />
               </div>
-              <input
-                type="text"
-                placeholder="Enter delivery location..."
-                value={deliveryLocations[mealType]}
-                onChange={(e) => setDeliveryLocations(prev => ({
-                  ...prev,
-                  [mealType]: e.target.value
-                }))}
-                className="w-full mt-1.5 sm:mt-2 p-2 lg:p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs sm:text-sm lg:text-base"
-              />
+              <div className="mt-1.5 sm:mt-2">
+                <LocationPicker
+                  value={deliveryLocations[mealType]}
+                  onChange={(e) => setDeliveryLocations(prev => ({
+                    ...prev,
+                    [mealType]: e.target.value
+                  }))}
+                  placeholder={`Enter ${title.toLowerCase()} delivery location...`}
+                  className="text-xs sm:text-sm lg:text-base"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -473,15 +475,15 @@ const BookingPage = () => {
                   <h4 className="font-medium text-gray-700 text-sm sm:text-lg">Full Delivery Location</h4>
                   <MdLocationOn className="text-gray-500 text-sm sm:text-base" />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Enter full delivery location..."
+                <LocationPicker
                   value={deliveryLocations.full}
                   onChange={(e) => setDeliveryLocations(prev => ({
                     ...prev,
                     full: e.target.value
                   }))}
-                  className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs sm:text-sm lg:text-base"
+                  placeholder="Enter full delivery location..."
+                  className="text-xs sm:text-sm lg:text-base"
+                  showMap={true}
                 />
               </div>
 

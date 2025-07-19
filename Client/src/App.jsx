@@ -18,6 +18,7 @@ import AddProductPage from './pages/admin/AddProductPage';
 import ProductsPage from './pages/admin/ProductsPage';
 import AddMenuPage from './pages/admin/AddMenuPage';
 import MenuItemPage from './pages/admin/MenuItemPage';
+import MenuItemsTablePage from './pages/admin/MenuItemsTablePage';
 
 
 
@@ -55,6 +56,8 @@ const App = () => {
             <Route path='/admin/products' element={<ProductsPage/>} ></Route>
             <Route path='/admin/add-menu' element={<AddMenuPage/>} ></Route>
             <Route path='/admin/menu-items' element={<MenuItemPage/>} ></Route>
+            <Route path='/admin/menu-items/:menuItemId' element={<MenuItemPage/>} ></Route>
+            <Route path='/admin/menu-items-table' element={<MenuItemsTablePage/>} ></Route>
     
             <Route path='/seller' element={<SellerPage />}></Route>
             <Route path='/jkhm/profile' element={<ProfilePage />}></Route>

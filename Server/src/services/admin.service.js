@@ -697,3 +697,100 @@ export const menuItemListService = async () => {
   return menuItems;
 };
 
+export const getMenuItemByIdService = async (menuItemId) => {
+  const menuItem = await prisma.menuItem.findUnique({
+    where: { id: menuItemId },
+    include: {
+      product: true,
+      menu: {
+        include: {
+          company: true,
+        },
+      },
+    }
+  });
+  
+  if (!menuItem) {
+    throw new Error('Menu item not found');
+  }
+  
+  return menuItem;
+};
+
+export const updateMenuItemService = async (menuItemId, menuItemData) => {
+  const { name, productId, menuId } = menuItemData;
+
+  // Check if menu item exists
+  const existingMenuItem = await prisma.menuItem.findUnique({
+    where: { id: menuItemId }
+  });
+
+  if (!existingMenuItem) {
+    throw new Error('Menu item not found');
+  }
+
+  // Check if product exists
+  const product = await prisma.product.findUnique({
+    where: { id: productId }
+  });
+
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  // Check if menu exists
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!menu) {
+    throw new Error('Menu not found');
+  }
+
+  // Update the menu item
+  const updatedMenuItem = await prisma.menuItem.update({
+    where: { id: menuItemId },
+    data: {
+      name,
+      productId,
+      menuId,
+    },
+    include: {
+      product: true,
+      menu: {
+        include: {
+          company: true,
+        },
+      },
+    },
+  });
+
+  return updatedMenuItem;
+};
+
+export const deleteMenuItemService = async (menuItemId) => {
+  // Check if menu item exists
+  const existingMenuItem = await prisma.menuItem.findUnique({
+    where: { id: menuItemId }
+  });
+
+  if (!existingMenuItem) {
+    throw new Error('Menu item not found');
+  }
+
+  // Delete the menu item
+  const deletedMenuItem = await prisma.menuItem.delete({
+    where: { id: menuItemId },
+    include: {
+      product: true,
+      menu: {
+        include: {
+          company: true,
+        },
+      },
+    },
+  });
+
+  return deletedMenuItem;
+};
+

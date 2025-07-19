@@ -228,3 +228,41 @@ export const useMenuItemList = () => {
     });
 };
 
+export const useMenuItemById = (menuItemId) => {
+    return useQuery({
+        queryKey: ['menuItem', menuItemId],
+        queryFn: async () => {
+            const response = await api.get(`/admin/menu-item/${menuItemId}`);
+            return response.data;
+        },
+        enabled: !!menuItemId
+    });
+};
+
+export const useUpdateMenuItem = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ menuItemId, menuItemData }) => {
+            const response = await api.put(`/admin/menu-item/${menuItemId}`, menuItemData);
+            return response.data;
+        },
+        onSuccess: (data, variables) => {
+            queryClient.invalidateQueries(['menuItemList']);
+            queryClient.invalidateQueries(['menuItem', variables.menuItemId]);
+        }
+    });
+};
+
+export const useDeleteMenuItem = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (menuItemId) => {
+            const response = await api.delete(`/admin/menu-item/${menuItemId}`);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['menuItemList']);
+        }
+    });
+};
+
