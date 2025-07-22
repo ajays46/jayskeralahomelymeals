@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AdminSlide from '../../components/AdminSlide';
 import { FiArrowLeft, FiPlus, FiSave, FiX, FiEdit } from 'react-icons/fi';
-import { useCompanyList, useMenuList, useProductList, useCreateMenuItem, useMenuItemById, useUpdateMenuItem } from '../../hooks/adminHook/adminHook';
+import { useCompanyList, useMenuList, useProductList, useCreateMenuItem, useMenuItemById, useUpdateMenuItem, useCreateMenuItemPrice, useMenuItemPriceList, useMenuItemList } from '../../hooks/adminHook/adminHook';
 import { validateMenuItemForm, validateField, menuItemSchema } from '../../validations/menuItemValidation';
+import { validateMenuItemPriceForm, validateField as validateMenuItemPriceField, menuItemPriceSchema } from '../../validations/menuItemPriceValidation';
 
 const MenuItemPage = () => {
   const navigate = useNavigate();
@@ -15,12 +16,22 @@ const MenuItemPage = () => {
     name: '',
     productId: '',
     menuId: '',
+    foodType: 'VEG',
   });
   const [validationErrors, setValidationErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  // Menu Item Price form states
+  const [menuItemPriceForm, setMenuItemPriceForm] = useState({
+    companyId: '',
+    menuItemId: '',
+    totalPrice: '',
+  });
+  const [menuItemPriceValidationErrors, setMenuItemPriceValidationErrors] = useState({});
+  const [menuItemPriceTouchedFields, setMenuItemPriceTouchedFields] = useState({});
 
   // API hooks
   const { data: companyListData } = useCompanyList();
@@ -30,6 +41,9 @@ const MenuItemPage = () => {
   const { data: menuItemData, isLoading: isMenuItemLoading } = useMenuItemById(menuItemId);
   const { mutate: createMenuItem, isLoading: isCreating, isError, isSuccess: menuItemCreated, error: menuItemError, reset } = useCreateMenuItem();
   const { mutate: updateMenuItem, isLoading: isUpdating, isError: isUpdateError, isSuccess: menuItemUpdated, error: updateError, reset: resetUpdate } = useUpdateMenuItem();
+  const { mutate: createMenuItemPrice, isLoading: isCreatingPrice, isError: isPriceError, isSuccess: priceCreated, error: priceError } = useCreateMenuItemPrice();
+  const { data: menuItemPriceListData, isLoading: menuItemPricesLoading } = useMenuItemPriceList();
+  const { data: menuItemListData } = useMenuItemList();
 
   // Form handlers
   const handleMenuItemChange = (e) => {
@@ -78,7 +92,6 @@ const MenuItemPage = () => {
   const handleMenuItemSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
     try {
       // Mark all fields as touched for validation display
       const allFields = Object.keys(menuItemForm);
@@ -89,7 +102,6 @@ const MenuItemPage = () => {
         });
         return newTouched;
       });
-
       // Validate form
       const validation = validateMenuItemForm(menuItemForm);
       if (!validation.success) {
@@ -97,16 +109,13 @@ const MenuItemPage = () => {
         setError('Please fix the validation errors above');
         return;
       }
-
       setIsLoading(true);
-
       // Call the create or update menu item API
       if (isEditMode) {
         updateMenuItem({ menuItemId, menuItemData: menuItemForm });
       } else {
         createMenuItem(menuItemForm);
       }
-
     } catch (err) {
       console.error('Form submission error:', err);
       setError(err.message || `Failed to ${isEditMode ? 'update' : 'create'} menu item`);
@@ -121,6 +130,7 @@ const MenuItemPage = () => {
         name: menuItem.name || '',
         productId: menuItem.productId || '',
         menuId: menuItem.menuId || '',
+        foodType: menuItem.foodType || 'VEG',
       });
     }
   }, [isEditMode, menuItemData]);
@@ -134,6 +144,7 @@ const MenuItemPage = () => {
         name: '',
         productId: '',
         menuId: '',
+        foodType: 'VEG',
       });
       setTouchedFields({});
       setValidationErrors({});
@@ -172,6 +183,33 @@ const MenuItemPage = () => {
     }
   }, [isUpdateError, updateError]);
 
+  // Menu Item Price success/error handlers
+  useEffect(() => {
+    if (priceCreated) {
+      console.log('Menu item price created successfully');
+      setIsSuccess(true);
+      setMenuItemPriceForm({
+        companyId: '',
+        menuItemId: '',
+        totalPrice: '',
+      });
+      setMenuItemPriceTouchedFields({});
+      setMenuItemPriceValidationErrors({});
+      
+      // Show success message
+      setTimeout(() => {
+        setIsSuccess(false);
+      }, 3000);
+    }
+  }, [priceCreated]);
+
+  useEffect(() => {
+    if (isPriceError && priceError) {
+      console.error('Menu item price creation error:', priceError);
+      setError(priceError.response?.data?.message || priceError.message || 'Failed to create menu item price');
+    }
+  }, [isPriceError, priceError]);
+
   const resetMenuItemForm = () => {
     if (isEditMode && menuItemData?.data) {
       const menuItem = menuItemData.data;
@@ -179,12 +217,14 @@ const MenuItemPage = () => {
         name: menuItem.name || '',
         productId: menuItem.productId || '',
         menuId: menuItem.menuId || '',
+        foodType: menuItem.foodType || 'VEG',
       });
     } else {
       setMenuItemForm({
         name: '',
         productId: '',
         menuId: '',
+        foodType: 'VEG',
       });
     }
     setTouchedFields({});
@@ -193,10 +233,100 @@ const MenuItemPage = () => {
     setIsSuccess(false);
   };
 
+  // Menu Item Price handlers
+  const handleMenuItemPriceChange = (e) => {
+    const { name, value } = e.target;
+    setMenuItemPriceForm({ ...menuItemPriceForm, [name]: value });
+    
+    // Mark field as touched
+    setMenuItemPriceTouchedFields(prev => ({ ...prev, [name]: true }));
+    
+    // Clear validation error for this field
+    if (menuItemPriceValidationErrors[name]) {
+      setMenuItemPriceValidationErrors(prev => ({ ...prev, [name]: '' }));
+    }
+    
+    // Clear success/error messages
+    if (isSuccess || error) {
+      setIsSuccess(false);
+      setError('');
+    }
+  };
+
+  const validateMenuItemPriceFieldLocal = (name, value) => {
+    return validateMenuItemPriceField(menuItemPriceSchema, name, value);
+  };
+
+  const handleMenuItemPriceBlur = (e) => {
+    const { name, value } = e.target;
+    
+    // Mark field as touched
+    setMenuItemPriceTouchedFields(prev => ({ ...prev, [name]: true }));
+    
+    // Validate field
+    const fieldError = validateMenuItemPriceFieldLocal(name, value);
+    setMenuItemPriceValidationErrors(prev => ({ ...prev, [name]: fieldError }));
+  };
+
+  const getMenuItemPriceFieldError = (fieldName) => {
+    return menuItemPriceTouchedFields[fieldName] && menuItemPriceValidationErrors[fieldName] ? menuItemPriceValidationErrors[fieldName] : '';
+  };
+
+  const getMenuItemPriceFieldClassName = (fieldName, baseClasses) => {
+    const hasError = getMenuItemPriceFieldError(fieldName);
+    return `${baseClasses} ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`;
+  };
+
+  const handleMenuItemPriceSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      // Mark all fields as touched for validation display
+      const allFields = Object.keys(menuItemPriceForm);
+      setMenuItemPriceTouchedFields(prev => {
+        const newTouched = { ...prev };
+        allFields.forEach(field => {
+          newTouched[field] = true;
+        });
+        return newTouched;
+      });
+      // Validate form
+      const validation = validateMenuItemPriceForm(menuItemPriceForm);
+      if (!validation.isValid) {
+        setMenuItemPriceValidationErrors(validation.errors);
+        setError('Please fix the validation errors above');
+        return;
+      }
+      setIsLoading(true);
+      // Call the create menu item price API
+      createMenuItemPrice({
+        ...menuItemPriceForm,
+        totalPrice: parseInt(menuItemPriceForm.totalPrice) || 0
+      });
+    } catch (err) {
+      console.error('Menu item price form submission error:', err);
+      setError(err.message || 'Failed to create menu item price');
+    }
+  };
+
+  const resetMenuItemPriceForm = () => {
+    setMenuItemPriceForm({
+      companyId: '',
+      menuItemId: '',
+      totalPrice: '',
+    });
+    setMenuItemPriceTouchedFields({});
+    setMenuItemPriceValidationErrors({});
+    setError('');
+    setIsSuccess(false);
+  };
+
   // Extract data from API responses
   const companies = companyListData?.data || [];
   const menus = menuListData?.data || [];
   const products = productListData?.data || [];
+  const menuItems = menuItemListData?.data || [];
+  const menuItemPrices = menuItemPriceListData?.data || [];
 
   // Show loading state when fetching menu item data for editing
   if (isEditMode && isMenuItemLoading) {
@@ -406,6 +536,26 @@ const MenuItemPage = () => {
                   )}
                 </div>
 
+                {/* Food Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Food Type *
+                  </label>
+                  <select
+                    name="foodType"
+                    value={menuItemForm.foodType}
+                    onChange={handleMenuItemChange}
+                    onBlur={handleMenuItemBlur}
+                    className={getFieldClassName('foodType', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white')}
+                  >
+                    <option value="VEG">Vegetarian</option>
+                    <option value="NON_VEG">Non-Vegetarian</option>
+                  </select>
+                  {getFieldError('foodType') && (
+                    <p className="mt-1 text-sm text-red-400">{getFieldError('foodType')}</p>
+                  )}
+                </div>
+
                 {/* Form Actions */}
                 <div className="flex justify-end gap-4 pt-4">
                   <button
@@ -434,6 +584,165 @@ const MenuItemPage = () => {
                   </button>
                 </div>
               </form>
+
+              {/* Menu Item Price Form */}
+              <div className="bg-gray-800 rounded-lg shadow-lg p-6 mt-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-white">
+                    Add Menu Item Price
+                  </h2>
+                  <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                    <FiPlus className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+
+                <form onSubmit={handleMenuItemPriceSubmit} className="space-y-6">
+                  {/* Company Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Select Company *
+                    </label>
+                    <select
+                      name="companyId"
+                      value={menuItemPriceForm.companyId}
+                      onChange={handleMenuItemPriceChange}
+                      onBlur={handleMenuItemPriceBlur}
+                      className={getMenuItemPriceFieldClassName('companyId', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-white')}
+                    >
+                      <option value="">Select a company</option>
+                      {companies.map((company) => (
+                        <option key={company.id} value={company.id}>
+                          {company.name}
+                        </option>
+                      ))}
+                    </select>
+                    {getMenuItemPriceFieldError('companyId') && (
+                      <p className="mt-1 text-sm text-red-400">{getMenuItemPriceFieldError('companyId')}</p>
+                    )}
+                  </div>
+
+                  {/* Menu Item Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Select Menu Item *
+                    </label>
+                    <select
+                      name="menuItemId"
+                      value={menuItemPriceForm.menuItemId}
+                      onChange={handleMenuItemPriceChange}
+                      onBlur={handleMenuItemPriceBlur}
+                      className={getMenuItemPriceFieldClassName('menuItemId', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-white')}
+                    >
+                      <option value="">Select a menu item</option>
+                      {menuItems.map((menuItem) => (
+                        <option key={menuItem.id} value={menuItem.id}>
+                          {menuItem.name} - {menuItem.product?.productName}
+                        </option>
+                      ))}
+                    </select>
+                    {getMenuItemPriceFieldError('menuItemId') && (
+                      <p className="mt-1 text-sm text-red-400">{getMenuItemPriceFieldError('menuItemId')}</p>
+                    )}
+                    {menuItems.length === 0 && (
+                      <div className="text-xs text-red-400 mt-1">
+                        <p>No menu items available. Please create a menu item first.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Total Price */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Total Price *
+                    </label>
+                    <input
+                      type="number"
+                      name="totalPrice"
+                      value={menuItemPriceForm.totalPrice}
+                      onChange={handleMenuItemPriceChange}
+                      onBlur={handleMenuItemPriceBlur}
+                      min="1"
+                      max="999999"
+                      className={getMenuItemPriceFieldClassName('totalPrice', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-white placeholder-gray-400')}
+                      placeholder="Enter total price"
+                    />
+                    {getMenuItemPriceFieldError('totalPrice') && (
+                      <p className="mt-1 text-sm text-red-400">{getMenuItemPriceFieldError('totalPrice')}</p>
+                    )}
+                  </div>
+
+                  {/* Form Actions */}
+                  <div className="flex justify-end gap-4 pt-4">
+                    <button
+                      type="button"
+                      onClick={resetMenuItemPriceForm}
+                      className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isLoading || isCreatingPrice}
+                      className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {isLoading || isCreatingPrice ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Creating Price...
+                        </>
+                      ) : (
+                        <>
+                          <FiSave size={16} />
+                          Create Menu Item Price
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Menu Item Prices List */}
+              <div className="bg-gray-800 rounded-lg shadow-lg p-6 mt-8">
+                <h3 className="text-lg font-bold text-green-300 mb-4">
+                  Existing Menu Item Prices
+                </h3>
+                {menuItemPricesLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto"></div>
+                    <p className="text-gray-400 text-sm mt-2">Loading menu item prices...</p>
+                  </div>
+                ) : menuItemPrices.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <span className="text-gray-400 text-lg">₹</span>
+                    </div>
+                    <p className="text-gray-400 text-sm">No menu item prices created yet</p>
+                    <p className="text-gray-500 text-xs mt-1">Create your first menu item price using the form above</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {menuItemPrices.map((price) => (
+                      <div key={price.id} className="bg-gray-700/50 rounded-lg p-3 border border-gray-600 hover:border-gray-500 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-white text-sm mb-1">
+                              ₹{price.totalPrice}
+                            </h4>
+                            <div className="text-xs text-gray-400 space-y-1">
+                              <p><span className="text-gray-500">Company:</span> {price.company?.name || 'N/A'}</p>
+                              <p><span className="text-gray-500">Menu Item:</span> {price.menuItem?.name || 'N/A'}</p>
+                              <p><span className="text-gray-500">Product:</span> {price.menuItem?.product?.productName || 'N/A'}</p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 ml-2">
+                            {new Date(price.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             </div>
           </div>

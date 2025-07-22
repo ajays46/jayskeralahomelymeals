@@ -1,6 +1,6 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
-import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, getProductsByMealCategoryService, getAllActiveProductsService, getMenuItemsByDateService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService } from '../services/admin.service.js';
+import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, getProductsByMealCategoryService, getAllActiveProductsService, getMenuItemsByDateService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService, createMenuCategoryService, menuCategoryListService, getMenuCategoryByIdService, updateMenuCategoryService, deleteMenuCategoryService, createMenuItemPriceService, menuItemPriceListService, getMenuItemPriceByIdService, updateMenuItemPriceService, deleteMenuItemPriceService, getMealsByDayService } from '../services/admin.service.js';
 
 export const createCompany = async (req, res, next) => {
     try {
@@ -206,8 +206,8 @@ export const createMenu = async (req, res, next) => {
         const menuData = req.body;
         
         // Validate required fields
-        if (!menuData.name || !menuData.companyId || !menuData.dayOfWeek) {
-            throw new AppError('Missing required fields: name, companyId, dayOfWeek', 400);
+        if (!menuData.name || !menuData.companyId) {
+            throw new AppError('Missing required fields: name, companyId', 400);
         }
 
         const menu = await createMenuService(menuData);
@@ -253,8 +253,8 @@ export const updateMenu = async (req, res, next) => {
         const menuData = req.body;
         
         // Validate required fields
-        if (!menuData.name || !menuData.companyId || !menuData.dayOfWeek) {
-            throw new AppError('Missing required fields: name, companyId, dayOfWeek', 400);
+        if (!menuData.name || !menuData.companyId) {
+            throw new AppError('Missing required fields: name, companyId', 400);
         }
 
         const menu = await updateMenuService(menuId, menuData);
@@ -362,6 +362,205 @@ export const deleteMenuItem = async (req, res, next) => {
             status: 'success',
             message: 'Menu item deleted successfully',
             data: deletedMenuItem
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Menu Category controllers
+export const createMenuCategory = async (req, res, next) => {
+    try {
+        const menuCategoryData = req.body;
+        
+        // Validate required fields
+        if (!menuCategoryData.name || !menuCategoryData.companyId || !menuCategoryData.menuId) {
+            throw new AppError('Missing required fields: name, companyId, menuId', 400);
+        }
+
+        const menuCategory = await createMenuCategoryService(menuCategoryData);
+        
+        res.status(201).json({
+            status: 'success',
+            message: 'Menu category created successfully',
+            data: menuCategory
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const menuCategoryList = async (req, res, next) => {
+    try {
+        const menuCategories = await menuCategoryListService();
+        res.status(200).json({
+            status: 'success',
+            data: menuCategories
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getMenuCategoryById = async (req, res, next) => {
+    try {
+        const { menuCategoryId } = req.params;
+        const menuCategory = await getMenuCategoryByIdService(menuCategoryId);
+        res.status(200).json({
+            status: 'success',
+            data: menuCategory
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const updateMenuCategory = async (req, res, next) => {
+    try {
+        const { menuCategoryId } = req.params;
+        const menuCategoryData = req.body;
+        
+        // Validate required fields
+        if (!menuCategoryData.name || !menuCategoryData.companyId || !menuCategoryData.menuId) {
+            throw new AppError('Missing required fields: name, companyId, menuId', 400);
+        }
+
+        const menuCategory = await updateMenuCategoryService(menuCategoryId, menuCategoryData);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu category updated successfully',
+            data: menuCategory
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const deleteMenuCategory = async (req, res, next) => {
+    try {
+        const { menuCategoryId } = req.params;
+        const deletedMenuCategory = await deleteMenuCategoryService(menuCategoryId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu category deleted successfully',
+            data: deletedMenuCategory
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Menu Item Price controllers
+export const createMenuItemPrice = async (req, res, next) => {
+    try {
+        const menuItemPriceData = req.body;
+        
+        // Validate required fields
+        if (!menuItemPriceData.companyId || !menuItemPriceData.menuItemId || !menuItemPriceData.totalPrice) {
+            throw new AppError('Missing required fields: companyId, menuItemId, totalPrice', 400);
+        }
+
+        const menuItemPrice = await createMenuItemPriceService(menuItemPriceData);
+        
+        res.status(201).json({
+            status: 'success',
+            message: 'Menu item price created successfully',
+            data: menuItemPrice
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const menuItemPriceList = async (req, res, next) => {
+    try {
+        const menuItemPrices = await menuItemPriceListService();
+        res.status(200).json({
+            status: 'success',
+            data: menuItemPrices
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getMenuItemPriceById = async (req, res, next) => {
+    try {
+        const { menuItemPriceId } = req.params;
+        const menuItemPrice = await getMenuItemPriceByIdService(menuItemPriceId);
+        res.status(200).json({
+            status: 'success',
+            data: menuItemPrice
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const updateMenuItemPrice = async (req, res, next) => {
+    try {
+        const { menuItemPriceId } = req.params;
+        const menuItemPriceData = req.body;
+        
+        // Validate required fields
+        if (!menuItemPriceData.companyId || !menuItemPriceData.menuItemId || !menuItemPriceData.totalPrice) {
+            throw new AppError('Missing required fields: companyId, menuItemId, totalPrice', 400);
+        }
+
+        const menuItemPrice = await updateMenuItemPriceService(menuItemPriceId, menuItemPriceData);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu item price updated successfully',
+            data: menuItemPrice
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const deleteMenuItemPrice = async (req, res, next) => {
+    try {
+        const { menuItemPriceId } = req.params;
+        const deletedMenuItemPrice = await deleteMenuItemPriceService(menuItemPriceId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu item price deleted successfully',
+            data: deletedMenuItemPrice
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Get meals by day of the week
+export const getMealsByDay = async (req, res, next) => {
+    try {
+        const { day } = req.query;
+        console.log(day,"day");
+        
+        
+        // Validate day parameter
+        if (!day) {
+            throw new AppError('Day parameter is required', 400);
+        }
+
+        // Validate day format
+        const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        if (!validDays.includes(day.toLowerCase())) {
+            throw new AppError('Invalid day. Must be one of: monday, tuesday, wednesday, thursday, friday, saturday, sunday', 400);
+        }
+
+        const mealsData = await getMealsByDayService(day);
+        
+        console.log(mealsData,"mealsData");
+        
+        res.status(200).json({
+            status: 'success',
+            data: mealsData
         });
     } catch (error) {
         next(error);

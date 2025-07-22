@@ -5,3 +5,20 @@
 body {
     @apply font-roboto
 }
+
+/* Prevent image flickering */
+img {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+img[src] {
+    opacity: 1;
+}
+
+/* Smooth image loading */
+.meal-item img {
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-font-smoothing: subpixel-antialiased;
+}

@@ -4,12 +4,15 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import path from 'path';
 import './models/index.js'; // Import models to ensure associations are loaded
 // import sequelize from './config/database.js';
 
 dotenv.config();
 
 const app = express();
+
+app.use('/uploads',express.static(path.join(process.cwd(),'src/services/uploads')))
 
 // Middleware
 

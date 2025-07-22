@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaUtensils, FaBuilding, FaCalendar, FaSave, FaTimes, FaArrowLeft, FaList } from 'react-icons/fa';
+import { FaPlus, FaUtensils, FaBuilding, FaCalendar, FaSave, FaTimes, FaArrowLeft, FaList, FaTags } from 'react-icons/fa';
 import AdminSlide from '../../components/AdminSlide';
-import { useCompanyList, useCreateMenu, useMenuList } from '../../hooks/adminHook/adminHook';
+import { useCompanyList, useCreateMenu, useMenuList, useCreateMenuCategory, useMenuCategoryList } from '../../hooks/adminHook/adminHook';
 import { useNavigate } from 'react-router-dom';
 import { validateMenuForm, validateField, menuSchema } from '../../validations/menuValidation';
+import { validateMenuCategoryForm, validateField as validateMenuCategoryField, menuCategorySchema } from '../../validations/menuCategoryValidation';
 import 'antd/dist/reset.css';
 
 const AddMenuPage = () => {
@@ -12,8 +13,15 @@ const AddMenuPage = () => {
   const [form, setForm] = useState({
     name: '',
     companyId: '',
-    dayOfWeek: 'MONDAY',
     status: 'ACTIVE',
+  });
+
+  // Menu Category form state
+  const [menuCategoryForm, setMenuCategoryForm] = useState({
+    name: '',
+    description: '',
+    companyId: '',
+    menuId: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -21,10 +29,16 @@ const AddMenuPage = () => {
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
+  
+  // Menu Category validation states
+  const [menuCategoryValidationErrors, setMenuCategoryValidationErrors] = useState({});
+  const [menuCategoryTouchedFields, setMenuCategoryTouchedFields] = useState({});
 
   const { data: companyListData, isLoading: companiesLoading } = useCompanyList();
   const { mutate: createMenu, isLoading: isCreating, isError, isSuccess: menuCreated, error: menuError, reset } = useCreateMenu();
   const { data: menuListData, isLoading: menusLoading } = useMenuList();
+  const { mutate: createMenuCategory, isLoading: isCreatingCategory, isError: isCategoryError, isSuccess: categoryCreated, error: categoryError } = useCreateMenuCategory();
+  const { data: menuCategoryListData, isLoading: menuCategoriesLoading } = useMenuCategoryList();
 
   // Handle mutation success/error states
   useEffect(() => {
@@ -34,7 +48,6 @@ const AddMenuPage = () => {
       setForm({
         name: '',
         companyId: '',
-        dayOfWeek: 'MONDAY',
         status: 'ACTIVE',
       });
       setTouchedFields({});
@@ -55,9 +68,38 @@ const AddMenuPage = () => {
     }
   }, [isError, menuError]);
 
+  // Handle menu category success/error states
+  useEffect(() => {
+    if (categoryCreated) {
+      console.log('Menu category created successfully');
+      setIsSuccess(true);
+      setMenuCategoryForm({
+        name: '',
+        description: '',
+        companyId: '',
+        menuId: '',
+      });
+      setMenuCategoryTouchedFields({});
+      setMenuCategoryValidationErrors({});
+      
+      // Show success message
+      setTimeout(() => {
+        setIsSuccess(false);
+      }, 3000);
+    }
+  }, [categoryCreated]);
+
+  useEffect(() => {
+    if (isCategoryError && categoryError) {
+      console.error('Menu category creation error:', categoryError);
+      setError(categoryError.response?.data?.message || categoryError.message || 'Failed to create menu category');
+    }
+  }, [isCategoryError, categoryError]);
+
   // Extract companies from the response
   const companies = companyListData?.data || [];
   const menus = menuListData?.data || [];
+  const menuCategories = menuCategoryListData?.data || [];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -102,15 +144,63 @@ const AddMenuPage = () => {
     return `${baseClasses} ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`;
   };
 
+  // Menu Category handlers
+  const handleMenuCategoryChange = (e) => {
+    const { name, value } = e.target;
+    setMenuCategoryForm({ ...menuCategoryForm, [name]: value });
+    
+    // Mark field as touched
+    setMenuCategoryTouchedFields(prev => ({ ...prev, [name]: true }));
+    
+    // Clear validation error for this field
+    if (menuCategoryValidationErrors[name]) {
+      setMenuCategoryValidationErrors(prev => ({ ...prev, [name]: '' }));
+    }
+    
+    // Clear success/error messages
+    if (isSuccess || error) {
+      setIsSuccess(false);
+      setError('');
+    }
+  };
+
+  const validateMenuCategoryFieldLocal = (name, value) => {
+    return validateMenuCategoryField(menuCategorySchema, name, value);
+  };
+
+  const handleMenuCategoryBlur = (e) => {
+    const { name, value } = e.target;
+    
+    // Mark field as touched
+    setMenuCategoryTouchedFields(prev => ({ ...prev, [name]: true }));
+    
+    // Validate field
+    const fieldError = validateMenuCategoryFieldLocal(name, value);
+    setMenuCategoryValidationErrors(prev => ({ ...prev, [name]: fieldError }));
+  };
+
+  const getMenuCategoryFieldError = (fieldName) => {
+    return menuCategoryTouchedFields[fieldName] && menuCategoryValidationErrors[fieldName] ? menuCategoryValidationErrors[fieldName] : '';
+  };
+
+  const getMenuCategoryFieldClassName = (fieldName, baseClasses) => {
+    const hasError = getMenuCategoryFieldError(fieldName);
+    return `${baseClasses} ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`;
+  };
+
   const validateForm = () => {
     const validation = validateMenuForm(form);
+    return validation.errors;
+  };
+
+  const validateMenuCategoryFormLocal = () => {
+    const validation = validateMenuCategoryForm(menuCategoryForm);
     return validation.errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
     try {
       // Mark all fields as touched for validation display
       const allFields = Object.keys(form);
@@ -121,7 +211,6 @@ const AddMenuPage = () => {
         });
         return newTouched;
       });
-
       // Validate form
       const validationErrors = validateForm();
       if (Object.keys(validationErrors).length > 0) {
@@ -129,15 +218,41 @@ const AddMenuPage = () => {
         setError('Please fix the validation errors above');
         return;
       }
-
       setIsLoading(true);
-
       // Call the create menu API
       createMenu(form);
-
     } catch (err) {
       console.error('Form submission error:', err);
       setError(err.message || 'Failed to create menu');
+    }
+  };
+
+  const handleMenuCategorySubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      // Mark all fields as touched for validation display
+      const allFields = Object.keys(menuCategoryForm);
+      setMenuCategoryTouchedFields(prev => {
+        const newTouched = { ...prev };
+        allFields.forEach(field => {
+          newTouched[field] = true;
+        });
+        return newTouched;
+      });
+      // Validate form
+      const validationErrors = validateMenuCategoryFormLocal();
+      if (Object.keys(validationErrors).length > 0) {
+        setMenuCategoryValidationErrors(validationErrors);
+        setError('Please fix the validation errors above');
+        return;
+      }
+      setIsLoading(true);
+      // Call the create menu category API
+      createMenuCategory(menuCategoryForm);
+    } catch (err) {
+      console.error('Menu category form submission error:', err);
+      setError(err.message || 'Failed to create menu category');
     }
   };
 
@@ -145,11 +260,23 @@ const AddMenuPage = () => {
     setForm({
       name: '',
       companyId: '',
-      dayOfWeek: 'MONDAY',
       status: 'ACTIVE',
     });
     setTouchedFields({});
     setValidationErrors({});
+    setError('');
+    setIsSuccess(false);
+  };
+
+  const resetMenuCategoryForm = () => {
+    setMenuCategoryForm({
+      name: '',
+      description: '',
+      companyId: '',
+      menuId: '',
+    });
+    setMenuCategoryTouchedFields({});
+    setMenuCategoryValidationErrors({});
     setError('');
     setIsSuccess(false);
   };
@@ -270,29 +397,7 @@ const AddMenuPage = () => {
                         )}
                       </div>
 
-                      <div>
-                        <label className="block mb-1 text-xs sm:text-sm text-gray-300">Day of Week <span className="text-red-400">*</span></label>
-                        <select 
-                          name="dayOfWeek" 
-                          value={form.dayOfWeek} 
-                          onChange={handleChange} 
-                          onBlur={handleBlur}
-                          required
-                          className={getFieldClassName('dayOfWeek', "w-full bg-gray-700 border border-gray-600 rounded-lg p-2 sm:p-3 text-gray-100 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors")}
-                          disabled={isLoading || isCreating}
-                        >
-                          <option value="MONDAY">Monday</option>
-                          <option value="TUESDAY">Tuesday</option>
-                          <option value="WEDNESDAY">Wednesday</option>
-                          <option value="THURSDAY">Thursday</option>
-                          <option value="FRIDAY">Friday</option>
-                          <option value="SATURDAY">Saturday</option>
-                          <option value="SUNDAY">Sunday</option>
-                        </select>
-                        {getFieldError('dayOfWeek') && (
-                          <p className="text-red-400 text-xs mt-1">{getFieldError('dayOfWeek')}</p>
-                        )}
-                      </div>
+                      {/* Day of Week dropdown removed */}
 
                       <div>
                         <label className="block mb-1 text-xs sm:text-sm text-gray-300">Status</label>
@@ -331,6 +436,134 @@ const AddMenuPage = () => {
                     >
                       <FaTimes className="text-sm" />
                       Reset Form
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Menu Category Form Section */}
+              <div className="bg-gray-800/50 rounded-lg p-4 sm:p-6 border border-gray-700 mt-6">
+                <form onSubmit={handleMenuCategorySubmit} className="space-y-6">
+                  {/* Menu Category Information Section */}
+                  <div className="bg-gray-700/50 rounded-lg p-3 sm:p-4">
+                    <h3 className="text-base font-bold text-green-300 flex items-center gap-2 mb-3">
+                      <FaTags className="text-green-400" />
+                      Menu Category Information
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block mb-1 text-xs sm:text-sm text-gray-300">Category Name <span className="text-red-400">*</span></label>
+                        <input 
+                          type="text" 
+                          name="name" 
+                          value={menuCategoryForm.name} 
+                          onChange={handleMenuCategoryChange} 
+                          onBlur={handleMenuCategoryBlur}
+                          required 
+                          className={getMenuCategoryFieldClassName('name', "w-full bg-gray-700 border border-gray-600 rounded-lg p-2 sm:p-3 text-gray-100 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors")}
+                          placeholder="Enter category name"
+                          disabled={isLoading || isCreatingCategory} 
+                        />
+                        {getMenuCategoryFieldError('name') && (
+                          <p className="text-red-400 text-xs mt-1">{getMenuCategoryFieldError('name')}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block mb-1 text-xs sm:text-sm text-gray-300">Company <span className="text-red-400">*</span></label>
+                        <select 
+                          name="companyId" 
+                          value={menuCategoryForm.companyId} 
+                          onChange={handleMenuCategoryChange} 
+                          onBlur={handleMenuCategoryBlur}
+                          className={getMenuCategoryFieldClassName('companyId', "w-full bg-gray-700 border border-gray-600 rounded-lg p-2 sm:p-3 text-gray-100 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors")}
+                          disabled={isLoading || isCreatingCategory || companiesLoading}
+                          required
+                        >
+                          <option value="">
+                            {companiesLoading ? 'Loading companies...' : 'Select a company'}
+                          </option>
+                          {companies.map((company) => (
+                            <option key={company.id} value={company.id}>
+                              {company.name}
+                            </option>
+                          ))}
+                        </select>
+                        {getMenuCategoryFieldError('companyId') && (
+                          <p className="text-red-400 text-xs mt-1">{getMenuCategoryFieldError('companyId')}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block mb-1 text-xs sm:text-sm text-gray-300">Menu <span className="text-red-400">*</span></label>
+                        <select 
+                          name="menuId" 
+                          value={menuCategoryForm.menuId} 
+                          onChange={handleMenuCategoryChange} 
+                          onBlur={handleMenuCategoryBlur}
+                          className={getMenuCategoryFieldClassName('menuId', "w-full bg-gray-700 border border-gray-600 rounded-lg p-2 sm:p-3 text-gray-100 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors")}
+                          disabled={isLoading || isCreatingCategory || menusLoading}
+                          required
+                        >
+                          <option value="">
+                            {menusLoading ? 'Loading menus...' : 'Select a menu'}
+                          </option>
+                          {menus.map((menu) => (
+                            <option key={menu.id} value={menu.id}>
+                              {menu.name}
+                            </option>
+                          ))}
+                        </select>
+                        {getMenuCategoryFieldError('menuId') && (
+                          <p className="text-red-400 text-xs mt-1">{getMenuCategoryFieldError('menuId')}</p>
+                        )}
+                        {menus.length === 0 && !menusLoading && (
+                          <div className="text-xs text-red-400 mt-1">
+                            <p>No menus available. Please create a menu first.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="block mb-1 text-xs sm:text-sm text-gray-300">Description <span className="text-red-400">*</span></label>
+                      <textarea 
+                        name="description" 
+                        value={menuCategoryForm.description} 
+                        onChange={handleMenuCategoryChange} 
+                        onBlur={handleMenuCategoryBlur}
+                        required 
+                        rows="3"
+                        className={getMenuCategoryFieldClassName('description', "w-full bg-gray-700 border border-gray-600 rounded-lg p-2 sm:p-3 text-gray-100 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors resize-none")}
+                        placeholder="Enter category description (minimum 10 characters)"
+                        disabled={isLoading || isCreatingCategory} 
+                      />
+                      {getMenuCategoryFieldError('description') && (
+                        <p className="text-red-400 text-xs mt-1">{getMenuCategoryFieldError('description')}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Menu Category Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button 
+                      type="submit" 
+                      className="flex-1 bg-green-600 text-white py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                      disabled={isLoading || isCreatingCategory}
+                    >
+                      <FaSave className="text-sm" />
+                      {isLoading || isCreatingCategory ? 'Creating Category...' : 'Create Category'}
+                    </button>
+                    
+                    <button 
+                      type="button" 
+                      onClick={resetMenuCategoryForm}
+                      className="flex-1 bg-gray-600 text-white py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                      disabled={isLoading || isCreatingCategory}
+                    >
+                      <FaTimes className="text-sm" />
+                      Reset Category Form
                     </button>
                   </div>
                 </form>
@@ -379,6 +612,46 @@ const AddMenuPage = () => {
                           </div>
                           <div className="text-xs text-gray-500 ml-2">
                             {new Date(menu.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Menu Categories List Section */}
+              <div className="bg-gray-800/50 rounded-lg p-4 sm:p-6 border border-gray-700 mt-6">
+                <h3 className="text-lg font-bold text-green-300 flex items-center gap-2 mb-4">
+                  <FaTags className="text-green-400" />
+                  Existing Menu Categories
+                </h3>
+                {menuCategoriesLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto"></div>
+                    <p className="text-gray-400 text-sm mt-2">Loading menu categories...</p>
+                  </div>
+                ) : menuCategories.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FaTags className="text-gray-500 text-4xl mx-auto mb-3" />
+                    <p className="text-gray-400 text-sm">No menu categories created yet</p>
+                    <p className="text-gray-500 text-xs mt-1">Create your first menu category using the form</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {menuCategories.map((category) => (
+                      <div key={category.id} className="bg-gray-700/50 rounded-lg p-3 border border-gray-600 hover:border-gray-500 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-white text-sm mb-1">{category.name}</h4>
+                            <div className="text-xs text-gray-400 space-y-1">
+                              <p><span className="text-gray-500">Company:</span> {category.company?.name || 'N/A'}</p>
+                              <p><span className="text-gray-500">Menu:</span> {category.menu?.name || 'N/A'}</p>
+                              <p><span className="text-gray-500">Description:</span> {category.description?.substring(0, 50)}...</p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 ml-2">
+                            {new Date(category.createdAt).toLocaleDateString()}
                           </div>
                         </div>
                       </div>

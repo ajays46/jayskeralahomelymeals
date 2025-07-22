@@ -251,7 +251,7 @@ const ProductsPage = () => {
                     <div className="relative h-48 bg-gray-700">
                       {product.imageUrl ? (
                         <img
-                          src={product.imageUrl}
+                          src={product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`}
                           alt={product.productName}
                           className="w-full h-full object-cover"
                           onError={(e) => {

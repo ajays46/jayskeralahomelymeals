@@ -9,6 +9,10 @@ export const menuItemSchema = z.object({
     .min(1, 'Product selection is required'),
   menuId: z.string()
     .min(1, 'Menu selection is required'),
+  foodType: z.enum(['VEG', 'NON_VEG'], {
+    required_error: 'Food type is required',
+    invalid_type_error: 'Food type must be either VEG or NON_VEG',
+  }),
 });
 
 export const validateMenuItemForm = (data) => {

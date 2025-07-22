@@ -17,7 +17,7 @@ import {
 import { FaRegCalendarAlt } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
-import { useMenuItemsByDate } from '../hooks/adminHook/adminHook';
+import { useMealsByDay } from '../hooks/adminHook/adminHook';
 import LocationPicker from '../components/LocationPicker';
 
 const BookingPage = () => {
@@ -44,11 +44,21 @@ const BookingPage = () => {
     full: ''
   });
 
-  // Fetch menu items for the selected date
-  const { data: menuData, isLoading: productsLoading, error: productsError } = useMenuItemsByDate(selectedDate);
+  // Get day of week from selected date
+  const getDayOfWeek = (date) => {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return days[date.getDay()];
+  };
+
+  const selectedDayOfWeek = getDayOfWeek(selectedDate);
   
-  // Extract menu items from the response
-  const adminProducts = menuData?.menuItems || {
+  // Fetch meals for the selected day of week
+  const { data: mealsData, isLoading: productsLoading, error: productsError } = useMealsByDay(selectedDayOfWeek);
+
+  
+  
+  // Extract meals from the response
+  const adminProducts = mealsData?.data?.meals || {
     breakfast: [],
     lunch: [],
     dinner: []
@@ -225,7 +235,12 @@ const BookingPage = () => {
         {expandedSections[mealType] && (
           <div className="bg-white rounded-lg p-3 sm:p-4 lg:p-6 mt-2 shadow-md">
             <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6">
-              <h3 className="text-base sm:text-lg lg:text-2xl font-semibold text-gray-800">{title}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg lg:text-2xl font-semibold text-gray-800">{title}</h3>
+                {productsLoading && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                )}
+              </div>
               {hasOrders && (
                 <span className="bg-green-100 text-green-800 text-xs sm:text-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
                   Ordered
@@ -233,8 +248,8 @@ const BookingPage = () => {
               )}
             </div>
 
-            {/* Loading State */}
-            {productsLoading && (
+            {/* Loading State - Only show if no previous data */}
+            {productsLoading && (!adminProducts[mealType] || adminProducts[mealType].length === 0) && (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
                 <p className="text-gray-500 mt-2">Loading {title.toLowerCase()} items...</p>
@@ -249,34 +264,134 @@ const BookingPage = () => {
               </div>
             )}
 
-            {/* Food Items Grid */}
+            {/* Food Items Grid - Separated by Veg/Non-Veg */}
             {!productsLoading && !productsError && (
               <>
                 {mealProducts.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6">
-                    {mealProducts.slice(0, 8).map((item, index) => (
-                                              <div 
-                          key={item.id || index} 
-                          className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer"
-                          onClick={() => addToOrder(mealType, item)}
-                        >
-                        <img 
-                          src={item.image} 
-                          alt={item.product_name}
-                          className="w-full h-16 sm:h-20 lg:h-32 object-cover rounded-lg mb-1.5 sm:mb-2 lg:mb-3 group-hover:scale-105 transition-transform"
-                          onError={(e) => {
-                            e.target.src = '/placeholder-food.jpg'; // Fallback image
-                          }}
-                        />
-                        <h4 className="font-medium text-xs sm:text-xs lg:text-sm text-gray-800 mb-0.5 sm:mb-1 leading-tight min-h-[2rem] sm:min-h-[2.5rem] lg:min-h-[3rem] flex items-center justify-center text-center">
-                          {item.product_name.split(',')[0]}
-                        </h4>
+                  <div className="space-y-4 mb-3 sm:mb-4 lg:mb-6">
+                    {/* Vegetarian Items */}
+                    {mealProducts.filter(item => item.foodType === 'VEG').length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="inline-block w-3 h-3 rounded-full bg-green-500"></span>
+                          <h5 className="font-semibold text-green-700 text-sm sm:text-base">Vegetarian</h5>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
+                          {mealProducts.filter(item => item.foodType === 'VEG').slice(0, 8).map((item, index) => (
+                            <div 
+                              key={item.id || index} 
+                              className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer meal-item border border-green-200"
+                              onClick={() => addToOrder(mealType, item)}
+                            >
+                              <img 
+                                src={item.productImage ? `http://localhost:5000${item.productImage}` : '/placeholder-food.jpg'} 
+                                alt={item.name}
+                                className="w-full h-16 sm:h-20 lg:h-32 object-cover rounded-lg mb-1.5 sm:mb-2 lg:mb-3 group-hover:scale-105 transition-transform"
+                                onError={(e) => {
+                                  e.target.src = '/placeholder-food.jpg'; // Fallback image
+                                }}
+                                loading="lazy"
+                                key={`${item.id}-${item.productImage}`}
+                                style={{ imageRendering: 'auto' }}
+                                onLoad={(e) => {
+                                  e.target.style.opacity = '1';
+                                }}
+                              />
+                              <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
+                                <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+                                <h4 className="font-medium text-xs sm:text-xs lg:text-sm text-gray-800 leading-tight min-h-[2rem] sm:min-h-[2.5rem] lg:min-h-[3rem] flex items-center justify-center text-center">
+                                  {item.productName || item.name.split(',')[0]}
+                                </h4>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                    )}
+
+                    {/* Non-Vegetarian Items */}
+                    {mealProducts.filter(item => item.foodType === 'NON_VEG').length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="inline-block w-3 h-3 rounded-full bg-red-500"></span>
+                          <h5 className="font-semibold text-red-700 text-sm sm:text-base">Non-Vegetarian</h5>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
+                          {mealProducts.filter(item => item.foodType === 'NON_VEG').slice(0, 8).map((item, index) => (
+                            <div 
+                              key={item.id || index} 
+                              className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer meal-item border border-red-200"
+                              onClick={() => addToOrder(mealType, item)}
+                            >
+                              <img 
+                                src={item.productImage ? `http://localhost:5000${item.productImage}` : '/placeholder-food.jpg'} 
+                                alt={item.name}
+                                className="w-full h-16 sm:h-20 lg:h-32 object-cover rounded-lg mb-1.5 sm:mb-2 lg:mb-3 group-hover:scale-105 transition-transform"
+                                onError={(e) => {
+                                  e.target.src = '/placeholder-food.jpg'; // Fallback image
+                                }}
+                                loading="lazy"
+                                key={`${item.id}-${item.productImage}`}
+                                style={{ imageRendering: 'auto' }}
+                                onLoad={(e) => {
+                                  e.target.style.opacity = '1';
+                                }}
+                              />
+                              <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
+                                <span className="inline-block w-2 h-2 rounded-full bg-red-500"></span>
+                                <h4 className="font-medium text-xs sm:text-xs lg:text-sm text-gray-800 leading-tight min-h-[2rem] sm:min-h-[2.5rem] lg:min-h-[3rem] flex items-center justify-center text-center">
+                                  {item.productName || item.name.split(',')[0]}
+                                </h4>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Items without food type (fallback) */}
+                    {mealProducts.filter(item => !item.foodType || (item.foodType !== 'VEG' && item.foodType !== 'NON_VEG')).length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="inline-block w-3 h-3 rounded-full bg-gray-500"></span>
+                          <h5 className="font-semibold text-gray-700 text-sm sm:text-base">Other Items</h5>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
+                          {mealProducts.filter(item => !item.foodType || (item.foodType !== 'VEG' && item.foodType !== 'NON_VEG')).slice(0, 8).map((item, index) => (
+                            <div 
+                              key={item.id || index} 
+                              className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer meal-item border border-gray-200"
+                              onClick={() => addToOrder(mealType, item)}
+                            >
+                              <img 
+                                src={item.productImage ? `http://localhost:5000${item.productImage}` : '/placeholder-food.jpg'} 
+                                alt={item.name}
+                                className="w-full h-16 sm:h-20 lg:h-32 object-cover rounded-lg mb-1.5 sm:mb-2 lg:mb-3 group-hover:scale-105 transition-transform"
+                                onError={(e) => {
+                                  e.target.src = '/placeholder-food.jpg'; // Fallback image
+                                }}
+                                loading="lazy"
+                                key={`${item.id}-${item.productImage}`}
+                                style={{ imageRendering: 'auto' }}
+                                onLoad={(e) => {
+                                  e.target.style.opacity = '1';
+                                }}
+                              />
+                              <div className="flex items-center justify-center gap-1 mb-0.5 sm:mb-1">
+                                <span className="inline-block w-2 h-2 rounded-full bg-gray-500"></span>
+                                <h4 className="font-medium text-xs sm:text-xs lg:text-sm text-gray-800 leading-tight min-h-[2rem] sm:min-h-[2.5rem] lg:min-h-[3rem] flex items-center justify-center text-center">
+                                  {item.productName || item.name.split(',')[0]}
+                                </h4>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">No {title.toLowerCase()} items available for {menuData?.dayOfWeek || 'this day'}</p>
+                    <p className="text-gray-500">No {title.toLowerCase()} items available for {selectedDayOfWeek.charAt(0).toUpperCase() + selectedDayOfWeek.slice(1)}</p>
                     <p className="text-gray-400 text-sm mt-1">Check back later for updates or try a different date</p>
                   </div>
                 )}
@@ -332,9 +447,9 @@ const BookingPage = () => {
             <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">
               {formatMonth(dates[0])} {dates[0].getFullYear()}
             </h2>
-            {menuData && (
+            {mealsData && (
               <p className="text-gray-600 text-sm sm:text-base mt-1">
-                Showing menu for <span className="font-semibold text-blue-600">{menuData.dayOfWeek}</span>
+                Showing menu for <span className="font-semibold text-blue-600">{selectedDayOfWeek.charAt(0).toUpperCase() + selectedDayOfWeek.slice(1)}</span>
               </p>
             )}
           </div>
@@ -432,20 +547,26 @@ const BookingPage = () => {
                           <h4 className="font-semibold text-gray-800 mb-2 sm:mb-3 capitalize text-sm sm:text-lg">{mealType}</h4>
                           <div className="space-y-2 sm:space-y-3">
                             {items.map((item) => (
-                              <div key={item.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                              <div key={item.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg meal-item">
                                 <img 
-                                  src={item.image} 
-                                  alt={item.product_name}
+                                  src={item.productImage ? `http://localhost:5000${item.productImage}` : '/placeholder-food.jpg'} 
+                                  alt={item.name}
                                   className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 object-cover rounded-lg"
                                   onError={(e) => {
                                     e.target.src = '/placeholder-food.jpg';
                                   }}
+                                  loading="lazy"
+                                  key={`${item.id}-${item.productImage}`}
+                                  style={{ imageRendering: 'auto' }}
+                                  onLoad={(e) => {
+                                    e.target.style.opacity = '1';
+                                  }}
                                 />
                                 <div className="flex-1">
-                                  <h5 className="font-medium text-xs sm:text-sm lg:text-base text-gray-800">{item.product_name.split(',')[0]}</h5>
-                                  {item.price > 0 && (
-                                    <p className="text-xs sm:text-sm font-semibold text-orange-600">₹{item.price}</p>
-                                  )}
+                                  <div className="flex items-center gap-1">
+                                    <span className={`inline-block w-2 h-2 rounded-full ${item.foodType === 'NON_VEG' ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                                    <h5 className="font-medium text-xs sm:text-sm lg:text-base text-gray-800">{item.productName || item.name.split(',')[0]}</h5>
+                                  </div>
                                 </div>
                                 <div className="flex items-center gap-1 sm:gap-2">
                                   <button 

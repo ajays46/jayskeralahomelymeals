@@ -3,7 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, getProductsByMealCategory, getAllActiveProducts, getMenuItemsByDate, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, getProductsByMealCategory, getAllActiveProducts, getMenuItemsByDate, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -141,6 +141,75 @@ router.delete('/menu-item/:menuItemId',
     // authenticateToken,
     // checkRole('admin'),
     deleteMenuItem
+);
+
+// Menu Category routes
+router.post('/menu-category-create',
+    // authenticateToken,
+    // checkRole('admin'),
+    createMenuCategory
+);
+
+router.get('/menu-category-list',
+    // authenticateToken,
+    // checkRole('admin'),
+    menuCategoryList
+);
+
+router.get('/menu-category/:menuCategoryId',
+    // authenticateToken,
+    // checkRole('admin'),
+    getMenuCategoryById
+);
+
+router.put('/menu-category/:menuCategoryId',
+    // authenticateToken,
+    // checkRole('admin'),
+    updateMenuCategory
+);
+
+router.delete('/menu-category/:menuCategoryId',
+    // authenticateToken,
+    // checkRole('admin'),
+    deleteMenuCategory
+);
+
+// Menu Item Price routes
+router.post('/menu-item-price-create',
+    // authenticateToken,
+    // checkRole('admin'),
+    createMenuItemPrice
+);
+
+router.get('/menu-item-price-list',
+    // authenticateToken,
+    // checkRole('admin'),
+    menuItemPriceList
+);
+
+router.get('/menu-item-price/:menuItemPriceId',
+    // authenticateToken,
+    // checkRole('admin'),
+    getMenuItemPriceById
+);
+
+router.put('/menu-item-price/:menuItemPriceId',
+    // authenticateToken,
+    // checkRole('admin'),
+    updateMenuItemPrice
+);
+
+router.delete('/menu-item-price/:menuItemPriceId',
+    // authenticateToken,
+    // checkRole('admin'),
+    deleteMenuItemPrice
+);
+
+// Meals route
+router.get('/meals',
+    // authenticateToken,
+    // checkRole('admin'),
+    getMealsByDay
 );
 
 export default router; 

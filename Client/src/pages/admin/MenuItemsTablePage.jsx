@@ -9,7 +9,7 @@ const MenuItemsTablePage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMealType, setFilterMealType] = useState('');
-  const [filterDay, setFilterDay] = useState('');
+
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
   const [deleteModal, setDeleteModal] = useState({
@@ -39,9 +39,8 @@ const MenuItemsTablePage = () => {
                            item.menu?.name?.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesMealType = !filterMealType || item.mealType === filterMealType;
-      const matchesDay = !filterDay || item.menu?.dayOfWeek === filterDay;
       
-      return matchesSearch && matchesMealType && matchesDay;
+      return matchesSearch && matchesMealType;
     })
     .sort((a, b) => {
       let aValue, bValue;
@@ -59,10 +58,7 @@ const MenuItemsTablePage = () => {
           aValue = a.menu?.name || '';
           bValue = b.menu?.name || '';
           break;
-        case 'day':
-          aValue = a.menu?.dayOfWeek || '';
-          bValue = b.menu?.dayOfWeek || '';
-          break;
+
         case 'company':
           aValue = a.menu?.company?.name || '';
           bValue = b.menu?.company?.name || '';
@@ -80,7 +76,6 @@ const MenuItemsTablePage = () => {
     });
 
   // Get unique values for filters
-  const uniqueDays = [...new Set(menuItems.map(item => item.menu?.dayOfWeek).filter(Boolean))];
   const uniqueMealTypes = [...new Set(menuItems.map(item => item.mealType).filter(Boolean))];
 
   const handleSort = (column) => {
@@ -214,17 +209,7 @@ const MenuItemsTablePage = () => {
                 ))}
               </select>
 
-              {/* Day Filter */}
-              <select
-                value={filterDay}
-                onChange={(e) => setFilterDay(e.target.value)}
-                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
-              >
-                <option value="">All Days</option>
-                {uniqueDays.map(day => (
-                  <option key={day} value={day}>{day}</option>
-                ))}
-              </select>
+
 
               {/* Results Count */}
               <div className="flex items-center justify-end">
@@ -265,14 +250,7 @@ const MenuItemsTablePage = () => {
                         Menu {getSortIcon('menu')}
                       </div>
                     </th>
-                    <th 
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
-                      onClick={() => handleSort('day')}
-                    >
-                      <div className="flex items-center gap-2">
-                        Day {getSortIcon('day')}
-                      </div>
-                    </th>
+
                     <th 
                       className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
                       onClick={() => handleSort('company')}
@@ -292,7 +270,7 @@ const MenuItemsTablePage = () => {
                 <tbody className="bg-gray-800 divide-y divide-gray-700">
                   {filteredAndSortedItems.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-4 py-8 text-center text-gray-400">
+                      <td colSpan="6" className="px-4 py-8 text-center text-gray-400">
                         <div className="flex flex-col items-center">
                           <FiSearch size={32} className="mb-2" />
                           <p>No menu items found</p>
@@ -317,9 +295,7 @@ const MenuItemsTablePage = () => {
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-300">{menuItem.menu?.name || 'N/A'}</div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm text-gray-300">{menuItem.menu?.dayOfWeek || 'N/A'}</div>
-                        </td>
+
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-300">{menuItem.menu?.company?.name || 'N/A'}</div>
                         </td>
