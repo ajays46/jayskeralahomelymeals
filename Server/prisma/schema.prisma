@@ -188,6 +188,16 @@ model Deliveries {
   Distance_Diff_km Decimal? @db.Decimal(10, 2)
 }
 
+model CustomerSubscription {
+  customerId        Int           @id @map("customer_id")
+  subscriptionType  Int           @map("subscription_type")
+  morningStatus     SubscriptionStatus @map("morning_status")
+  lunchStatus       SubscriptionStatus @map("lunch_status")
+  dinnerStatus      SubscriptionStatus @map("dinner_status")
+
+  @@map("customer_subscription")
+}
+
 enum Status {
   ACTIVE
   INACTIVE
@@ -223,6 +233,11 @@ enum MenuStatus {
 enum FoodType {
   VEG
   NON_VEG
+}
+
+enum SubscriptionStatus {
+  YES
+  NO
 }
 
 
