@@ -27,7 +27,7 @@ const MenuItemsTablePage = () => {
   useEffect(() => {
     if (deleteSuccess) {
       // You can add a toast notification here if you have a toast system
-      console.log('Menu item deleted successfully');
+      
     }
   }, [deleteSuccess]);
 

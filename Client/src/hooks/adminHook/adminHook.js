@@ -400,7 +400,7 @@ export const useMealsByDay = (day) => {
         queryKey: ['meals', day],
         queryFn: async () => {
             const response = await api.get(`/admin/meals?day=${day}`);
-            console.log(response.data,"response.data");
+    
             
             return response.data;
         },

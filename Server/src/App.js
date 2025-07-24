@@ -4,6 +4,8 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import addressRoutes from './routes/auth.address.route.js';
+import orderRoutes from './routes/order.routes.js';
 import path from 'path';
 import './models/index.js'; // Import models to ensure associations are loaded
 // import sequelize from './config/database.js';
@@ -40,6 +42,8 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/addresses', addressRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

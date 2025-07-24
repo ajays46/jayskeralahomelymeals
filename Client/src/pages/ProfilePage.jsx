@@ -81,7 +81,7 @@ const ProfilePage = () => {
 
   const handleSave = () => {
     // Here you would typically make an API call to update user data
-    console.log('Saving user data:', editForm);
+
     setIsEditing(false);
   };
 

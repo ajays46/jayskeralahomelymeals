@@ -52,7 +52,7 @@ const CompanyCreatePage = () => {
 
   const handleDelete = (id) => {
     deleteCompany(id);
-    console.log(id);
+    
   };
 
   return (

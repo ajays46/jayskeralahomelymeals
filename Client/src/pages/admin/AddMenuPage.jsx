@@ -43,7 +43,7 @@ const AddMenuPage = () => {
   // Handle mutation success/error states
   useEffect(() => {
     if (menuCreated) {
-      console.log('Menu created successfully');
+      
       setIsSuccess(true);
       setForm({
         name: '',
@@ -71,7 +71,7 @@ const AddMenuPage = () => {
   // Handle menu category success/error states
   useEffect(() => {
     if (categoryCreated) {
-      console.log('Menu category created successfully');
+      
       setIsSuccess(true);
       setMenuCategoryForm({
         name: '',

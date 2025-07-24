@@ -19,6 +19,9 @@ import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
 import { useMealsByDay } from '../hooks/adminHook/adminHook';
 import LocationPicker from '../components/LocationPicker';
+import AddressPicker from '../components/AddressPicker';
+import { useOrder } from '../hooks/userHooks/useOrder';
+import { toast } from 'react-toastify';
 
 const BookingPage = () => {
   const navigate = useNavigate();
@@ -43,6 +46,17 @@ const BookingPage = () => {
     dinner: '',
     full: ''
   });
+
+  // Store address names for display
+  const [deliveryLocationNames, setDeliveryLocationNames] = useState({
+    breakfast: '',
+    lunch: '',
+    dinner: '',
+    full: ''
+  });
+
+  // Order hook
+  const { createOrder, isCreating } = useOrder();
 
   // Get day of week from selected date
   const getDayOfWeek = (date) => {
@@ -117,6 +131,8 @@ const BookingPage = () => {
     }
   };
 
+
+
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -125,21 +141,35 @@ const BookingPage = () => {
   };
 
   const addToOrder = (mealType, item) => {
-    setOrderedItems(prev => ({
-      ...prev,
-      [mealType]: [...prev[mealType], { ...item, id: Date.now() + Math.random() }]
-    }));
+    setOrderedItems(prev => {
+      const newItems = {
+        ...prev,
+        [mealType]: [...prev[mealType], { ...item, orderItemId: Date.now() + Math.random() }]
+      };
+      return newItems;
+    });
+    
+    // Show toast notification
+    toast.success(`${item.productName || item.name} added to ${mealType} order!`, {
+      position: "top-right",
+      autoClose: 1500,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
   };
 
   const removeFromOrder = (mealType, itemId) => {
     setOrderedItems(prev => ({
       ...prev,
-      [mealType]: prev[mealType].filter(item => item.id !== itemId)
+      [mealType]: prev[mealType].filter(item => item.orderItemId !== itemId)
     }));
   };
 
   const getTotalItems = () => {
-    return orderedItems.breakfast.length + orderedItems.lunch.length + orderedItems.dinner.length;
+    const total = orderedItems.breakfast.length + orderedItems.lunch.length + orderedItems.dinner.length;
+    return total;
   };
 
   const getTotalPrice = () => {
@@ -153,15 +183,146 @@ const BookingPage = () => {
     return total;
   };
 
-  const handleSaveOrder = () => {
-    // Here you would typically save the order to your backend
-    console.log('Saving order:', {
-      date: selectedDate,
-      items: orderedItems,
-      deliveryLocations,
-      totalPrice: getTotalPrice()
-    });
-    alert('Order saved successfully!');
+  const handleSaveOrder = async () => {
+    try {
+      // Validate that items are selected
+      if (getTotalItems() === 0) {
+        toast.error('Please select at least one item to order');
+        return;
+      }
+
+
+
+      // Determine which meal types have orders
+      const orderTimes = [];
+      if (orderedItems.breakfast.length > 0) orderTimes.push('Morning');
+      if (orderedItems.lunch.length > 0) orderTimes.push('Noon');
+      if (orderedItems.dinner.length > 0) orderTimes.push('Night');
+
+      if (orderTimes.length === 0) {
+        toast.error('Please select at least one meal time');
+        return;
+      }
+
+      // Prepare order items
+      const orderItems = [];
+      
+      // Add breakfast items
+      orderedItems.breakfast.forEach(item => {
+        orderItems.push({
+          menuItemId: item.id,
+          quantity: 1
+        });
+      });
+
+      // Add lunch items
+      orderedItems.lunch.forEach(item => {
+        orderItems.push({
+          menuItemId: item.id,
+          quantity: 1
+        });
+      });
+
+      // Add dinner items
+      orderedItems.dinner.forEach(item => {
+        orderItems.push({
+          menuItemId: item.id,
+          quantity: 1
+        });
+      });
+
+      // Prepare order data with detailed delivery information for AI routing
+      const orderData = {
+        orderDate: selectedDate.toISOString().split('T')[0], // YYYY-MM-DD format
+        orderTimes: orderTimes,
+        orderItems: orderItems,
+        deliveryAddressId: deliveryLocations.full || null, // Use full delivery address as primary
+        // Detailed delivery information for AI routing engine
+        deliverySchedule: {
+          breakfast: {
+            mealTime: 'Morning',
+            deliveryAddressId: deliveryLocations.breakfast || null,
+            items: orderedItems.breakfast.map(item => ({
+              menuItemId: item.id,
+              name: item.productName || item.name,
+              quantity: 1
+            }))
+          },
+          lunch: {
+            mealTime: 'Noon',
+            deliveryAddressId: deliveryLocations.lunch || null,
+            items: orderedItems.lunch.map(item => ({
+              menuItemId: item.id,
+              name: item.productName || item.name,
+              quantity: 1
+            }))
+          },
+          dinner: {
+            mealTime: 'Night',
+            deliveryAddressId: deliveryLocations.dinner || null,
+            items: orderedItems.dinner.map(item => ({
+              menuItemId: item.id,
+              name: item.productName || item.name,
+              quantity: 1
+            }))
+          }
+        },
+        // Include delivery locations for each meal time in the request (for backward compatibility)
+        deliveryLocations: {
+          breakfast: deliveryLocations.breakfast || null,
+          lunch: deliveryLocations.lunch || null,
+          dinner: deliveryLocations.dinner || null
+        }
+      };
+
+      // Create the order
+      const newOrder = await createOrder(orderData);
+
+      // Show success message
+      toast.success('Order created successfully!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      // Reset the form
+      setOrderedItems({
+        breakfast: [],
+        lunch: [],
+        dinner: []
+      });
+
+      setDeliveryLocations({
+        breakfast: '',
+        lunch: '',
+        dinner: '',
+        full: ''
+      });
+
+      setDeliveryLocationNames({
+        breakfast: '',
+        lunch: '',
+        dinner: '',
+        full: ''
+      });
+
+      // Navigate to orders page or show order confirmation
+      navigate('/orders'); // You can create an orders page to show user's orders
+
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast.error(error.message || 'Failed to create order. Please try again.', {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
   };
 
   const handleCancel = () => {
@@ -280,9 +441,13 @@ const BookingPage = () => {
                           {mealProducts.filter(item => item.foodType === 'VEG').slice(0, 8).map((item, index) => (
                             <div 
                               key={item.id || index} 
-                              className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer meal-item border border-green-200"
+                              className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer meal-item border border-green-200 relative"
                               onClick={() => addToOrder(mealType, item)}
                             >
+                              {/* Add to cart indicator */}
+                              <div className="absolute top-1 right-1 bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                +
+                              </div>
                               <img 
                                 src={item.productImage ? `http://localhost:5000${item.productImage}` : '/placeholder-food.jpg'} 
                                 alt={item.name}
@@ -320,9 +485,13 @@ const BookingPage = () => {
                           {mealProducts.filter(item => item.foodType === 'NON_VEG').slice(0, 8).map((item, index) => (
                             <div 
                               key={item.id || index} 
-                              className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer meal-item border border-red-200"
+                              className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:p-4 text-center hover:shadow-md transition-shadow group cursor-pointer meal-item border border-red-200 relative"
                               onClick={() => addToOrder(mealType, item)}
                             >
+                              {/* Add to cart indicator */}
+                              <div className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                +
+                              </div>
                               <img 
                                 src={item.productImage ? `http://localhost:5000${item.productImage}` : '/placeholder-food.jpg'} 
                                 alt={item.name}
@@ -401,18 +570,29 @@ const BookingPage = () => {
             {/* Delivery Location */}
             <div className="border-t pt-3 sm:pt-4 lg:pt-6">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">{title} Delivery Location (optional)</h4>
+                <h4 className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">{title} Delivery Address</h4>
                 <MdEdit className="text-gray-500 text-sm sm:text-base" />
               </div>
               <div className="mt-1.5 sm:mt-2">
-                <LocationPicker
-                  value={deliveryLocations[mealType]}
-                  onChange={(e) => setDeliveryLocations(prev => ({
-                    ...prev,
-                    [mealType]: e.target.value
-                  }))}
-                  placeholder={`Enter ${title.toLowerCase()} delivery location...`}
+                <AddressPicker
+                  value={deliveryLocationNames[mealType] || deliveryLocations[mealType]}
+                  onChange={(e) => {
+                    // The AddressPicker now sends the address ID
+                    const addressId = e.target.value;
+                    setDeliveryLocations(prev => ({
+                      ...prev,
+                      [mealType]: addressId
+                    }));
+                    // We'll update the display name when we get the address data
+                    // For now, we'll use the ID as placeholder
+                    setDeliveryLocationNames(prev => ({
+                      ...prev,
+                      [mealType]: addressId ? `Address ID: ${addressId}` : ''
+                    }));
+                  }}
+                  placeholder={`Select ${title.toLowerCase()} delivery address...`}
                   className="text-xs sm:text-sm lg:text-base"
+                  mealType={mealType}
                 />
               </div>
             </div>
@@ -452,6 +632,7 @@ const BookingPage = () => {
                 Showing menu for <span className="font-semibold text-blue-600">{selectedDayOfWeek.charAt(0).toUpperCase() + selectedDayOfWeek.slice(1)}</span>
               </p>
             )}
+
           </div>
           
           <div className="flex items-center justify-between">
@@ -547,7 +728,7 @@ const BookingPage = () => {
                           <h4 className="font-semibold text-gray-800 mb-2 sm:mb-3 capitalize text-sm sm:text-lg">{mealType}</h4>
                           <div className="space-y-2 sm:space-y-3">
                             {items.map((item) => (
-                              <div key={item.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg meal-item">
+                              <div key={item.orderItemId} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg meal-item">
                                 <img 
                                   src={item.productImage ? `http://localhost:5000${item.productImage}` : '/placeholder-food.jpg'} 
                                   alt={item.name}
@@ -570,7 +751,7 @@ const BookingPage = () => {
                                 </div>
                                 <div className="flex items-center gap-1 sm:gap-2">
                                   <button 
-                                    onClick={() => removeFromOrder(mealType, item.id)}
+                                    onClick={() => removeFromOrder(mealType, item.orderItemId)}
                                     className="text-orange-500 hover:text-orange-700"
                                   >
                                     <MdClose className="text-lg sm:text-xl" />
@@ -593,17 +774,28 @@ const BookingPage = () => {
               {/* Full Delivery Location */}
               <div className="bg-white rounded-lg p-3 sm:p-4 lg:p-6 shadow-md">
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <h4 className="font-medium text-gray-700 text-sm sm:text-lg">Full Delivery Location</h4>
+                  <h4 className="font-medium text-gray-700 text-sm sm:text-lg">Primary Delivery Address</h4>
                   <MdLocationOn className="text-gray-500 text-sm sm:text-base" />
                 </div>
-                <LocationPicker
-                  value={deliveryLocations.full}
-                  onChange={(e) => setDeliveryLocations(prev => ({
-                    ...prev,
-                    full: e.target.value
-                  }))}
-                  placeholder="Enter full delivery location..."
+                <AddressPicker
+                  value={deliveryLocationNames.full || deliveryLocations.full}
+                  onChange={(e) => {
+                    // The AddressPicker now sends the address ID
+                    const addressId = e.target.value;
+                    setDeliveryLocations(prev => ({
+                      ...prev,
+                      full: addressId
+                    }));
+                    // We'll update the display name when we get the address data
+                    // For now, we'll use the ID as placeholder
+                    setDeliveryLocationNames(prev => ({
+                      ...prev,
+                      full: addressId ? `Address ID: ${addressId}` : ''
+                    }));
+                  }}
+                  placeholder="Select full delivery address..."
                   className="text-xs sm:text-sm lg:text-base"
+                  mealType="full"
                   showMap={true}
                 />
               </div>
@@ -625,10 +817,17 @@ const BookingPage = () => {
                   </button>
                   <button
                     onClick={handleSaveOrder}
-                    disabled={getTotalItems() === 0}
-                    className="flex-1 bg-green-500 text-white py-2.5 sm:py-3 lg:py-4 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-xs sm:text-sm lg:text-base"
+                    disabled={getTotalItems() === 0 || isCreating}
+                    className="flex-1 bg-green-500 text-white py-2.5 sm:py-3 lg:py-4 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-xs sm:text-sm lg:text-base flex items-center justify-center gap-2"
                   >
-                    Save Order
+                    {isCreating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Creating Order...
+                      </>
+                    ) : (
+                      'Save Order'
+                    )}
                   </button>
                 </div>
               </div>

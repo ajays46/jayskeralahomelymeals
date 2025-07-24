@@ -138,7 +138,7 @@ const MenuItemPage = () => {
   // Handle mutation success/error states
   useEffect(() => {
     if (menuItemCreated) {
-      console.log('Menu item created successfully');
+      
       setIsSuccess(true);
       setMenuItemForm({
         name: '',
@@ -158,7 +158,7 @@ const MenuItemPage = () => {
 
   useEffect(() => {
     if (menuItemUpdated) {
-      console.log('Menu item updated successfully');
+      
       setIsSuccess(true);
       
       // Show success message
@@ -186,7 +186,7 @@ const MenuItemPage = () => {
   // Menu Item Price success/error handlers
   useEffect(() => {
     if (priceCreated) {
-      console.log('Menu item price created successfully');
+      
       setIsSuccess(true);
       setMenuItemPriceForm({
         companyId: '',

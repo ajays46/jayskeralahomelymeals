@@ -31,8 +31,26 @@ model User {
   updatedAt DateTime   @default(now()) @updatedAt @map("updated_at")
   auth      Auth       @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   userRole  UserRole?
+  addresses Address[]
 
   @@map("users")
+}
+
+model Address {
+  id          String      @id @default(uuid()) @db.VarChar(36)
+  userId      String      @map("user_id") @db.VarChar(36)
+  street      String      @db.VarChar(255)
+  housename   String      @db.VarChar(255)
+  city        String      @db.VarChar(255)
+  pincode     Int
+  geoLocation String?     @map("geo_location") @db.VarChar(255)
+  addressType AddressType @default(HOME) @map("address_type")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  orders      Order[]
+
+  @@map("addresses")
 }
 
 model UserRole {
@@ -113,6 +131,7 @@ model MenuItem {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   menu      Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   prices    MenuItemPrice[]
+  orderItems OrderItem[]
 
   @@map("menu_items")
 }
@@ -198,6 +217,40 @@ model CustomerSubscription {
   @@map("customer_subscription")
 }
 
+model Order {
+  id                    String           @id @default(uuid()) @db.VarChar(36)
+  userId                String           @map("user_id") @db.VarChar(36)
+  linkedRecurringOrderId String?         @map("linked_recurring_order_id") @db.VarChar(36)
+  orderDate             DateTime         @map("order_date") @db.Date
+  status                OrderStatus      @default(Pending)
+  orderTimes            String           @map("order_times") // JSON string of OrderTime array
+  totalPrice            Int              @map("total_price")
+  deliveryAddressId     String?          @map("delivery_address_id") @db.VarChar(36)
+  deliverySchedule      String?          @map("delivery_schedule") @db.Text // JSON string with detailed delivery info for AI routing
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+  
+  deliveryAddress       Address?         @relation(fields: [deliveryAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  orderItems            OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  orderId      String   @map("order_id") @db.VarChar(36)
+  menuItemId   String   @map("menu_item_id") @db.VarChar(36)
+  quantity     Int
+  total        Int
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("order_items")
+}
+
 enum Status {
   ACTIVE
   INACTIVE
@@ -238,6 +291,26 @@ enum FoodType {
 enum SubscriptionStatus {
   YES
   NO
+}
+
+enum AddressType {
+  HOME
+  OFFICE
+  OTHER
+}
+
+enum OrderStatus {
+  Pending
+  Confirmed
+  Cancelled
+  Delivered
+  Payment_Confirmed
+}
+
+enum OrderTime {
+  Morning
+  Noon
+  Night
 }
 
 
