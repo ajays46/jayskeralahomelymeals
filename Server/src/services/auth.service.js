@@ -32,6 +32,12 @@ export const registerUser = async ({ email, password, phone }) => {
     const api_key = generateApiKey();
 
     try {
+        // Get the next customer ID
+        const lastUser = await prisma.user.findFirst({
+            orderBy: { customerId: 'desc' }
+        });
+        const nextCustomerId = lastUser ? lastUser.customerId + 1 : 1;
+
         const auth = await prisma.auth.create({
             data: {
                 email,
@@ -44,6 +50,7 @@ export const registerUser = async ({ email, password, phone }) => {
 
         const user = await prisma.user.create({
             data: {
+                customerId: nextCustomerId,
                 authId: auth.id,
                 status: 'ACTIVE'
             }
@@ -63,6 +70,7 @@ export const registerUser = async ({ email, password, phone }) => {
             api_key: auth.apiKey,
             status: auth.status,
             user_id: user.id,
+            customer_id: user.customerId,
             user_status: user.status
         };
 
@@ -115,6 +123,7 @@ export const loginUser = async ({ identifier, password }) => {
         return {
             user: {
                 id: user.id,
+                customer_id: user.customerId,
                 email: auth.email,
                 phone: auth.phoneNumber,
                 api_key: auth.apiKey,
@@ -241,6 +250,7 @@ export const adminLoginService = async (userId) => {
         return {
             user: {
                 id: user.id,
+                customer_id: user.customerId,
                 email: user.auth.email,
                 phone: user.auth.phoneNumber,
                 api_key: user.auth.apiKey,

@@ -310,7 +310,7 @@ const AddressPicker = ({
       }
       
       // Update the form value with address ID
-      onChange({ target: { value: savedAddress.id } });
+      onChange({ target: { value: savedAddress.id, displayName: `${savedAddress.housename ? savedAddress.housename + ', ' : ''}${savedAddress.street}, ${savedAddress.city} - ${savedAddress.pincode}` } });
       
       // Close form dropdown and reset
       setShowAddFormDropdown(false);
@@ -548,8 +548,8 @@ const AddressPicker = ({
                   className="p-3 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => {
                     const fullAddress = `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
-                    // Send the address ID instead of the full address string
-                    onChange({ target: { value: address.id } });
+                    // Send both the address ID and the display name
+                    onChange({ target: { value: address.id, displayName: fullAddress } });
                     setSelectedAddress(address);
                     setShowDropdown(false);
                   }}

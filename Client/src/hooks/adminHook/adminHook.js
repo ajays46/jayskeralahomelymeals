@@ -99,47 +99,6 @@ export const useDeleteProduct = () => {
     });
 };
 
-// New hooks for booking page
-export const useProductsByMealCategory = (mealCategory) => {
-  return useQuery({
-    queryKey: ['products', 'meal', mealCategory],
-    queryFn: async () => {
-      const response = await api.get(`/admin/products/meal/${mealCategory}`);
-      return response.data.data;
-    },
-    enabled: !!mealCategory,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
-  });
-};
-
-export const useAllActiveProducts = () => {
-  return useQuery({
-    queryKey: ['products', 'active'],
-    queryFn: async () => {
-      const response = await api.get('/admin/products/active');      
-      return response.data.data;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
-  });
-};
-
-// New hook for fetching menu items by date
-export const useMenuItemsByDate = (selectedDate) => {
-  return useQuery({
-    queryKey: ['menuItems', 'date', selectedDate?.toISOString().split('T')[0]],
-    queryFn: async () => {
-      const dateString = selectedDate.toISOString().split('T')[0];
-      const response = await api.get(`/admin/menu-items/date/${dateString}`);
-      return response.data.data;
-    },
-    enabled: !!selectedDate,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
-  });
-};
-
 // Menu hooks
 export const useCreateMenu = () => {
     const queryClient = useQueryClient();
@@ -412,4 +371,22 @@ export const useMealsByDay = (day) => {
         keepPreviousData: true, // Keep previous data while loading new data
     });
 };
+
+// Get menus with categories and menu items for booking page
+export const useMenusForBooking = () => {
+    return useQuery({
+        queryKey: ['menusForBooking'],
+        queryFn: async () => {
+            const response = await api.get('/admin/menus-for-booking');
+            return response.data;
+        },
+        staleTime: 10 * 60 * 1000, // 10 minutes
+        cacheTime: 30 * 60 * 1000, // 30 minutes
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        keepPreviousData: true,
+    });
+};
+
+
 

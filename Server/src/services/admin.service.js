@@ -333,206 +333,6 @@ export const deleteProductService = async (productId) => {
   });
 };
 
-// New service for booking page - fetch products by meal category
-export const getProductsByMealCategoryService = async (mealCategory) => {
-  const products = await prisma.product.findMany({
-    where: {
-      status: 'ACTIVE',
-      categories: {
-        some: {
-          productCategoryName: {
-            contains: mealCategory,
-            mode: 'insensitive'
-          }
-        }
-      }
-    },
-    include: {
-      company: true,
-      categories: true,
-      prices: {
-        orderBy: {
-          date: 'desc'
-        },
-        take: 1 // Get only the latest price
-      },
-      quantities: {
-        orderBy: {
-          date: 'desc'
-        },
-        take: 1 // Get only the latest quantity
-      }
-    },
-    orderBy: {
-      createdAt: 'desc'
-    }
-  });
-  
-  // Transform the data to match the booking page format
-  return products.map(product => ({
-    id: product.id,
-    image: product.imageUrl,
-    product_name: product.productName,
-    malayalam_name: product.categories[0]?.description || '',
-    price: product.prices[0]?.price || 0,
-    category: product.categories[0]?.productCategoryName || '',
-    description: product.categories[0]?.description || '',
-    code: product.code,
-    company: product.company?.name || '',
-    status: product.status,
-    quantity: product.quantities[0]?.quantity || 0
-  }));
-};
-
-// Service to get all active products for booking page
-export const getAllActiveProductsService = async () => {
-  const products = await prisma.product.findMany({
-    where: {
-      status: 'ACTIVE'
-    },
-    include: {
-      company: true,
-      categories: true,
-      prices: {
-        orderBy: {
-          date: 'desc'
-        },
-        take: 1
-      },
-      quantities: {
-        orderBy: {
-          date: 'desc'
-        },
-        take: 1
-      }
-    },
-    orderBy: {
-      createdAt: 'desc'
-    }
-  });
-  
-  // Transform and categorize the data
-  const categorizedProducts = {
-    breakfast: [],
-    lunch: [],
-    dinner: []
-  };
-  
-  products.forEach(product => {
-    const transformedProduct = {
-      id: product.id,
-      image: product.imageUrl,
-      product_name: product.productName,
-      malayalam_name: product.categories[0]?.description || '',
-      price: product.prices[0]?.price || 0,
-      category: product.categories[0]?.productCategoryName || '',
-      description: product.categories[0]?.description || '',
-      code: product.code,
-      company: product.company?.name || '',
-      status: product.status,
-      quantity: product.quantities[0]?.quantity || 0
-    };
-    
-    // Categorize based on category name
-    const categoryName = product.categories[0]?.productCategoryName?.toLowerCase() || '';
-    if (categoryName.includes('breakfast')) {
-      categorizedProducts.breakfast.push(transformedProduct);
-    } else if (categoryName.includes('lunch')) {
-      categorizedProducts.lunch.push(transformedProduct);
-    } else if (categoryName.includes('dinner')) {
-      categorizedProducts.dinner.push(transformedProduct);
-    }
-  });
-  
-  return categorizedProducts;
-};
-
-// New service to get menu items by date (day of week)
-export const getMenuItemsByDateService = async (selectedDate) => {
-  // Convert date to day of week
-  const dayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-  
-  // Get all active menus (since dayOfWeek field is removed)
-  const menus = await prisma.menu.findMany({
-    where: {
-      status: 'ACTIVE'
-    },
-    include: {
-      company: true,
-      menuItems: {
-        include: {
-          product: {
-            include: {
-              company: true,
-              categories: true,
-              prices: {
-                orderBy: {
-                  date: 'desc'
-                },
-                take: 1
-              },
-              quantities: {
-                orderBy: {
-                  date: 'desc'
-                },
-                take: 1
-              }
-            }
-          }
-        }
-      }
-    }
-  });
-  
-  // Transform and categorize the data
-  const categorizedMenuItems = {
-    breakfast: [],
-    lunch: [],
-    dinner: []
-  };
-  
-  menus.forEach(menu => {
-    menu.menuItems.forEach(menuItem => {
-      const product = menuItem.product;
-      
-      // Only include active products
-      if (product.status === 'ACTIVE') {
-        const transformedProduct = {
-          id: product.id,
-          image: product.imageUrl,
-          product_name: product.productName,
-          malayalam_name: product.categories[0]?.description || '',
-          price: product.prices[0]?.price || 0,
-          category: product.categories[0]?.productCategoryName || '',
-          description: product.categories[0]?.description || '',
-          code: product.code,
-          company: product.company?.name || '',
-          status: product.status,
-          quantity: product.quantities[0]?.quantity || 0,
-          menuItemId: menuItem.id,
-          menuName: menu.name
-        };
-        
-        // Categorize based on category name
-        const categoryName = product.categories[0]?.productCategoryName?.toLowerCase() || '';
-        if (categoryName.includes('breakfast')) {
-          categorizedMenuItems.breakfast.push(transformedProduct);
-        } else if (categoryName.includes('lunch')) {
-          categorizedMenuItems.lunch.push(transformedProduct);
-        } else if (categoryName.includes('dinner')) {
-          categorizedMenuItems.dinner.push(transformedProduct);
-        }
-      }
-    });
-  });
-  
-  return {
-    dayOfWeek,
-    date: selectedDate,
-    menuItems: categorizedMenuItems
-  };
-};
-
 // Menu services
 export const createMenuService = async (menuData) => {
   const { name, companyId, status } = menuData;
@@ -568,7 +368,7 @@ export const menuListService = async () => {
       company: true,
       menuItems: {
         include: {
-          product: true,
+          // product relation removed since we removed productId
         },
       },
     },
@@ -587,7 +387,7 @@ export const getMenuByIdService = async (menuId) => {
       company: true,
       menuItems: {
         include: {
-          product: true,
+          // product relation removed since we removed productId
         },
       },
     }
@@ -633,7 +433,7 @@ export const updateMenuService = async (menuId, menuData) => {
       company: true,
       menuItems: {
         include: {
-          product: true,
+          // product relation removed since we removed productId
         },
       },
     },
@@ -670,16 +470,8 @@ export const deleteMenuService = async (menuId) => {
 
 // Menu Item services
 export const createMenuItemService = async (menuItemData) => {
-  const { name, productId, menuId, foodType } = menuItemData;
-
-  // Check if product exists
-  const product = await prisma.product.findUnique({
-    where: { id: productId }
-  });
-
-  if (!product) {
-    throw new Error('Product not found');
-  }
+  const { name, menuId, foodType, productName, mealType } = menuItemData;
+  console.log(menuItemData,'menuItemData');
 
   // Check if menu exists
   const menu = await prisma.menu.findUnique({
@@ -694,12 +486,12 @@ export const createMenuItemService = async (menuItemData) => {
   const menuItem = await prisma.menuItem.create({
     data: {
       name,
-      productId,
       menuId,
+      productName: productName || null, // Store product name directly
       foodType: foodType || 'VEG', // Default to VEG if not provided
+      // Note: mealType is not stored in the database, it's just used for validation/processing
     },
     include: {
-      product: true,
       menu: {
         include: {
           company: true,
@@ -714,12 +506,12 @@ export const createMenuItemService = async (menuItemData) => {
 export const menuItemListService = async () => {
   const menuItems = await prisma.menuItem.findMany({
     include: {
-      product: true,
       menu: {
         include: {
           company: true,
         },
       },
+      // product relation removed since we removed productId
     },
     orderBy: {
       createdAt: 'desc'
@@ -733,12 +525,12 @@ export const getMenuItemByIdService = async (menuItemId) => {
   const menuItem = await prisma.menuItem.findUnique({
     where: { id: menuItemId },
     include: {
-      product: true,
       menu: {
         include: {
           company: true,
         },
       },
+      // product relation removed since we removed productId
     }
   });
   
@@ -750,7 +542,7 @@ export const getMenuItemByIdService = async (menuItemId) => {
 };
 
 export const updateMenuItemService = async (menuItemId, menuItemData) => {
-  const { name, productId, menuId, foodType } = menuItemData;
+  const { name, menuId, foodType, productName, mealType } = menuItemData;
 
   // Check if menu item exists
   const existingMenuItem = await prisma.menuItem.findUnique({
@@ -759,15 +551,6 @@ export const updateMenuItemService = async (menuItemId, menuItemData) => {
 
   if (!existingMenuItem) {
     throw new Error('Menu item not found');
-  }
-
-  // Check if product exists
-  const product = await prisma.product.findUnique({
-    where: { id: productId }
-  });
-
-  if (!product) {
-    throw new Error('Product not found');
   }
 
   // Check if menu exists
@@ -784,12 +567,12 @@ export const updateMenuItemService = async (menuItemId, menuItemData) => {
     where: { id: menuItemId },
     data: {
       name,
-      productId,
       menuId,
+      productName: productName || null, // Store product name directly
       foodType: foodType || 'VEG', // Default to VEG if not provided
+      // Note: mealType is not stored in the database, it's just used for validation/processing
     },
     include: {
-      product: true,
       menu: {
         include: {
           company: true,
@@ -815,7 +598,6 @@ export const deleteMenuItemService = async (menuItemId) => {
   const deletedMenuItem = await prisma.menuItem.delete({
     where: { id: menuItemId },
     include: {
-      product: true,
       menu: {
         include: {
           company: true,
@@ -999,7 +781,7 @@ export const createMenuItemPriceService = async (menuItemPriceData) => {
       company: true,
       menuItem: {
         include: {
-          product: true,
+          // product relation removed since we removed productId
           menu: true,
         },
       },
@@ -1015,7 +797,7 @@ export const menuItemPriceListService = async () => {
       company: true,
       menuItem: {
         include: {
-          product: true,
+          // product relation removed since we removed productId
           menu: true,
         },
       },
@@ -1035,7 +817,7 @@ export const getMenuItemPriceByIdService = async (menuItemPriceId) => {
       company: true,
       menuItem: {
         include: {
-          product: true,
+          // product relation removed since we removed productId
           menu: true,
         },
       },
@@ -1091,7 +873,7 @@ export const updateMenuItemPriceService = async (menuItemPriceId, menuItemPriceD
       company: true,
       menuItem: {
         include: {
-          product: true,
+          // product relation removed since we removed productId
           menu: true,
         },
       },
@@ -1118,7 +900,7 @@ export const deleteMenuItemPriceService = async (menuItemPriceId) => {
       company: true,
       menuItem: {
         include: {
-          product: true,
+          // product relation removed since we removed productId
           menu: true,
         },
       },
@@ -1155,7 +937,7 @@ export const getMealsByDayService = async (dayOfWeek) => {
       ]
     },
     include: {
-      product: true,
+      // product relation removed since we removed productId
       menu: true,
       prices: {
         orderBy: {
@@ -1181,9 +963,9 @@ export const getMealsByDayService = async (dayOfWeek) => {
       id: item.id,
       name: item.name,
       price: item.prices[0]?.totalPrice || 0,
-      productImage: item.product?.imageUrl || '', // Image URL
-      productName: item.product?.productName || '', // Product Name
-      productCode: item.product?.code || '',
+      productImage: '', // No product image since we removed product relation
+      productName: item.productName || '', // Use productName field directly
+      productCode: '', // No product code since we removed product relation
       menuName: item.menu?.name || '',
       foodType: item.foodType || 'VEG' // Food type (VEG/NON_VEG)
     };
@@ -1199,7 +981,7 @@ export const getMealsByDayService = async (dayOfWeek) => {
     } else {
       // If no specific meal type is mentioned, categorize based on product or menu
       // You can customize this logic based on your needs
-      const productName = item.product?.productName?.toLowerCase() || '';
+      const productName = item.productName?.toLowerCase() || '';
       const menuName = item.menu?.name?.toLowerCase() || '';
       
       // Default categorization logic - you can modify this
@@ -1220,5 +1002,61 @@ export const getMealsByDayService = async (dayOfWeek) => {
     day: dayOfWeek,
     meals: categorizedMeals
   };
+};
+
+// Get menus with categories and menu items for booking page
+export const getMenusForBookingService = async () => {
+  const menus = await prisma.menu.findMany({
+    where: {
+      status: 'ACTIVE'
+    },
+    include: {
+      company: true,
+      menuCategories: true,
+      menuItems: {
+        include: {
+          prices: {
+            orderBy: {
+              createdAt: 'desc'
+            },
+            take: 1 // Get the latest price
+          }
+        }
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+
+  // Transform the data to group menu items by meal type
+  const transformedMenus = menus.map(menu => {
+    const menuItems = menu.menuItems || [];
+    
+    // Group menu items by meal type (productName)
+    const mealTypes = {
+      breakfast: menuItems.filter(item => item.productName === 'breakfast'),
+      lunch: menuItems.filter(item => item.productName === 'lunch'),
+      dinner: menuItems.filter(item => item.productName === 'dinner')
+    };
+
+    // Get categories
+    const categories = menu.menuCategories || [];
+
+    return {
+      id: menu.id,
+      name: menu.name,
+      dayOfWeek: menu.dayOfWeek,
+      status: menu.status,
+      company: menu.company,
+      categories: categories,
+      mealTypes: mealTypes,
+      hasBreakfast: mealTypes.breakfast.length > 0,
+      hasLunch: mealTypes.lunch.length > 0,
+      hasDinner: mealTypes.dinner.length > 0
+    };
+  });
+
+  return transformedMenus;
 };
 

@@ -1,6 +1,6 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
-import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, getProductsByMealCategoryService, getAllActiveProductsService, getMenuItemsByDateService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService, createMenuCategoryService, menuCategoryListService, getMenuCategoryByIdService, updateMenuCategoryService, deleteMenuCategoryService, createMenuItemPriceService, menuItemPriceListService, getMenuItemPriceByIdService, updateMenuItemPriceService, deleteMenuItemPriceService, getMealsByDayService } from '../services/admin.service.js';
+import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService, createMenuCategoryService, menuCategoryListService, getMenuCategoryByIdService, updateMenuCategoryService, deleteMenuCategoryService, createMenuItemPriceService, menuItemPriceListService, getMenuItemPriceByIdService, updateMenuItemPriceService, deleteMenuItemPriceService, getMealsByDayService, getMenusForBookingService } from '../services/admin.service.js';
 
 export const createCompany = async (req, res, next) => {
     try {
@@ -142,64 +142,6 @@ export const deleteProduct = async (req, res, next) => {
     }
 }
 
-// New controller for booking page - get products by meal category
-export const getProductsByMealCategory = async (req, res, next) => {
-    try {
-        const { mealCategory } = req.params;
-        
-        // Validate meal category
-        const validCategories = ['breakfast', 'lunch', 'dinner'];
-        if (!validCategories.includes(mealCategory.toLowerCase())) {
-            throw new AppError('Invalid meal category. Must be breakfast, lunch, or dinner', 400);
-        }
-        
-        const products = await getProductsByMealCategoryService(mealCategory);
-        
-        res.status(200).json({
-            status: 'success',
-            data: products
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-// New controller for booking page - get all active products categorized
-export const getAllActiveProducts = async (req, res, next) => {
-    try {
-        const categorizedProducts = await getAllActiveProductsService();
-        
-        res.status(200).json({
-            status: 'success',
-            data: categorizedProducts
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-// New controller for booking page - get menu items by date
-export const getMenuItemsByDate = async (req, res, next) => {
-    try {
-        const { date } = req.params;
-        
-        // Validate date format
-        const selectedDate = new Date(date);
-        if (isNaN(selectedDate.getTime())) {
-            throw new AppError('Invalid date format', 400);
-        }
-        
-        const menuData = await getMenuItemsByDateService(selectedDate);
-        
-        res.status(200).json({
-            status: 'success',
-            data: menuData
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
 // Menu controllers
 export const createMenu = async (req, res, next) => {
     try {
@@ -290,8 +232,8 @@ export const createMenuItem = async (req, res, next) => {
         const menuItemData = req.body;
         
         // Validate required fields
-        if (!menuItemData.name || !menuItemData.productId || !menuItemData.menuId) {
-            throw new AppError('Missing required fields: name, productId, menuId', 400);
+        if (!menuItemData.name || !menuItemData.menuId) {
+            throw new AppError('Missing required fields: name, menuId', 400);
         }
 
         const menuItem = await createMenuItemService(menuItemData);
@@ -337,8 +279,8 @@ export const updateMenuItem = async (req, res, next) => {
         const menuItemData = req.body;
         
         // Validate required fields
-        if (!menuItemData.name || !menuItemData.productId || !menuItemData.menuId) {
-            throw new AppError('Missing required fields: name, productId, menuId', 400);
+        if (!menuItemData.name || !menuItemData.menuId) {
+            throw new AppError('Missing required fields: name, menuId', 400);
         }
 
         const menuItem = await updateMenuItemService(menuItemId, menuItemData);
@@ -566,4 +508,20 @@ export const getMealsByDay = async (req, res, next) => {
         next(error);
     }
 }
+
+// Get menus with categories and menu items for booking page
+export const getMenusForBooking = async (req, res, next) => {
+    try {
+        const menus = await getMenusForBookingService();
+        
+        res.status(200).json({
+            status: 'success',
+            data: menus
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 

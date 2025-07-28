@@ -3,7 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, getProductsByMealCategory, getAllActiveProducts, getMenuItemsByDate, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -60,25 +60,6 @@ router.delete('/product/:productId',
     // authenticateToken,
     // checkRole('admin'),
     deleteProduct
-);
-
-// New routes for booking page
-router.get('/products/meal/:mealCategory',
-    // authenticateToken,
-    // checkRole('admin'),
-    getProductsByMealCategory
-);
-
-router.get('/products/active',
-    // authenticateToken,
-    // checkRole('admin'),
-    getAllActiveProducts
-);
-
-router.get('/menu-items/date/:date',
-    // authenticateToken,
-    // checkRole('admin'),
-    getMenuItemsByDate
 );
 
 // Menu routes
@@ -210,6 +191,13 @@ router.get('/meals',
     // authenticateToken,
     // checkRole('admin'),
     getMealsByDay
+);
+
+// Menus for booking route
+router.get('/menus-for-booking',
+    // authenticateToken,
+    // checkRole('admin'),
+    getMenusForBooking
 );
 
 export default router; 

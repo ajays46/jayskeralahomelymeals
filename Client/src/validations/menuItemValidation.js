@@ -5,7 +5,7 @@ export const menuItemSchema = z.object({
     .min(1, 'Menu item name is required')
     .min(2, 'Menu item name must be at least 2 characters')
     .max(255, 'Menu item name must be less than 255 characters'),
-  productId: z.string()
+  productName: z.string()
     .min(1, 'Product selection is required'),
   menuId: z.string()
     .min(1, 'Menu selection is required'),
@@ -13,6 +13,8 @@ export const menuItemSchema = z.object({
     required_error: 'Food type is required',
     invalid_type_error: 'Food type must be either VEG or NON_VEG',
   }),
+  mealType: z.string()
+    .min(1, 'Meal type is required'),
 });
 
 export const validateMenuItemForm = (data) => {

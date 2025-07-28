@@ -14,15 +14,19 @@ const MenuItemPage = () => {
   // Form states
   const [menuItemForm, setMenuItemForm] = useState({
     name: '',
-    productId: '',
     menuId: '',
     foodType: 'VEG',
+    productName: '', // Add productName back
+    mealType: '', // Add mealType field
   });
   const [validationErrors, setValidationErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  // Add state for selected meal type
+  const [selectedMealType, setSelectedMealType] = useState('');
 
   // Menu Item Price form states
   const [menuItemPriceForm, setMenuItemPriceForm] = useState({
@@ -44,6 +48,32 @@ const MenuItemPage = () => {
   const { mutate: createMenuItemPrice, isLoading: isCreatingPrice, isError: isPriceError, isSuccess: priceCreated, error: priceError } = useCreateMenuItemPrice();
   const { data: menuItemPriceListData, isLoading: menuItemPricesLoading } = useMenuItemPriceList();
   const { data: menuItemListData } = useMenuItemList();
+
+  // Extract data from API responses
+  const companies = companyListData?.data || [];
+  const menus = menuListData?.data || [];
+  const products = productListData?.data || [];
+  const menuItems = menuItemListData?.data || [];
+  const menuItemPrices = menuItemPriceListData?.data || [];
+
+  // Filter products based on selected meal type
+  const filteredProducts = selectedMealType
+    ? products.filter(product => {
+        // Check if product has categories and if any category name includes the meal type
+        if (product.categories && product.categories.length > 0) {
+          return product.categories.some(category => 
+            category.productCategoryName?.toLowerCase().includes(selectedMealType)
+          );
+        }
+        // If no categories, check if product name includes the meal type
+        return product.productName?.toLowerCase().includes(selectedMealType);
+      })
+    : products;
+
+  // Debug logging
+  console.log('Products:', products);
+  console.log('Selected meal type:', selectedMealType);
+  console.log('Filtered products:', filteredProducts);
 
   // Form handlers
   const handleMenuItemChange = (e) => {
@@ -93,6 +123,10 @@ const MenuItemPage = () => {
     e.preventDefault();
     setError('');
     try {
+      // Debug logging
+      console.log('Form data:', menuItemForm);
+      console.log('Selected meal type:', selectedMealType);
+      
       // Mark all fields as touched for validation display
       const allFields = Object.keys(menuItemForm);
       setTouchedFields(prev => {
@@ -102,6 +136,7 @@ const MenuItemPage = () => {
         });
         return newTouched;
       });
+
       // Validate form
       const validation = validateMenuItemForm(menuItemForm);
       if (!validation.success) {
@@ -109,7 +144,9 @@ const MenuItemPage = () => {
         setError('Please fix the validation errors above');
         return;
       }
+
       setIsLoading(true);
+      
       // Call the create or update menu item API
       if (isEditMode) {
         updateMenuItem({ menuItemId, menuItemData: menuItemForm });
@@ -128,10 +165,26 @@ const MenuItemPage = () => {
       const menuItem = menuItemData.data;
       setMenuItemForm({
         name: menuItem.name || '',
-        productId: menuItem.productId || '',
         menuId: menuItem.menuId || '',
         foodType: menuItem.foodType || 'VEG',
+        productName: menuItem.productName || '', // Load productName
+        mealType: '', // mealType is not stored in database, will be determined from productName
       });
+
+      // Set selected meal type based on product name if it exists
+      if (menuItem.productName) {
+        const productName = menuItem.productName.toLowerCase();
+        if (productName.includes('breakfast')) {
+          setSelectedMealType('breakfast');
+          setMenuItemForm(prev => ({ ...prev, mealType: 'breakfast' }));
+        } else if (productName.includes('lunch')) {
+          setSelectedMealType('lunch');
+          setMenuItemForm(prev => ({ ...prev, mealType: 'lunch' }));
+        } else if (productName.includes('dinner')) {
+          setSelectedMealType('dinner');
+          setMenuItemForm(prev => ({ ...prev, mealType: 'dinner' }));
+        }
+      }
     }
   }, [isEditMode, menuItemData]);
 
@@ -142,9 +195,10 @@ const MenuItemPage = () => {
       setIsSuccess(true);
       setMenuItemForm({
         name: '',
-        productId: '',
         menuId: '',
         foodType: 'VEG',
+        productName: '', // Reset productName
+        mealType: '', // Reset mealType
       });
       setTouchedFields({});
       setValidationErrors({});
@@ -211,26 +265,19 @@ const MenuItemPage = () => {
   }, [isPriceError, priceError]);
 
   const resetMenuItemForm = () => {
-    if (isEditMode && menuItemData?.data) {
-      const menuItem = menuItemData.data;
-      setMenuItemForm({
-        name: menuItem.name || '',
-        productId: menuItem.productId || '',
-        menuId: menuItem.menuId || '',
-        foodType: menuItem.foodType || 'VEG',
-      });
-    } else {
-      setMenuItemForm({
-        name: '',
-        productId: '',
-        menuId: '',
-        foodType: 'VEG',
-      });
-    }
+    setMenuItemForm({
+      name: '',
+      menuId: '',
+      foodType: 'VEG',
+      productName: '', // Reset productName
+      mealType: '', // Reset mealType
+    });
+    setSelectedMealType(''); // Reset selected meal type
     setTouchedFields({});
     setValidationErrors({});
     setError('');
     setIsSuccess(false);
+    reset();
   };
 
   // Menu Item Price handlers
@@ -320,13 +367,6 @@ const MenuItemPage = () => {
     setError('');
     setIsSuccess(false);
   };
-
-  // Extract data from API responses
-  const companies = companyListData?.data || [];
-  const menus = menuListData?.data || [];
-  const products = productListData?.data || [];
-  const menuItems = menuItemListData?.data || [];
-  const menuItemPrices = menuItemPriceListData?.data || [];
 
   // Show loading state when fetching menu item data for editing
   if (isEditMode && isMenuItemLoading) {
@@ -425,7 +465,36 @@ const MenuItemPage = () => {
                   )}
                 </div>
 
-                {/* Menu Selection */}
+                {/* Product Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Select Product *
+                  </label>
+                  <select
+                    value={selectedMealType}
+                    onChange={e => {
+                      const mealType = e.target.value;
+                      setSelectedMealType(mealType);
+                      // Update form state with meal type as product name
+                      setMenuItemForm(prev => ({ 
+                        ...prev, 
+                        mealType: mealType,
+                        productName: mealType // Use meal type as product name
+                      }));
+                    }}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+                    required
+                  >
+                    <option value="">Select a meal type</option>
+                    <option value="breakfast">Breakfast</option>
+                    <option value="lunch">Lunch</option>
+                    <option value="dinner">Dinner</option>
+                  </select>
+                  {!selectedMealType && touchedFields['mealType'] && (
+                    <p className="mt-1 text-sm text-red-400">Meal type is required</p>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Select Menu *
@@ -446,93 +515,6 @@ const MenuItemPage = () => {
                   </select>
                   {getFieldError('menuId') && (
                     <p className="mt-1 text-sm text-red-400">{getFieldError('menuId')}</p>
-                  )}
-                </div>
-
-                {/* Product Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Select Product *
-                  </label>
-                  <div className="relative">
-                    <select
-                      name="productId"
-                      value={menuItemForm.productId}
-                      onChange={handleMenuItemChange}
-                      onBlur={handleMenuItemBlur}
-                      className={getFieldClassName('productId', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white')}
-                    >
-                      <option value="">Select a product</option>
-                      {products.map((product) => (
-                        <option key={product.id} value={product.id}>
-                          {product.productName} - {product.code}
-                        </option>
-                      ))}
-                    </select>
-                    
-                    {/* Selected Product Image Preview */}
-                    {menuItemForm.productId && (
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        {(() => {
-                          const selectedProduct = products.find(p => p.id === menuItemForm.productId);
-                          return selectedProduct?.imageUrl ? (
-                            <img 
-                              src={selectedProduct.imageUrl} 
-                              alt={selectedProduct.productName}
-                              className="w-8 h-8 rounded object-cover border border-gray-500"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded bg-gray-600 border border-gray-500 flex items-center justify-center">
-                              <span className="text-xs text-gray-400">No img</span>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Product Image Preview Below */}
-                  {menuItemForm.productId && (
-                    <div className="mt-3 p-3 bg-gray-700 rounded-lg border border-gray-600">
-                      {(() => {
-                        const selectedProduct = products.find(p => p.id === menuItemForm.productId);
-                        return selectedProduct ? (
-                          <div className="flex items-center gap-3">
-                            <img 
-                              src={selectedProduct.imageUrl} 
-                              alt={selectedProduct.productName}
-                              className="w-16 h-16 rounded-lg object-cover border border-gray-500"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                              }}
-                            />
-                            <div className="flex-1">
-                              <h4 className="text-white font-medium">{selectedProduct.productName}</h4>
-                              <p className="text-gray-400 text-sm">Code: {selectedProduct.code}</p>
-                              {selectedProduct.categories?.[0] && (
-                                <p className="text-gray-400 text-sm">Category: {selectedProduct.categories[0].productCategoryName}</p>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 rounded-lg bg-gray-600 border border-gray-500 flex items-center justify-center">
-                              <span className="text-sm text-gray-400">No image</span>
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-gray-400 text-sm">Product not found</p>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-                  
-                  {getFieldError('productId') && (
-                    <p className="mt-1 text-sm text-red-400">{getFieldError('productId')}</p>
                   )}
                 </div>
 
