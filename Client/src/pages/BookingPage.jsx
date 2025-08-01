@@ -1,28 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  MdArrowBack, 
-  MdCalendarToday, 
-  MdAdd, 
-  MdRemove, 
-  MdLocationOn,
-  MdEdit,
-  MdExpandMore,
-  MdExpandLess,
-  MdClose,
-  MdRestaurant,
-  MdSchedule,
-  MdShoppingCart
-} from 'react-icons/md';
-import { FaRegCalendarAlt } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
 import { useMenusForBooking } from '../hooks/adminHook/adminHook';
-import LocationPicker from '../components/LocationPicker';
-import AddressPicker from '../components/AddressPicker';
 import { useOrder } from '../hooks/userHooks/useOrder';
 import { useAddress } from '../hooks/userHooks/userAddress';
 import { toast } from 'react-toastify';
+import AddressPicker from '../components/AddressPicker';
+import { 
+  BookingHeader, 
+  DateSelector, 
+  MenuSelector, 
+  OrderSummary 
+} from '../components/booking';
 
 const BookingPage = () => {
   const navigate = useNavigate();
@@ -31,11 +21,18 @@ const BookingPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState(null);
-  const [dietaryPreference, setDietaryPreference] = useState('veg'); // 'all', 'veg', 'non-veg'
+  const [dietaryPreference, setDietaryPreference] = useState('veg');
   const [expandedSections, setExpandedSections] = useState({
     menus: true,
-    orderedItems: true
+    dateSelection: false
   });
+  
+  const [selectedDates, setSelectedDates] = useState([]);
+  const [showDateSelection, setShowDateSelection] = useState(false);
+  const [orderMode, setOrderMode] = useState('single');
+  const [savedOrder, setSavedOrder] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  
   const [orderedItems, setOrderedItems] = useState({
     breakfast: [],
     lunch: [],
@@ -48,7 +45,6 @@ const BookingPage = () => {
     full: ''
   });
 
-  // Store address names for display
   const [deliveryLocationNames, setDeliveryLocationNames] = useState({
     breakfast: '',
     lunch: '',
@@ -56,21 +52,13 @@ const BookingPage = () => {
     full: ''
   });
 
-  // Order hook
+  // Hooks
   const { createOrder, isCreating } = useOrder();
-
-  // Fetch user addresses
   const { addresses: userAddresses } = useAddress();
-
-  // Fetch menus for booking
   const { data: menusData, isLoading: menusLoading, error: menusError } = useMenusForBooking();
-  console.log(menusData,'menusData');
-  
-
-  // Extract menus from the response
   const menus = menusData?.data || [];
 
-  // Get address display name from address ID
+  // Helper functions
   const getAddressDisplayName = (addressId) => {
     if (!addressId || !userAddresses) return '';
     const address = userAddresses.find(addr => addr.id === addressId);
@@ -78,20 +66,104 @@ const BookingPage = () => {
     return `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
   };
 
-  // Get day of week from selected date
-  const getDayOfWeek = (date) => {
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    return days[date.getDay()];
+  const isWeekday = (date) => {
+    const day = date.getDay();
+    return day >= 1 && day <= 5;
   };
 
-  const selectedDayOfWeek = getDayOfWeek(selectedDate);
-  
+  const isWeekdayMenu = (menu) => {
+    if (!menu) return false;
+    const dayOfWeek = menu.dayOfWeek?.toLowerCase() || '';
+    const menuName = menu.name?.toLowerCase() || '';
+    const isWeekdayByDay = dayOfWeek === 'weekday' || dayOfWeek === 'monday' || dayOfWeek === 'tuesday' || dayOfWeek === 'wednesday' || dayOfWeek === 'thursday' || dayOfWeek === 'friday';
+    const isWeekdayByName = menuName.includes('week day') || menuName.includes('weekday') || menuName.includes('monday') || menuName.includes('tuesday') || menuName.includes('wednesday') || menuName.includes('thursday') || menuName.includes('friday');
+    return isWeekdayByDay || isWeekdayByName;
+  };
 
+  const formatDateForDisplay = (date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const handleDateSelection = (date) => {
+    if (selectedMenu && isWeekdayMenu(selectedMenu) && orderMode !== 'single') {
+      handleWeekdayMenuDateSelection(date);
+      return;
+    }
+
+    if (orderMode === 'single') {
+      setSelectedDate(date);
+      setSelectedDates([date]);
+    } else {
+      setSelectedDates(prev => {
+        const dateStr = date.toDateString();
+        const exists = prev.find(d => d.toDateString() === dateStr);
+        if (exists) {
+          return prev.filter(d => d.toDateString() !== dateStr);
+        } else {
+          return [...prev, date];
+        }
+      });
+    }
+  };
+
+  const handleWeekdayMenuDateSelection = (startDate) => {
+    const selectedDates = [];
+    const currentDate = new Date(startDate);
+    
+    for (let i = 0; i < 5; i++) {
+      selectedDates.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    setSelectedDates(selectedDates);
+  };
+
+  const handleResetOrder = () => {
+    setOrderedItems({
+      breakfast: [],
+      lunch: [],
+      dinner: []
+    });
+    setDeliveryLocations({
+      breakfast: '',
+      lunch: '',
+      dinner: '',
+      full: ''
+    });
+    setDeliveryLocationNames({
+      breakfast: '',
+      lunch: '',
+      dinner: '',
+      full: ''
+    });
+    setSelectedMenu(null);
+    setSelectedDates([]);
+    setSavedOrder(null);
+    setOrderMode('single');
+    setShowDateSelection(false);
+    
+    toast.success('Order reset successfully!');
+  };
+
+  const handleUpdateOrder = () => {
+    if (!savedOrder) {
+      toast.error('No saved order to update');
+      return;
+    }
+    
+    setShowDateSelection(true);
+    setExpandedSections(prev => ({ ...prev, dateSelection: true }));
+    setIsUpdating(true);
+  };
 
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);
   const handleCloseAuthSlider = () => setAuthSliderOpen(false);
 
-  // Check screen size on mount and resize
+  // Screen size detection
   useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 640);
@@ -103,12 +175,28 @@ const BookingPage = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Generate dates starting from current date
+  // Date initialization
+  useEffect(() => {
+    if (!selectedMenu || !isWeekdayMenu(selectedMenu)) {
+      if (orderMode === 'single') {
+        setSelectedDates([selectedDate]);
+      } else {
+        setSelectedDates([]);
+      }
+    }
+  }, [orderMode, selectedDate, selectedMenu]);
+
+  useEffect(() => {
+    if (orderMode === 'single' && selectedDates.length === 0 && (!selectedMenu || !isWeekdayMenu(selectedMenu))) {
+      setSelectedDates([selectedDate]);
+    }
+  }, [orderMode, selectedDates.length, selectedDate, selectedMenu]);
+
+  // Date generation and navigation
   const generateDates = () => {
     const dates = [];
     const startDate = new Date(currentDate);
     
-    // Generate 7 days starting from current date
     for (let i = 0; i < 7; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
@@ -119,10 +207,8 @@ const BookingPage = () => {
 
   const dates = generateDates();
 
-  // Navigation functions
   const goToNextDays = () => {
     const newDate = new Date(currentDate);
-    // On mobile, move by 5 days, on desktop move by 7 days
     const daysToMove = isMobile ? 5 : 7;
     newDate.setDate(currentDate.getDate() + daysToMove);
     setCurrentDate(newDate);
@@ -130,10 +216,8 @@ const BookingPage = () => {
 
   const goToPreviousDays = () => {
     const newDate = new Date(currentDate);
-    // On mobile, move by 5 days, on desktop move by 7 days
     const daysToMove = isMobile ? 5 : 7;
     newDate.setDate(currentDate.getDate() - daysToMove);
-    // Don't allow going before today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (newDate >= today) {
@@ -141,16 +225,12 @@ const BookingPage = () => {
     }
   };
 
-
-
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
   };
-
-
 
   const addToOrder = (mealType, item) => {
     setOrderedItems(prev => {
@@ -165,15 +245,59 @@ const BookingPage = () => {
       return newItems;
     });
     
-    // Show toast notification
-    toast.success(`${item.name} added to ${mealType} order!`, {
-      position: "top-right",
-      autoClose: 1500,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-    });
+    toast.success(`${item.name} added to ${mealType} order!`);
+  };
+
+  const validateMenuForSelectedDates = (menu) => {
+    if (!menu || selectedDates.length === 0) return { isValid: true, message: '' };
+    
+    if (isWeekdayMenu(menu)) {
+      const weekendDates = selectedDates.filter(date => !isWeekday(date));
+      if (weekendDates.length > 0) {
+        return {
+          isValid: false,
+          message: `This weekday menu cannot be selected for weekend dates: ${weekendDates.map(d => formatDateForDisplay(d)).join(', ')}`
+        };
+      }
+    }
+    
+    const menuDay = menu.dayOfWeek?.toLowerCase();
+    if (menuDay === 'weekend' || menuDay === 'saturday' || menuDay === 'sunday') {
+      const weekdayDates = selectedDates.filter(date => isWeekday(date));
+      if (weekdayDates.length > 0) {
+        return {
+          isValid: false,
+          message: `This weekend menu cannot be selected for weekday dates: ${weekdayDates.map(d => formatDateForDisplay(d)).join(', ')}`
+        };
+      }
+    }
+    
+    return { isValid: true, message: '' };
+  };
+
+  const handleMenuSelection = (menu) => {
+    const validation = validateMenuForSelectedDates(menu);
+    if (!validation.isValid) {
+      toast.error(validation.message);
+      return;
+    }
+    
+    setSelectedMenu(menu);
+    
+    if (isWeekdayMenu(menu) && orderMode !== 'single') {
+      toast.info('Weekday Menu Selected! Click any date to auto-select 7 consecutive days.');
+    }
+    
+    if (isWeekdayMenu(menu) && selectedDates.length > 0 && orderMode !== 'single') {
+      const firstSelectedDate = selectedDates[0];
+      const shouldAutoSelect = window.confirm(
+        `You've selected a weekday menu. Would you like to auto-select 7 consecutive days starting from ${formatDateForDisplay(firstSelectedDate)}?`
+      );
+      
+      if (shouldAutoSelect) {
+        handleWeekdayMenuDateSelection(firstSelectedDate);
+      }
+    }
   };
 
   const removeFromOrder = (mealType, itemId) => {
@@ -200,16 +324,14 @@ const BookingPage = () => {
     return total;
   };
 
-  // Filter menus based on dietary preference
   const getFilteredMenus = () => {
     if (!menus || dietaryPreference === 'all') {
       return menus;
     }
 
     return menus.filter(menu => {
-      // Check if menu has categories that match the preference
-      if (menu.categories && menu.categories.length > 0) {
-        const categoryNames = menu.categories.map(cat => cat.name.toLowerCase());
+      if (menu.menuCategories && menu.menuCategories.length > 0) {
+        const categoryNames = menu.menuCategories.map(cat => cat.name.toLowerCase());
         
         if (dietaryPreference === 'veg') {
           return categoryNames.some(name => name.includes('veg') && !name.includes('non'));
@@ -218,7 +340,6 @@ const BookingPage = () => {
         }
       }
       
-      // If no categories, check menu items
       const allItems = [
         ...(menu.mealTypes.breakfast || []),
         ...(menu.mealTypes.lunch || []),
@@ -226,9 +347,11 @@ const BookingPage = () => {
       ];
       
       if (dietaryPreference === 'veg') {
-        return allItems.every(item => item.foodType === 'VEG');
+        const categoryNames = menu.categories?.map(cat => cat.name.toLowerCase()) || [];
+        return !categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
       } else if (dietaryPreference === 'non-veg') {
-        return allItems.some(item => item.foodType === 'NON_VEG');
+        const categoryNames = menu.categories?.map(cat => cat.name.toLowerCase()) || [];
+        return categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
       }
       
       return true;
@@ -237,45 +360,44 @@ const BookingPage = () => {
 
   const handleSaveOrder = async () => {
     try {
-      // Validate that items are selected
       if (getTotalItems() === 0) {
         toast.error('Please select at least one item to order');
         return;
       }
 
+      if (selectedDates.length === 0) {
+        toast.error('Please select at least one date for your order');
+        return;
+      }
 
+      if (!selectedMenu) {
+        toast.error('Please select a menu for your order');
+        return;
+      }
 
-      // Determine which meal types have orders
+      if (!deliveryLocations.full) {
+        toast.error('Please select a primary delivery address');
+        return;
+      }
+
       const orderTimes = [];
       if (orderedItems.breakfast.length > 0) orderTimes.push('Morning');
       if (orderedItems.lunch.length > 0) orderTimes.push('Noon');
       if (orderedItems.dinner.length > 0) orderTimes.push('Night');
 
-      if (orderTimes.length === 0) {
-        toast.error('Please select at least one meal time');
-        return;
-      }
-
-      // Prepare order items
       const orderItems = [];
-      
-      // Add breakfast items
       orderedItems.breakfast.forEach(item => {
         orderItems.push({
           menuItemId: item.id,
           quantity: 1
         });
       });
-
-      // Add lunch items
       orderedItems.lunch.forEach(item => {
         orderItems.push({
           menuItemId: item.id,
           quantity: 1
         });
       });
-
-      // Add dinner items
       orderedItems.dinner.forEach(item => {
         orderItems.push({
           menuItemId: item.id,
@@ -283,17 +405,17 @@ const BookingPage = () => {
         });
       });
 
-      // Prepare order data with detailed delivery information for AI routing
+      const primaryAddressId = deliveryLocations.full;
+      
       const orderData = {
-        orderDate: selectedDate.toISOString().split('T')[0], // YYYY-MM-DD format
+        orderDate: selectedDate.toISOString().split('T')[0],
         orderTimes: orderTimes,
         orderItems: orderItems,
-        deliveryAddressId: deliveryLocations.full || null, // Use full delivery address as primary
-        // Detailed delivery information for AI routing engine
+        deliveryAddressId: primaryAddressId,
         deliverySchedule: {
           breakfast: {
             mealTime: 'Morning',
-            deliveryAddressId: deliveryLocations.breakfast || null,
+            deliveryAddressId: deliveryLocations.breakfast || primaryAddressId,
             items: orderedItems.breakfast.map(item => ({
               menuItemId: item.id,
               name: item.productName || item.name,
@@ -302,7 +424,7 @@ const BookingPage = () => {
           },
           lunch: {
             mealTime: 'Noon',
-            deliveryAddressId: deliveryLocations.lunch || null,
+            deliveryAddressId: deliveryLocations.lunch || primaryAddressId,
             items: orderedItems.lunch.map(item => ({
               menuItemId: item.id,
               name: item.productName || item.name,
@@ -311,7 +433,7 @@ const BookingPage = () => {
           },
           dinner: {
             mealTime: 'Night',
-            deliveryAddressId: deliveryLocations.dinner || null,
+            deliveryAddressId: deliveryLocations.dinner || primaryAddressId,
             items: orderedItems.dinner.map(item => ({
               menuItemId: item.id,
               name: item.productName || item.name,
@@ -319,61 +441,65 @@ const BookingPage = () => {
             }))
           }
         },
-        // Include delivery locations for each meal time in the request (for backward compatibility)
         deliveryLocations: {
-          breakfast: deliveryLocations.breakfast || null,
-          lunch: deliveryLocations.lunch || null,
-          dinner: deliveryLocations.dinner || null
-        }
+          breakfast: deliveryLocations.breakfast || primaryAddressId,
+          lunch: deliveryLocations.lunch || primaryAddressId,
+          dinner: deliveryLocations.dinner || primaryAddressId,
+        },
+        selectedDates: selectedDates.map(date => date.toISOString().split('T')[0]),
+        orderMode: orderMode,
+        menuId: selectedMenu.id,
+        menuName: selectedMenu.name
       };
 
-      // Create the order
       const newOrder = await createOrder(orderData);
 
-      // Show success message
-      toast.success('Order created successfully!', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
+      setSavedOrder({
+        ...orderData,
+        id: newOrder.id,
+        menu: selectedMenu,
+        items: orderedItems,
+        deliveryLocations: deliveryLocations,
+        deliveryLocationNames: deliveryLocationNames
       });
 
-      // Reset the form
-      setOrderedItems({
-        breakfast: [],
-        lunch: [],
-        dinner: []
-      });
-
-      setDeliveryLocations({
-        breakfast: '',
-        lunch: '',
-        dinner: '',
-        full: ''
-      });
-
-      setDeliveryLocationNames({
-        breakfast: '',
-        lunch: '',
-        dinner: '',
-        full: ''
-      });
-
-      // Navigate to orders page or show order confirmation
-      navigate('/orders'); // You can create an orders page to show user's orders
+      toast.success('Order created successfully!');
+      setShowDateSelection(false);
+      setIsUpdating(false);
 
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error(error.message || 'Failed to create order. Please try again.', {
-        position: "top-right",
-        autoClose: 4000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
+      toast.error(error.message || 'Failed to create order. Please try again.');
+    }
+  };
+
+  const handleUpdateExistingOrder = async () => {
+    try {
+      if (!savedOrder) {
+        toast.error('No saved order to update');
+        return;
+      }
+
+      const updatedOrderData = {
+        ...savedOrder,
+        selectedDates: selectedDates.map(date => date.toISOString().split('T')[0]),
+        orderMode: orderMode
+      };
+
+      const newOrder = await createOrder(updatedOrderData);
+
+      setSavedOrder({
+        ...updatedOrderData,
+        id: newOrder.id
       });
+
+      toast.success('Order updated successfully!');
+      setShowDateSelection(false);
+      setIsUpdating(false);
+
+    } catch (error) {
+      console.error('Error updating order:', error);
+      toast.error(error.message || 'Failed to update order. Please try again.');
     }
   };
 
@@ -381,6 +507,7 @@ const BookingPage = () => {
     navigate('/jkhm');
   };
 
+  // Format functions
   const formatDate = (date) => {
     return date.toLocaleDateString('en-US', { 
       month: 'long', 
@@ -413,308 +540,66 @@ const BookingPage = () => {
     return date.toDateString() === selectedDate.toDateString();
   };
 
+  const getCleanMenuItemName = (itemName) => {
+    if (!itemName) return '';
+    return itemName.replace(/weekly menu/gi, '').trim();
+  };
 
+  const handleDeliveryLocationChange = (type, addressId, displayName) => {
+    setDeliveryLocations(prev => ({ ...prev, [type]: addressId }));
+    setDeliveryLocationNames(prev => ({ ...prev, [type]: displayName }));
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar onSignInClick={handleOpenAuthSlider} />
       <AuthSlider isOpen={authSliderOpen} onClose={handleCloseAuthSlider} />
       
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b pt-20 sm:pt-22 lg:pt-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-center">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <MdRestaurant className="text-orange-600 text-xl sm:text-2xl" />
-              <span className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">Meal Booking</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <BookingHeader />
 
-      {/* Date Selection */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-                    {/* Month Display */}
-          <div className="text-center mb-3 sm:mb-4">
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">
-              {formatMonth(dates[0])} {dates[0].getFullYear()}
-            </h2>
-            {menusData && (
-              <p className="text-gray-600 text-sm sm:text-base mt-1">
-                Select a date and choose from available menu plans
-              </p>
-            )}
-
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <button 
-              onClick={goToPreviousDays}
-              className="text-gray-600 hover:text-gray-800 p-1.5 sm:p-2 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <MdArrowBack className="text-lg sm:text-xl" />
-            </button>
-            <div className="flex gap-1 sm:gap-2 lg:gap-4 overflow-x-auto scrollbar-hide">
-              {dates.map((date, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedDate(date)}
-                  className={`flex flex-col items-center p-1.5 sm:p-2 lg:p-3 rounded-full min-w-[40px] sm:min-w-[50px] lg:min-w-[60px] transition-all duration-300 flex-shrink-0 ${
-                    isSelected(date) 
-                      ? 'bg-green-500 text-white' 
-                      : isToday(date)
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  } ${index >= 5 ? 'hidden sm:flex' : ''}`}
-                >
-                  <span className="text-xs sm:text-sm lg:text-base font-medium">{formatDayNumber(date)}</span>
-                  <span className="text-xs lg:text-sm">{formatDay(date)}</span>
-                </button>
-              ))}
-            </div>
-            <button 
-              onClick={goToNextDays}
-              className="text-gray-600 hover:text-gray-800 p-1.5 sm:p-2 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <MdArrowBack className="text-lg sm:text-xl rotate-180" />
-            </button>
-          </div>
-        </div>
-      </div>
+      <DateSelector
+        dates={dates}
+        selectedDate={selectedDate}
+        selectedDates={selectedDates}
+        orderMode={orderMode}
+        currentDate={currentDate}
+        isMobile={isMobile}
+        onDateSelection={handleDateSelection}
+        onNextDays={goToNextDays}
+        onPreviousDays={goToPreviousDays}
+        onOrderModeChange={setOrderMode}
+        formatMonth={formatMonth}
+        formatDayNumber={formatDayNumber}
+        formatDay={formatDay}
+        isToday={isToday}
+        isSelected={isSelected}
+      />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-12">
           {/* Left Column - Menu Sections */}
           <div className="lg:col-span-2">
             <div className="max-w-2xl lg:max-w-none mx-auto lg:mx-0">
-              {/* Menu Selection */}
-              <div className="mb-6">
-                <div 
-                  className="flex items-center justify-between p-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-lg"
-                  onClick={() => toggleSection('menus')}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white">
-                      <MdRestaurant className="text-2xl" />
-                    </div>
-                    <div>
-                      <span className="text-white font-bold text-xl">Available Menu Plans</span>
-                      <p className="text-blue-100 text-sm mt-1">Select from our curated menu options</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-white/80 text-sm font-medium">
-                      {menus.length} {menus.length === 1 ? 'Menu' : 'Menus'} Available
-                    </span>
-                    {expandedSections.menus ? (
-                      <MdExpandLess className="text-white text-2xl" />
-                    ) : (
-                      <MdExpandMore className="text-white text-2xl" />
-                    )}
-                  </div>
-                </div>
-
-                {expandedSections.menus && (
-                  <div className="bg-white rounded-xl p-6 mt-4 shadow-lg border border-gray-100">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-2xl font-bold text-gray-800">Select a Menu Plan</h3>
-                        {menusLoading && (
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Click on a menu to view details
-                      </div>
-                    </div>
-
-                    {/* Loading State */}
-                    {menusLoading && (
-                      <div className="text-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                        <p className="text-gray-500 text-lg">Loading available menus...</p>
-                        <p className="text-gray-400 text-sm mt-2">Please wait while we fetch the latest menu options</p>
-                      </div>
-                    )}
-
-                    {/* Error State */}
-                    {menusError && (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                          </svg>
-                        </div>
-                        <p className="text-red-500 text-lg font-semibold">Error loading menus</p>
-                        <p className="text-gray-500 text-sm mt-2">Please try again later or contact support</p>
-                      </div>
-                    )}
-
-                    {/* Menu Cards */}
-                    {!menusLoading && !menusError && (
-                      <div>
-                        {/* Dietary Preference Filter */}
-                        <div className="mb-6">
-                          <h4 className="text-lg font-semibold text-gray-800 mb-3">Choose Your Preference</h4>
-                          <div className="flex flex-wrap gap-3">
-                            <button 
-                              onClick={() => setDietaryPreference('veg')}
-                              className={`px-6 py-3 rounded-lg border-2 font-medium transition-colors shadow-sm ${
-                                dietaryPreference === 'veg'
-                                  ? 'border-green-600 bg-green-100 text-green-800'
-                                  : 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100'
-                              }`}
-                            >
-                              🥬 Vegetarian
-                            </button>
-                            <button 
-                              onClick={() => setDietaryPreference('non-veg')}
-                              className={`px-6 py-3 rounded-lg border-2 font-medium transition-colors shadow-sm ${
-                                dietaryPreference === 'non-veg'
-                                  ? 'border-red-600 bg-red-100 text-red-800'
-                                  : 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
-                              }`}
-                            >
-                              🍖 Non-Vegetarian
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {getFilteredMenus().map((menu) => (
-                          <div 
-                            key={menu.id}
-                            className={`group relative overflow-hidden rounded-xl border-2 transition-all duration-300 hover:shadow-xl ${
-                              selectedMenu?.id === menu.id 
-                                ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg' 
-                                : 'border-gray-200 hover:border-blue-300 bg-white'
-                            }`}
-                            onClick={() => setSelectedMenu(menu)}
-                          >
-                            {/* Gradient overlay on hover */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                            
-                            <div className="relative p-6">
-                              {/* 1. Menu Name (First) */}
-                              <div className="mb-4">
-                                <h4 className="font-bold text-xl text-gray-800">{menu.name}</h4>
-                              </div>
-                              
-                              {/* 2. Menu Item Names (Second) */}
-                              <div className="mb-4">
-                                <h5 className="text-sm font-semibold text-gray-700 mb-2">Menu Items:</h5>
-                                <div className="space-y-1">
-                                  {menu.mealTypes.breakfast.map((item, index) => (
-                                    <div key={`breakfast-${index}`} className="text-xs text-gray-600 bg-green-50 px-2 py-1 rounded">
-                                      🍳 {item.name}
-                                    </div>
-                                  ))}
-                                  {menu.mealTypes.lunch.map((item, index) => (
-                                    <div key={`lunch-${index}`} className="text-xs text-gray-600 bg-yellow-50 px-2 py-1 rounded">
-                                      🍽️ {item.name}
-                                    </div>
-                                  ))}
-                                  {menu.mealTypes.dinner.map((item, index) => (
-                                    <div key={`dinner-${index}`} className="text-xs text-gray-600 bg-pink-50 px-2 py-1 rounded">
-                                      🌙 {item.name}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              
-                              {/* 3. Menu Category Names (Third) */}
-                              <div className="mb-4">
-                                <h5 className="text-sm font-semibold text-gray-700 mb-2">Categories:</h5>
-                                <div className="flex flex-wrap gap-2">
-                                  {menu.categories && menu.categories.length > 0 ? (
-                                    menu.categories.map((category) => (
-                                      <span key={category.id} className="bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-full border border-purple-200">
-                                        {category.name}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                      No categories
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {/* 4. Menu Items Details (Last) */}
-                              <div className="mb-4">
-                                <h5 className="text-sm font-semibold text-gray-700 mb-2">Meal Types Included:</h5>
-                                <div className="flex flex-wrap gap-2">
-                                  {menu.hasBreakfast && (
-                                    <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs font-medium px-3 py-1.5 rounded-full border border-green-200">
-                                      🍳 Breakfast
-                                    </span>
-                                  )}
-                                  {menu.hasLunch && (
-                                    <span className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-700 text-xs font-medium px-3 py-1.5 rounded-full border border-yellow-200">
-                                      🍽️ Lunch
-                                    </span>
-                                  )}
-                                  {menu.hasDinner && (
-                                    <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs font-medium px-3 py-1.5 rounded-full border border-pink-200">
-                                      🌙 Dinner
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Selection indicator */}
-                              <div className={`absolute bottom-4 right-4 transition-all duration-300 ${
-                                selectedMenu?.id === menu.id 
-                                  ? 'opacity-100 scale-100' 
-                                  : 'opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100'
-                              }`}>
-                                <div className="bg-blue-500 text-white rounded-full p-2 shadow-lg">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        </div>
-
-                        {!menusLoading && !menusError && getFilteredMenus().length === 0 && (
-                          <div className="text-center py-12">
-                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </div>
-                            <p className="text-gray-500 text-lg font-semibold">
-                              {dietaryPreference === 'veg' 
-                                ? 'No vegetarian menus available' 
-                                : dietaryPreference === 'non-veg'
-                                ? 'No non-vegetarian menus available'
-                                : 'No menus available'
-                              }
-                            </p>
-                            <p className="text-gray-400 text-sm mt-2">
-                              {dietaryPreference !== 'all' 
-                                ? 'Try selecting a different preference or check back later'
-                                : 'Please check back later for new menu options'
-                              }
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <MenuSelector
+                menus={menus}
+                selectedMenu={selectedMenu}
+                dietaryPreference={dietaryPreference}
+                expandedSections={expandedSections}
+                menusLoading={menusLoading}
+                menusError={menusError}
+                onMenuSelection={handleMenuSelection}
+                onDietaryPreferenceChange={setDietaryPreference}
+                onToggleSection={toggleSection}
+                getFilteredMenus={getFilteredMenus}
+                getCleanMenuItemName={getCleanMenuItemName}
+                isWeekdayMenu={isWeekdayMenu}
+              />
 
               {/* Selected Menu Details */}
               {selectedMenu && (
                 <div className="mb-6">
                   <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                    {/* Header */}
                     <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white">
                       <div className="flex items-center justify-between">
                         <div>
@@ -725,7 +610,7 @@ const BookingPage = () => {
                           onClick={() => setSelectedMenu(null)}
                           className="text-white/80 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
                         >
-                          <MdClose className="text-xl" />
+                          <span className="text-xl">✕</span>
                         </button>
                       </div>
                     </div>
@@ -761,27 +646,13 @@ const BookingPage = () => {
                               Breakfast Items
                             </h4>
                             
-                            {/* Breakfast Menu Items */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                               {selectedMenu.mealTypes.breakfast.map((item, index) => (
                                 <div 
                                   key={item.id || index} 
-                                  className="group bg-white rounded-lg p-4 hover:shadow-lg transition-all duration-300 cursor-pointer border border-green-200 hover:border-green-300 relative overflow-hidden"
+                                  className="group p-4 hover:shadow-lg transition-all duration-300 cursor-pointer relative overflow-hidden"
                                   onClick={() => addToOrder('breakfast', item)}
                                 >
-                                  {/* Add to cart indicator */}
-                                  <div className="absolute top-3 right-3 bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                                    +
-                                  </div>
-                                  
-                                  <div className="mb-3">
-                                    <h5 className="font-semibold text-gray-800 mb-2 group-hover:text-green-700 transition-colors">{item.name}</h5>
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <span className={`inline-block w-3 h-3 rounded-full ${item.foodType === 'NON_VEG' ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                                      <span className="text-xs font-medium text-gray-600 capitalize">{item.foodType}</span>
-                                    </div>
-                                  </div>
-                                  
                                   {item.prices && item.prices[0] && (
                                     <div className="flex items-center justify-between">
                                       <span className="text-lg font-bold text-green-600">₹{item.prices[0].totalPrice}</span>
@@ -793,27 +664,28 @@ const BookingPage = () => {
                             </div>
 
                             {/* Breakfast Delivery Location */}
-                            <div className="bg-white rounded-lg p-4 border border-green-200">
+                            <div className="bg-white rounded-lg p-4 border border-green-200 relative">
                               <label className="block text-sm font-semibold text-green-800 mb-3 flex items-center gap-2">
-                                <MdLocationOn className="text-green-500" />
+                                <span className="text-green-500">📍</span>
                                 🍳 Breakfast Delivery Address
                               </label>
+                              <div className="relative z-10">
                               <AddressPicker
                                 value={deliveryLocationNames.breakfast || deliveryLocations.breakfast}
                                 onChange={(e) => {
                                   const addressId = e.target.value;
                                   const displayName = e.target.displayName || getAddressDisplayName(addressId);
-                                  setDeliveryLocations(prev => ({ ...prev, breakfast: addressId }));
-                                  setDeliveryLocationNames(prev => ({ ...prev, breakfast: displayName }));
+                                    handleDeliveryLocationChange('breakfast', addressId, displayName);
                                 }}
-                                placeholder="Select breakfast delivery address..."
+                                placeholder="Select breakfast delivery address (optional - will use primary address if not selected)..."
                                 className="w-full px-4 py-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-sm"
                                 mealType="breakfast"
                               />
+                              </div>
                               {!deliveryLocations.breakfast && (
                                 <div className="mt-2 text-xs text-green-600 flex items-center gap-1">
                                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                  Please select a delivery address for breakfast
+                                  Will use primary address for breakfast delivery
                                 </div>
                               )}
                             </div>
@@ -830,27 +702,13 @@ const BookingPage = () => {
                               Lunch Items
                             </h4>
                             
-                            {/* Lunch Menu Items */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                               {selectedMenu.mealTypes.lunch.map((item, index) => (
                                 <div 
                                   key={item.id || index} 
-                                  className="group bg-white rounded-lg p-4 hover:shadow-lg transition-all duration-300 cursor-pointer border border-yellow-200 hover:border-yellow-300 relative overflow-hidden"
+                                  className="group p-4 hover:shadow-lg transition-all duration-300 cursor-pointer relative overflow-hidden"
                                   onClick={() => addToOrder('lunch', item)}
                                 >
-                                  {/* Add to cart indicator */}
-                                  <div className="absolute top-3 right-3 bg-yellow-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                                    +
-                                  </div>
-                                  
-                                  <div className="mb-3">
-                                    <h5 className="font-semibold text-gray-800 mb-2 group-hover:text-yellow-700 transition-colors">{item.name}</h5>
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <span className={`inline-block w-3 h-3 rounded-full ${item.foodType === 'NON_VEG' ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                                      <span className="text-xs font-medium text-gray-600 capitalize">{item.foodType}</span>
-                                    </div>
-                                  </div>
-                                  
                                   {item.prices && item.prices[0] && (
                                     <div className="flex items-center justify-between">
                                       <span className="text-lg font-bold text-yellow-600">₹{item.prices[0].totalPrice}</span>
@@ -862,27 +720,28 @@ const BookingPage = () => {
                             </div>
 
                             {/* Lunch Delivery Location */}
-                            <div className="bg-white rounded-lg p-4 border border-yellow-200">
+                            <div className="bg-white rounded-lg p-4 border border-yellow-200 relative">
                               <label className="block text-sm font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-                                <MdLocationOn className="text-yellow-500" />
+                                <span className="text-yellow-500">📍</span>
                                 🍽️ Lunch Delivery Address
                               </label>
+                              <div className="relative z-10">
                               <AddressPicker
                                 value={deliveryLocationNames.lunch || deliveryLocations.lunch}
                                 onChange={(e) => {
                                   const addressId = e.target.value;
                                   const displayName = e.target.displayName || getAddressDisplayName(addressId);
-                                  setDeliveryLocations(prev => ({ ...prev, lunch: addressId }));
-                                  setDeliveryLocationNames(prev => ({ ...prev, lunch: displayName }));
+                                    handleDeliveryLocationChange('lunch', addressId, displayName);
                                 }}
-                                placeholder="Select lunch delivery address..."
+                                placeholder="Select lunch delivery address (optional - will use primary address if not selected)..."
                                 className="w-full px-4 py-3 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 bg-white text-sm"
                                 mealType="lunch"
                               />
+                              </div>
                               {!deliveryLocations.lunch && (
                                 <div className="mt-2 text-xs text-yellow-600 flex items-center gap-1">
                                   <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                                  Please select a delivery address for lunch
+                                  Will use primary address for lunch delivery
                                 </div>
                               )}
                             </div>
@@ -899,27 +758,13 @@ const BookingPage = () => {
                               Dinner Items
                             </h4>
                             
-                            {/* Dinner Menu Items */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                               {selectedMenu.mealTypes.dinner.map((item, index) => (
                                 <div 
                                   key={item.id || index} 
-                                  className="group bg-white rounded-lg p-4 hover:shadow-lg transition-all duration-300 cursor-pointer border border-pink-200 hover:border-pink-300 relative overflow-hidden"
+                                  className="group p-4 hover:shadow-lg transition-all duration-300 cursor-pointer relative overflow-hidden"
                                   onClick={() => addToOrder('dinner', item)}
                                 >
-                                  {/* Add to cart indicator */}
-                                  <div className="absolute top-3 right-3 bg-pink-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                                    +
-                                  </div>
-                                  
-                                  <div className="mb-3">
-                                    <h5 className="font-semibold text-gray-800 mb-2 group-hover:text-pink-700 transition-colors">{item.name}</h5>
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <span className={`inline-block w-3 h-3 rounded-full ${item.foodType === 'NON_VEG' ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                                      <span className="text-xs font-medium text-gray-600 capitalize">{item.foodType}</span>
-                                    </div>
-                                  </div>
-                                  
                                   {item.prices && item.prices[0] && (
                                     <div className="flex items-center justify-between">
                                       <span className="text-lg font-bold text-pink-600">₹{item.prices[0].totalPrice}</span>
@@ -931,27 +776,28 @@ const BookingPage = () => {
                             </div>
 
                             {/* Dinner Delivery Location */}
-                            <div className="bg-white rounded-lg p-4 border border-pink-200">
+                            <div className="bg-white rounded-lg p-4 border border-pink-200 relative">
                               <label className="block text-sm font-semibold text-pink-800 mb-3 flex items-center gap-2">
-                                <MdLocationOn className="text-pink-500" />
+                                <span className="text-pink-500">📍</span>
                                 🌙 Dinner Delivery Address
                               </label>
+                              <div className="relative z-10">
                               <AddressPicker
                                 value={deliveryLocationNames.dinner || deliveryLocations.dinner}
                                 onChange={(e) => {
                                   const addressId = e.target.value;
                                   const displayName = e.target.displayName || getAddressDisplayName(addressId);
-                                  setDeliveryLocations(prev => ({ ...prev, dinner: addressId }));
-                                  setDeliveryLocationNames(prev => ({ ...prev, dinner: displayName }));
+                                    handleDeliveryLocationChange('dinner', addressId, displayName);
                                 }}
-                                placeholder="Select dinner delivery address..."
+                                placeholder="Select dinner delivery address (optional - will use primary address if not selected)..."
                                 className="w-full px-4 py-3 border border-pink-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white text-sm"
                                 mealType="dinner"
                               />
+                              </div>
                               {!deliveryLocations.dinner && (
                                 <div className="mt-2 text-xs text-pink-600 flex items-center gap-1">
                                   <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
-                                  Please select a delivery address for dinner
+                                  Will use primary address for dinner delivery
                                 </div>
                               )}
                             </div>
@@ -966,143 +812,29 @@ const BookingPage = () => {
           </div>
 
           {/* Right Column - Order Summary & Actions */}
-          <div className="lg:col-span-1">
-            <div className="lg:sticky lg:top-6 space-y-4 sm:space-y-6">
-              {/* Ordered Items Section */}
-              <div className="bg-white rounded-lg shadow-md">
-                <div 
-                  className="flex items-center justify-between p-3 sm:p-4 lg:p-6 bg-gray-500 rounded-t-lg cursor-pointer"
-                  onClick={() => toggleSection('orderedItems')}
-                >
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <MdShoppingCart className="text-white text-lg sm:text-xl" />
-                    <span className="text-white font-semibold text-base sm:text-lg">Ordered Items</span>
+          <OrderSummary
+            selectedMenu={selectedMenu}
+            selectedDates={selectedDates}
+            orderedItems={orderedItems}
+            deliveryLocations={deliveryLocations}
+            deliveryLocationNames={deliveryLocationNames}
+            savedOrder={savedOrder}
+            isUpdating={isUpdating}
+            isCreating={isCreating}
+            getTotalItems={getTotalItems}
+            getTotalPrice={getTotalPrice}
+            getAddressDisplayName={getAddressDisplayName}
+            isWeekdayMenu={isWeekdayMenu}
+            isWeekday={isWeekday}
+            formatDateForDisplay={formatDateForDisplay}
+            onDeliveryLocationChange={handleDeliveryLocationChange}
+            onUpdateOrder={handleUpdateOrder}
+            onResetOrder={handleResetOrder}
+            onUpdateExistingOrder={handleUpdateExistingOrder}
+            onCancel={handleCancel}
+            onSaveOrder={handleSaveOrder}
+          />
                   </div>
-                  {expandedSections.orderedItems ? (
-                    <MdExpandLess className="text-white text-lg sm:text-xl" />
-                  ) : (
-                    <MdExpandMore className="text-white text-lg sm:text-xl" />
-                  )}
-                </div>
-
-                {expandedSections.orderedItems && (
-                  <div className="p-3 sm:p-4 lg:p-6">
-                    {Object.entries(orderedItems).map(([mealType, items]) => (
-                      items.length > 0 && (
-                        <div key={mealType} className="mb-3 sm:mb-4">
-                          <h4 className="font-semibold text-gray-800 mb-2 sm:mb-3 capitalize text-sm sm:text-lg">{mealType}</h4>
-                          <div className="space-y-2 sm:space-y-3">
-                            {items.map((item) => (
-                              <div key={item.orderItemId} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg meal-item">
-                                <img 
-                                  src={item.productImage ? `http://localhost:5000${item.productImage}` : '/placeholder-food.jpg'} 
-                                  alt={item.name}
-                                  className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 object-cover rounded-lg"
-                                  onError={(e) => {
-                                    e.target.src = '/placeholder-food.jpg';
-                                  }}
-                                  loading="lazy"
-                                  key={`${item.id}-${item.productImage}`}
-                                  style={{ imageRendering: 'auto' }}
-                                  onLoad={(e) => {
-                                    e.target.style.opacity = '1';
-                                  }}
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-1">
-                                    <span className={`inline-block w-2 h-2 rounded-full ${item.foodType === 'NON_VEG' ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                                    <h5 className="font-medium text-xs sm:text-sm lg:text-base text-gray-800">{item.name}</h5>
-                                  </div>
-                                  {item.price > 0 && (
-                                    <p className="text-xs text-gray-600">₹{item.price}</p>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1 sm:gap-2">
-                                  <button 
-                                    onClick={() => removeFromOrder(mealType, item.orderItemId)}
-                                    className="text-orange-500 hover:text-orange-700"
-                                  >
-                                    <MdClose className="text-lg sm:text-xl" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    ))}
-                    
-                    {getTotalItems() === 0 && (
-                      <p className="text-gray-500 text-center py-6 sm:py-8 text-sm sm:text-base">No items ordered yet</p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Full Delivery Location */}
-              <div className="bg-white rounded-lg p-3 sm:p-4 lg:p-6 shadow-md">
-                <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <h4 className="font-medium text-gray-700 text-sm sm:text-lg">Primary Delivery Address</h4>
-                  <MdLocationOn className="text-gray-500 text-sm sm:text-base" />
-                </div>
-                <AddressPicker
-                  value={deliveryLocationNames.full || deliveryLocations.full}
-                  onChange={(e) => {
-                    // The AddressPicker now sends the address ID
-                    const addressId = e.target.value;
-                    const displayName = e.target.displayName || getAddressDisplayName(addressId);
-                    setDeliveryLocations(prev => ({
-                      ...prev,
-                      full: addressId
-                    }));
-                    // We'll update the display name when we get the address data
-                    // For now, we'll use the ID as placeholder
-                    setDeliveryLocationNames(prev => ({
-                      ...prev,
-                      full: displayName
-                    }));
-                  }}
-                  placeholder="Select full delivery address..."
-                  className="text-xs sm:text-sm lg:text-base"
-                  mealType="full"
-                  showMap={true}
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="bg-white rounded-lg p-3 sm:p-4 lg:p-6 shadow-md">
-                <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <span className="text-gray-700 text-sm sm:text-lg">Selected Items {getTotalItems()}</span>
-                  {getTotalPrice() > 0 && (
-                    <span className="text-orange-600 font-semibold text-sm sm:text-lg">Total: ₹{getTotalPrice()}</span>
-                  )}
-                </div>
-                <div className="flex gap-2 sm:gap-3">
-                  <button
-                    onClick={handleCancel}
-                    className="flex-1 bg-gray-500 text-white py-2.5 sm:py-3 lg:py-4 rounded-lg font-semibold hover:bg-gray-600 transition-colors text-xs sm:text-sm lg:text-base"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveOrder}
-                    disabled={getTotalItems() === 0 || isCreating}
-                    className="flex-1 bg-green-500 text-white py-2.5 sm:py-3 lg:py-4 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-xs sm:text-sm lg:text-base flex items-center justify-center gap-2"
-                  >
-                    {isCreating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Creating Order...
-                      </>
-                    ) : (
-                      'Save Order'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -15,7 +15,6 @@ const MenuItemPage = () => {
   const [menuItemForm, setMenuItemForm] = useState({
     name: '',
     menuId: '',
-    foodType: 'VEG',
     productName: '', // Add productName back
     mealType: '', // Add mealType field
   });
@@ -166,7 +165,6 @@ const MenuItemPage = () => {
       setMenuItemForm({
         name: menuItem.name || '',
         menuId: menuItem.menuId || '',
-        foodType: menuItem.foodType || 'VEG',
         productName: menuItem.productName || '', // Load productName
         mealType: '', // mealType is not stored in database, will be determined from productName
       });
@@ -196,7 +194,6 @@ const MenuItemPage = () => {
       setMenuItemForm({
         name: '',
         menuId: '',
-        foodType: 'VEG',
         productName: '', // Reset productName
         mealType: '', // Reset mealType
       });
@@ -268,7 +265,6 @@ const MenuItemPage = () => {
     setMenuItemForm({
       name: '',
       menuId: '',
-      foodType: 'VEG',
       productName: '', // Reset productName
       mealType: '', // Reset mealType
     });
@@ -507,36 +503,21 @@ const MenuItemPage = () => {
                     className={getFieldClassName('menuId', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white')}
                   >
                     <option value="">Select a menu</option>
-                    {menus.map((menu) => (
-                      <option key={menu.id} value={menu.id}>
-                        {menu.name} - {menu.dayOfWeek}
-                      </option>
-                    ))}
+                                         {menus.map((menu) => {
+                       const categoryNames = menu.menuCategories?.map(cat => cat.name).join(', ') || 'No categories';
+                       return (
+                         <option key={menu.id} value={menu.id}>
+                           {menu.name} - {menu.dayOfWeek} - {categoryNames}
+                         </option>
+                       );
+                     })}
                   </select>
                   {getFieldError('menuId') && (
                     <p className="mt-1 text-sm text-red-400">{getFieldError('menuId')}</p>
                   )}
                 </div>
 
-                {/* Food Type Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Food Type *
-                  </label>
-                  <select
-                    name="foodType"
-                    value={menuItemForm.foodType}
-                    onChange={handleMenuItemChange}
-                    onBlur={handleMenuItemBlur}
-                    className={getFieldClassName('foodType', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white')}
-                  >
-                    <option value="VEG">Vegetarian</option>
-                    <option value="NON_VEG">Non-Vegetarian</option>
-                  </select>
-                  {getFieldError('foodType') && (
-                    <p className="mt-1 text-sm text-red-400">{getFieldError('foodType')}</p>
-                  )}
-                </div>
+                
 
                 {/* Form Actions */}
                 <div className="flex justify-end gap-4 pt-4">
@@ -616,11 +597,11 @@ const MenuItemPage = () => {
                       className={getMenuItemPriceFieldClassName('menuItemId', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-white')}
                     >
                       <option value="">Select a menu item</option>
-                      {menuItems.map((menuItem) => (
-                        <option key={menuItem.id} value={menuItem.id}>
-                          {menuItem.name} - {menuItem.product?.productName}
-                        </option>
-                      ))}
+                                             {menuItems.map((menuItem) => (
+                         <option key={menuItem.id} value={menuItem.id}>
+                           {menuItem.name} - {menuItem.productName}
+                         </option>
+                       ))}
                     </select>
                     {getMenuItemPriceFieldError('menuItemId') && (
                       <p className="mt-1 text-sm text-red-400">{getMenuItemPriceFieldError('menuItemId')}</p>
@@ -713,7 +694,7 @@ const MenuItemPage = () => {
                             <div className="text-xs text-gray-400 space-y-1">
                               <p><span className="text-gray-500">Company:</span> {price.company?.name || 'N/A'}</p>
                               <p><span className="text-gray-500">Menu Item:</span> {price.menuItem?.name || 'N/A'}</p>
-                              <p><span className="text-gray-500">Product:</span> {price.menuItem?.product?.productName || 'N/A'}</p>
+                                                             <p><span className="text-gray-500">Product:</span> {price.menuItem?.productName || 'N/A'}</p>
                             </div>
                           </div>
                           <div className="text-xs text-gray-500 ml-2">

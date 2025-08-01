@@ -35,10 +35,10 @@ const MenuItemsTablePage = () => {
   const filteredAndSortedItems = menuItems
     .filter(item => {
       const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            item.menu?.name?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesMealType = !filterMealType || item.mealType === filterMealType;
+      const matchesMealType = !filterMealType || item.productName === filterMealType;
       
       return matchesSearch && matchesMealType;
     })
@@ -51,8 +51,8 @@ const MenuItemsTablePage = () => {
           bValue = b.name || '';
           break;
         case 'product':
-          aValue = a.product?.productName || '';
-          bValue = b.product?.productName || '';
+          aValue = a.productName || '';
+          bValue = b.productName || '';
           break;
         case 'menu':
           aValue = a.menu?.name || '';
@@ -76,7 +76,7 @@ const MenuItemsTablePage = () => {
     });
 
   // Get unique values for filters
-  const uniqueMealTypes = [...new Set(menuItems.map(item => item.mealType).filter(Boolean))];
+  const uniqueMealTypes = [...new Set(menuItems.map(item => item.productName).filter(Boolean))];
 
   const handleSort = (column) => {
     if (sortBy === column) {
@@ -197,13 +197,13 @@ const MenuItemsTablePage = () => {
                 />
               </div>
 
-              {/* Meal Type Filter */}
+              {/* Product Name Filter */}
               <select
                 value={filterMealType}
                 onChange={(e) => setFilterMealType(e.target.value)}
                 className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
               >
-                <option value="">All Meal Types</option>
+                <option value="">All Product Types</option>
                 {uniqueMealTypes.map(mealType => (
                   <option key={mealType} value={mealType}>{mealType}</option>
                 ))}
@@ -286,8 +286,8 @@ const MenuItemsTablePage = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-300">
-                            {menuItem.product?.productName ? 
-                              menuItem.product.productName.split(',')[0] : 
+                            {menuItem.productName ? 
+                              menuItem.productName : 
                               'N/A'
                             }
                           </div>

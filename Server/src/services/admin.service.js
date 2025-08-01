@@ -371,6 +371,7 @@ export const menuListService = async () => {
           // product relation removed since we removed productId
         },
       },
+      menuCategories: true, // Include menu categories to get food type info
     },
     orderBy: {
       createdAt: 'desc'
@@ -390,6 +391,7 @@ export const getMenuByIdService = async (menuId) => {
           // product relation removed since we removed productId
         },
       },
+      menuCategories: true, // Include menu categories to get food type info
     }
   });
   
@@ -470,7 +472,7 @@ export const deleteMenuService = async (menuId) => {
 
 // Menu Item services
 export const createMenuItemService = async (menuItemData) => {
-  const { name, menuId, foodType, productName, mealType } = menuItemData;
+  const { name, menuId, productName, mealType } = menuItemData;
   console.log(menuItemData,'menuItemData');
 
   // Check if menu exists
@@ -488,7 +490,6 @@ export const createMenuItemService = async (menuItemData) => {
       name,
       menuId,
       productName: productName || null, // Store product name directly
-      foodType: foodType || 'VEG', // Default to VEG if not provided
       // Note: mealType is not stored in the database, it's just used for validation/processing
     },
     include: {
@@ -509,6 +510,7 @@ export const menuItemListService = async () => {
       menu: {
         include: {
           company: true,
+          menuCategories: true,
         },
       },
       // product relation removed since we removed productId
@@ -528,6 +530,7 @@ export const getMenuItemByIdService = async (menuItemId) => {
       menu: {
         include: {
           company: true,
+          menuCategories: true,
         },
       },
       // product relation removed since we removed productId
@@ -542,7 +545,7 @@ export const getMenuItemByIdService = async (menuItemId) => {
 };
 
 export const updateMenuItemService = async (menuItemId, menuItemData) => {
-  const { name, menuId, foodType, productName, mealType } = menuItemData;
+  const { name, menuId, productName, mealType } = menuItemData;
 
   // Check if menu item exists
   const existingMenuItem = await prisma.menuItem.findUnique({
@@ -569,7 +572,6 @@ export const updateMenuItemService = async (menuItemId, menuItemData) => {
       name,
       menuId,
       productName: productName || null, // Store product name directly
-      foodType: foodType || 'VEG', // Default to VEG if not provided
       // Note: mealType is not stored in the database, it's just used for validation/processing
     },
     include: {
@@ -938,7 +940,11 @@ export const getMealsByDayService = async (dayOfWeek) => {
     },
     include: {
       // product relation removed since we removed productId
-      menu: true,
+      menu: {
+        include: {
+          menuCategories: true
+        }
+      },
       prices: {
         orderBy: {
           createdAt: 'desc'
@@ -959,6 +965,15 @@ export const getMealsByDayService = async (dayOfWeek) => {
   };
 
   menuItems.forEach(item => {
+    // Compute food type from menu categories
+    let foodType = 'VEG'; // Default
+    if (item.menu && item.menu.menuCategories) {
+      const categoryNames = item.menu.menuCategories.map(cat => cat.name.toLowerCase());
+      if (categoryNames.some(name => name.includes('non') || name.includes('non-veg'))) {
+        foodType = 'NON_VEG';
+      }
+    }
+
     const mealData = {
       id: item.id,
       name: item.name,
@@ -967,7 +982,7 @@ export const getMealsByDayService = async (dayOfWeek) => {
       productName: item.productName || '', // Use productName field directly
       productCode: '', // No product code since we removed product relation
       menuName: item.menu?.name || '',
-      foodType: item.foodType || 'VEG' // Food type (VEG/NON_VEG)
+      foodType: foodType // Computed from menu categories
     };
 
     // Determine category based on item name
