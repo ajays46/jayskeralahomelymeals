@@ -645,24 +645,7 @@ const BookingPage = () => {
                               </div>
                               Breakfast Items
                             </h4>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                              {selectedMenu.mealTypes.breakfast.map((item, index) => (
-                                <div 
-                                  key={item.id || index} 
-                                  className="group p-4 hover:shadow-lg transition-all duration-300 cursor-pointer relative overflow-hidden"
-                                  onClick={() => addToOrder('breakfast', item)}
-                                >
-                                  {item.prices && item.prices[0] && (
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-lg font-bold text-green-600">₹{item.prices[0].totalPrice}</span>
-                                      <span className="text-xs text-gray-500">per item</span>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-
+                          
                             {/* Breakfast Delivery Location */}
                             <div className="bg-white rounded-lg p-4 border border-green-200 relative">
                               <label className="block text-sm font-semibold text-green-800 mb-3 flex items-center gap-2">
@@ -702,22 +685,6 @@ const BookingPage = () => {
                               Lunch Items
                             </h4>
                             
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                              {selectedMenu.mealTypes.lunch.map((item, index) => (
-                                <div 
-                                  key={item.id || index} 
-                                  className="group p-4 hover:shadow-lg transition-all duration-300 cursor-pointer relative overflow-hidden"
-                                  onClick={() => addToOrder('lunch', item)}
-                                >
-                                  {item.prices && item.prices[0] && (
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-lg font-bold text-yellow-600">₹{item.prices[0].totalPrice}</span>
-                                      <span className="text-xs text-gray-500">per item</span>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
 
                             {/* Lunch Delivery Location */}
                             <div className="bg-white rounded-lg p-4 border border-yellow-200 relative">
@@ -758,22 +725,7 @@ const BookingPage = () => {
                               Dinner Items
                             </h4>
                             
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                              {selectedMenu.mealTypes.dinner.map((item, index) => (
-                                <div 
-                                  key={item.id || index} 
-                                  className="group p-4 hover:shadow-lg transition-all duration-300 cursor-pointer relative overflow-hidden"
-                                  onClick={() => addToOrder('dinner', item)}
-                                >
-                                  {item.prices && item.prices[0] && (
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-lg font-bold text-pink-600">₹{item.prices[0].totalPrice}</span>
-                                      <span className="text-xs text-gray-500">per item</span>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                            
 
                             {/* Dinner Delivery Location */}
                             <div className="bg-white rounded-lg p-4 border border-pink-200 relative">
