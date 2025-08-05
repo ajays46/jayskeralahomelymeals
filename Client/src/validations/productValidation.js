@@ -24,8 +24,12 @@ export const productSchema = z.object({
   }),
   
   imageUrl: z.string()
-    .min(1, 'Product image is required')
+    .optional()
     .refine((val) => {
+      // If no value provided, it's valid (optional)
+      if (!val || val === '') {
+        return true;
+      }
       // Check if it's a valid base64 image or URL
       if (val.startsWith('data:image/')) {
         return true;

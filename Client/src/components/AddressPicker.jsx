@@ -68,23 +68,36 @@ const AddressPicker = ({
 
 
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Check if click is outside the entire dropdown container
-      const dropdownContainer = document.querySelector('.address-dropdown-container');
-      if (inputRef.current && !inputRef.current.contains(event.target) && 
-          (!dropdownContainer || !dropdownContainer.contains(event.target))) {
-        setShowDropdown(false);
-        setShowAddFormDropdown(false);
-      }
-    };
+     // Close dropdown when clicking outside
+   useEffect(() => {
+     const handleClickOutside = (event) => {
+       // Check if click is outside the entire dropdown container
+       const dropdownContainer = document.querySelector('.address-dropdown-container');
+       if (inputRef.current && !inputRef.current.contains(event.target) && 
+           (!dropdownContainer || !dropdownContainer.contains(event.target))) {
+         setShowDropdown(false);
+         setShowAddFormDropdown(false);
+       }
+     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+     document.addEventListener('mousedown', handleClickOutside);
+     return () => {
+       document.removeEventListener('mousedown', handleClickOutside);
+     };
+   }, []);
+
+   // Update dropdown position when it opens
+   useEffect(() => {
+     if (showDropdown && inputRef.current) {
+       const rect = inputRef.current.getBoundingClientRect();
+       const dropdownContainer = document.querySelector('.address-dropdown-container');
+       if (dropdownContainer) {
+         dropdownContainer.style.top = `${rect.bottom + 5}px`;
+         dropdownContainer.style.left = `${rect.left}px`;
+         dropdownContainer.style.width = `${rect.width}px`;
+       }
+     }
+   }, [showDropdown]);
 
 
 
@@ -340,7 +353,7 @@ const AddressPicker = ({
 
 
   return (
-    <div className="relative">
+    <div className="relative z-30">
       {/* Address Dropdown */}
       <div className="relative">
         <div className="relative">
@@ -366,9 +379,15 @@ const AddressPicker = ({
           </div>
         </div>
 
-        {/* Dropdown Menu */}
-        {showDropdown && (
-          <div className="address-dropdown-container absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                 {/* Dropdown Menu */}
+         {showDropdown && (
+           <div className="address-dropdown-container fixed bg-white border border-gray-300 rounded-lg shadow-lg z-[9999] max-h-96 overflow-y-auto" style={{ 
+             minHeight: '200px', 
+             maxHeight: '400px',
+             top: inputRef.current ? inputRef.current.getBoundingClientRect().bottom + 5 : 'auto',
+             left: inputRef.current ? inputRef.current.getBoundingClientRect().left : 'auto',
+             width: inputRef.current ? inputRef.current.offsetWidth : 'auto'
+           }}>
             {/* Add New Address Button */}
             <button
               type="button"

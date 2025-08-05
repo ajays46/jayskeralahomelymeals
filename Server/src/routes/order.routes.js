@@ -7,7 +7,8 @@ import {
     cancelOrder,
     getOrdersByDateRange,
     getDeliveryOrders,
-    getDeliverySchedulesForRouting
+    calculateMenuPricing,
+    calculateOrderTotal
 } from '../controllers/order.controller.js';
 import { authenticateToken } from '../middleware/authHandler.js';
 
@@ -26,6 +27,9 @@ router.delete('/:id', cancelOrder); // Cancel order
 // Delivery management routes (can be used by admin/delivery staff)
 router.get('/date-range/:startDate/:endDate', getOrdersByDateRange); // Get orders by date range
 router.get('/delivery/:date/:orderTime', getDeliveryOrders); // Get delivery orders for specific date/time
-router.get('/routing/:date', getDeliverySchedulesForRouting); // Get delivery schedules for AI routing
+
+// Pricing calculation routes
+router.post('/calculate-menu-pricing', calculateMenuPricing); // Calculate menu pricing for different plans
+router.post('/calculate-order-total', calculateOrderTotal); // Calculate total order price with dates and skip meals
 
 export default router; 

@@ -10,7 +10,6 @@ export const createOrderService = async (userId, orderData) => {
             orderItems, 
             deliveryAddressId,
             deliveryLocations, // New field for multiple delivery locations
-            deliverySchedule, // New field for detailed delivery information
             linkedRecurringOrderId 
         } = orderData;
 
@@ -75,41 +74,7 @@ export const createOrderService = async (userId, orderData) => {
             });
         }
 
-        // Validate delivery schedule if provided
-        let validatedDeliverySchedule = null;
-        if (deliverySchedule) {
-            try {
-                // Validate delivery schedule structure
-                const schedule = typeof deliverySchedule === 'string' ? JSON.parse(deliverySchedule) : deliverySchedule;
-                
-                // Extract all address IDs from the schedule
-                const addressIds = [];
-                Object.values(schedule).forEach(mealData => {
-                    if (mealData.deliveryAddressId) {
-                        addressIds.push(mealData.deliveryAddressId);
-                    }
-                });
-                
-                // Validate all addresses exist and belong to user
-                if (addressIds.length > 0) {
-                    const uniqueAddressIds = [...new Set(addressIds)];
-                    const addresses = await prisma.address.findMany({
-                        where: {
-                            id: { in: uniqueAddressIds },
-                            userId: userId
-                        }
-                    });
 
-                    if (addresses.length !== uniqueAddressIds.length) {
-                        throw new AppError('One or more delivery addresses not found or do not belong to user', 404);
-                    }
-                }
-                
-                validatedDeliverySchedule = JSON.stringify(schedule);
-            } catch (error) {
-                throw new AppError('Invalid delivery schedule format', 400);
-            }
-        }
 
         // Validate delivery locations if provided (for backward compatibility)
         if (deliveryLocations) {
@@ -146,8 +111,53 @@ export const createOrderService = async (userId, orderData) => {
             }
         }
 
+        // Ensure at least one delivery address is provided (either primary or meal-specific)
+        const hasPrimaryAddress = deliveryAddressId;
+        const hasMealAddresses = deliveryLocations && (
+            deliveryLocations.breakfast || 
+            deliveryLocations.lunch || 
+            deliveryLocations.dinner
+        );
+        
+        if (!hasPrimaryAddress && !hasMealAddresses) {
+            throw new AppError('At least one delivery address is required (primary or meal-specific)', 400);
+        }
+
+        // Check if this is a comprehensive menu order (like "Monthly Menu", "Weekly Menu")
+        // Check if any menu item contains 'monthly', 'weekly', or 'plan' in its name
+        let isComprehensiveMenu = false;
+        for (const item of validatedOrderItems) {
+            const menuItem = await prisma.menuItem.findUnique({
+                where: { id: item.menuItemId }
+            });
+            if (menuItem) {
+                const itemName = menuItem.name.toLowerCase();
+                if (itemName.includes('monthly') || itemName.includes('weekly') || itemName.includes('plan')) {
+                    isComprehensiveMenu = true;
+                    break;
+                }
+            }
+        }
+
         // Create order with transaction
         const order = await prisma.$transaction(async (tx) => {
+            // Determine the primary delivery address for the order
+            // Use the first available address from meal-specific addresses or fallback to deliveryAddressId
+            let primaryDeliveryAddressId = deliveryAddressId;
+            
+            if (deliveryLocations) {
+                // Try to find the first available meal-specific address
+                const mealAddresses = [
+                    deliveryLocations.breakfast,
+                    deliveryLocations.lunch, 
+                    deliveryLocations.dinner
+                ].filter(addr => addr); // Remove null/undefined values
+                
+                if (mealAddresses.length > 0) {
+                    primaryDeliveryAddressId = mealAddresses[0];
+                }
+            }
+            
             // Create the order
             const newOrder = await tx.order.create({
                 data: {
@@ -155,37 +165,130 @@ export const createOrderService = async (userId, orderData) => {
                     orderDate: orderDateObj,
                     orderTimes: JSON.stringify(orderTimes), // Store as JSON string
                     totalPrice,
-                    deliveryAddressId,
-                    deliverySchedule: validatedDeliverySchedule, // Store detailed delivery schedule
+                    deliveryAddressId: primaryDeliveryAddressId,
                     linkedRecurringOrderId,
                     status: 'Pending'
                 }
             });
 
-            // Create order items
-            const orderItemsData = validatedOrderItems.map(item => ({
-                orderId: newOrder.id,
-                menuItemId: item.menuItemId,
-                quantity: item.quantity,
-                total: item.total
-            }));
+            // Create delivery items based on delivery schedule and selected dates
+            const deliveryItemsData = [];
+            
+            // Get selected dates from order data
+            const selectedDates = orderData.selectedDates || [orderDate];
+            const deliveryDates = selectedDates.map(dateStr => new Date(dateStr));
+            
+            if (isComprehensiveMenu) {
+                // For comprehensive menus, create delivery items per day based on skipped meals
+                // Use the first menu item from orderItems (the "Monthly Menu" item)
+                const monthlyMenuItem = validatedOrderItems[0];
+                
+                if (monthlyMenuItem) {
+                    // Get the menu item price once
+                    const menuItem = await tx.menuItem.findUnique({
+                        where: { id: monthlyMenuItem.menuItemId },
+                        include: {
+                            prices: {
+                                orderBy: { createdAt: 'desc' },
+                                take: 1
+                            }
+                        }
+                    });
+                    
+                    const itemPrice = menuItem.prices[0]?.totalPrice || 0;
+                    const mealPrice = Math.round(itemPrice / 3); // Divide total by 3 for each meal
+                    
+                    // Create delivery items for each day and each meal (excluding skipped meals)
+                    deliveryDates.forEach(deliveryDate => {
+                        const dateStr = deliveryDate.toISOString().split('T')[0];
+                        const skippedMealsForDate = orderData.skipMeals?.[dateStr] || {};
+                        
+                        // Only create delivery items for meals that are NOT skipped
+                        if (!skippedMealsForDate.breakfast) {
+                            deliveryItemsData.push({
+                                orderId: newOrder.id,
+                                menuItemId: monthlyMenuItem.menuItemId,
+                                quantity: 1,
+                                total: mealPrice,
+                                deliveryDate: deliveryDate,
+                                deliveryTimeSlot: 'Breakfast',
+                                addressId: deliveryLocations?.breakfast || deliveryAddressId,
+                                status: 'Pending'
+                            });
+                        }
+                        
+                        if (!skippedMealsForDate.lunch) {
+                            deliveryItemsData.push({
+                                orderId: newOrder.id,
+                                menuItemId: monthlyMenuItem.menuItemId,
+                                quantity: 1,
+                                total: mealPrice,
+                                deliveryDate: deliveryDate,
+                                deliveryTimeSlot: 'Lunch',
+                                addressId: deliveryLocations?.lunch || deliveryAddressId,
+                                status: 'Pending'
+                            });
+                        }
+                        
+                        if (!skippedMealsForDate.dinner) {
+                            deliveryItemsData.push({
+                                orderId: newOrder.id,
+                                menuItemId: monthlyMenuItem.menuItemId,
+                                quantity: 1,
+                                total: mealPrice,
+                                deliveryDate: deliveryDate,
+                                deliveryTimeSlot: 'Dinner',
+                                addressId: deliveryLocations?.dinner || deliveryAddressId,
+                                status: 'Pending'
+                            });
+                        }
+                    });
+                }
+                
+                const totalPossibleMeals = deliveryDates.length * 3;
+                const skippedMealsCount = totalPossibleMeals - deliveryItemsData.length;
+                console.log(`Created ${deliveryItemsData.length} delivery items for comprehensive menu: ${deliveryDates.length} days × 3 meals (${skippedMealsCount} meals skipped)`);
+                
 
-            await tx.orderItem.createMany({
-                data: orderItemsData
-            });
+            } else {
+                // Fallback: create delivery items for all order items with default delivery time slot
+                // For regular menus, we don't have meal-specific skipping, so create all items
+                deliveryDates.forEach(deliveryDate => {
+                    validatedOrderItems.forEach(item => {
+                        deliveryItemsData.push({
+                            orderId: newOrder.id,
+                            menuItemId: item.menuItemId,
+                            quantity: item.quantity,
+                            total: item.total,
+                            deliveryDate: deliveryDate,
+                            deliveryTimeSlot: 'Breakfast', // Default time slot
+                            addressId: deliveryAddressId,
+                            status: 'Pending'
+                        });
+                    });
+                });
+            }
 
-            // Return order with items
+            // Create delivery items
+            if (deliveryItemsData.length > 0) {
+                await tx.deliveryItem.createMany({
+                    data: deliveryItemsData
+                });
+            }
+
+            // Return order with delivery items
             return await tx.order.findUnique({
                 where: { id: newOrder.id },
                 include: {
-                    orderItems: {
+                    deliveryItems: {
                         include: {
                             menuItem: {
                                 include: {
                                     product: true,
                                     menu: true
                                 }
-                            }
+                            },
+                            deliveryAddress: true
                         }
                     },
                     deliveryAddress: true
@@ -238,14 +341,15 @@ export const getUserOrdersService = async (userId, filters = {}) => {
         const orders = await prisma.order.findMany({
             where: whereClause,
             include: {
-                orderItems: {
+                deliveryItems: {
                     include: {
                         menuItem: {
                             include: {
                                 product: true,
                                 menu: true
                             }
-                        }
+                        },
+                        deliveryAddress: true
                     }
                 },
                 deliveryAddress: true
@@ -271,41 +375,44 @@ export const getOrderByIdService = async (userId, orderId) => {
                 userId: userId
             },
             include: {
-                orderItems: {
+                deliveryItems: {
                     include: {
                         menuItem: {
                             include: {
                                 product: true,
                                 menu: true
                             }
-                        }
+                        },
+                        deliveryAddress: true
                     }
                 },
                 deliveryAddress: true,
                 linkedRecurringOrder: {
                     include: {
-                        orderItems: {
+                        deliveryItems: {
                             include: {
                                 menuItem: {
                                     include: {
                                         product: true,
                                         menu: true
                                     }
-                                }
+                                },
+                                deliveryAddress: true
                             }
                         }
                     }
                 },
                 recurringOrders: {
                     include: {
-                        orderItems: {
+                        deliveryItems: {
                             include: {
                                 menuItem: {
                                     include: {
                                         product: true,
                                         menu: true
                                     }
-                                }
+                                },
+                                deliveryAddress: true
                             }
                         }
                     }
@@ -360,14 +467,15 @@ export const updateOrderStatusService = async (userId, orderId, status) => {
                 status: status
             },
             include: {
-                orderItems: {
+                deliveryItems: {
                     include: {
                         menuItem: {
                             include: {
                                 product: true,
                                 menu: true
                             }
-                        }
+                        },
+                        deliveryAddress: true
                     }
                 },
                 deliveryAddress: true
@@ -415,14 +523,15 @@ export const cancelOrderService = async (userId, orderId) => {
                 status: 'Cancelled'
             },
             include: {
-                orderItems: {
+                deliveryItems: {
                     include: {
                         menuItem: {
                             include: {
                                 product: true,
                                 menu: true
                             }
-                        }
+                        },
+                        deliveryAddress: true
                     }
                 },
                 deliveryAddress: true
@@ -471,14 +580,15 @@ export const getOrdersByDateRangeService = async (startDate, endDate, filters = 
         const orders = await prisma.order.findMany({
             where: whereClause,
             include: {
-                orderItems: {
+                deliveryItems: {
                     include: {
                         menuItem: {
                             include: {
                                 product: true,
                                 menu: true
                             }
-                        }
+                        },
+                        deliveryAddress: true
                     }
                 },
                 deliveryAddress: true,
@@ -501,56 +611,183 @@ export const getOrdersByDateRangeService = async (startDate, endDate, filters = 
     }
 };
 
-// Get delivery schedules for AI routing
-export const getDeliverySchedulesForRoutingService = async (date) => {
+
+
+// Calculate menu pricing for different plans
+export const calculateMenuPricingService = async (menuId, orderMode) => {
     try {
-        const orders = await prisma.order.findMany({
-            where: {
-                orderDate: new Date(date),
-                status: {
-                    in: ['Pending', 'Confirmed']
-                }
-            },
-            select: {
-                id: true,
-                userId: true,
-                orderDate: true,
-                orderTimes: true,
-                deliverySchedule: true,
-                deliveryAddress: {
-                    select: {
-                        id: true,
-                        street: true,
-                        housename: true,
-                        city: true,
-                        pincode: true,
-                        geoLocation: true
+        // Get menu with pricing data
+        const menu = await prisma.menu.findUnique({
+            where: { id: menuId },
+            include: {
+                menuItems: {
+                    include: {
+                        prices: {
+                            orderBy: { createdAt: 'desc' },
+                            take: 1
+                        }
                     }
                 }
-            },
-            orderBy: [
-                { orderDate: 'asc' },
-                { createdAt: 'asc' }
-            ]
+            }
         });
 
-        // Parse delivery schedules and format for AI routing
-        const routingData = orders.map(order => {
-            const deliverySchedule = order.deliverySchedule ? JSON.parse(order.deliverySchedule) : null;
-            
-            return {
-                orderId: order.id,
-                userId: order.userId,
-                orderDate: order.orderDate,
-                orderTimes: JSON.parse(order.orderTimes),
-                deliverySchedule: deliverySchedule,
-                primaryDeliveryAddress: order.deliveryAddress
-            };
-        });
+        if (!menu) {
+            throw new AppError('Menu not found', 404);
+        }
 
-        return routingData;
+        // Calculate meal type prices
+        const mealPricing = {
+            breakfast: { price: 0, items: [] },
+            lunch: { price: 0, items: [] },
+            dinner: { price: 0, items: [] }
+        };
+
+        // Group menu items by meal type and calculate prices
+        for (const menuItem of menu.menuItems) {
+            if (menuItem.prices && menuItem.prices.length > 0) {
+                const price = menuItem.prices[0].totalPrice;
+                
+                if (menuItem.mealType === 'breakfast') {
+                    mealPricing.breakfast.price += price;
+                    mealPricing.breakfast.items.push({
+                        id: menuItem.id,
+                        name: menuItem.productName,
+                        price: price
+                    });
+                } else if (menuItem.mealType === 'lunch') {
+                    mealPricing.lunch.price += price;
+                    mealPricing.lunch.items.push({
+                        id: menuItem.id,
+                        name: menuItem.productName,
+                        price: price
+                    });
+                } else if (menuItem.mealType === 'dinner') {
+                    mealPricing.dinner.price += price;
+                    mealPricing.dinner.items.push({
+                        id: menuItem.id,
+                        name: menuItem.productName,
+                        price: price
+                    });
+                }
+            }
+        }
+
+        // Calculate total menu price
+        const totalMenuPrice = mealPricing.breakfast.price + mealPricing.lunch.price + mealPricing.dinner.price;
+
+        // Calculate plan-specific pricing
+        const calculatedPrices = {
+            singleDay: totalMenuPrice,
+            sevenDayPlan: totalMenuPrice * 7,
+            thirtyDayPlan: totalMenuPrice * 30
+        };
+
+        // Determine display label based on order mode and menu name
+        let displayLabel = '7-Day Plan Total:';
+        let displayPrice = calculatedPrices.sevenDayPlan;
+
+        if (orderMode === 'daily-flexible') {
+            displayLabel = 'Menu Items Total:';
+            displayPrice = calculatedPrices.singleDay;
+        } else if (menu.name?.toLowerCase().includes('monthly') || menu.name?.toLowerCase().includes('month')) {
+            displayLabel = '30-Day Plan Total:';
+            displayPrice = calculatedPrices.thirtyDayPlan;
+        }
+
+        return {
+            menuId: menu.id,
+            menuName: menu.name,
+            totalMenuPrice,
+            mealPricing,
+            calculatedPrices,
+            displayLabel,
+            displayPrice
+        };
     } catch (error) {
-        console.error('Get delivery schedules for routing service error:', error);
-        throw new AppError('Failed to retrieve delivery schedules for routing', 500);
+        console.error('Calculate menu pricing service error:', error);
+        throw new AppError('Failed to calculate menu pricing', 500);
+    }
+};
+
+// Calculate total order price with dates and skip meals
+export const calculateOrderTotalService = async (menuId, selectedDates, skipMeals, orderMode, dateMenuSelections) => {
+    try {
+        let totalPrice = 0;
+        let pricingBreakdown = {
+            basePrice: 0,
+            dateMultiplier: 0,
+            skippedMealsDeduction: 0,
+            finalTotal: 0
+        };
+
+        // For daily flexible mode
+        if (orderMode === 'daily-flexible') {
+            totalPrice = 0;
+            
+            // Calculate based on individual date-menu selections
+            for (const date of selectedDates) {
+                const dateStr = date.split('T')[0];
+                const menuForDate = dateMenuSelections[dateStr];
+                
+                if (menuForDate) {
+                    const menuPricing = await calculateMenuPricingService(menuForDate.id, orderMode);
+                    totalPrice += menuPricing.totalMenuPrice;
+                }
+            }
+
+            // Subtract skipped meals
+            let skippedMealsTotal = 0;
+            for (const [dateStr, skippedMealsForDate] of Object.entries(skipMeals || {})) {
+                const menuForDate = dateMenuSelections[dateStr];
+                if (menuForDate) {
+                    const menuPricing = await calculateMenuPricingService(menuForDate.id, orderMode);
+                    for (const mealType of Object.keys(skippedMealsForDate)) {
+                        skippedMealsTotal += menuPricing.mealPricing[mealType]?.price || 0;
+                    }
+                }
+            }
+
+            totalPrice -= skippedMealsTotal;
+            pricingBreakdown = {
+                basePrice: totalPrice + skippedMealsTotal,
+                dateMultiplier: 1,
+                skippedMealsDeduction: skippedMealsTotal,
+                finalTotal: totalPrice
+            };
+        } else {
+            // For other modes (single, multiple)
+            const menuPricing = await calculateMenuPricingService(menuId, orderMode);
+            const dailyTotal = menuPricing.totalMenuPrice;
+            
+            // Calculate base price for all dates
+            const basePrice = dailyTotal * selectedDates.length;
+            
+            // Calculate skipped meals deduction
+            let skippedMealsTotal = 0;
+            for (const [dateStr, skippedMealsForDate] of Object.entries(skipMeals || {})) {
+                for (const mealType of Object.keys(skippedMealsForDate)) {
+                    skippedMealsTotal += menuPricing.mealPricing[mealType]?.price || 0;
+                }
+            }
+
+            totalPrice = basePrice - skippedMealsTotal;
+            
+            pricingBreakdown = {
+                basePrice: dailyTotal,
+                dateMultiplier: selectedDates.length,
+                skippedMealsDeduction: skippedMealsTotal,
+                finalTotal: totalPrice
+            };
+        }
+
+        return {
+            totalPrice,
+            pricingBreakdown,
+            selectedDatesCount: selectedDates.length,
+            skipMealsCount: Object.keys(skipMeals || {}).length
+        };
+    } catch (error) {
+        console.error('Calculate order total service error:', error);
+        throw new AppError('Failed to calculate order total', 500);
     }
 }; 

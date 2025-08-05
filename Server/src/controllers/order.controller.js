@@ -6,7 +6,8 @@ import {
     updateOrderStatusService,
     cancelOrderService,
     getOrdersByDateRangeService,
-    getDeliverySchedulesForRoutingService
+    calculateMenuPricingService,
+    calculateOrderTotalService
 } from '../services/order.service.js';
 
 // Create a new order
@@ -178,23 +179,56 @@ export const getDeliveryOrders = async (req, res, next) => {
     }
 };
 
-// Get delivery schedules for AI routing
-export const getDeliverySchedulesForRouting = async (req, res, next) => {
-    try {
-        const { date } = req.params;
 
-        if (!date) {
-            return next(new AppError('Date is required', 400));
+
+// Calculate menu pricing for different plans
+export const calculateMenuPricing = async (req, res, next) => {
+    try {
+        const { menuId, orderMode } = req.body;
+
+        if (!menuId) {
+            return next(new AppError('Menu ID is required', 400));
         }
 
-        const routingData = await getDeliverySchedulesForRoutingService(date);
+        const pricingData = await calculateMenuPricingService(menuId, orderMode);
 
         res.status(200).json({
             success: true,
-            message: 'Delivery schedules retrieved successfully for AI routing',
-            data: {
-                routingData: routingData
-            }
+            message: 'Menu pricing calculated successfully',
+            data: pricingData
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Calculate total order price with dates and skip meals
+export const calculateOrderTotal = async (req, res, next) => {
+    try {
+        const { 
+            menuId, 
+            selectedDates, 
+            skipMeals, 
+            orderMode, 
+            dateMenuSelections 
+        } = req.body;
+
+        if (!menuId || !selectedDates || selectedDates.length === 0) {
+            return next(new AppError('Menu ID and selected dates are required', 400));
+        }
+
+        const totalData = await calculateOrderTotalService(
+            menuId, 
+            selectedDates, 
+            skipMeals, 
+            orderMode, 
+            dateMenuSelections
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Order total calculated successfully',
+            data: totalData
         });
     } catch (error) {
         next(error);

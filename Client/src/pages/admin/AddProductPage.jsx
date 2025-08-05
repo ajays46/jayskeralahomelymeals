@@ -447,7 +447,7 @@ const AddProductPage = () => {
                     </div>
 
                     <div className="lg:col-span-2">
-                      <label className="block mb-1 text-xs sm:text-sm text-gray-300">Product Image <span className="text-red-400">*</span></label>
+                      <label className="block mb-1 text-xs sm:text-sm text-gray-300">Product Image <span className="text-gray-500">(Optional)</span></label>
                       {getFieldError('imageUrl') && (
                         <p className="text-red-400 text-xs mb-2">{getFieldError('imageUrl')}</p>
                       )}

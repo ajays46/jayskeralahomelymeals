@@ -5,12 +5,10 @@ export const menuItemSchema = z.object({
     .min(1, 'Menu item name is required')
     .min(2, 'Menu item name must be at least 2 characters')
     .max(255, 'Menu item name must be less than 255 characters'),
-  productName: z.string()
+  productId: z.string()
     .min(1, 'Product selection is required'),
   menuId: z.string()
     .min(1, 'Menu selection is required'),
-  mealType: z.string()
-    .min(1, 'Meal type is required'),
 });
 
 export const validateMenuItemForm = (data) => {

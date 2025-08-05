@@ -13,7 +13,8 @@ const MenuSelector = ({
   onToggleSection,
   getFilteredMenus,
   getCleanMenuItemName,
-  isWeekdayMenu
+  isWeekdayMenu,
+  orderMode
 }) => {
   return (
     <div className="mb-8">
@@ -63,7 +64,10 @@ const MenuSelector = ({
               )}
             </div>
             <div className="text-sm text-gray-500">
-              Click on a menu to view details
+              {orderMode === 'daily-flexible' 
+                ? 'Click on a menu to assign it to selected dates'
+                : 'Click on a menu to view details'
+              }
             </div>
           </div>
 
@@ -153,27 +157,7 @@ const MenuSelector = ({
                         </div>
                       </div>
                       
-                      {/* 2. Menu Item Names (Second) */}
-                      <div className="mb-4">
-                        <h5 className="text-sm font-semibold text-gray-700 mb-2">Menu Items:</h5>
-                        <div className="space-y-1">
-                          {menu.mealTypes.breakfast.map((item, index) => (
-                            <div key={`breakfast-${index}`} className="text-xs text-gray-600 bg-green-50 px-2 py-1 rounded">
-                              🍳 {getCleanMenuItemName(item.name)}
-                            </div>
-                          ))}
-                          {menu.mealTypes.lunch.map((item, index) => (
-                            <div key={`lunch-${index}`} className="text-xs text-gray-600 bg-yellow-50 px-2 py-1 rounded">
-                              🍽️ {getCleanMenuItemName(item.name)}
-                            </div>
-                          ))}
-                          {menu.mealTypes.dinner.map((item, index) => (
-                            <div key={`dinner-${index}`} className="text-xs text-gray-600 bg-pink-50 px-2 py-1 rounded">
-                              🌙 {getCleanMenuItemName(item.name)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      
                       
                       {/* 3. Menu Category Names (Third) */}
                       <div className="mb-4">
@@ -193,27 +177,27 @@ const MenuSelector = ({
                         </div>
                       </div>
                       
-                      {/* 4. Menu Items Details (Last) */}
-                      <div className="mb-4">
-                        <h5 className="text-sm font-semibold text-gray-700 mb-2">Meal Types Included:</h5>
-                        <div className="flex flex-wrap gap-2">
-                          {menu.hasBreakfast && (
-                            <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs font-medium px-3 py-1.5 rounded-full border border-green-200">
-                              🍳 Breakfast
-                            </span>
-                          )}
-                          {menu.hasLunch && (
-                            <span className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-700 text-xs font-medium px-3 py-1.5 rounded-full border border-yellow-200">
-                              🍽️ Lunch
-                            </span>
-                          )}
-                          {menu.hasDinner && (
-                            <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs font-medium px-3 py-1.5 rounded-full border border-pink-200">
-                              🌙 Dinner
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                                             {/* 4. Meal Types Included */}
+                       <div className="mb-4">
+                         <h5 className="text-sm font-semibold text-gray-700 mb-2">Meal Types Included:</h5>
+                         <div className="flex flex-wrap gap-2">
+                           {menu.hasBreakfast && (
+                             <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs font-medium px-3 py-1.5 rounded-full border border-green-200">
+                               🍳 Breakfast
+                             </span>
+                           )}
+                           {menu.hasLunch && (
+                             <span className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-700 text-xs font-medium px-3 py-1.5 rounded-full border border-yellow-200">
+                               🍽️ Lunch
+                             </span>
+                           )}
+                           {menu.hasDinner && (
+                             <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs font-medium px-3 py-1.5 rounded-full border border-pink-200">
+                               🌙 Dinner
+                             </span>
+                           )}
+                                                   </div>   
+                       </div>
 
                       {/* Selection indicator */}
                       <div className={`absolute bottom-4 right-4 transition-all duration-300 ${

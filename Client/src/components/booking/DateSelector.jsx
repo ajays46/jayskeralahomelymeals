@@ -92,17 +92,11 @@ const DateSelector = ({
                 key={index}
                 onClick={() => onDateSelection(date)}
                 className={`flex flex-col items-center p-3 sm:p-4 rounded-2xl min-w-[65px] sm:min-w-[75px] lg:min-w-[85px] transition-all duration-300 flex-shrink-0 shadow-lg border-2 relative ${
-                  orderMode === 'single' 
-                    ? (isSelected(date) 
-                        ? 'bg-gradient-to-br from-[#FE8C00] to-[#F83600] text-white border-[#FE8C00] shadow-orange-200 transform scale-110 z-10' 
-                        : isToday(date)
-                        ? 'bg-gradient-to-br from-orange-100 to-yellow-100 text-[#FE8C00] border-orange-300 hover:shadow-orange-200 hover:scale-105'
-                        : 'bg-white/80 backdrop-blur-sm text-gray-600 border-gray-200 hover:bg-white hover:shadow-xl hover:border-[#FE8C00] hover:scale-105')
-                    : (selectedDates.some(d => d.toDateString() === date.toDateString())
-                        ? 'bg-gradient-to-br from-[#FE8C00] to-[#F83600] text-white border-[#FE8C00] shadow-orange-200 transform scale-110 z-10'
-                        : isToday(date)
-                        ? 'bg-gradient-to-br from-orange-100 to-yellow-100 text-[#FE8C00] border-orange-300 hover:shadow-orange-200 hover:scale-105'
-                        : 'bg-white/80 backdrop-blur-sm text-gray-600 border-gray-200 hover:bg-white hover:shadow-xl hover:border-[#FE8C00] hover:scale-105')
+                  isSelected(date) 
+                    ? 'bg-gradient-to-br from-[#FE8C00] to-[#F83600] text-white border-[#FE8C00] shadow-orange-200 transform scale-110 z-10' 
+                    : isToday(date)
+                    ? 'bg-gradient-to-br from-orange-100 to-yellow-100 text-[#FE8C00] border-orange-300 hover:shadow-orange-200 hover:scale-105'
+                    : 'bg-white/80 backdrop-blur-sm text-gray-600 border-gray-200 hover:bg-white hover:shadow-xl hover:border-[#FE8C00] hover:scale-105'
                 }`}
               >
                 <span className="text-sm sm:text-base lg:text-lg font-bold">{formatDayNumber(date)}</span>

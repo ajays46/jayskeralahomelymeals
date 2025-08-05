@@ -50,6 +50,7 @@ model Address {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   orders      Order[]
+  deliveryItems DeliveryItem[]
 
   @@map("addresses")
 }
@@ -82,7 +83,7 @@ model Company {
 model Product {
   id          String            @id @default(uuid()) @db.VarChar(36)
   companyId   String            @map("company_id") @db.VarChar(36)
-  imageUrl    String            @map("image_url") @db.Text
+  imageUrl    String?           @map("image_url") @db.Text
   code        String            @unique @db.VarChar(255)
   productName String            @map("product_name") @db.VarChar(255)
   status      ProductStatus     @default(ACTIVE)
@@ -92,6 +93,7 @@ model Product {
   prices      ProductPrice[]
   quantities  ProductQuantity[]
   categories  ProductCategory[]
+  menuItems   MenuItem[]
 
   @@map("products")
 }
@@ -123,13 +125,14 @@ model ProductQuantity {
 model MenuItem {
   id          String   @id @default(uuid()) @db.VarChar(36)
   name        String   @db.VarChar(255)
-  productName String?  @map("product_name") @db.VarChar(255) // Store product name directly
+  productId   String?  @map("product_id") @db.VarChar(36) // Reference to Product
   menuId      String   @map("menu_id") @db.VarChar(36)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   menu        Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   prices      MenuItemPrice[]
-  orderItems  OrderItem[]
+  deliveryItems DeliveryItem[]
 
   @@map("menu_items")
 }
@@ -224,29 +227,35 @@ model Order {
   orderTimes            String           @map("order_times") // JSON string of OrderTime array
   totalPrice            Int              @map("total_price")
   deliveryAddressId     String?          @map("delivery_address_id") @db.VarChar(36)
-  deliverySchedule      String?          @map("delivery_schedule") @db.Text // JSON string with detailed delivery info for AI routing
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")
   
   deliveryAddress       Address?         @relation(fields: [deliveryAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  orderItems            OrderItem[]
+  deliveryItems         DeliveryItem[]
 
   @@map("orders")
 }
 
-model OrderItem {
-  id           String   @id @default(uuid()) @db.VarChar(36)
-  orderId      String   @map("order_id") @db.VarChar(36)
-  menuItemId   String   @map("menu_item_id") @db.VarChar(36)
-  quantity     Int
-  total        Int
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  menuItem     MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@map("order_items")
+model DeliveryItem {
+  id                 String           @id @default(uuid()) @db.VarChar(36)
+  orderId            String           @map("order_id") @db.VarChar(36)
+  menuItemId         String           @map("menu_item_id") @db.VarChar(36)
+  quantity           Int
+  total              Int
+  deliveryDate       DateTime         @map("delivery_date") @db.Date
+  deliveryTimeSlot   DeliveryTimeSlot @map("delivery_time_slot")
+  addressId          String           @map("address_id") @db.VarChar(36)
+  status             OrderStatus      @default(Pending)
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  
+  // Relations
+  order              Order            @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menuItem           MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  deliveryAddress    Address          @relation(fields: [addressId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("delivery_items")
 }
 
 enum Status {
@@ -309,6 +318,12 @@ enum OrderTime {
   Morning
   Noon
   Night
+}
+
+enum DeliveryTimeSlot {
+  Breakfast
+  Lunch
+  Dinner
 }
 
 

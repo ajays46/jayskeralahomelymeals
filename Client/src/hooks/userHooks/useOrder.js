@@ -71,6 +71,45 @@ const orderApi = {
     }
 
     return response.data.data.order;
+  },
+
+  // Calculate menu pricing
+  calculateMenuPricing: async ({ menuId, orderMode }) => {
+    const response = await api.post('/orders/calculate-menu-pricing', {
+      menuId,
+      orderMode
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to calculate menu pricing');
+    }
+
+    return response.data.data;
+  },
+
+  // Calculate order total
+  calculateOrderTotal: async ({ menuId, selectedDates, skipMeals, orderMode, dateMenuSelections }) => {
+    const response = await api.post('/orders/calculate-order-total', {
+      menuId,
+      selectedDates,
+      skipMeals,
+      orderMode,
+      dateMenuSelections
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to calculate order total');
+    }
+
+    return response.data.data;
   }
 };
 
@@ -103,6 +142,28 @@ export const useOrderById = (orderId) => {
     enabled: !!orderId,
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+};
+
+// Custom hook for menu pricing calculation
+export const useCalculateMenuPricing = () => {
+  return useMutation({
+    mutationFn: orderApi.calculateMenuPricing,
+    onError: (error) => {
+      console.error('Menu pricing calculation error:', error);
+    }
+  });
+};
+
+// Custom hook for order total calculation
+export const useCalculateOrderTotal = () => {
+  return useMutation({
+    mutationFn: orderApi.calculateOrderTotal,
+    onError: (error) => {
+      console.error('Order total calculation error:', error);
+    }
   });
 };
 
