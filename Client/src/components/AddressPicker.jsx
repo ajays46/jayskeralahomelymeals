@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   FiMapPin, 
   FiNavigation, 
@@ -33,6 +34,11 @@ const AddressPicker = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddFormDropdown, setShowAddFormDropdown] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0
+  });
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
     addressId: null,
@@ -54,8 +60,6 @@ const AddressPicker = ({
     isDeleting
   } = useAddress();
 
-
-
   // Form state for adding/editing address
   const [addressForm, setAddressForm] = useState({
     street: '',
@@ -66,40 +70,53 @@ const AddressPicker = ({
     addressType: 'HOME'
   });
 
+  // Close dropdown when clicking outside and update position on scroll/resize
+  useEffect(() => {
+    // Update dropdown position when scrolling or resizing
+    const updateDropdownPosition = () => {
+      if (inputRef.current && showDropdown) {
+        const rect = inputRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + 5,
+          left: rect.left,
+          width: rect.width
+        });
+      }
+    };
 
+    // Close dropdown when clicking outside
+    const handleClickOutside = (event) => {
+      // Check if click is outside the entire dropdown container
+      const dropdownContainer = document.querySelector('.address-dropdown-container');
+      if (inputRef.current && !inputRef.current.contains(event.target) && 
+          (!dropdownContainer || !dropdownContainer.contains(event.target))) {
+        setShowDropdown(false);
+        setShowAddFormDropdown(false);
+      }
+    };
 
-     // Close dropdown when clicking outside
-   useEffect(() => {
-     const handleClickOutside = (event) => {
-       // Check if click is outside the entire dropdown container
-       const dropdownContainer = document.querySelector('.address-dropdown-container');
-       if (inputRef.current && !inputRef.current.contains(event.target) && 
-           (!dropdownContainer || !dropdownContainer.contains(event.target))) {
-         setShowDropdown(false);
-         setShowAddFormDropdown(false);
-       }
-     };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', updateDropdownPosition, true);
+    window.addEventListener('resize', updateDropdownPosition);
 
-     document.addEventListener('mousedown', handleClickOutside);
-     return () => {
-       document.removeEventListener('mousedown', handleClickOutside);
-     };
-   }, []);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', updateDropdownPosition, true);
+      window.removeEventListener('resize', updateDropdownPosition);
+    };
+  }, [showDropdown]);
 
-   // Update dropdown position when it opens
-   useEffect(() => {
-     if (showDropdown && inputRef.current) {
-       const rect = inputRef.current.getBoundingClientRect();
-       const dropdownContainer = document.querySelector('.address-dropdown-container');
-       if (dropdownContainer) {
-         dropdownContainer.style.top = `${rect.bottom + 5}px`;
-         dropdownContainer.style.left = `${rect.left}px`;
-         dropdownContainer.style.width = `${rect.width}px`;
-       }
-     }
-   }, [showDropdown]);
-
-
+  // Update position when dropdown opens
+  useEffect(() => {
+    if (showDropdown && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 5,
+        left: rect.left,
+        width: rect.width
+      });
+    }
+  }, [showDropdown]);
 
   // Get current location using browser geolocation
   const getCurrentLocation = () => {
@@ -178,8 +195,6 @@ const AddressPicker = ({
       setIsGettingLocation(false);
     }
   };
-
-
 
   // Handle form input changes
   const handleFormChange = (e) => {
@@ -350,10 +365,8 @@ const AddressPicker = ({
     }
   };
 
-
-
   return (
-    <div className="relative z-30">
+    <div className="relative z-[9999]">
       {/* Address Dropdown */}
       <div className="relative">
         <div className="relative">
@@ -363,49 +376,49 @@ const AddressPicker = ({
             value={value}
             onChange={() => {}} // Read-only
             placeholder={placeholder}
-            className={`w-full pl-10 pr-12 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs sm:text-sm lg:text-base cursor-pointer ${className}`}
+            className={`w-full pl-8 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs sm:text-sm lg:text-base cursor-pointer ${className}`}
             onClick={() => setShowDropdown(!showDropdown)}
             readOnly
           />
           
           {/* Location Icon */}
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+          <div className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2">
             <FiMapPin className="text-gray-400 text-sm sm:text-base" />
           </div>
 
           {/* Dropdown Arrow */}
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+          <div className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2">
             <FiChevronDown className={`text-gray-400 text-sm sm:text-base transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
           </div>
         </div>
 
-                 {/* Dropdown Menu */}
-         {showDropdown && (
-           <div className="address-dropdown-container fixed bg-white border border-gray-300 rounded-lg shadow-lg z-[9999] max-h-96 overflow-y-auto" style={{ 
-             minHeight: '200px', 
-             maxHeight: '400px',
-             top: inputRef.current ? inputRef.current.getBoundingClientRect().bottom + 5 : 'auto',
-             left: inputRef.current ? inputRef.current.getBoundingClientRect().left : 'auto',
-             width: inputRef.current ? inputRef.current.offsetWidth : 'auto'
-           }}>
+        {/* Dropdown Menu */}
+        {showDropdown && createPortal(
+          <div className="address-dropdown-container fixed bg-white border border-gray-300 rounded-lg shadow-xl z-[99999] max-h-96 overflow-y-auto" style={{ 
+            minHeight: '200px', 
+            maxHeight: '400px',
+            top: inputRef.current ? inputRef.current.getBoundingClientRect().bottom + 5 : 'auto',
+            left: inputRef.current ? inputRef.current.getBoundingClientRect().left : 'auto',
+            width: inputRef.current ? inputRef.current.offsetWidth : 'auto'
+          }}>
             {/* Add New Address Button */}
             <button
               type="button"
               onClick={() => {
                 setShowAddFormDropdown(true);
               }}
-              className="w-full p-3 border-b border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-2 text-left"
+              className="w-full p-2 sm:p-3 border-b border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-2 text-left"
             >
-              <FiPlus className="text-orange-500" />
-              <span className="text-sm font-medium text-orange-600">Add New Address</span>
+              <FiPlus className="text-orange-500 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium text-orange-600">Add New Address</span>
             </button>
             {/* Add/Edit Address Form Dropdown */}
             {showAddFormDropdown && (
-              <div className="p-4 border-b border-gray-200 bg-gray-50">
-                <div className="text-sm font-medium text-gray-800 mb-3">
+              <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
+                <div className="text-xs sm:text-sm font-medium text-gray-800 mb-2 sm:mb-3">
                   {selectedAddress ? 'Edit Address' : 'Add New Address'}
                 </div>
-                <form className="space-y-3" onSubmit={(e) => {
+                <form className="space-y-2 sm:space-y-3" onSubmit={(e) => {
                   e.preventDefault();
                   saveAddress();
                 }}>
@@ -498,7 +511,7 @@ const AddressPicker = ({
                       disabled={isGettingLocation}
                       className="w-full flex items-center gap-2 p-2 border border-gray-300 rounded text-xs hover:bg-gray-100 transition-colors disabled:opacity-50"
                     >
-                      <MdLocationOn className="text-gray-600 text-sm" />
+                      <MdLocationOn className="text-gray-600 text-sm flex-shrink-0" />
                       <span className="text-xs text-gray-700">
                         {isGettingLocation ? 'Getting location...' : 'Use my current location'}
                       </span>
@@ -528,24 +541,26 @@ const AddressPicker = ({
                           addressType: 'HOME'
                         });
                       }}
-                      className="flex-1 px-3 py-1.5 border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 transition-colors"
+                      className="flex-1 px-2 sm:px-3 py-1.5 border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isCreating || isUpdating}
-                      className="flex-1 px-3 py-1.5 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 px-2 sm:px-3 py-1.5 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isCreating || isUpdating ? (
                         <>
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                          {selectedAddress ? 'Updating...' : 'Saving...'}
+                          <span className="hidden sm:inline">{selectedAddress ? 'Updating...' : 'Saving...'}</span>
+                          <span className="sm:hidden">{selectedAddress ? 'Update' : 'Save'}</span>
                         </>
                       ) : (
                         <>
                           <FiCheck size={12} />
-                          {selectedAddress ? 'Update' : 'Save'}
+                          <span className="hidden sm:inline">{selectedAddress ? 'Update' : 'Save'}</span>
+                          <span className="sm:hidden">{selectedAddress ? 'Update' : 'Save'}</span>
                         </>
                       )}
                     </button>
@@ -556,15 +571,15 @@ const AddressPicker = ({
 
             {/* Saved Addresses */}
             {isLoadingAddresses ? (
-              <div className="p-4 text-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto"></div>
-                <p className="text-gray-500 text-sm mt-2">Loading addresses...</p>
+              <div className="p-3 sm:p-4 text-center">
+                <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-orange-500 mx-auto"></div>
+                <p className="text-gray-500 text-xs sm:text-sm mt-2">Loading addresses...</p>
               </div>
             ) : userAddresses.length > 0 ? (
               userAddresses.map((address) => (
                 <div
                   key={address.id}
-                  className="p-3 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="p-2 sm:p-3 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => {
                     const fullAddress = `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
                     // Send both the address ID and the display name
@@ -573,25 +588,25 @@ const AddressPicker = ({
                     setShowDropdown(false);
                   }}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="mt-1 flex-shrink-0">
                       {getAddressTypeIcon(address.addressType)}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-gray-800">
+                        <span className="text-xs sm:text-sm font-medium text-gray-800">
                           {getAddressTypeLabel(address.addressType)}
                         </span>
                         {address.housename && (
                           <span className="text-xs text-gray-500">({address.housename})</span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">{address.street}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs sm:text-sm text-gray-600 mb-1 break-words">{address.street}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 break-words">
                         {address.city} - {address.pincode}
                       </p>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -600,7 +615,7 @@ const AddressPicker = ({
                         className="p-1 text-gray-400 hover:text-blue-600"
                         title="Edit address"
                       >
-                        <FiEdit size={14} />
+                        <FiEdit size={12} className="sm:w-3.5 sm:h-3.5" />
                       </button>
                       <button
                         onClick={(e) => {
@@ -611,20 +626,21 @@ const AddressPicker = ({
                         className="p-1 text-gray-400 hover:text-red-600"
                         title="Delete address"
                       >
-                        <FiTrash2 size={14} />
+                        <FiTrash2 size={12} className="sm:w-3.5 sm:h-3.5" />
                       </button>
                     </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="p-4 text-center">
-                <FiMapPin className="text-gray-400 text-2xl mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">No saved addresses</p>
-                <p className="text-gray-400 text-xs">Add your first address to get started</p>
+              <div className="p-3 sm:p-4 text-center">
+                <FiMapPin className="text-gray-400 text-xl sm:text-2xl mx-auto mb-2" />
+                <p className="text-gray-500 text-xs sm:text-sm">No saved addresses</p>
+                <p className="text-gray-400 text-xs mt-1">Add your first address to get started</p>
               </div>
             )}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
 
@@ -639,7 +655,7 @@ const AddressPicker = ({
       {selectedLocation && (
         <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center gap-2">
-            <FiCheck className="text-green-500 text-sm" />
+            <FiCheck className="text-green-500 text-sm flex-shrink-0" />
             <p className="text-green-700 text-xs sm:text-sm">Location detected from GPS</p>
           </div>
         </div>
@@ -648,13 +664,38 @@ const AddressPicker = ({
       {/* Address Error */}
       {addressError && (
         <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600 text-xs sm:text-sm">{addressError.message || addressError}</p>
-          <button 
-            onClick={clearError}
-            className="text-red-500 hover:text-red-700 text-xs underline mt-1"
-          >
-            Dismiss
-          </button>
+          {addressError.message?.includes('401') || addressError.message?.includes('unauthorized') ? (
+            <div>
+              <p className="text-red-600 text-xs sm:text-sm mb-2">Please log in to manage your addresses</p>
+              <button 
+                onClick={() => {
+                  clearError();
+                  // Trigger the auth slider to open
+                  const event = new CustomEvent('openAuthSlider');
+                  window.dispatchEvent(event);
+                }}
+                className="text-blue-600 hover:text-blue-800 text-xs underline"
+              >
+                Log In
+              </button>
+              <button 
+                onClick={clearError}
+                className="text-red-500 hover:text-red-700 text-xs underline ml-3"
+              >
+                Dismiss
+              </button>
+            </div>
+          ) : (
+            <div>
+              <p className="text-red-600 text-xs sm:text-sm">{addressError.message || addressError}</p>
+              <button 
+                onClick={clearError}
+                className="text-red-500 hover:text-red-700 text-xs underline mt-1"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -72,7 +72,7 @@ const AddMenuPage = () => {
   // Handle mutation success/error states
   useEffect(() => {
     if (menuCreated) {
-      
+      setIsLoading(false);
       setIsSuccess(true);
       setForm({
         name: '',
@@ -92,6 +92,7 @@ const AddMenuPage = () => {
 
   useEffect(() => {
     if (isError && menuError) {
+      setIsLoading(false);
       console.error('Menu creation error:', menuError);
       setError(menuError.response?.data?.message || menuError.message || 'Failed to create menu');
     }
@@ -100,7 +101,7 @@ const AddMenuPage = () => {
   // Handle menu category success/error states
   useEffect(() => {
     if (categoryCreated) {
-      
+      setIsLoading(false);
       setIsSuccess(true);
       setMenuCategoryForm({
         name: '',
@@ -120,6 +121,7 @@ const AddMenuPage = () => {
 
   useEffect(() => {
     if (isCategoryError && categoryError) {
+      setIsLoading(false);
       console.error('Menu category creation error:', categoryError);
       setError(categoryError.response?.data?.message || categoryError.message || 'Failed to create menu category');
     }
@@ -128,6 +130,7 @@ const AddMenuPage = () => {
   // Handle menu update success/error states
   useEffect(() => {
     if (menuUpdated) {
+      setIsLoading(false);
       setIsSuccess(true);
       setShowEditMenuModal(false);
       setEditingMenu(null);
@@ -144,6 +147,7 @@ const AddMenuPage = () => {
 
   useEffect(() => {
     if (isUpdateMenuError && updateMenuError) {
+      setIsLoading(false);
       console.error('Menu update error:', updateMenuError);
       setError(updateMenuError.response?.data?.message || updateMenuError.message || 'Failed to update menu');
     }
@@ -152,6 +156,7 @@ const AddMenuPage = () => {
   // Handle menu delete success/error states
   useEffect(() => {
     if (menuDeleted) {
+      setIsLoading(false);
       setIsSuccess(true);
       setShowDeleteMenuModal(false);
       setDeletingMenu(null);
@@ -163,6 +168,7 @@ const AddMenuPage = () => {
 
   useEffect(() => {
     if (isDeleteMenuError && deleteMenuError) {
+      setIsLoading(false);
       console.error('Menu delete error:', deleteMenuError);
       setError(deleteMenuError.response?.data?.message || deleteMenuError.message || 'Failed to delete menu');
     }
@@ -171,6 +177,7 @@ const AddMenuPage = () => {
   // Handle category update success/error states
   useEffect(() => {
     if (categoryUpdated) {
+      setIsLoading(false);
       setIsSuccess(true);
       setShowEditCategoryModal(false);
       setEditingCategory(null);
@@ -188,6 +195,7 @@ const AddMenuPage = () => {
 
   useEffect(() => {
     if (isUpdateCategoryError && updateCategoryError) {
+      setIsLoading(false);
       console.error('Menu category update error:', updateCategoryError);
       setError(updateCategoryError.response?.data?.message || updateCategoryError.message || 'Failed to update menu category');
     }
@@ -196,6 +204,7 @@ const AddMenuPage = () => {
   // Handle category delete success/error states
   useEffect(() => {
     if (categoryDeleted) {
+      setIsLoading(false);
       setIsSuccess(true);
       setShowDeleteCategoryModal(false);
       setDeletingCategory(null);
@@ -207,6 +216,7 @@ const AddMenuPage = () => {
 
   useEffect(() => {
     if (isDeleteCategoryError && deleteCategoryError) {
+      setIsLoading(false);
       console.error('Menu category delete error:', deleteCategoryError);
       setError(deleteCategoryError.response?.data?.message || deleteCategoryError.message || 'Failed to delete menu category');
     }

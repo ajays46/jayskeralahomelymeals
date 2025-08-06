@@ -172,7 +172,7 @@ const MenuItemPage = () => {
   // Handle mutation success/error states
   useEffect(() => {
     if (menuItemCreated) {
-      
+      setIsLoading(false);
       setIsSuccess(true);
       setMenuItemForm({
         name: '',
@@ -192,7 +192,7 @@ const MenuItemPage = () => {
 
   useEffect(() => {
     if (menuItemUpdated) {
-      
+      setIsLoading(false);
       setIsSuccess(true);
       
       // Show success message
@@ -205,6 +205,7 @@ const MenuItemPage = () => {
 
   useEffect(() => {
     if (isError && menuItemError) {
+      setIsLoading(false);
       console.error('Menu item creation error:', menuItemError);
       setError(menuItemError.response?.data?.message || menuItemError.message || 'Failed to create menu item');
     }
@@ -212,6 +213,7 @@ const MenuItemPage = () => {
 
   useEffect(() => {
     if (isUpdateError && updateError) {
+      setIsLoading(false);
       console.error('Menu item update error:', updateError);
       setError(updateError.response?.data?.message || updateError.message || 'Failed to update menu item');
     }
@@ -220,7 +222,7 @@ const MenuItemPage = () => {
   // Menu Item Price success/error handlers
   useEffect(() => {
     if (priceCreated) {
-      
+      setIsLoading(false);
       setIsSuccess(true);
       setMenuItemPriceForm({
         companyId: '',
@@ -239,6 +241,7 @@ const MenuItemPage = () => {
 
   useEffect(() => {
     if (isPriceError && priceError) {
+      setIsLoading(false);
       console.error('Menu item price creation error:', priceError);
       setError(priceError.response?.data?.message || priceError.message || 'Failed to create menu item price');
     }
@@ -247,6 +250,7 @@ const MenuItemPage = () => {
   // Menu Item Price Update success/error handlers
   useEffect(() => {
     if (priceUpdated) {
+      setIsLoading(false);
       setIsSuccess(true);
       setShowEditPriceModal(false);
       setEditingPrice(null);
@@ -265,6 +269,7 @@ const MenuItemPage = () => {
 
   useEffect(() => {
     if (isUpdatePriceError && updatePriceError) {
+      setIsLoading(false);
       console.error('Menu item price update error:', updatePriceError);
       setError(updatePriceError.response?.data?.message || updatePriceError.message || 'Failed to update menu item price');
     }
@@ -273,6 +278,7 @@ const MenuItemPage = () => {
   // Menu Item Price Delete success/error handlers
   useEffect(() => {
     if (priceDeleted) {
+      setIsLoading(false);
       setIsSuccess(true);
       setShowDeletePriceModal(false);
       setDeletingPrice(null);
@@ -286,6 +292,7 @@ const MenuItemPage = () => {
 
   useEffect(() => {
     if (isDeletePriceError && deletePriceError) {
+      setIsLoading(false);
       console.error('Menu item price delete error:', deletePriceError);
       setError(deletePriceError.response?.data?.message || deletePriceError.message || 'Failed to delete menu item price');
     }

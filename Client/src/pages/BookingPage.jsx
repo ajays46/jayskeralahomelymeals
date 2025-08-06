@@ -29,14 +29,10 @@ const BookingPage = () => {
   });
   
   const [selectedDates, setSelectedDates] = useState([]);
-  const [orderMode, setOrderMode] = useState('single');
+  const [orderMode, setOrderMode] = useState('multiple');
   const [savedOrder, setSavedOrder] = useState(null);
   
-  const [orderedItems, setOrderedItems] = useState({
-    breakfast: [],
-    lunch: [],
-    dinner: []
-  });
+
   const [deliveryLocations, setDeliveryLocations] = useState({
     breakfast: '',
     lunch: '',
@@ -81,38 +77,52 @@ const BookingPage = () => {
   const isWeekdayMenu = (menu) => {
     if (!menu) return false;
     const dayOfWeek = menu.dayOfWeek?.toLowerCase() || '';
-    const menuName = menu.name?.toLowerCase() || '';
+    
+    // Now menu is actually a menu item object
+    const itemName = menu.name?.toLowerCase() || '';
     
     // Check if it's a full week menu (should not be restricted to weekdays)
-    if (menuName.includes('full week')) {
+    if (itemName.includes('full week')) {
       return false; // Full week menu is not a weekday-only menu
     }
     
     const isWeekdayByDay = dayOfWeek === 'weekday' || dayOfWeek === 'monday' || dayOfWeek === 'tuesday' || dayOfWeek === 'wednesday' || dayOfWeek === 'thursday' || dayOfWeek === 'friday';
-    const isWeekdayByName = menuName.includes('week day') || menuName.includes('weekday') || menuName.includes('monday') || menuName.includes('tuesday') || menuName.includes('wednesday') || menuName.includes('thursday') || menuName.includes('friday');
+    const isWeekdayByName = itemName.includes('week day') || itemName.includes('weekday') || itemName.includes('monday') || itemName.includes('tuesday') || itemName.includes('wednesday') || itemName.includes('thursday') || itemName.includes('friday');
     return isWeekdayByDay || isWeekdayByName;
   };
 
   const getAutoSelectionDays = (menu) => {
     if (!menu) return 0;
-    const menuName = menu.name?.toLowerCase() || '';
+    
+    // Now menu is actually a menu item object
+    const itemName = menu.name?.toLowerCase() || '';
     
     // Monthly menu - 30 days
-    if (menuName.includes('monthly') || menuName.includes('month')) {
+    if (itemName.includes('monthly') || itemName.includes('month')) {
       return 30;
     }
     
     // Weekly menu - 7 days
-    if (menuName.includes('weekly') || menuName.includes('week')) {
+    if (itemName.includes('weekly') || itemName.includes('week')) {
       return 7;
     }
     
     // Full week menu - 7 days
-    if (menuName.includes('full week')) {
+    if (itemName.includes('full week')) {
       return 7;
     }
     
-    // Weekday menu - 7 days
+    // Week-day plan - 5 days (Monday to Friday)
+    if (itemName.includes('week-day') || itemName.includes('weekday')) {
+      return 5;
+    }
+    
+    // Daily Rates - no auto-selection (user selects individual days)
+    if (itemName.includes('daily rates') || itemName.includes('daily rate')) {
+      return 0;
+    }
+    
+    // Weekday menu - 7 days (fallback for other weekday menus)
     if (isWeekdayMenu(menu)) {
       return 7;
     }
@@ -131,40 +141,53 @@ const BookingPage = () => {
 
   const handleDateSelection = (date) => {
     const autoSelectionDays = getAutoSelectionDays(selectedMenu);
-    if (selectedMenu && autoSelectionDays > 0 && orderMode !== 'single') {
+    if (selectedMenu && autoSelectionDays > 0) {
       handleAutoDateSelection(date, autoSelectionDays);
       return;
     }
 
-    if (orderMode === 'single') {
-      setSelectedDate(date);
-      setSelectedDates([date]);
-    } else {
-      setSelectedDates(prev => {
-        const dateStr = date.toDateString();
-        const exists = prev.find(d => d.toDateString() === dateStr);
-        if (exists) {
-          return prev.filter(d => d.toDateString() !== dateStr);
-        } else {
-          return [...prev, date];
-        }
-      });
-    }
+    setSelectedDates(prev => {
+      const dateStr = date.toDateString();
+      const exists = prev.find(d => d.toDateString() === dateStr);
+      if (exists) {
+        return prev.filter(d => d.toDateString() !== dateStr);
+      } else {
+        return [...prev, date];
+      }
+    });
   };
 
   const handleAutoDateSelection = (startDate, days) => {
     const selectedDates = [];
     const currentDate = new Date(startDate);
     
-    // Select consecutive days starting from the selected date
-    for (let i = 0; i < days; i++) {
-      selectedDates.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 1);
+    // Check if this is a week-day plan (5 days, weekdays only)
+    const menuName = selectedMenu?.name?.toLowerCase() || '';
+    const isWeekDayPlan = menuName.includes('week-day') || menuName.includes('weekday');
+    
+    if (isWeekDayPlan) {
+      // For week-day plans, select 5 consecutive weekdays
+      let daysSelected = 0;
+      let currentDay = new Date(currentDate);
+      
+      while (daysSelected < 5) {
+        // Check if current day is a weekday (Monday = 1, Tuesday = 2, ..., Friday = 5)
+        if (currentDay.getDay() >= 1 && currentDay.getDay() <= 5) {
+          selectedDates.push(new Date(currentDay));
+          daysSelected++;
+        }
+        currentDay.setDate(currentDay.getDate() + 1);
+      }
+    } else {
+      // For other plans, select consecutive days starting from the selected date
+      for (let i = 0; i < days; i++) {
+        selectedDates.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
     }
     
     setSelectedDates(selectedDates);
     
-    const menuName = selectedMenu?.name?.toLowerCase() || '';
     let message = '';
     
     if (menuName.includes('monthly') || menuName.includes('month')) {
@@ -173,6 +196,8 @@ const BookingPage = () => {
       message = `Selected 7 consecutive days starting from ${formatDateForDisplay(startDate)}`;
     } else if (menuName.includes('full week')) {
       message = `Selected 7 consecutive days starting from ${formatDateForDisplay(startDate)}`;
+    } else if (isWeekDayPlan) {
+      message = `Selected 5 weekdays starting from ${formatDateForDisplay(startDate)}`;
     } else {
       message = `Selected ${days} consecutive days starting from ${formatDateForDisplay(startDate)}`;
     }
@@ -197,22 +222,25 @@ const BookingPage = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
+  // Listen for auth slider open event from AddressPicker
+  useEffect(() => {
+    const handleOpenAuthSlider = () => {
+      setAuthSliderOpen(true);
+    };
+
+    window.addEventListener('openAuthSlider', handleOpenAuthSlider);
+    
+    return () => {
+      window.removeEventListener('openAuthSlider', handleOpenAuthSlider);
+    };
+  }, []);
+
   // Date initialization
   useEffect(() => {
     if (!selectedMenu || !isWeekdayMenu(selectedMenu)) {
-      if (orderMode === 'single') {
-        setSelectedDates([selectedDate]);
-      } else {
-        setSelectedDates([]);
-      }
+      setSelectedDates([]);
     }
-  }, [orderMode, selectedDate, selectedMenu]);
-
-  useEffect(() => {
-    if (orderMode === 'single' && selectedDates.length === 0 && (!selectedMenu || !isWeekdayMenu(selectedMenu))) {
-      setSelectedDates([selectedDate]);
-    }
-  }, [orderMode, selectedDates.length, selectedDate, selectedMenu]);
+  }, [selectedMenu]);
 
   // Date generation and navigation
   const generateDates = () => {
@@ -254,21 +282,7 @@ const BookingPage = () => {
     }));
   };
 
-  const addToOrder = (mealType, item) => {
-    setOrderedItems(prev => {
-      const newItems = {
-        ...prev,
-        [mealType]: [...prev[mealType], { 
-          ...item, 
-          orderItemId: Date.now() + Math.random(),
-          price: item.prices && item.prices[0] ? item.prices[0].totalPrice : 0
-        }]
-      };
-      return newItems;
-    });
-    
-    toast.success(`${item.name} added to ${mealType} order!`);
-  };
+
 
   const validateMenuForSelectedDates = (menu) => {
     if (!menu || selectedDates.length === 0) return { isValid: true, message: '' };
@@ -297,6 +311,25 @@ const BookingPage = () => {
     return { isValid: true, message: '' };
   };
 
+  // Helper function to get the primary menu item name
+  const getPrimaryMenuItemName = (menu) => {
+    // Now menu is actually a menu item object
+    return menu.name;
+  };
+
+  // Helper function to check if menu has specific type based on menu items
+  const hasMenuItemType = (menu, type) => {
+    // Now menu is actually a menu item object
+    const itemName = menu.name?.toLowerCase() || '';
+    
+    // Special handling for daily rates
+    if (type === 'daily' || type === 'daily rates' || type === 'daily rate') {
+      return itemName.includes('daily rates') || itemName.includes('daily rate');
+    }
+    
+    return itemName.includes(type);
+  };
+
   const handleMenuSelection = (menu) => {
     // For daily flexible mode, handle differently
     if (orderMode === 'daily-flexible') {
@@ -305,9 +338,11 @@ const BookingPage = () => {
         return;
       }
       
+      const menuDisplayName = getPrimaryMenuItemName(menu);
+      
       // Ask user if they want to apply this menu to all selected dates
       const shouldApplyToAll = window.confirm(
-        `Apply "${menu.name}" to all ${selectedDates.length} selected dates?`
+        `Apply "${menuDisplayName}" to all ${selectedDates.length} selected dates?`
       );
       
       if (shouldApplyToAll) {
@@ -317,7 +352,7 @@ const BookingPage = () => {
           newDateMenuSelections[dateStr] = menu;
         });
         setDateMenuSelections(newDateMenuSelections);
-        toast.success(`Applied "${menu.name}" to ${selectedDates.length} dates`);
+        toast.success(`Applied "${menuDisplayName}" to ${selectedDates.length} dates`);
       } else {
         // Apply only to the first selected date
         const firstDate = selectedDates[0];
@@ -326,7 +361,7 @@ const BookingPage = () => {
           ...prev,
           [dateStr]: menu
         }));
-        toast.success(`Applied "${menu.name}" to ${formatDateForDisplay(firstDate)}`);
+        toast.success(`Applied "${menuDisplayName}" to ${formatDateForDisplay(firstDate)}`);
       }
       return;
     }
@@ -341,22 +376,31 @@ const BookingPage = () => {
     setSelectedMenu(menu);
     
     // Check for monthly menu auto-selection
-    const menuName = menu.name?.toLowerCase() || '';
-    if ((menuName.includes('monthly') || menuName.includes('month')) && orderMode !== 'single') {
+    if (hasMenuItemType(menu, 'monthly') || hasMenuItemType(menu, 'month')) {
       toast.info('Monthly Menu Selected! Click any date to auto-select 30 consecutive days.');
     }
     
     // Check for weekly menu auto-selection
-    if ((menuName.includes('weekly') || menuName.includes('week')) && orderMode !== 'single') {
+    if (hasMenuItemType(menu, 'weekly') || hasMenuItemType(menu, 'week')) {
       toast.info('Weekly Menu Selected! Click any date to auto-select 7 consecutive days.');
     }
     
-        if (isWeekdayMenu(menu) && orderMode !== 'single') {
+    // Check for week-day plan auto-selection
+    if (hasMenuItemType(menu, 'week-day') || hasMenuItemType(menu, 'weekday')) {
+      toast.info('Week-Day Plan Selected! Click any date to auto-select 5 weekdays.');
+    }
+    
+    // Check for daily rates
+    if (hasMenuItemType(menu, 'daily rates') || hasMenuItemType(menu, 'daily rate')) {
+      toast.info('Daily Rates Selected! Select individual dates for your meals.');
+    }
+    
+    if (isWeekdayMenu(menu)) {
       toast.info('Weekday Menu Selected! Click any date to auto-select 7 consecutive days.');
     }
     
     // Auto-selection for monthly menus
-    if ((menuName.includes('monthly') || menuName.includes('month')) && selectedDates.length > 0 && orderMode !== 'single') {
+    if ((hasMenuItemType(menu, 'monthly') || hasMenuItemType(menu, 'month')) && selectedDates.length > 0) {
       const firstSelectedDate = selectedDates[0];
       const shouldAutoSelect = window.confirm(
         `You've selected a monthly menu. Would you like to auto-select 30 consecutive days starting from ${formatDateForDisplay(firstSelectedDate)}?`
@@ -368,7 +412,7 @@ const BookingPage = () => {
     }
     
     // Auto-selection for weekly menus
-    if ((menuName.includes('weekly') || menuName.includes('week')) && selectedDates.length > 0 && orderMode !== 'single') {
+    if ((hasMenuItemType(menu, 'weekly') || hasMenuItemType(menu, 'week')) && selectedDates.length > 0) {
       const firstSelectedDate = selectedDates[0];
       const shouldAutoSelect = window.confirm(
         `You've selected a weekly menu. Would you like to auto-select 7 consecutive days starting from ${formatDateForDisplay(firstSelectedDate)}?`
@@ -379,7 +423,19 @@ const BookingPage = () => {
       }
     }
     
-    if (isWeekdayMenu(menu) && selectedDates.length > 0 && orderMode !== 'single') {
+    // Auto-selection for week-day plans
+    if ((hasMenuItemType(menu, 'week-day') || hasMenuItemType(menu, 'weekday')) && selectedDates.length > 0) {
+      const firstSelectedDate = selectedDates[0];
+      const shouldAutoSelect = window.confirm(
+        `You've selected a week-day plan. Would you like to auto-select 5 weekdays starting from ${formatDateForDisplay(firstSelectedDate)}?`
+      );
+      
+      if (shouldAutoSelect) {
+        handleAutoDateSelection(firstSelectedDate, 5);
+      }
+    }
+    
+    if (isWeekdayMenu(menu) && selectedDates.length > 0) {
       const firstSelectedDate = selectedDates[0];
       const shouldAutoSelect = window.confirm(
         `You've selected a weekday menu. Would you like to auto-select 7 consecutive days starting from ${formatDateForDisplay(firstSelectedDate)}?`
@@ -391,12 +447,7 @@ const BookingPage = () => {
     }
   };
 
-  const removeFromOrder = (mealType, itemId) => {
-    setOrderedItems(prev => ({
-      ...prev,
-      [mealType]: prev[mealType].filter(item => item.orderItemId !== itemId)
-    }));
-  };
+
 
   const getTotalItems = () => {
     // For comprehensive menus, count the menu items automatically
@@ -408,108 +459,47 @@ const BookingPage = () => {
       return total;
     }
     
-    // For regular menus, count manually added items
-    const total = orderedItems.breakfast.length + orderedItems.lunch.length + orderedItems.dinner.length;
-    return total;
+    // For daily rates, count based on selected dates and meal types
+    if (selectedMenu && (hasMenuItemType(selectedMenu, 'daily rates') || hasMenuItemType(selectedMenu, 'daily rate'))) {
+      let total = 0;
+      if (selectedMenu.hasBreakfast) total += selectedDates.length;
+      if (selectedMenu.hasLunch) total += selectedDates.length;
+      if (selectedMenu.hasDinner) total += selectedDates.length;
+      return total;
+    }
+    
+    // For other regular menus, return 1 (the selected menu item)
+    return 1;
   };
 
   const getTotalPrice = () => {
-    // Use backend calculation if we have the necessary data
-    if (selectedMenu && selectedDates.length > 0) {
-      
-      // For comprehensive menus (like August Menu with Monthly Plan)
-      if (selectedMenu.isComprehensiveMenu) {
-        // Get the base menu item price (₹9000)
-        const basePrice = selectedMenu.totalMenuPrice;
-        
-        // Calculate total for all selected dates
-        const totalForAllDates = basePrice * selectedDates.length;
-        
-        // Calculate skipped meals deduction
-        let skippedMealsTotal = 0;
-        Object.entries(skipMeals).forEach(([dateStr, skippedMealsForDate]) => {
-          // For comprehensive menus, each skipped meal costs 1/3 of the daily price
-          const dailyPrice = basePrice;
-          const mealPrice = Math.round(dailyPrice / 3);
-          
-          Object.keys(skippedMealsForDate).forEach(mealType => {
-            skippedMealsTotal += mealPrice;
-          });
-        });
-        
-        return totalForAllDates - skippedMealsTotal;
-      }
-      
-      // For daily flexible mode, calculate based on individual date-menu selections
-      if (orderMode === 'daily-flexible') {
-        let total = 0;
-        
-        selectedDates.forEach(date => {
-          const dateStr = date.toISOString().split('T')[0];
-          const menuForDate = dateMenuSelections[dateStr];
-          
-          if (menuForDate) {
-            // For daily flexible, use only the menu items total (no date multiplication)
-            total += menuForDate.totalMenuPrice;
-          }
-        });
-        
-        // Subtract skipped meals
-        let skippedMealsTotal = 0;
-        Object.entries(skipMeals).forEach(([dateStr, skippedMealsForDate]) => {
-          const menuForDate = dateMenuSelections[dateStr];
-          if (menuForDate) {
-            Object.keys(skippedMealsForDate).forEach(mealType => {
-              const mealPrice = menuForDate.mealPricing?.[mealType]?.price || 0;
-              skippedMealsTotal += mealPrice;
-            });
-          }
-        });
-        
-        return total - skippedMealsTotal;
-      }
-      
-      // For other modes, use existing logic for now
-      const menuName = selectedMenu.name?.toLowerCase() || '';
-      
-      // For monthly menus, calculate based on 30-day plan
-      if (menuName.includes('monthly') || menuName.includes('month')) {
-        // Get the daily total (same as shown in menu card)
-        const dailyTotal = selectedMenu.totalMenuPrice;
-        
-        // Calculate total for all selected dates
-        const totalForAllDates = dailyTotal * selectedDates.length;
-        
-        // Subtract skipped meals
-        let skippedMealsTotal = 0;
-        Object.entries(skipMeals).forEach(([dateStr, skippedMealsForDate]) => {
-          Object.keys(skippedMealsForDate).forEach(mealType => {
-            const mealPrice = selectedMenu.mealPricing?.[mealType]?.price || 0;
-            skippedMealsTotal += mealPrice;
-          });
-        });
-        
-        return totalForAllDates - skippedMealsTotal;
-      }
-      
-      // For weekly menus (7-day plans), use the existing logic
-      const sevenDayPlanTotal = selectedMenu.totalMenuPrice * 7;
-      const numberOfSevenDayPlans = Math.ceil(selectedDates.length / 7);
-      const totalForAllDates = sevenDayPlanTotal * numberOfSevenDayPlans;
-      
-      // Subtract skipped meals (calculate based on daily meal prices)
-      let skippedMealsTotal = 0;
-      Object.entries(skipMeals).forEach(([dateStr, skippedMealsForDate]) => {
-        Object.keys(skippedMealsForDate).forEach(mealType => {
-          const mealPrice = selectedMenu.mealPricing?.[mealType]?.price || 0;
-          skippedMealsTotal += mealPrice;
-        });
-      });
-      
-      return totalForAllDates - skippedMealsTotal;
+    // Return 0 if no menu selected
+    if (!selectedMenu) {
+      return 0;
     }
     
-    return 0;
+    // Get the base price from the selected menu item
+    const basePrice = selectedMenu.price || 0;
+    
+    // For daily flexible mode, calculate based on individual date-menu selections
+    if (orderMode === 'daily-flexible') {
+      let total = 0;
+      
+      selectedDates.forEach(date => {
+        const dateStr = date.toISOString().split('T')[0];
+        const menuForDate = dateMenuSelections[dateStr];
+        
+        if (menuForDate) {
+          // For daily flexible, use the menu item price
+          total += (menuForDate.price || 0);
+        }
+      });
+      
+      return total;
+    }
+    
+    // For all other menu types, just return the base menu item price
+    return basePrice;
   };
 
   const getFilteredMenus = () => {
@@ -517,9 +507,9 @@ const BookingPage = () => {
       return menus;
     }
 
-    return menus.filter(menu => {
-      if (menu.menuCategories && menu.menuCategories.length > 0) {
-        const categoryNames = menu.menuCategories.map(cat => cat.name.toLowerCase());
+    return menus.filter(menuItem => {
+      if (menuItem.categories && menuItem.categories.length > 0) {
+        const categoryNames = menuItem.categories.map(cat => cat.name.toLowerCase());
         
         if (dietaryPreference === 'veg') {
           return categoryNames.some(name => name.includes('veg') && !name.includes('non'));
@@ -528,17 +518,11 @@ const BookingPage = () => {
         }
       }
       
-      const allItems = [
-        ...(menu.mealTypes.breakfast || []),
-        ...(menu.mealTypes.lunch || []),
-        ...(menu.mealTypes.dinner || [])
-      ];
-      
       if (dietaryPreference === 'veg') {
-        const categoryNames = menu.categories?.map(cat => cat.name.toLowerCase()) || [];
+        const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
         return !categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
       } else if (dietaryPreference === 'non-veg') {
-        const categoryNames = menu.categories?.map(cat => cat.name.toLowerCase()) || [];
+        const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
         return categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
       }
       
@@ -621,7 +605,7 @@ const BookingPage = () => {
           },
           selectedDates: selectedDates.map(date => date.toISOString().split('T')[0]),
           orderMode: orderMode,
-          menuId: selectedMenu.id,
+          menuId: selectedMenu.menuId,
           menuName: selectedMenu.name,
           skipMeals: skipMeals
         };
@@ -632,38 +616,45 @@ const BookingPage = () => {
           ...orderData,
           id: newOrder.id,
           menu: selectedMenu,
-          items: orderedItems,
+          items: [],
           deliveryLocations: deliveryLocations,
           deliveryLocationNames: deliveryLocationNames
         });
 
         toast.success('Order created successfully!');
-      } else {
-        // For regular menus, use the existing logic
+      } else if (hasMenuItemType(selectedMenu, 'daily rates') || hasMenuItemType(selectedMenu, 'daily rate')) {
+        // For daily rates, create delivery items for each selected date and meal type
         const orderTimes = [];
-        if (orderedItems.breakfast.length > 0) orderTimes.push('Morning');
-        if (orderedItems.lunch.length > 0) orderTimes.push('Noon');
-        if (orderedItems.dinner.length > 0) orderTimes.push('Night');
+        if (selectedMenu.hasBreakfast) orderTimes.push('Morning');
+        if (selectedMenu.hasLunch) orderTimes.push('Noon');
+        if (selectedMenu.hasDinner) orderTimes.push('Night');
 
+        // Create order items for daily rates - one for each meal type
         const orderItems = [];
-        orderedItems.breakfast.forEach(item => {
-          orderItems.push({
-            menuItemId: item.id,
-            quantity: 1
-          });
-        });
-        orderedItems.lunch.forEach(item => {
-          orderItems.push({
-            menuItemId: item.id,
-            quantity: 1
-          });
-        });
-        orderedItems.dinner.forEach(item => {
-          orderItems.push({
-            menuItemId: item.id,
-            quantity: 1
-          });
-        });
+        if (selectedMenu.menuItem) {
+          // Create separate order items for each meal type
+          if (selectedMenu.hasBreakfast) {
+            orderItems.push({
+              menuItemId: selectedMenu.menuItem.id,
+              quantity: selectedDates.length,
+              mealType: 'breakfast'
+            });
+          }
+          if (selectedMenu.hasLunch) {
+            orderItems.push({
+              menuItemId: selectedMenu.menuItem.id,
+              quantity: selectedDates.length,
+              mealType: 'lunch'
+            });
+          }
+          if (selectedMenu.hasDinner) {
+            orderItems.push({
+              menuItemId: selectedMenu.menuItem.id,
+              quantity: selectedDates.length,
+              mealType: 'dinner'
+            });
+          }
+        }
 
         // Use primary address if available, otherwise use the first meal-specific address
         const primaryAddressId = deliveryLocations.full || 
@@ -683,7 +674,7 @@ const BookingPage = () => {
           },
           selectedDates: selectedDates.map(date => date.toISOString().split('T')[0]),
           orderMode: orderMode,
-          menuId: selectedMenu.id,
+          menuId: selectedMenu.menuId,
           menuName: selectedMenu.name,
           skipMeals: skipMeals
         };
@@ -694,7 +685,58 @@ const BookingPage = () => {
           ...orderData,
           id: newOrder.id,
           menu: selectedMenu,
-          items: orderedItems,
+          items: [],
+          deliveryLocations: deliveryLocations,
+          deliveryLocationNames: deliveryLocationNames
+        });
+
+        toast.success('Order created successfully!');
+      } else {
+        // For regular menus (not comprehensive, not daily rates)
+        const orderTimes = [];
+        if (selectedMenu.hasBreakfast) orderTimes.push('Morning');
+        if (selectedMenu.hasLunch) orderTimes.push('Noon');
+        if (selectedMenu.hasDinner) orderTimes.push('Night');
+
+        // Create order items for the selected menu
+        const orderItems = [];
+        if (selectedMenu.menuItem) {
+          orderItems.push({
+            menuItemId: selectedMenu.menuItem.id,
+            quantity: selectedDates.length
+          });
+        }
+
+        // Use primary address if available, otherwise use the first meal-specific address
+        const primaryAddressId = deliveryLocations.full || 
+          deliveryLocations.breakfast || 
+          deliveryLocations.lunch || 
+          deliveryLocations.dinner;
+        
+        const orderData = {
+          orderDate: selectedDate.toISOString().split('T')[0],
+          orderTimes: orderTimes,
+          orderItems: orderItems,
+          deliveryAddressId: primaryAddressId,
+          deliveryLocations: {
+            breakfast: deliveryLocations.breakfast || null,
+            lunch: deliveryLocations.lunch || null,
+            dinner: deliveryLocations.dinner || null,
+          },
+          selectedDates: selectedDates.map(date => date.toISOString().split('T')[0]),
+          orderMode: orderMode,
+          menuId: selectedMenu.menuId,
+          menuName: selectedMenu.name,
+          skipMeals: skipMeals
+        };
+
+        const newOrder = await createOrder(orderData);
+
+        setSavedOrder({
+          ...orderData,
+          id: newOrder.id,
+          menu: selectedMenu,
+          items: [],
           deliveryLocations: deliveryLocations,
           deliveryLocationNames: deliveryLocationNames
         });
@@ -770,7 +812,7 @@ const BookingPage = () => {
       ...prev,
       [dateStr]: menu
     }));
-    toast.success(`Selected "${menu.name}" for ${formatDateForDisplay(date)}`);
+    toast.success(`Selected "${getPrimaryMenuItemName(menu)}" for ${formatDateForDisplay(date)}`);
   };
 
   const removeDateMenuSelection = (date) => {
@@ -794,15 +836,12 @@ const BookingPage = () => {
 
       <DateSelector
         dates={dates}
-        selectedDate={selectedDate}
         selectedDates={selectedDates}
-        orderMode={orderMode}
         currentDate={currentDate}
         isMobile={isMobile}
         onDateSelection={handleDateSelection}
         onNextDays={goToNextDays}
         onPreviousDays={goToPreviousDays}
-        onOrderModeChange={setOrderMode}
         formatMonth={formatMonth}
         formatDayNumber={formatDayNumber}
         formatDay={formatDay}
@@ -848,11 +887,15 @@ const BookingPage = () => {
               {/* Selected Menu Details */}
               {selectedMenu && (
                 <div className="mb-6">
-                  <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-visible">
                     <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white">
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="text-xl font-bold mb-1">{selectedMenu.name}</h3>
+                          {selectedMenu.price > 0 && (
+                            <p className="text-blue-100 text-sm">₹{selectedMenu.price}</p>
+                          )}
+                          <p className="text-blue-100 text-xs">From: {selectedMenu.menuName}</p>
                           <p className="text-blue-100 text-sm capitalize">{selectedMenu.dayOfWeek} Menu</p>
                         </div>
                         <button
@@ -885,20 +928,7 @@ const BookingPage = () => {
 
                       {/* Menu Items by Meal Type */}
                       <div className="space-y-8 overflow-visible">
-                        {/* Comprehensive Menu Notice */}
-                        {selectedMenu.isComprehensiveMenu && (
-                          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 mb-6">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">📋</span>
-                              </div>
-                              <h4 className="text-lg font-semibold text-blue-800">Comprehensive Meal Plan</h4>
-                            </div>
-                            <p className="text-blue-700 text-sm">
-                              This menu includes breakfast, lunch, and dinner. You can select different delivery addresses for each meal type.
-                            </p>
-                          </div>
-                        )}
+                       
 
                         {/* Breakfast Items */}
                         {selectedMenu.hasBreakfast && (
@@ -911,12 +941,12 @@ const BookingPage = () => {
                             </h4>
                           
                             {/* Breakfast Delivery Location */}
-                            <div className="bg-white rounded-lg p-4 border border-green-200 relative overflow-visible">
+                            <div className="bg-white rounded-lg p-4 border border-green-200 relative overflow-visible mb-4 w-full">
                               <label className="block text-sm font-semibold text-green-800 mb-3 flex items-center gap-2">
                                 <span className="text-green-500">📍</span>
                                 🍳 Breakfast Delivery Address
                               </label>
-                              <div className="relative z-20">
+                              <div className="relative z-20 w-full">
                               <AddressPicker
                                 value={deliveryLocationNames.breakfast || deliveryLocations.breakfast}
                                 onChange={(e) => {
@@ -936,6 +966,8 @@ const BookingPage = () => {
                                 </div>
                               )}
                             </div>
+
+
                           </div>
                         )}
 
@@ -951,12 +983,12 @@ const BookingPage = () => {
                             
 
                             {/* Lunch Delivery Location */}
-                            <div className="bg-white rounded-lg p-4 border border-yellow-200 relative overflow-visible">
+                            <div className="bg-white rounded-lg p-4 border border-yellow-200 relative overflow-visible mb-4 w-full">
                               <label className="block text-sm font-semibold text-yellow-800 mb-3 flex items-center gap-2">
                                 <span className="text-yellow-500">📍</span>
                                 🍽️ Lunch Delivery Address
                               </label>
-                              <div className="relative z-20">
+                              <div className="relative z-20 w-full">
                               <AddressPicker
                                 value={deliveryLocationNames.lunch || deliveryLocations.lunch}
                                 onChange={(e) => {
@@ -976,12 +1008,14 @@ const BookingPage = () => {
                                 </div>
                               )}
                             </div>
+
+
                           </div>
                         )}
 
                         {/* Dinner Items */}
                         {selectedMenu.hasDinner && (
-                          <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-6 border border-pink-100 overflow-visible">
+                          <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-6 border border-pink-100 overflow-visible relative">
                             <h4 className="text-lg font-semibold text-pink-800 mb-4 flex items-center gap-3">
                               <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center">
                                 <span className="text-white font-bold text-sm">D</span>
@@ -992,12 +1026,12 @@ const BookingPage = () => {
                             
 
                             {/* Dinner Delivery Location */}
-                            <div className="bg-white rounded-lg p-4 border border-pink-200 relative overflow-visible">
+                            <div className="bg-white rounded-lg p-4 border border-pink-200 relative overflow-visible mb-4 w-full" style={{ zIndex: 50 }}>
                               <label className="block text-sm font-semibold text-pink-800 mb-3 flex items-center gap-2">
                                 <span className="text-pink-500">📍</span>
                                 🌙 Dinner Delivery Address
                               </label>
-                              <div className="relative z-20">
+                              <div className="relative z-40 w-full">
                               <AddressPicker
                                 value={deliveryLocationNames.dinner || deliveryLocations.dinner}
                                 onChange={(e) => {
@@ -1017,6 +1051,8 @@ const BookingPage = () => {
                                 </div>
                               )}
                             </div>
+
+
                           </div>
                         )}
                       </div>
@@ -1028,10 +1064,9 @@ const BookingPage = () => {
           </div>
 
           {/* Right Column - Order Summary & Actions */}
-                      <OrderSummary
+                                            <OrderSummary
               selectedMenu={selectedMenu}
               selectedDates={selectedDates}
-              orderedItems={orderedItems}
               deliveryLocations={deliveryLocations}
               deliveryLocationNames={deliveryLocationNames}
               savedOrder={savedOrder}

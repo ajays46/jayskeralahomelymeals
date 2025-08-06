@@ -1067,81 +1067,104 @@ export const getMenusForBookingService = async () => {
     }
   });
 
-  // Transform the data to group menu items by meal type
-  const transformedMenus = menus.map(menu => {
+  // Transform the data to show each menu item as a separate option
+  const transformedMenuItems = [];
+  
+  menus.forEach(menu => {
     const menuItems = menu.menuItems || [];
+    const categories = menu.menuCategories || [];
     
-    // Check if this is a comprehensive menu (like August Menu with Monthly Plan, Weekly Menu, etc.)
-    const isComprehensiveMenu = menuItems.some(item => {
+    // Create a separate menu item object for each menu item
+    menuItems.forEach(item => {
+      // Check if this is a comprehensive menu item
       const itemName = item.name?.toLowerCase() || '';
       const productName = item.product?.productName?.toLowerCase() || '';
-      return itemName.includes('monthly') || itemName.includes('plan') || itemName.includes('weekly') ||
-             productName.includes('monthly') || productName.includes('plan') || productName.includes('weekly');
-    });
-    
-    let mealTypes = {
-      breakfast: [],
-      lunch: [],
-      dinner: []
-    };
-    
-    if (isComprehensiveMenu) {
-      // For comprehensive menus, treat each menu item as including all meal types
-      menuItems.forEach(item => {
+      
+      // Exclude "Daily Rates" from being treated as comprehensive
+      const isDailyRates = itemName.includes('daily rates') || itemName.includes('daily rate');
+      
+      const isComprehensiveItem = !isDailyRates && (
+        itemName.includes('monthly') || itemName.includes('plan') || itemName.includes('weekly') ||
+        productName.includes('monthly') || productName.includes('plan') || productName.includes('weekly')
+      );
+      
+      // Determine meal types for this item
+      let mealTypes = {
+        breakfast: [],
+        lunch: [],
+        dinner: []
+      };
+      
+      if (isComprehensiveItem) {
+        // For comprehensive items, include all meal types
         const comprehensiveItem = {
           ...item,
           isComprehensive: true,
           mealTypes: ['breakfast', 'lunch', 'dinner']
         };
-        
-        // Add to all meal types
         mealTypes.breakfast.push(comprehensiveItem);
         mealTypes.lunch.push(comprehensiveItem);
         mealTypes.dinner.push(comprehensiveItem);
-      });
-    } else {
-      // Original logic for regular menus
-      mealTypes = {
-        breakfast: menuItems.filter(item => {
-          const productName = item.product?.productName?.toLowerCase() || '';
-          const itemName = item.name?.toLowerCase() || '';
-          return productName.includes('breakfast') || itemName.includes('breakfast');
-        }),
-        lunch: menuItems.filter(item => {
-          const productName = item.product?.productName?.toLowerCase() || '';
-          const itemName = item.name?.toLowerCase() || '';
-          return productName.includes('lunch') || itemName.includes('lunch');
-        }),
-        dinner: menuItems.filter(item => {
-          const productName = item.product?.productName?.toLowerCase() || '';
-          const itemName = item.name?.toLowerCase() || '';
-          return productName.includes('dinner') || itemName.includes('dinner');
-        })
+      } else {
+        // For regular items, determine meal type based on name
+        const productName = item.product?.productName?.toLowerCase() || '';
+        const itemName = item.name?.toLowerCase() || '';
+        
+        // For Daily Rates, check if it includes specific meal types
+        if (isDailyRates) {
+          // Daily Rates should show all meal types by default, but check if specific meal types are mentioned
+          if (productName.includes('breakfast') || itemName.includes('breakfast')) {
+            mealTypes.breakfast.push(item);
+          } else if (productName.includes('lunch') || itemName.includes('lunch')) {
+            mealTypes.lunch.push(item);
+          } else if (productName.includes('dinner') || itemName.includes('dinner')) {
+            mealTypes.dinner.push(item);
+          } else {
+            // If no specific meal type is mentioned, include in all meal types
+            mealTypes.breakfast.push(item);
+            mealTypes.lunch.push(item);
+            mealTypes.dinner.push(item);
+          }
+        } else {
+          // For other regular items, determine meal type based on name
+          if (productName.includes('breakfast') || itemName.includes('breakfast')) {
+            mealTypes.breakfast.push(item);
+          }
+          if (productName.includes('lunch') || itemName.includes('lunch')) {
+            mealTypes.lunch.push(item);
+          }
+          if (productName.includes('dinner') || itemName.includes('dinner')) {
+            mealTypes.dinner.push(item);
+          }
+        }
+      }
+      
+      // Create menu item object
+      const menuItemObject = {
+        id: item.id, // Use menu item ID as the main ID
+        menuId: menu.id, // Keep reference to parent menu
+        name: item.name, // Menu item name
+        menuName: menu.name, // Parent menu name for reference
+        dayOfWeek: menu.dayOfWeek,
+        status: menu.status,
+        company: menu.company,
+        categories: categories,
+        mealTypes: mealTypes,
+        hasBreakfast: mealTypes.breakfast.length > 0,
+        hasLunch: mealTypes.lunch.length > 0,
+        hasDinner: mealTypes.dinner.length > 0,
+        isComprehensiveMenu: isComprehensiveItem,
+        // Include the menu item data
+        menuItem: item,
+        // Include pricing
+        price: item.prices && item.prices[0] ? item.prices[0].totalPrice : 0,
+        product: item.product
       };
-    }
-
-    // Get categories
-    const categories = menu.menuCategories || [];
-
-
-
-
-
-    return {
-      id: menu.id,
-      name: menu.name,
-      dayOfWeek: menu.dayOfWeek,
-      status: menu.status,
-      company: menu.company,
-      categories: categories,
-      mealTypes: mealTypes,
-      hasBreakfast: mealTypes.breakfast.length > 0,
-      hasLunch: mealTypes.lunch.length > 0,
-      hasDinner: mealTypes.dinner.length > 0,
-      isComprehensiveMenu: isComprehensiveMenu
-    };
+      
+      transformedMenuItems.push(menuItemObject);
+    });
   });
 
-  return transformedMenus;
+  return transformedMenuItems;
 };
 

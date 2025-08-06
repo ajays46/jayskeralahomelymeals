@@ -3,15 +3,12 @@ import { MdArrowBack, MdCalendarToday } from 'react-icons/md';
 
 const DateSelector = ({
   dates,
-  selectedDate,
   selectedDates,
-  orderMode,
   currentDate,
   isMobile,
   onDateSelection,
   onNextDays,
   onPreviousDays,
-  onOrderModeChange,
   formatMonth,
   formatDayNumber,
   formatDay,
@@ -47,35 +44,7 @@ const DateSelector = ({
             </div>
           </div>
 
-          {/* Order Mode Selection */}
-          <div className="mt-6 flex justify-center">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-2 shadow-lg border border-white/20">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onOrderModeChange('single')}
-                  className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center gap-2 ${
-                    orderMode === 'single'
-                      ? 'bg-gradient-to-r from-[#FE8C00] to-[#F83600] text-white shadow-lg transform scale-105'
-                      : 'bg-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="text-lg">📅</span>
-                  Single Date
-                </button>
-                <button
-                  onClick={() => onOrderModeChange('multiple')}
-                  className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center gap-2 ${
-                    orderMode === 'multiple'
-                      ? 'bg-gradient-to-r from-[#FE8C00] to-[#F83600] text-white shadow-lg transform scale-105'
-                      : 'bg-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="text-lg">📆</span>
-                  Multiple Dates
-                </button>
-              </div>
-            </div>
-          </div>
+
         </div>
         
         <div className="flex items-center justify-between">

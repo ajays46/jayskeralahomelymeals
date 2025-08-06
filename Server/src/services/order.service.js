@@ -126,6 +126,7 @@ export const createOrderService = async (userId, orderData) => {
         // Check if this is a comprehensive menu order (like "Monthly Menu", "Weekly Menu")
         // Check if any menu item contains 'monthly', 'weekly', or 'plan' in its name
         let isComprehensiveMenu = false;
+        let isDailyRates = false;
         for (const item of validatedOrderItems) {
             const menuItem = await prisma.menuItem.findUnique({
                 where: { id: item.menuItemId }
@@ -135,6 +136,10 @@ export const createOrderService = async (userId, orderData) => {
                 if (itemName.includes('monthly') || itemName.includes('weekly') || itemName.includes('plan')) {
                     isComprehensiveMenu = true;
                     break;
+                }
+                // Check if this is daily rates
+                if (itemName.includes('daily rates') || itemName.includes('daily rate')) {
+                    isDailyRates = true;
                 }
             }
         }
@@ -207,6 +212,7 @@ export const createOrderService = async (userId, orderData) => {
                         if (!skippedMealsForDate.breakfast) {
                             deliveryItemsData.push({
                                 orderId: newOrder.id,
+                                userId: userId,
                                 menuItemId: monthlyMenuItem.menuItemId,
                                 quantity: 1,
                                 total: mealPrice,
@@ -220,6 +226,7 @@ export const createOrderService = async (userId, orderData) => {
                         if (!skippedMealsForDate.lunch) {
                             deliveryItemsData.push({
                                 orderId: newOrder.id,
+                                userId: userId,
                                 menuItemId: monthlyMenuItem.menuItemId,
                                 quantity: 1,
                                 total: mealPrice,
@@ -233,6 +240,7 @@ export const createOrderService = async (userId, orderData) => {
                         if (!skippedMealsForDate.dinner) {
                             deliveryItemsData.push({
                                 orderId: newOrder.id,
+                                userId: userId,
                                 menuItemId: monthlyMenuItem.menuItemId,
                                 quantity: 1,
                                 total: mealPrice,
@@ -250,6 +258,78 @@ export const createOrderService = async (userId, orderData) => {
                 console.log(`Created ${deliveryItemsData.length} delivery items for comprehensive menu: ${deliveryDates.length} days × 3 meals (${skippedMealsCount} meals skipped)`);
                 
 
+            } else if (isDailyRates) {
+                // For daily rates, create delivery items for each meal type and each selected date
+                const dailyRatesMenuItem = validatedOrderItems[0];
+                
+                if (dailyRatesMenuItem) {
+                    // Get the menu item price
+                    const menuItem = await tx.menuItem.findUnique({
+                        where: { id: dailyRatesMenuItem.menuItemId },
+                        include: {
+                            prices: {
+                                orderBy: { createdAt: 'desc' },
+                                take: 1
+                            }
+                        }
+                    });
+                    
+                    const itemPrice = menuItem.prices[0]?.totalPrice || 0;
+                    
+                    // Create delivery items for each day and each meal type
+                    deliveryDates.forEach(deliveryDate => {
+                        const dateStr = deliveryDate.toISOString().split('T')[0];
+                        const skippedMealsForDate = orderData.skipMeals?.[dateStr] || {};
+                        
+                        // Create delivery item for breakfast if not skipped
+                        if (!skippedMealsForDate.breakfast) {
+                            deliveryItemsData.push({
+                                orderId: newOrder.id,
+                                userId: userId,
+                                menuItemId: dailyRatesMenuItem.menuItemId,
+                                quantity: 1,
+                                total: itemPrice,
+                                deliveryDate: deliveryDate,
+                                deliveryTimeSlot: 'Breakfast',
+                                addressId: deliveryLocations?.breakfast || deliveryAddressId,
+                                status: 'Pending'
+                            });
+                        }
+                        
+                        // Create delivery item for lunch if not skipped
+                        if (!skippedMealsForDate.lunch) {
+                            deliveryItemsData.push({
+                                orderId: newOrder.id,
+                                userId: userId,
+                                menuItemId: dailyRatesMenuItem.menuItemId,
+                                quantity: 1,
+                                total: itemPrice,
+                                deliveryDate: deliveryDate,
+                                deliveryTimeSlot: 'Lunch',
+                                addressId: deliveryLocations?.lunch || deliveryAddressId,
+                                status: 'Pending'
+                            });
+                        }
+                        
+                        // Create delivery item for dinner if not skipped
+                        if (!skippedMealsForDate.dinner) {
+                            deliveryItemsData.push({
+                                orderId: newOrder.id,
+                                userId: userId,
+                                menuItemId: dailyRatesMenuItem.menuItemId,
+                                quantity: 1,
+                                total: itemPrice,
+                                deliveryDate: deliveryDate,
+                                deliveryTimeSlot: 'Dinner',
+                                addressId: deliveryLocations?.dinner || deliveryAddressId,
+                                status: 'Pending'
+                            });
+                        }
+                    });
+                }
+                
+                console.log(`Created ${deliveryItemsData.length} delivery items for daily rates: ${deliveryDates.length} days × 3 meals`);
+
             } else {
                 // Fallback: create delivery items for all order items with default delivery time slot
                 // For regular menus, we don't have meal-specific skipping, so create all items
@@ -257,6 +337,7 @@ export const createOrderService = async (userId, orderData) => {
                     validatedOrderItems.forEach(item => {
                         deliveryItemsData.push({
                             orderId: newOrder.id,
+                            userId: userId,
                             menuItemId: item.menuItemId,
                             quantity: item.quantity,
                             total: item.total,
