@@ -43,4 +43,40 @@ export const saveBase64Image = (base64String, filename) => {
     console.error('Error in saveBase64Image:', error);
     throw new Error('Failed to save base64 image: ' + error.message);
   }
+};
+
+// Save file buffer to uploads folder
+export const saveFileBuffer = (buffer, filename) => {
+  try {
+    console.log('Starting to save file buffer...');
+    console.log('Buffer size:', buffer.length);
+    
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(process.cwd(), 'src', 'services', 'uploads');
+    console.log('Uploads directory path:', uploadsDir);
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+      console.log('Created uploads directory');
+    } else {
+      console.log('Uploads directory already exists');
+    }
+    
+    // Generate unique filename if not provided
+    if (!filename) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      filename = `file-${uniqueSuffix}`;
+    }
+    console.log('Filename to save:', filename);
+    
+    // Save file
+    const filePath = path.join(uploadsDir, filename);
+    console.log('Full file path:', filePath);
+    fs.writeFileSync(filePath, buffer);
+    console.log('File saved successfully!');
+    
+    return filename;
+  } catch (error) {
+    console.error('Error in saveFileBuffer:', error);
+    throw new Error('Failed to save file buffer: ' + error.message);
+  }
 }; 

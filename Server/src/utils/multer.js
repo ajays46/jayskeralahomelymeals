@@ -7,7 +7,12 @@ const router = express.Router();
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-      cb(null, 'uploads/'); // folder to save
+      // Check if this is a payment receipt upload
+      if (req.originalUrl.includes('/payments') && file.fieldname === 'receipt') {
+        cb(null, 'src/services/payment-receipts/'); // Save payment receipts to dedicated folder
+      } else {
+        cb(null, 'uploads/'); // Save other files to general uploads folder
+      }
     },
     filename: function (req, file, cb) {
       const uniqueSuffix = Date.now() + '-' + file.originalname;
@@ -22,6 +27,7 @@ const storage = multer.diskStorage({
     res.json({ filePath });
   });
 
+  export { upload };
   export default router;
 
   

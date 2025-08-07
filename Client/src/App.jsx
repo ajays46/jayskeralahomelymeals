@@ -14,6 +14,7 @@ import ResetPassword from './components/ResetPassword';
 import CompanyCreatePage from './pages/admin/CompanyCreatePage';
 import MenuPage from './pages/MenuPage';
 import BookingPage from './pages/BookingPage';
+import PaymentPage from './pages/PaymentPage';
 import AddProductPage from './pages/admin/AddProductPage';
 import ProductsPage from './pages/admin/ProductsPage';
 import AddMenuPage from './pages/admin/AddMenuPage';
@@ -45,6 +46,7 @@ const App = () => {
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
           <Route path="/jkhm/menu" element={<MenuPage />} />
           <Route path="/jkhm/bookings" element={<BookingPage />} />
+          <Route path="/jkhm/payment/:orderId" element={<PaymentPage />} />
 
           {/* ✅ Protected Route */}
           <Route element={<ProtectedRoute />}>

@@ -478,9 +478,6 @@ const BookingPage = () => {
       return 0;
     }
     
-    // Get the base price from the selected menu item
-    const basePrice = selectedMenu.price || 0;
-    
     // For daily flexible mode, calculate based on individual date-menu selections
     if (orderMode === 'daily-flexible') {
       let total = 0;
@@ -498,8 +495,8 @@ const BookingPage = () => {
       return total;
     }
     
-    // For all other menu types, just return the base menu item price
-    return basePrice;
+    // For all menu types, simply return the selected menu item price
+    return selectedMenu.price || 0;
   };
 
   const getFilteredMenus = () => {
@@ -622,6 +619,20 @@ const BookingPage = () => {
         });
 
         toast.success('Order created successfully!');
+        
+        // Save order to localStorage for payment page
+        localStorage.setItem('savedOrder', JSON.stringify({
+          ...orderData,
+          id: newOrder.id,
+          menu: selectedMenu,
+          items: [],
+          deliveryLocations: deliveryLocations,
+          deliveryLocationNames: deliveryLocationNames,
+          totalPrice: getTotalPrice()
+        }));
+        
+        // Redirect to payment page
+        navigate(`/jkhm/payment/${newOrder.id}`);
       } else if (hasMenuItemType(selectedMenu, 'daily rates') || hasMenuItemType(selectedMenu, 'daily rate')) {
         // For daily rates, create delivery items for each selected date and meal type
         const orderTimes = [];
@@ -691,6 +702,20 @@ const BookingPage = () => {
         });
 
         toast.success('Order created successfully!');
+        
+        // Save order to localStorage for payment page
+        localStorage.setItem('savedOrder', JSON.stringify({
+          ...orderData,
+          id: newOrder.id,
+          menu: selectedMenu,
+          items: [],
+          deliveryLocations: deliveryLocations,
+          deliveryLocationNames: deliveryLocationNames,
+          totalPrice: getTotalPrice()
+        }));
+        
+        // Redirect to payment page
+        navigate(`/jkhm/payment/${newOrder.id}`);
       } else {
         // For regular menus (not comprehensive, not daily rates)
         const orderTimes = [];
@@ -742,6 +767,20 @@ const BookingPage = () => {
         });
 
         toast.success('Order created successfully!');
+        
+        // Save order to localStorage for payment page
+        localStorage.setItem('savedOrder', JSON.stringify({
+          ...orderData,
+          id: newOrder.id,
+          menu: selectedMenu,
+          items: [],
+          deliveryLocations: deliveryLocations,
+          deliveryLocationNames: deliveryLocationNames,
+          totalPrice: getTotalPrice()
+        }));
+        
+        // Redirect to payment page
+        navigate(`/jkhm/payment/${newOrder.id}`);
       }
 
     } catch (error) {

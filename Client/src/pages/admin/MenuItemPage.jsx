@@ -69,9 +69,6 @@ const MenuItemPage = () => {
   // Use all products directly
   const filteredProducts = products;
 
-  // Debug logging
-  console.log('Products:', products);
-
   // Form handlers
   const handleMenuItemChange = (e) => {
     const { name, value } = e.target;
@@ -121,7 +118,6 @@ const MenuItemPage = () => {
     setError('');
     try {
              // Debug logging
-       console.log('Form data:', menuItemForm);
       
       // Mark all fields as touched for validation display
       const allFields = Object.keys(menuItemForm);

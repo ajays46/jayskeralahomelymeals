@@ -67,10 +67,10 @@ const orderApi = {
     const response = await api.delete(`/orders/${orderId}`);
 
     if (!response.data.success) {
-      throw new Error(response.data.message || 'Failed to cancel order');
+      throw new Error(response.data.message || 'Failed to delete order');
     }
 
-    return response.data.data.order;
+    return response.data;
   },
 
   // Calculate menu pricing
@@ -110,6 +110,32 @@ const orderApi = {
     }
 
     return response.data.data;
+  },
+
+  // Create payment
+  createPayment: async (paymentData) => {
+    const response = await api.post('/payments', paymentData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to create payment');
+    }
+
+    return response.data;
+  },
+
+  // Cancel order (direct API call)
+  cancelOrder: async (orderId) => {
+    const response = await api.delete(`/orders/${orderId}`);
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to delete order');
+    }
+
+    return response.data;
   }
 };
 
@@ -225,26 +251,21 @@ export const useCancelOrder = () => {
 
   return useMutation({
     mutationFn: orderApi.cancelOrder,
-    onSuccess: (cancelledOrder) => {
-      // Update the orders list cache
+    onSuccess: (response) => {
+      // Remove the order from cache since it's deleted
       queryClient.setQueryData(orderKeys.lists(), (oldData) => {
-        if (!oldData) return [cancelledOrder];
-        return oldData.map(order => 
-          order.id === cancelledOrder.id ? cancelledOrder : order
-        );
+        if (!oldData) return [];
+        return oldData.filter(order => order.id !== response.data.orderId);
       });
 
-      // Update the specific order cache
-      queryClient.setQueryData(
-        orderKeys.detail(cancelledOrder.id), 
-        cancelledOrder
-      );
+      // Remove the specific order from cache
+      queryClient.removeQueries({ queryKey: orderKeys.detail(response.data.orderId) });
 
       // Invalidate and refetch orders list
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
     onError: (error) => {
-      console.error('Error cancelling order:', error);
+      console.error('Error deleting order:', error);
     }
   });
 };
@@ -307,4 +328,7 @@ export const useOrder = () => {
     cancelOrder,
     clearError
   };
-}; 
+};
+
+// Export direct API functions for use in components
+export const { createPayment, cancelOrder } = orderApi; 

@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import addressRoutes from './routes/auth.address.route.js';
 import orderRoutes from './routes/order.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
+import deliveryItemRoutes from './routes/deliveryItem.routes.js';
 import path from 'path';
 import './models/index.js'; // Import models to ensure associations are loaded
 // import sequelize from './config/database.js';
@@ -14,7 +16,48 @@ dotenv.config();
 
 const app = express();
 
-app.use('/uploads',express.static(path.join(process.cwd(),'src/services/uploads')))
+// Serve static files with proper fallback handling
+app.use('/uploads', (req, res, next) => {
+  const fs = require('fs');
+  const serverFilePath = path.join(process.cwd(), 'src/services/uploads', req.path);
+  const clientFilePath = path.join(process.cwd(), '../Client/public', req.path);
+  
+  // Check if file exists in server uploads first
+  if (fs.existsSync(serverFilePath)) {
+    console.log(`Serving from server uploads: ${req.path}`);
+    res.sendFile(serverFilePath);
+  } else if (fs.existsSync(clientFilePath)) {
+    // Fallback to client public directory
+    console.log(`Serving from client public: ${req.path}`);
+    res.sendFile(clientFilePath);
+  } else {
+    // File doesn't exist anywhere, return 404
+    console.log(`File not found: ${req.path}`);
+    res.status(404).json({ 
+      error: 'File not found',
+      message: `The requested file ${req.path} was not found`
+    });
+  }
+});
+
+// Serve payment receipt files from payment-receipts directory
+app.use('/payment-receipts', (req, res, next) => {
+  const fs = require('fs');
+  const filePath = path.join(process.cwd(), 'src/services/payment-receipts', req.path);
+  
+  // Check if file exists
+  if (fs.existsSync(filePath)) {
+    console.log(`Serving payment receipt: ${req.path}`);
+    res.sendFile(filePath);
+  } else {
+    // File doesn't exist, return 404
+    console.log(`Payment receipt not found: ${req.path}`);
+    res.status(404).json({ 
+      error: 'Payment receipt not found',
+      message: `The requested payment receipt ${req.path} was not found`
+    });
+  }
+});
 
 // Middleware
 
@@ -44,6 +87,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api', deliveryItemRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

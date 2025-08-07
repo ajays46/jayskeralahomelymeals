@@ -24,34 +24,36 @@ model Auth {
 }
 
 model User {
-  id          String     @id @default(uuid()) @db.VarChar(36)
-  customerId  Int        @unique @map("customer_id")
-  authId      String     @unique @map("auth_id") @db.VarChar(36)
-  status      UserStatus @default(ACTIVE)
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at")
-  auth        Auth       @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userRole    UserRole?
-  addresses   Address[]
-  deliveryItems DeliveryItem[]
-  contacts    Contact[]
+  id              String           @id @default(uuid()) @db.VarChar(36)
+  authId          String           @unique @map("auth_id") @db.VarChar(36)
+  status          UserStatus       @default(ACTIVE)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at")
+  customerId      Int              @unique @map("customer_id")
+  auth            Auth             @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userRole        UserRole?
+  addresses       Address[]
+  deliveryItems   DeliveryItem[]
+  contacts        Contact[]
+  payments        Payment[]
+  paymentReceipts PaymentReceipt[]
 
   @@map("users")
 }
 
 model Address {
-  id          String      @id @default(uuid()) @db.VarChar(36)
-  userId      String      @map("user_id") @db.VarChar(36)
-  street      String      @db.VarChar(255)
-  housename   String      @db.VarChar(255)
-  city        String      @db.VarChar(255)
-  pincode     Int
-  geoLocation String?     @map("geo_location") @db.VarChar(255)
-  addressType AddressType @default(HOME) @map("address_type")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  orders      Order[]
+  id            String         @id @default(uuid()) @db.VarChar(36)
+  userId        String         @map("user_id") @db.VarChar(36)
+  street        String         @db.VarChar(255)
+  housename     String         @db.VarChar(255)
+  city          String         @db.VarChar(255)
+  pincode       Int
+  geoLocation   String?        @map("geo_location") @db.VarChar(255)
+  addressType   AddressType    @default(HOME) @map("address_type")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  orders        Order[]
   deliveryItems DeliveryItem[]
 
   @@map("addresses")
@@ -125,31 +127,29 @@ model ProductQuantity {
 }
 
 model MenuItem {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  name        String   @db.VarChar(255)
-  productId   String?  @map("product_id") @db.VarChar(36) // Reference to Product
-  menuId      String   @map("menu_id") @db.VarChar(36)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  menu        Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  prices      MenuItemPrice[]
+  id            String          @id @default(uuid()) @db.VarChar(36)
+  name          String          @db.VarChar(255)
+  menuId        String          @map("menu_id") @db.VarChar(36)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  productId     String?         @map("product_id") @db.VarChar(36)
+  menu          Menu            @relation(fields: [menuId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product       Product?        @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  prices        MenuItemPrice[]
   deliveryItems DeliveryItem[]
 
   @@map("menu_items")
 }
 
 model MenuItemPrice {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  companyId   String   @map("company_id") @db.VarChar(36)
-  menuItemId  String   @map("menu_item_id") @db.VarChar(36)
-  totalPrice  Int      @map("total_price")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  // Relations
-  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  menuItem  MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  companyId  String   @map("company_id") @db.VarChar(36)
+  menuItemId String   @map("menu_item_id") @db.VarChar(36)
+  totalPrice Int      @map("total_price")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("menu_item_prices")
 }
@@ -162,23 +162,21 @@ model MenuCategory {
   description String   @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  menu    Menu    @relation(fields: [menuId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menu        Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("menu_categories")
 }
 
 model Menu {
-  id          String            @id @default(uuid()) @db.VarChar(36)
-  companyId   String            @map("company_id") @db.VarChar(36)
-  name        String            @db.VarChar(255)
-  status      MenuStatus        @default(ACTIVE)
-  createdAt   DateTime          @default(now()) @map("created_at")
-  updatedAt   DateTime          @updatedAt @map("updated_at")
-  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  menuItems   MenuItem[]
+  id             String         @id @default(uuid()) @db.VarChar(36)
+  companyId      String         @map("company_id") @db.VarChar(36)
+  name           String         @db.VarChar(255)
+  status         MenuStatus     @default(ACTIVE)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menuItems      MenuItem[]
   menuCategories MenuCategory[]
 
   @@map("menus")
@@ -211,86 +209,111 @@ model Deliveries {
 }
 
 model CustomerSubscription {
-  customerId        Int           @id @map("customer_id")
-  subscriptionType  Int           @map("subscription_type")
-  morningStatus     SubscriptionStatus @map("morning_status")
-  lunchStatus       SubscriptionStatus @map("lunch_status")
-  dinnerStatus      SubscriptionStatus @map("dinner_status")
+  customerId       Int                @id @map("customer_id")
+  subscriptionType Int                @map("subscription_type")
+  morningStatus    SubscriptionStatus @map("morning_status")
+  lunchStatus      SubscriptionStatus @map("lunch_status")
+  dinnerStatus     SubscriptionStatus @map("dinner_status")
 
   @@map("customer_subscription")
 }
 
 model Order {
-  id                    String           @id @default(uuid()) @db.VarChar(36)
-  userId                String           @map("user_id") @db.VarChar(36)
-  linkedRecurringOrderId String?         @map("linked_recurring_order_id") @db.VarChar(36)
-  orderDate             DateTime         @map("order_date") @db.Date
-  status                OrderStatus      @default(Pending)
-  orderTimes            String           @map("order_times") // JSON string of OrderTime array
-  totalPrice            Int              @map("total_price")
-  deliveryAddressId     String?          @map("delivery_address_id") @db.VarChar(36)
-  createdAt             DateTime         @default(now()) @map("created_at")
-  updatedAt             DateTime         @updatedAt @map("updated_at")
-  
-  deliveryAddress       Address?         @relation(fields: [deliveryAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  deliveryItems         DeliveryItem[]
+  id                     String         @id @default(uuid()) @db.VarChar(36)
+  userId                 String         @map("user_id") @db.VarChar(36)
+  linkedRecurringOrderId String?        @map("linked_recurring_order_id") @db.VarChar(36)
+  orderDate              DateTime       @map("order_date") @db.Date
+  status                 OrderStatus    @default(Pending)
+  orderTimes             String         @map("order_times")
+  totalPrice             Int            @map("total_price")
+  deliveryAddressId      String?        @map("delivery_address_id") @db.VarChar(36)
+  createdAt              DateTime       @default(now()) @map("created_at")
+  updatedAt              DateTime       @updatedAt @map("updated_at")
+  deliveryAddress        Address?       @relation(fields: [deliveryAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  deliveryItems          DeliveryItem[]
+  payments               Payment[]
 
   @@map("orders")
 }
 
-
 model DeliveryItem {
-  id                 String           @id @default(uuid()) @db.VarChar(36)
-  orderId            String           @map("order_id") @db.VarChar(36)
-  userId             String           @map("user_id") @db.VarChar(36)
-  menuItemId         String           @map("menu_item_id") @db.VarChar(36)
-  quantity           Int
-  total              Int
-  deliveryDate       DateTime         @map("delivery_date") @db.Date
-  deliveryTimeSlot   DeliveryTimeSlot @map("delivery_time_slot")
-  addressId          String           @map("address_id") @db.VarChar(36)
-  status             OrderStatus      @default(Pending)
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
-  
-  // Relations
-  order              Order            @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  menuItem           MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  deliveryAddress    Address          @relation(fields: [addressId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id               String           @id @default(uuid()) @db.VarChar(36)
+  orderId          String           @map("order_id") @db.VarChar(36)
+  menuItemId       String           @map("menu_item_id") @db.VarChar(36)
+  quantity         Int
+  deliveryDate     DateTime         @map("delivery_date") @db.Date
+  deliveryTimeSlot DeliveryTimeSlot @map("delivery_time_slot")
+  addressId        String           @map("address_id") @db.VarChar(36)
+  status           OrderStatus      @default(Pending)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  userId           String           @map("user_id") @db.VarChar(36)
+  order            Order            @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menuItem         MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  deliveryAddress  Address          @relation(fields: [addressId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("delivery_items")
 }
 
 model Contact {
-  id                String        @id @default(uuid()) @db.VarChar(36)
-  userId            String        @map("user_id") @db.VarChar(36)
-  firstName         String        @map("first_name") @db.VarChar(255)
-  lastName          String        @map("last_name") @db.VarChar(255)
-  instagramHandle   String?       @map("instagram_handle") @db.VarChar(255)
-  whatsappNumber    String?       @map("whatsapp_number") @db.VarChar(255)
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
-  
-  // Relations
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  phoneNumbers      PhoneNumber[]
+  id              String        @id @default(uuid()) @db.VarChar(36)
+  userId          String        @map("user_id") @db.VarChar(36)
+  firstName       String        @map("first_name") @db.VarChar(255)
+  lastName        String        @map("last_name") @db.VarChar(255)
+  instagramHandle String?       @map("instagram_handle") @db.VarChar(255)
+  whatsappNumber  String?       @map("whatsapp_number") @db.VarChar(255)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  phoneNumbers    PhoneNumber[]
 
   @@map("contacts")
 }
 
 model PhoneNumber {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  contactId   String   @map("contact_id") @db.VarChar(36)
-  type        String   @db.VarChar(50) // e.g., "mobile", "home", "work"
-  number      String   @db.VarChar(255)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  // Relations
-  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  contactId String   @map("contact_id") @db.VarChar(36)
+  type      String   @db.VarChar(50)
+  number    String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("phone_numbers")
+}
+
+model Payment {
+  id                  String           @id @default(uuid()) @db.VarChar(36)
+  userId              String           @map("user_id") @db.VarChar(36)
+  orderId             String           @map("order_id") @db.VarChar(36)
+  paymentMethod       PaymentMethod    @map("payment_method")
+  paymentStatus       PaymentStatus    @default(Pending) @map("payment_status")
+  paymentAmount       Int              @map("payment_amount")
+  paymentDate         DateTime?        @map("payment_date")
+  receiptUrl          String?          @map("receipt_url") @db.VarChar(500)
+  uploadedReceiptType ReceiptType?     @map("uploaded_receipt_type")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  order               Order            @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  paymentReceipts     PaymentReceipt[]
+
+  @@map("payments")
+}
+
+model PaymentReceipt {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  userId          String   @map("user_id") @db.VarChar(36)
+  paymentId       String   @map("payment_id") @db.VarChar(36)
+  receiptImageUrl String   @map("receipt_image_url") @db.VarChar(500)
+  receipt         String   @db.VarChar(500)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  payment         Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("payment_receipts")
 }
 
 enum Status {
@@ -325,11 +348,6 @@ enum MenuStatus {
   PUBLISHED
 }
 
-enum FoodType {
-  VEG
-  NON_VEG
-}
-
 enum SubscriptionStatus {
   YES
   NO
@@ -349,16 +367,26 @@ enum OrderStatus {
   Payment_Confirmed
 }
 
-enum OrderTime {
-  Morning
-  Noon
-  Night
-}
-
 enum DeliveryTimeSlot {
   Breakfast
   Lunch
   Dinner
 }
 
+enum PaymentMethod {
+  UPI
+  CreditCard
+  DebitCard
+  NetBanking
+}
 
+enum PaymentStatus {
+  Pending
+  Confirmed
+  Failed
+}
+
+enum ReceiptType {
+  Image
+  PDF
+}

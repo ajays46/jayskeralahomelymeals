@@ -15,19 +15,13 @@ export const createOrder = async (req, res, next) => {
     try {
         const userId = req.user.userId;
         const orderData = req.body;
-        // console.log(req.body,"orderData");
         
-
         const order = await createOrderService(userId, orderData);
-        console.log(order,"orderVIVEK");
         
-
         res.status(201).json({
-            success: true,
+            status: 'success',
             message: 'Order created successfully',
-            data: {
-                order: order
-            }
+            data: order
         });
     } catch (error) {
         next(error);
@@ -104,19 +98,20 @@ export const updateOrderStatus = async (req, res, next) => {
     }
 };
 
-// Cancel order
+// Cancel order (delete from database)
 export const cancelOrder = async (req, res, next) => {
     try {
         const userId = req.user.userId;
         const orderId = req.params.id;
 
-        const order = await cancelOrderService(userId, orderId);
+        const result = await cancelOrderService(userId, orderId);
 
         res.status(200).json({
             success: true,
             message: 'Order cancelled successfully',
             data: {
-                order: order
+                orderId: result.id,
+                message: result.message
             }
         });
     } catch (error) {

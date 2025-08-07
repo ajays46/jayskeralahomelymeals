@@ -64,13 +64,11 @@ export const createOrderService = async (userId, orderData) => {
             }
 
             const itemPrice = menuItem.prices[0].totalPrice;
-            const itemTotal = itemPrice * quantity;
-            totalPrice += itemTotal;
+            totalPrice = itemPrice; // Use the menu item price directly as the total
 
             validatedOrderItems.push({
                 menuItemId,
-                quantity,
-                total: itemTotal
+                quantity
             });
         }
 
@@ -176,202 +174,14 @@ export const createOrderService = async (userId, orderData) => {
                 }
             });
 
-            // Create delivery items based on delivery schedule and selected dates
-            const deliveryItemsData = [];
-            
-            // Get selected dates from order data
-            const selectedDates = orderData.selectedDates || [orderDate];
-            const deliveryDates = selectedDates.map(dateStr => new Date(dateStr));
-            
-            if (isComprehensiveMenu) {
-                // For comprehensive menus, create delivery items per day based on skipped meals
-                // Use the first menu item from orderItems (the "Monthly Menu" item)
-                const monthlyMenuItem = validatedOrderItems[0];
-                
-                if (monthlyMenuItem) {
-                    // Get the menu item price once
-                    const menuItem = await tx.menuItem.findUnique({
-                        where: { id: monthlyMenuItem.menuItemId },
-                        include: {
-                            prices: {
-                                orderBy: { createdAt: 'desc' },
-                                take: 1
-                            }
-                        }
-                    });
-                    
-                    const itemPrice = menuItem.prices[0]?.totalPrice || 0;
-                    const mealPrice = Math.round(itemPrice / 3); // Divide total by 3 for each meal
-                    
-                    // Create delivery items for each day and each meal (excluding skipped meals)
-                    deliveryDates.forEach(deliveryDate => {
-                        const dateStr = deliveryDate.toISOString().split('T')[0];
-                        const skippedMealsForDate = orderData.skipMeals?.[dateStr] || {};
-                        
-                        // Only create delivery items for meals that are NOT skipped
-                        if (!skippedMealsForDate.breakfast) {
-                            deliveryItemsData.push({
-                                orderId: newOrder.id,
-                                userId: userId,
-                                menuItemId: monthlyMenuItem.menuItemId,
-                                quantity: 1,
-                                total: mealPrice,
-                                deliveryDate: deliveryDate,
-                                deliveryTimeSlot: 'Breakfast',
-                                addressId: deliveryLocations?.breakfast || deliveryAddressId,
-                                status: 'Pending'
-                            });
-                        }
-                        
-                        if (!skippedMealsForDate.lunch) {
-                            deliveryItemsData.push({
-                                orderId: newOrder.id,
-                                userId: userId,
-                                menuItemId: monthlyMenuItem.menuItemId,
-                                quantity: 1,
-                                total: mealPrice,
-                                deliveryDate: deliveryDate,
-                                deliveryTimeSlot: 'Lunch',
-                                addressId: deliveryLocations?.lunch || deliveryAddressId,
-                                status: 'Pending'
-                            });
-                        }
-                        
-                        if (!skippedMealsForDate.dinner) {
-                            deliveryItemsData.push({
-                                orderId: newOrder.id,
-                                userId: userId,
-                                menuItemId: monthlyMenuItem.menuItemId,
-                                quantity: 1,
-                                total: mealPrice,
-                                deliveryDate: deliveryDate,
-                                deliveryTimeSlot: 'Dinner',
-                                addressId: deliveryLocations?.dinner || deliveryAddressId,
-                                status: 'Pending'
-                            });
-                        }
-                    });
-                }
-                
-                const totalPossibleMeals = deliveryDates.length * 3;
-                const skippedMealsCount = totalPossibleMeals - deliveryItemsData.length;
-                console.log(`Created ${deliveryItemsData.length} delivery items for comprehensive menu: ${deliveryDates.length} days × 3 meals (${skippedMealsCount} meals skipped)`);
-                
+            // Note: Delivery items will be created after payment confirmation
+            // This ensures that delivery items are only created for paid orders
+            console.log('Order created successfully. Delivery items will be created after payment confirmation.');
 
-            } else if (isDailyRates) {
-                // For daily rates, create delivery items for each meal type and each selected date
-                const dailyRatesMenuItem = validatedOrderItems[0];
-                
-                if (dailyRatesMenuItem) {
-                    // Get the menu item price
-                    const menuItem = await tx.menuItem.findUnique({
-                        where: { id: dailyRatesMenuItem.menuItemId },
-                        include: {
-                            prices: {
-                                orderBy: { createdAt: 'desc' },
-                                take: 1
-                            }
-                        }
-                    });
-                    
-                    const itemPrice = menuItem.prices[0]?.totalPrice || 0;
-                    
-                    // Create delivery items for each day and each meal type
-                    deliveryDates.forEach(deliveryDate => {
-                        const dateStr = deliveryDate.toISOString().split('T')[0];
-                        const skippedMealsForDate = orderData.skipMeals?.[dateStr] || {};
-                        
-                        // Create delivery item for breakfast if not skipped
-                        if (!skippedMealsForDate.breakfast) {
-                            deliveryItemsData.push({
-                                orderId: newOrder.id,
-                                userId: userId,
-                                menuItemId: dailyRatesMenuItem.menuItemId,
-                                quantity: 1,
-                                total: itemPrice,
-                                deliveryDate: deliveryDate,
-                                deliveryTimeSlot: 'Breakfast',
-                                addressId: deliveryLocations?.breakfast || deliveryAddressId,
-                                status: 'Pending'
-                            });
-                        }
-                        
-                        // Create delivery item for lunch if not skipped
-                        if (!skippedMealsForDate.lunch) {
-                            deliveryItemsData.push({
-                                orderId: newOrder.id,
-                                userId: userId,
-                                menuItemId: dailyRatesMenuItem.menuItemId,
-                                quantity: 1,
-                                total: itemPrice,
-                                deliveryDate: deliveryDate,
-                                deliveryTimeSlot: 'Lunch',
-                                addressId: deliveryLocations?.lunch || deliveryAddressId,
-                                status: 'Pending'
-                            });
-                        }
-                        
-                        // Create delivery item for dinner if not skipped
-                        if (!skippedMealsForDate.dinner) {
-                            deliveryItemsData.push({
-                                orderId: newOrder.id,
-                                userId: userId,
-                                menuItemId: dailyRatesMenuItem.menuItemId,
-                                quantity: 1,
-                                total: itemPrice,
-                                deliveryDate: deliveryDate,
-                                deliveryTimeSlot: 'Dinner',
-                                addressId: deliveryLocations?.dinner || deliveryAddressId,
-                                status: 'Pending'
-                            });
-                        }
-                    });
-                }
-                
-                console.log(`Created ${deliveryItemsData.length} delivery items for daily rates: ${deliveryDates.length} days × 3 meals`);
-
-            } else {
-                // Fallback: create delivery items for all order items with default delivery time slot
-                // For regular menus, we don't have meal-specific skipping, so create all items
-                deliveryDates.forEach(deliveryDate => {
-                    validatedOrderItems.forEach(item => {
-                        deliveryItemsData.push({
-                            orderId: newOrder.id,
-                            userId: userId,
-                            menuItemId: item.menuItemId,
-                            quantity: item.quantity,
-                            total: item.total,
-                            deliveryDate: deliveryDate,
-                            deliveryTimeSlot: 'Breakfast', // Default time slot
-                            addressId: deliveryAddressId,
-                            status: 'Pending'
-                        });
-                    });
-                });
-            }
-
-            // Create delivery items
-            if (deliveryItemsData.length > 0) {
-                await tx.deliveryItem.createMany({
-                    data: deliveryItemsData
-                });
-            }
-
-            // Return order with delivery items
+            // Return order without delivery items (they will be created after payment)
             return await tx.order.findUnique({
                 where: { id: newOrder.id },
                 include: {
-                    deliveryItems: {
-                        include: {
-                            menuItem: {
-                                include: {
-                                    product: true,
-                                    menu: true
-                                }
-                            },
-                            deliveryAddress: true
-                        }
-                    },
                     deliveryAddress: true
                 }
             });
@@ -573,13 +383,21 @@ export const updateOrderStatusService = async (userId, orderId, status) => {
     }
 };
 
-// Cancel order
+// Cancel order (delete from database)
 export const cancelOrderService = async (userId, orderId) => {
     try {
         const order = await prisma.order.findFirst({
             where: {
                 id: orderId,
                 userId: userId
+            },
+            include: {
+                deliveryItems: {
+                    include: {
+                        deliveryAddress: true
+                    }
+                },
+                deliveryAddress: true
             }
         });
 
@@ -596,32 +414,85 @@ export const cancelOrderService = async (userId, orderId) => {
             throw new AppError('Order is already cancelled', 400);
         }
 
+        // Delete the order and all related data using transaction
+        const deletedOrder = await prisma.$transaction(async (tx) => {
+            console.log('Starting order deletion transaction for orderId:', orderId);
+            console.log('Order data:', JSON.stringify(order, null, 2));
+
+            // Delete payments and payment receipts first (due to foreign key constraints)
+            console.log('Deleting payments for order:', orderId);
+            await tx.payment.deleteMany({
+                where: {
+                    orderId: orderId
+                }
+            });
+
+            // Delete delivery items first (due to foreign key constraints)
+            if (order.deliveryItems && order.deliveryItems.length > 0) {
+                console.log('Deleting delivery items:', order.deliveryItems.length);
+                await tx.deliveryItem.deleteMany({
+                    where: {
+                        orderId: orderId
+                    }
+                });
+            } else {
+                console.log('No delivery items to delete');
+            }
+
+            // Delete delivery address if it exists and has an id
+            if (order.deliveryAddress && order.deliveryAddress.id) {
+                console.log('Deleting delivery address:', order.deliveryAddress.id);
+                await tx.deliveryAddress.delete({
+                    where: {
+                        id: order.deliveryAddress.id
+                    }
+                });
+            } else {
+                console.log('No delivery address to delete or address has no id');
+            }
+
+            // Delete the order
+            console.log('Deleting main order');
+            const deletedOrder = await tx.order.delete({
+                where: {
+                    id: orderId
+                }
+            });
+
+            console.log('Order deletion completed successfully');
+            return deletedOrder;
+        });
+
+        return { 
+            id: deletedOrder.id,
+            message: 'Order deleted successfully'
+        };
+    } catch (error) {
+        console.error('Cancel order service error:', error);
+        
+        // If transaction fails, try a simpler approach - just update status to cancelled
+        if (error.code === 'P2003' || error.message.includes('delete')) {
+            console.log('Transaction failed, falling back to status update');
+            try {
         const updatedOrder = await prisma.order.update({
             where: {
                 id: orderId
             },
             data: {
                 status: 'Cancelled'
-            },
-            include: {
-                deliveryItems: {
-                    include: {
-                        menuItem: {
-                            include: {
-                                product: true,
-                                menu: true
-                            }
-                        },
-                        deliveryAddress: true
                     }
-                },
-                deliveryAddress: true
+                });
+                
+                return { 
+                    id: updatedOrder.id,
+                    message: 'Order cancelled (not deleted due to constraints)'
+                };
+            } catch (fallbackError) {
+                console.error('Fallback also failed:', fallbackError);
+                throw new AppError('Failed to cancel order', 500);
             }
-        });
-
-        return updatedOrder;
-    } catch (error) {
-        console.error('Cancel order service error:', error);
+        }
+        
         if (error instanceof AppError) {
             throw error;
         }
