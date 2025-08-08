@@ -19,9 +19,11 @@ export const createOrder = async (req, res, next) => {
         const order = await createOrderService(userId, orderData);
         
         res.status(201).json({
-            status: 'success',
+            success: true,
             message: 'Order created successfully',
-            data: order
+            data: {
+                order: order
+            }
         });
     } catch (error) {
         next(error);

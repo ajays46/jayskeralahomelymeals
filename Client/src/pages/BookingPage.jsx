@@ -620,6 +620,9 @@ const BookingPage = () => {
 
         toast.success('Order created successfully!');
         
+        console.log('Order created successfully, redirecting to payment page...');
+        console.log('Order ID:', newOrder.id);
+        
         // Save order to localStorage for payment page
         localStorage.setItem('savedOrder', JSON.stringify({
           ...orderData,
@@ -785,7 +788,22 @@ const BookingPage = () => {
 
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error(error.message || 'Failed to create order. Please try again.');
+      
+      // More detailed error logging
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        console.error('Error status:', error.response.status);
+      }
+      
+      // Check if it's a database connection error
+      if (error.message && error.message.includes('database')) {
+        toast.error('Database connection failed. Please check your connection and try again.');
+      } else {
+        toast.error(error.message || 'Failed to create order. Please try again.');
+      }
+      
+      // Log that we're not redirecting due to error
+      console.log('Order creation failed - not redirecting to payment page');
     }
   };
 
