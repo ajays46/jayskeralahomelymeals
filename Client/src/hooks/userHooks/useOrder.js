@@ -179,6 +179,7 @@ export const useCalculateMenuPricing = () => {
     mutationFn: orderApi.calculateMenuPricing,
     onError: (error) => {
       console.error('Menu pricing calculation error:', error);
+      // Note: Admin blocking errors should be handled by the component using this hook
     }
   });
 };
@@ -189,6 +190,7 @@ export const useCalculateOrderTotal = () => {
     mutationFn: orderApi.calculateOrderTotal,
     onError: (error) => {
       console.error('Order total calculation error:', error);
+      // Note: Admin blocking errors should be handled by the component using this hook
     }
   });
 };

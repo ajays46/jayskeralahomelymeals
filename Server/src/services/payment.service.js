@@ -342,7 +342,7 @@ export const deletePaymentService = async (userId, paymentId) => {
                 const filePath = path.join(process.cwd(), 'src/services/payment-receipts', filename);
                 if (fs.existsSync(filePath)) {
                     fs.unlinkSync(filePath);
-                    console.log(`Payment receipt file deleted: ${filename}`);
+                
                 }
             } catch (fileError) {
                 console.error(`Failed to delete payment receipt file: ${filename}`, fileError);

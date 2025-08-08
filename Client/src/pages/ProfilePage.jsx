@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/Zustand.store';
 import Navbar from '../components/Navbar';
 import ChangePassword from '../components/ChangePassword';
+import { useLogout } from '../hooks/userHooks/useLogin';
 import { 
   MdPerson, 
   MdEmail, 
@@ -21,13 +22,16 @@ import {
   MdAccessTime,
   MdNotifications
 } from 'react-icons/md';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const logoutMutation = useLogout();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [editForm, setEditForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -75,8 +79,16 @@ const ProfilePage = () => {
   ];
 
   const handleLogout = () => {
-    logout();
-    navigate('/jayskeralahomelymeals');
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    logoutMutation.mutate();
+    setShowLogoutConfirm(false);
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   const handleSave = () => {
@@ -387,6 +399,38 @@ const ProfilePage = () => {
         isOpen={showChangePassword} 
         onClose={() => setShowChangePassword(false)} 
       />
+
+      {/* Custom Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div 
+          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
+          style={{ minHeight: '100vh' }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-11/12 mx-4 my-8 relative">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <ExclamationCircleOutlined className="text-red-600 text-xl" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800">Confirm Logout</h3>
+            </div>
+            <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={cancelLogout}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLogout}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

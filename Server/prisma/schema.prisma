@@ -31,7 +31,7 @@ model User {
   updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at")
   customerId      Int              @unique @map("customer_id")
   auth            Auth             @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userRole        UserRole?
+  userRoles       UserRole[]
   addresses       Address[]
   deliveryItems   DeliveryItem[]
   contacts        Contact[]
@@ -60,8 +60,9 @@ model Address {
 }
 
 model UserRole {
-  userId    String   @id @map("user_id") @db.VarChar(36)
-  name      RoleName @default(USER)
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  userId    String   @map("user_id") @db.VarChar(36)
+  name      String   @db.VarChar(255) // Changed from RoleName enum to String to support comma-separated values
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)

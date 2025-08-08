@@ -5,8 +5,10 @@ import AuthSlider from '../components/AuthSlider';
 import { useMenusForBooking } from '../hooks/adminHook/adminHook';
 import { useOrder, useCalculateMenuPricing, useCalculateOrderTotal } from '../hooks/userHooks/useOrder';
 import { useAddress } from '../hooks/userHooks/userAddress';
+import { useAdminOrderBlock } from '../hooks/userHooks/useAdminOrderBlock';
 import { toast } from 'react-toastify';
 import AddressPicker from '../components/AddressPicker';
+import AdminOrderBlockedModal from '../components/AdminOrderBlockedModal';
 import { 
   BookingHeader, 
   DateSelector, 
@@ -59,6 +61,7 @@ const BookingPage = () => {
   const { data: menusData, isLoading: menusLoading, error: menusError } = useMenusForBooking();
   const calculateMenuPricing = useCalculateMenuPricing();
   const calculateOrderTotal = useCalculateOrderTotal();
+  const { showAdminBlockModal, handleOrderError, handleSwitchAccount, closeAdminBlockModal } = useAdminOrderBlock();
   const menus = menusData?.data || [];
 
   // Helper functions
@@ -620,8 +623,7 @@ const BookingPage = () => {
 
         toast.success('Order created successfully!');
         
-        console.log('Order created successfully, redirecting to payment page...');
-        console.log('Order ID:', newOrder.id);
+
         
         // Save order to localStorage for payment page
         localStorage.setItem('savedOrder', JSON.stringify({
@@ -795,6 +797,12 @@ const BookingPage = () => {
         console.error('Error status:', error.response.status);
       }
       
+      // Check if it's an admin order blocking error
+      if (handleOrderError(error)) {
+        // Error was handled by the admin block modal
+        return;
+      }
+      
       // Check if it's a database connection error
       if (error.message && error.message.includes('database')) {
         toast.error('Database connection failed. Please check your connection and try again.');
@@ -802,8 +810,7 @@ const BookingPage = () => {
         toast.error(error.message || 'Failed to create order. Please try again.');
       }
       
-      // Log that we're not redirecting due to error
-      console.log('Order creation failed - not redirecting to payment page');
+
     }
   };
 
@@ -1145,6 +1152,13 @@ const BookingPage = () => {
             />
                   </div>
       </div>
+      
+      {/* Admin Order Blocked Modal */}
+      <AdminOrderBlockedModal
+        visible={showAdminBlockModal}
+        onClose={closeAdminBlockModal}
+        onSwitchAccount={handleSwitchAccount}
+      />
     </div>
   );
 };

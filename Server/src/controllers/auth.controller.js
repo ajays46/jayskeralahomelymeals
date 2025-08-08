@@ -1,7 +1,8 @@
-import { registerUser, loginUser, forgotPasswordService, resetPasswordService, adminLoginService } from '../services/auth.service.js';
+import { registerUser, loginUser, forgotPasswordService, resetPasswordService, adminLoginService, addUserRole, removeUserRole, getUserRoles, hasRole } from '../services/auth.service.js';
 import AppError from '../utils/AppError.js';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
+import { clearJWTCookie, setJWTCookie } from '../utils/cookieUtils.js';
 import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
 
@@ -30,14 +31,7 @@ export const login = async (req, res, next) => {
 
     const { accessToken, refreshToken } = userData.token;
 
-    res.cookie('jwt', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-      path: '/', // important
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
-
+    setJWTCookie(res, refreshToken);
 
 
     res.status(200).json({
@@ -79,7 +73,7 @@ export const refreshToken = async (req, res, next) => {
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
         include: {
-          userRole: true
+          userRoles: true
         }
       });
 
@@ -87,20 +81,16 @@ export const refreshToken = async (req, res, next) => {
         throw new AppError("Invalid refresh token", 401);
       }
 
-      if (!user.userRole) {
-        throw new AppError("User role not found", 403);
+      if (!user.userRoles || user.userRoles.length === 0) {
+        throw new AppError("User roles not found", 403);
       }
 
-      const newAccessToken = generateAccessToken(user.id, user.userRole.name);
-      const newRefreshToken = generateRefreshToken(user.id, user.userRole.name);
+      // Get the primary role (first role or highest priority role)
+      const primaryRole = user.userRoles[0];
+      const newAccessToken = generateAccessToken(user.id, primaryRole.name);
+      const newRefreshToken = generateRefreshToken(user.id, primaryRole.name);
 
-      res.cookie('jwt', newRefreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-        path: '/',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
+      setJWTCookie(res, newRefreshToken);
 
       return res.status(200).json({
         success: true,
@@ -125,7 +115,7 @@ export const usersList = async (req, res, next) => {
     const users = await prisma.user.findMany({
       include: {
         auth: true,
-        userRole: true
+        userRoles: true
       }
     });
 
@@ -158,9 +148,101 @@ export const resetPassword = async (req, res, next) => {
 
 // Logout user
 export const logout = (req, res) => {
-  res.clearCookie('jwt');
-  res.status(200).json({
-    success: true,
-    message: 'Logged out successfully'
-  });
+  try {
+    clearJWTCookie(res);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Even if there's an error, try to send a success response
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  }
+};
+
+// Add role to user
+export const addRoleToUser = async (req, res, next) => {
+  try {
+    const { userId, roleName } = req.body;
+
+    if (!userId || !roleName) {
+      throw new AppError('User ID and role name are required', 400);
+    }
+
+    const userRole = await addUserRole(userId, roleName);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Role added successfully',
+      data: userRole
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Remove role from user
+export const removeRoleFromUser = async (req, res, next) => {
+  try {
+    const { userId, roleName } = req.body;
+
+    if (!userId || !roleName) {
+      throw new AppError('User ID and role name are required', 400);
+    }
+
+    const result = await removeUserRole(userId, roleName);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Role removed successfully',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get user roles
+export const getUserRolesController = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      throw new AppError('User ID is required', 400);
+    }
+
+    const roles = await getUserRoles(userId);
+    
+    res.status(200).json({
+      success: true,
+      data: { userId, roles }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Check if user has role
+export const checkUserRole = async (req, res, next) => {
+  try {
+    const { userId, roleName } = req.params;
+
+    if (!userId || !roleName) {
+      throw new AppError('User ID and role name are required', 400);
+    }
+
+    const hasUserRole = await hasRole(userId, roleName);
+    
+    res.status(200).json({
+      success: true,
+      data: { userId, roleName, hasRole: hasUserRole }
+    });
+  } catch (error) {
+    next(error);
+  }
 };

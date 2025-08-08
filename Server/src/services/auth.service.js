@@ -110,15 +110,18 @@ export const loginUser = async ({ identifier, password }) => {
         const user = await prisma.user.findUnique({ 
             where: { authId: auth.id },
             include: {
-                userRole: true
+                userRoles: true
             }
         });
 
-        if (!user || !user.userRole) {
-            throw new AppError('User or role not found', 404);
+        if (!user || !user.userRoles || user.userRoles.length === 0) {
+            throw new AppError('User or roles not found', 404);
         }
-        const accessToken = generateAccessToken(user.id, user.userRole.name);
-        const refreshToken = generateRefreshToken(user.id, user.userRole.name);
+
+        // Get the primary role (first role or highest priority role)
+        const primaryRole = user.userRoles[0];
+        const accessToken = generateAccessToken(user.id, primaryRole.name);
+        const refreshToken = generateRefreshToken(user.id, primaryRole.name);
 
         return {
             user: {
@@ -128,7 +131,8 @@ export const loginUser = async ({ identifier, password }) => {
                 phone: auth.phoneNumber,
                 api_key: auth.apiKey,
                 status: auth.status,
-                role: user.userRole.name
+                role: primaryRole.name,
+                roles: user.userRoles.map(role => role.name) // Include all roles
             },
             token: {
                 accessToken,
@@ -224,7 +228,7 @@ export const adminLoginService = async (userId) => {
             where: { id: userId },
             include: {
                 auth: true,
-                userRole: true
+                userRoles: true
             }
         });
 
@@ -232,38 +236,112 @@ export const adminLoginService = async (userId) => {
             throw new AppError('User not found', 404);
         }
 
-        if (user.userRole.name !== 'ADMIN') {
-            throw new AppError('Access denied. Admin privileges required.', 403);
-        }
-
-        if (user.status !== 'ACTIVE') {
-            throw new AppError('User account is not active', 403);
-        }
-
-        if (user.auth.status !== 'ACTIVE') {
-            throw new AppError('Auth account is not active', 403);
-        }
-
-        const accessToken = generateAccessToken(user.id, user.userRole.name);
-        const refreshToken = generateRefreshToken(user.id, user.userRole.name);
-
         return {
-            user: {
-                id: user.id,
-                customer_id: user.customerId,
-                email: user.auth.email,
-                phone: user.auth.phoneNumber,
-                api_key: user.auth.apiKey,
-                status: user.auth.status,
-                role: user.userRole.name
-            },
-            token: {
-                accessToken,
-                refreshToken
-            }
+            id: user.id,
+            customer_id: user.customerId,
+            email: user.auth.email,
+            phone: user.auth.phoneNumber,
+            status: user.auth.status,
+            roles: user.userRoles.map(role => role.name)
         };
     } catch (error) {
-        console.error('Admin login error:', error);
+        console.error('Admin login service error:', error);
+        throw error;
+    }
+};
+
+// Add a role to a user
+export const addUserRole = async (userId, roleName) => {
+    try {
+        const existingRole = await prisma.userRole.findFirst({
+            where: {
+                userId: userId,
+                name: roleName
+            }
+        });
+
+        if (existingRole) {
+            throw new AppError('User already has this role', 409);
+        }
+
+        const userRole = await prisma.userRole.create({
+            data: {
+                userId: userId,
+                name: roleName
+            }
+        });
+
+        return userRole;
+    } catch (error) {
+        console.error('Add user role error:', error);
+        throw error;
+    }
+};
+
+// Remove a role from a user
+export const removeUserRole = async (userId, roleName) => {
+    try {
+        const userRole = await prisma.userRole.findFirst({
+            where: {
+                userId: userId,
+                name: roleName
+            }
+        });
+
+        if (!userRole) {
+            throw new AppError('User does not have this role', 404);
+        }
+
+        // Prevent removing the last USER role
+        if (roleName === 'USER') {
+            const userRoles = await prisma.userRole.findMany({
+                where: { userId: userId }
+            });
+            
+            if (userRoles.length === 1) {
+                throw new AppError('Cannot remove the last USER role', 400);
+            }
+        }
+
+        await prisma.userRole.delete({
+            where: { id: userRole.id }
+        });
+
+        return { message: 'Role removed successfully' };
+    } catch (error) {
+        console.error('Remove user role error:', error);
+        throw error;
+    }
+};
+
+// Get all roles for a user
+export const getUserRoles = async (userId) => {
+    try {
+        const userRoles = await prisma.userRole.findMany({
+            where: { userId: userId },
+            orderBy: { createdAt: 'asc' }
+        });
+
+        return userRoles.map(role => role.name);
+    } catch (error) {
+        console.error('Get user roles error:', error);
+        throw error;
+    }
+};
+
+// Check if user has a specific role
+export const hasRole = async (userId, roleName) => {
+    try {
+        const userRole = await prisma.userRole.findFirst({
+            where: {
+                userId: userId,
+                name: roleName
+            }
+        });
+
+        return !!userRole;
+    } catch (error) {
+        console.error('Check user role error:', error);
         throw error;
     }
 };

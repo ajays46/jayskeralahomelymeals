@@ -5,7 +5,7 @@ import { createCompanyService, companyListService, companyDeleteService, createP
 export const createCompany = async (req, res, next) => {
     try {
         const { name, address_id } = req.body;
-        // console.log(req.body);
+      
         const company = await createCompanyService({ name, address_id });
         res.status(201).json({
             status: 'success',
@@ -482,7 +482,6 @@ export const deleteMenuItemPrice = async (req, res, next) => {
 export const getMealsByDay = async (req, res, next) => {
     try {
         const { day } = req.query;
-        console.log(day,"day");
         
         
         // Validate day parameter
@@ -497,8 +496,6 @@ export const getMealsByDay = async (req, res, next) => {
         }
 
         const mealsData = await getMealsByDayService(day);
-        
-        console.log(mealsData,"mealsData");
         
         res.status(200).json({
             status: 'success',

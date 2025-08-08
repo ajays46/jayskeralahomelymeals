@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 export const useLogin = () => {
 
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
-  const setRole = useAuthStore((state) => state.setRole);
+  const setRoles = useAuthStore((state) => state.setRoles);
   const setUser = useAuthStore((state) => state.setUser);
   const navigate = useNavigate();
 
@@ -18,9 +18,9 @@ export const useLogin = () => {
     },
     onSuccess: (data) => {
       if (data.success) {
-        const role = data.data.role;
+        const roles = data.data.roles || [data.data.role]; // Handle both new and old format
         setAccessToken(data.accessToken);
-        setRole(role);
+        setRoles(roles);
         setUser(data.data);
         // showLoginSuccess();
         navigate('/jkhm');
@@ -33,6 +33,27 @@ export const useLogin = () => {
         return;
       }
       showLoginError({ response: { data: { message: errorMessage } } });
+    }
+  });
+};
+
+export const useLogout = () => {
+  const logout = useAuthStore((state) => state.logout);
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/auth/logout');
+      return response.data;
+    },
+    onSuccess: () => {
+      logout();
+      navigate('/jkhm');
+    },
+    onError: (error) => {
+      // Even if the API call fails, we should still logout locally
+      logout();
+      navigate('/jkhm');
     }
   });
 };

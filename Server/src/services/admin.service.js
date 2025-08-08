@@ -30,15 +30,6 @@ export const companyDeleteService = async (id) => {
 };
 
 export const createProductService = async (productData) => {
-  console.log('=== CREATE PRODUCT SERVICE CALLED ===');
-  console.log('Product data received:', {
-    productName: productData.productName,
-    code: productData.code,
-    hasImage: !!productData.imageUrl,
-    imageUrlLength: productData.imageUrl ? productData.imageUrl.length : 0,
-    companyId: productData.companyId,
-    status: productData.status
-  });
   
   const {
     productName,
@@ -53,10 +44,8 @@ export const createProductService = async (productData) => {
 
   // Save image to uploads folder if it's a base64 string
   let savedImageUrl = imageUrl;
-  console.log('Processing image:', imageUrl ? 'Image provided' : 'No image');
   if (imageUrl && imageUrl.startsWith('data:image/')) {
     try {
-      console.log('Saving base64 image to uploads folder...');
       // Create a clean filename: only first 20 characters, alphanumeric and hyphens only
       const cleanProductName = productName
         .toLowerCase()
@@ -66,13 +55,10 @@ export const createProductService = async (productData) => {
       
       const filename = saveBase64Image(imageUrl, `${cleanProductName}-${Date.now()}.jpg`);
       savedImageUrl = `/uploads/${filename}`;
-      console.log('Image saved successfully:', filename);
     } catch (error) {
       console.error('Error saving image:', error);
       throw new Error(`Failed to save image: ${error.message}`);
     }
-  } else {
-    console.log('No base64 image to save, using original imageUrl');
   }
 
   // Use transaction to ensure all related records are created together
@@ -473,7 +459,7 @@ export const deleteMenuService = async (menuId) => {
 // Menu Item services
 export const createMenuItemService = async (menuItemData) => {
   const { name, menuId, productId } = menuItemData;
-  // console.log(menuItemData,'menuItemData');
+
 
   // Check if menu exists
   const menu = await prisma.menu.findUnique({

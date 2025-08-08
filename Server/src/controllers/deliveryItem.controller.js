@@ -12,7 +12,7 @@ export const createDeliveryItemsAfterPayment = async (req, res, next) => {
         const orderData = req.body; // Contains orderItems, deliveryLocations, skipMeals, selectedDates, orderTimes
 
         const result = await createDeliveryItemsAfterPaymentService(orderId, orderData);
-        console.log(result,"result");
+      
 
         res.status(201).json({
             success: true,

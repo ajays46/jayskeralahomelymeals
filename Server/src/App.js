@@ -24,15 +24,15 @@ app.use('/uploads', (req, res, next) => {
   
   // Check if file exists in server uploads first
   if (fs.existsSync(serverFilePath)) {
-    console.log(`Serving from server uploads: ${req.path}`);
+
     res.sendFile(serverFilePath);
   } else if (fs.existsSync(clientFilePath)) {
     // Fallback to client public directory
-    console.log(`Serving from client public: ${req.path}`);
+    
     res.sendFile(clientFilePath);
   } else {
     // File doesn't exist anywhere, return 404
-    console.log(`File not found: ${req.path}`);
+    
     res.status(404).json({ 
       error: 'File not found',
       message: `The requested file ${req.path} was not found`
@@ -47,11 +47,11 @@ app.use('/payment-receipts', (req, res, next) => {
   
   // Check if file exists
   if (fs.existsSync(filePath)) {
-    console.log(`Serving payment receipt: ${req.path}`);
+
     res.sendFile(filePath);
   } else {
     // File doesn't exist, return 404
-    console.log(`Payment receipt not found: ${req.path}`);
+    
     res.status(404).json({ 
       error: 'Payment receipt not found',
       message: `The requested payment receipt ${req.path} was not found`

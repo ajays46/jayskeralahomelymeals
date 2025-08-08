@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
-import { FaHome, FaRegChartBar, FaUsers, FaClipboardList, FaRegSquare, FaUser, FaBuilding, FaPlus, FaList, FaGlobe, FaUtensils, FaChevronDown, FaChevronUp } from 'react-icons/fa'; 
+import React, { useState, useEffect, useRef } from 'react';
+import { FaHome, FaRegChartBar, FaUsers, FaClipboardList, FaRegSquare, FaUser, FaBuilding, FaPlus, FaList, FaGlobe, FaUtensils, FaChevronDown, FaChevronUp, FaSignOutAlt } from 'react-icons/fa'; 
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useLogout } from '../hooks/userHooks/useLogin';
 
 const AdminSlide = ({ isFooter = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef(null);
+  
+  // Use the existing logout hook
+  const logoutMutation = useLogout();
 
   const isActive = (path) => location.pathname === path;
 
@@ -36,6 +42,44 @@ const AdminSlide = ({ isFooter = false }) => {
   const toggleMenu = () => {
     setIsMenuExpanded(!isMenuExpanded);
   };
+
+  const toggleProfileDropdown = () => {
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
+  };
+
+  const handleLogout = () => {
+    // Close dropdown first
+    setIsProfileDropdownOpen(false);
+    
+    // Call the logout mutation
+    logoutMutation.mutate();
+  };
+
+  const handleProfileClick = () => {
+    // Close dropdown if open, otherwise navigate to admin dashboard
+    if (isProfileDropdownOpen) {
+      setIsProfileDropdownOpen(false);
+    } else {
+      navigate('/admin');
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+
+    if (isProfileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProfileDropdownOpen]);
 
   return (
     <div className={containerClasses}>
@@ -124,14 +168,35 @@ const AdminSlide = ({ isFooter = false }) => {
       )}
       
       {!isFooter && (
-        <div className="mb-6 flex-shrink-0">
+        <div className="mb-6 flex-shrink-0 relative" ref={profileDropdownRef}>
           <button 
             className="flex items-center justify-center w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-white text-[#232328] hover:bg-gray-200 transition-all duration-200"
             title="Profile"
-            onClick={() => navigate('/admin')}
+            onClick={toggleProfileDropdown}
           >
             <FaUser size={20} className="lg:w-6 lg:h-6" />
           </button>
+          
+          {/* Profile Dropdown */}
+          {isProfileDropdownOpen && (
+            <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 min-w-[160px] z-50">
+              <button
+                className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-3 border-b border-gray-100"
+                onClick={handleProfileClick}
+              >
+                <FaUser size={14} />
+                Dashboard
+              </button>
+              <button
+                className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleLogout}
+                disabled={logoutMutation.isPending}
+              >
+                <FaSignOutAlt size={14} />
+                {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -176,7 +176,7 @@ export const createOrderService = async (userId, orderData) => {
 
             // Note: Delivery items will be created after payment confirmation
             // This ensures that delivery items are only created for paid orders
-            console.log('Order created successfully. Delivery items will be created after payment confirmation.');
+        
 
             // Return order without delivery items (they will be created after payment)
             return await tx.order.findUnique({
@@ -416,11 +416,10 @@ export const cancelOrderService = async (userId, orderId) => {
 
         // Delete the order and all related data using transaction
         const deletedOrder = await prisma.$transaction(async (tx) => {
-            console.log('Starting order deletion transaction for orderId:', orderId);
-            console.log('Order data:', JSON.stringify(order, null, 2));
+            
 
             // Delete payments and payment receipts first (due to foreign key constraints)
-            console.log('Deleting payments for order:', orderId);
+            
             await tx.payment.deleteMany({
                 where: {
                     orderId: orderId
@@ -429,37 +428,32 @@ export const cancelOrderService = async (userId, orderId) => {
 
             // Delete delivery items first (due to foreign key constraints)
             if (order.deliveryItems && order.deliveryItems.length > 0) {
-                console.log('Deleting delivery items:', order.deliveryItems.length);
+  
                 await tx.deliveryItem.deleteMany({
                     where: {
                         orderId: orderId
                     }
                 });
-            } else {
-                console.log('No delivery items to delete');
-            }
+                          }
 
             // Delete delivery address if it exists and has an id
-            if (order.deliveryAddress && order.deliveryAddress.id) {
-                console.log('Deleting delivery address:', order.deliveryAddress.id);
+                          if (order.deliveryAddress && order.deliveryAddress.id) {
                 await tx.deliveryAddress.delete({
                     where: {
                         id: order.deliveryAddress.id
                     }
                 });
-            } else {
-                console.log('No delivery address to delete or address has no id');
-            }
+              }
 
             // Delete the order
-            console.log('Deleting main order');
+            
             const deletedOrder = await tx.order.delete({
                 where: {
                     id: orderId
                 }
             });
 
-            console.log('Order deletion completed successfully');
+            
             return deletedOrder;
         });
 
@@ -472,7 +466,7 @@ export const cancelOrderService = async (userId, orderId) => {
         
         // If transaction fails, try a simpler approach - just update status to cancelled
         if (error.code === 'P2003' || error.message.includes('delete')) {
-            console.log('Transaction failed, falling back to status update');
+  
             try {
         const updatedOrder = await prisma.order.update({
             where: {
