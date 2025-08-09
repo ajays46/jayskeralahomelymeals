@@ -26,7 +26,7 @@ export const checkOrderPermission = (req, res, next) => {
     }
 
     // Check if user has at least one allowed role (seller or user)
-    const allowedRoles = ['seller', 'user'];
+    const allowedRoles = ['SELLER', 'user'];
     const hasAllowedRole = userRoles.some(role => allowedRoles.includes(role));
 
     if (!hasAllowedRole) {

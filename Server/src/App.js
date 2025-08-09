@@ -10,7 +10,7 @@ import paymentRoutes from './routes/payment.routes.js';
 import deliveryItemRoutes from './routes/deliveryItem.routes.js';
 import path from 'path';
 import './models/index.js'; // Import models to ensure associations are loaded
-// import sequelize from './config/database.js';
+import prisma from './config/prisma.js';
 
 dotenv.config();
 
@@ -59,7 +59,14 @@ app.use('/payment-receipts', (req, res, next) => {
   }
 });
 
-// Middleware
+// Test database connection and log success
+prisma.$connect()
+  .then(() => {
+    console.log('✅ Database connected successfully');
+  })
+  .catch((error) => {
+    console.error('❌ Database connection failed:', error);
+  });
 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_PROD_URL : process.env.FRONTEND_DEV_URL,
