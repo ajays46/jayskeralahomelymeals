@@ -21,6 +21,7 @@ import {
 } from 'react-icons/md';
 import { createPayment, cancelOrder } from '../hooks/userHooks/useOrder';
 import Navbar from '../components/Navbar';
+import OrderSuccessPopup from '../components/OrderSuccessPopup';
 
 // Address Edit Modal Component
 const AddressEditModal = ({ isOpen, onClose, onSave, addressType, currentAddress }) => {
@@ -243,6 +244,7 @@ const PaymentPage = () => {
   const [editingAddress, setEditingAddress] = useState(null);
   const [upiId, setUpiId] = useState('jayskerala@okicici'); // Default UPI ID
   const [copied, setCopied] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   
   // Use Modal hook for better control
   const [modal, contextHolder] = Modal.useModal();
@@ -365,9 +367,10 @@ const PaymentPage = () => {
       const response = await createPayment(formData);
       
       if (response.success) {
-        toast.success('Payment submitted successfully! Delivery items will be created automatically.');
-        // Redirect to order confirmation page or profile
-        navigate('/jkhm/profile');
+        // Clear the saved order from localStorage
+        localStorage.removeItem('savedOrder');
+        // Show success popup instead of immediate navigation
+        setShowSuccessPopup(true);
       } else {
         toast.error(response.message || 'Payment submission failed');
       }
@@ -1018,6 +1021,23 @@ const PaymentPage = () => {
               }
               return addressData;
             })()}
+          />
+        )}
+
+        {/* Order Success Popup */}
+        {showSuccessPopup && (
+          <OrderSuccessPopup
+            isOpen={showSuccessPopup}
+            onClose={() => setShowSuccessPopup(false)}
+            orderDetails={order}
+            onViewOrder={() => {
+              setShowSuccessPopup(false);
+              navigate('/jkhm/profile');
+            }}
+            onGoHome={() => {
+              setShowSuccessPopup(false);
+              navigate('/jkhm');
+            }}
           />
         )}
      </div>

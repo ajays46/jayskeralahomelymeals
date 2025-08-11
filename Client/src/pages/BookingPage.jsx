@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Modal } from 'antd';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
 import { useMenusForBooking } from '../hooks/adminHook/adminHook';
@@ -34,6 +35,9 @@ const BookingPage = () => {
   const [orderMode, setOrderMode] = useState('multiple');
   const [savedOrder, setSavedOrder] = useState(null);
   
+  // State for Ant Design popup
+  const [showMenuPopup, setShowMenuPopup] = useState(false);
+  const [menuPopupMessage, setMenuPopupMessage] = useState('');
 
   const [deliveryLocations, setDeliveryLocations] = useState({
     breakfast: '',
@@ -125,9 +129,9 @@ const BookingPage = () => {
       return 0;
     }
     
-    // Weekday menu - 7 days (fallback for other weekday menus)
+    // Weekday menu - 5 days (Monday to Friday)
     if (isWeekdayMenu(menu)) {
-      return 7;
+      return 5;
     }
     
     return 0; // No auto-selection
@@ -164,22 +168,38 @@ const BookingPage = () => {
     const selectedDates = [];
     const currentDate = new Date(startDate);
     
-    // Check if this is a week-day plan (5 days, weekdays only)
+    // Check if this is a week-day plan or weekday menu (5 days, weekdays only)
     const menuName = selectedMenu?.name?.toLowerCase() || '';
-    const isWeekDayPlan = menuName.includes('week-day') || menuName.includes('weekday');
+    const isWeekDayPlan = menuName.includes('week-day') || menuName.includes('weekday') || isWeekdayMenu(selectedMenu);
     
     if (isWeekDayPlan) {
-      // For week-day plans, select 5 consecutive weekdays
-      let daysSelected = 0;
+      // For week-day plans and weekday menus, select 5 consecutive weekdays
       let currentDay = new Date(currentDate);
       
+      // If the selected date is a weekend, start from the next Monday
+      if (currentDay.getDay() === 0) { // Sunday
+        currentDay.setDate(currentDay.getDate() + 1); // Move to Monday
+      } else if (currentDay.getDay() === 6) { // Saturday
+        currentDay.setDate(currentDay.getDate() + 2); // Move to Monday
+      }
+      
+      // Now currentDay is either the selected weekday or the next Monday
+      // Select 5 consecutive weekdays starting from currentDay
+      let daysSelected = 0;
       while (daysSelected < 5) {
-        // Check if current day is a weekday (Monday = 1, Tuesday = 2, ..., Friday = 5)
-        if (currentDay.getDay() >= 1 && currentDay.getDay() <= 5) {
-          selectedDates.push(new Date(currentDay));
-          daysSelected++;
-        }
+        // Since we've already adjusted for weekends, currentDay should be a weekday
+        selectedDates.push(new Date(currentDay));
+        daysSelected++;
+        
+        // Move to the next day
         currentDay.setDate(currentDay.getDate() + 1);
+        
+        // If we've reached the weekend, skip to Monday
+        if (currentDay.getDay() === 6) { // Saturday
+          currentDay.setDate(currentDay.getDate() + 2); // Move to Monday
+        } else if (currentDay.getDay() === 0) { // Sunday
+          currentDay.setDate(currentDay.getDate() + 1); // Move to Monday
+        }
       }
     } else {
       // For other plans, select consecutive days starting from the selected date
@@ -191,21 +211,27 @@ const BookingPage = () => {
     
     setSelectedDates(selectedDates);
     
-    let message = '';
-    
-    if (menuName.includes('monthly') || menuName.includes('month')) {
-      message = `Selected 30 consecutive days starting from ${formatDateForDisplay(startDate)}`;
-    } else if (menuName.includes('weekly') || menuName.includes('week')) {
-      message = `Selected 7 consecutive days starting from ${formatDateForDisplay(startDate)}`;
-    } else if (menuName.includes('full week')) {
-      message = `Selected 7 consecutive days starting from ${formatDateForDisplay(startDate)}`;
-    } else if (isWeekDayPlan) {
-      message = `Selected 5 weekdays starting from ${formatDateForDisplay(startDate)}`;
+    // Show toast for weekday menus
+    if (isWeekDayPlan) {
+      const startDateDisplay = formatDateForDisplay(selectedDates[0]);
+      const endDateDisplay = formatDateForDisplay(selectedDates[selectedDates.length - 1]);
+      toast.success(`Selected 5 weekdays from ${startDateDisplay} to ${endDateDisplay}`);
     } else {
-      message = `Selected ${days} consecutive days starting from ${formatDateForDisplay(startDate)}`;
+      // Only show toast for non-weekday menus
+      let message = '';
+      
+      if (menuName.includes('monthly') || menuName.includes('month')) {
+        message = `Selected 30 consecutive days starting from ${formatDateForDisplay(startDate)}`;
+      } else if (menuName.includes('weekly') || menuName.includes('week')) {
+        message = `Selected 7 consecutive days starting from ${formatDateForDisplay(startDate)}`;
+      } else if (menuName.includes('full week')) {
+        message = `Selected 7 consecutive days starting from ${formatDateForDisplay(startDate)}`;
+      } else {
+        message = `Selected ${days} consecutive days starting from ${formatDateForDisplay(startDate)}`;
+      }
+      
+      toast.success(message);
     }
-    
-    toast.success(message);
   };
 
 
@@ -378,28 +404,34 @@ const BookingPage = () => {
     
     setSelectedMenu(menu);
     
+    // Consolidated menu type checking to avoid duplicate toasts
+    let menuMessage = '';
+    
     // Check for monthly menu auto-selection
     if (hasMenuItemType(menu, 'monthly') || hasMenuItemType(menu, 'month')) {
-      toast.info('Monthly Menu Selected! Click any date to auto-select 30 consecutive days.');
+      menuMessage = 'Monthly Menu Selected! Click any date to auto-select 30 consecutive days.';
     }
-    
     // Check for weekly menu auto-selection
-    if (hasMenuItemType(menu, 'weekly') || hasMenuItemType(menu, 'week')) {
-      toast.info('Weekly Menu Selected! Click any date to auto-select 7 consecutive days.');
+    else if (hasMenuItemType(menu, 'weekly') || hasMenuItemType(menu, 'weekly')) {
+      menuMessage = 'Weekly Menu Selected! Click any date to auto-select 7 consecutive days.';
     }
-    
     // Check for week-day plan auto-selection
-    if (hasMenuItemType(menu, 'week-day') || hasMenuItemType(menu, 'weekday')) {
-      toast.info('Week-Day Plan Selected! Click any date to auto-select 5 weekdays.');
+    else if (hasMenuItemType(menu, 'week-day') || hasMenuItemType(menu, 'week day')) {
+      menuMessage = 'Week-Day Plan Selected! Click any date to auto-select 5 weekdays.';
     }
-    
     // Check for daily rates
-    if (hasMenuItemType(menu, 'daily rates') || hasMenuItemType(menu, 'daily rate')) {
-      toast.info('Daily Rates Selected! Select individual dates for your meals.');
+    else if (hasMenuItemType(menu, 'daily rates') || hasMenuItemType(menu, 'daily rate')) {
+      menuMessage = 'Daily Rates Selected! Select individual dates for your meals.';
+    }
+    // Check for weekday menu (consolidated condition)
+    else if (isWeekdayMenu(menu)) {
+      menuMessage = 'Weekday Menu Selected! Click any date to auto-select 5 weekdays.';
     }
     
-    if (isWeekdayMenu(menu)) {
-      toast.info('Weekday Menu Selected! Click any date to auto-select 7 consecutive days.');
+    // Show popup if there's a message
+    if (menuMessage) {
+      setMenuPopupMessage(menuMessage);
+      setShowMenuPopup(true);
     }
     
     // Auto-selection for monthly menus
@@ -426,27 +458,10 @@ const BookingPage = () => {
       }
     }
     
-    // Auto-selection for week-day plans
-    if ((hasMenuItemType(menu, 'week-day') || hasMenuItemType(menu, 'weekday')) && selectedDates.length > 0) {
-      const firstSelectedDate = selectedDates[0];
-      const shouldAutoSelect = window.confirm(
-        `You've selected a week-day plan. Would you like to auto-select 5 weekdays starting from ${formatDateForDisplay(firstSelectedDate)}?`
-      );
-      
-      if (shouldAutoSelect) {
-        handleAutoDateSelection(firstSelectedDate, 5);
-      }
-    }
-    
-    if (isWeekdayMenu(menu) && selectedDates.length > 0) {
-      const firstSelectedDate = selectedDates[0];
-      const shouldAutoSelect = window.confirm(
-        `You've selected a weekday menu. Would you like to auto-select 7 consecutive days starting from ${formatDateForDisplay(firstSelectedDate)}?`
-      );
-      
-      if (shouldAutoSelect) {
-        handleAutoDateSelection(firstSelectedDate, 7);
-      }
+    // Auto-selection for week-day plans and weekday menus
+    if ((hasMenuItemType(menu, 'week-day') || hasMenuItemType(menu, 'weekday') || isWeekdayMenu(menu))) {
+      // Don't auto-select automatically - only when user chooses a date
+      // The auto-selection will happen in handleDateSelection when user clicks a date
     }
   };
 
@@ -1152,6 +1167,41 @@ const BookingPage = () => {
             />
                   </div>
       </div>
+      
+      {/* Menu Selection Popup */}
+      <Modal
+        title="Menu Selected"
+        open={showMenuPopup}
+        onCancel={() => setShowMenuPopup(false)}
+        footer={[
+          <button
+            key="ok"
+            onClick={() => setShowMenuPopup(false)}
+            className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-xs"
+          >
+            OK
+          </button>
+        ]}
+        width="90%"
+        style={{ 
+          maxWidth: '300px',
+          top: '5%'
+        }}
+        bodyStyle={{ textAlign: 'center', padding: '12px' }}
+        maskClosable={true}
+        closable={true}
+        destroyOnClose={true}
+        wrapClassName="menu-selection-modal"
+      >
+        <div className="text-center">
+          <div className="mb-2">
+            <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-1">
+              <span className="text-sm text-green-600">✓</span>
+            </div>
+            <p className="text-gray-700 text-xs">{menuPopupMessage}</p>
+          </div>
+        </div>
+      </Modal>
       
       {/* Admin Order Blocked Modal */}
       <AdminOrderBlockedModal
