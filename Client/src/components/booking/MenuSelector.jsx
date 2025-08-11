@@ -18,6 +18,35 @@ const MenuSelector = ({
 }) => {
   return (
     <div className="mb-6 sm:mb-8">
+      {/* Custom CSS for hiding scrollbar */}
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;  /* Internet Explorer 10+ */
+          scrollbar-width: none;  /* Firefox */
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;  /* Safari and Chrome */
+        }
+        
+        /* Ensure proper horizontal scrolling */
+        .overflow-x-auto {
+          scroll-behavior: smooth;
+          -webkit-overflow-scrolling: touch;
+          scroll-snap-type: x mandatory;
+        }
+        
+        /* Card snap points for better scrolling */
+        .flex-shrink-0 {
+          scroll-snap-align: start;
+        }
+        
+        /* Ensure cards don't get cut off */
+        .w-72 {
+          min-width: 288px;
+          max-width: 288px;
+        }
+      `}</style>
+      
       <div 
         className="group relative overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 rounded-2xl sm:rounded-3xl cursor-pointer transition-all duration-500 hover:shadow-2xl hover:scale-[1.02]"
         onClick={() => onToggleSection('menus')}
@@ -128,99 +157,208 @@ const MenuSelector = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
-                {getFilteredMenus().map((menuItem) => (
-                  <div 
-                    key={menuItem.id}
-                    className={`group relative overflow-hidden transition-all duration-500 hover:shadow-2xl rounded-2xl sm:rounded-3xl ${
-                      selectedMenu?.id === menuItem.id 
-                        ? 'border-2 border-blue-500 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-xl transform scale-105' 
-                        : 'border-2 border-gray-200 hover:border-blue-300 hover:scale-105'
-                    }`}
-                    onClick={() => onMenuSelection(menuItem)}
-                  >
-                    {/* Gradient overlay on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    
-                    <div className="relative p-4 sm:p-6">
-                      {/* 1. Menu Item Name and Price */}
-                      <div className="mb-3 sm:mb-4">
-                        <h4 className="font-bold text-lg sm:text-xl text-gray-800 break-words">{menuItem.name}</h4>
-                        {menuItem.price > 0 && (
-                          <p className="text-base sm:text-lg font-semibold text-green-600 mt-1">
-                            ₹{menuItem.price}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`inline-block w-2 h-2 rounded-full ${
-                            isWeekdayMenu(menuItem) ? 'bg-blue-500' : 
-                            menuItem.dayOfWeek?.toLowerCase().includes('weekend') ? 'bg-purple-500' : 'bg-green-500'
-                          }`}></span>
-                          <span className="text-xs sm:text-sm font-medium text-gray-600 capitalize">
-                            {menuItem.dayOfWeek || 'Menu'}
-                          </span>
-                        </div>
-                        {/* Show parent menu name */}
-                        <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">
-                          From: {menuItem.menuName}
-                        </p>
-                      </div>
-                      
-                      {/* 3. Menu Category Names (Third) */}
-                      <div className="mb-3 sm:mb-4">
-                        <h5 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">Categories:</h5>
-                        <div className="flex flex-wrap gap-1 sm:gap-2">
-                          {menuItem.categories && menuItem.categories.length > 0 ? (
-                            menuItem.categories.map((category) => (
-                              <span key={category.id} className="bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 text-xs font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-purple-200">
-                                {category.name}
+              {/* Mobile: Horizontal scrolling, Desktop: Grid layout */}
+              <div className="block lg:hidden">
+                {/* Mobile horizontal scroll container */}
+                <div className="overflow-x-auto scrollbar-hide pb-4">
+                  <div className="flex gap-4 min-w-max pl-4 pr-4">
+                    {getFilteredMenus().map((menuItem) => (
+                      <div 
+                        key={menuItem.id}
+                        className={`group relative overflow-hidden transition-all duration-500 hover:shadow-2xl rounded-xl w-72 flex-shrink-0 ${
+                          selectedMenu?.id === menuItem.id 
+                            ? 'border-2 border-blue-500 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-xl' 
+                            : 'border-2 border-gray-200 hover:border-blue-300'
+                        }`}
+                        onClick={() => onMenuSelection(menuItem)}
+                      >
+                        {/* Gradient overlay on hover */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        
+                        <div className="relative p-4">
+                          {/* 1. Menu Item Name and Price */}
+                          <div className="mb-3">
+                            <h4 className="font-bold text-base text-gray-800 break-words leading-tight">{menuItem.name}</h4>
+                            {menuItem.price > 0 && (
+                              <p className="text-sm font-semibold text-green-600 mt-1">
+                                ₹{menuItem.price}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className={`inline-block w-2 h-2 rounded-full ${
+                                isWeekdayMenu(menuItem) ? 'bg-blue-500' : 
+                                menuItem.dayOfWeek?.toLowerCase().includes('weekend') ? 'bg-purple-500' : 'bg-green-500'
+                              }`}></span>
+                              <span className="text-xs font-medium text-gray-600 capitalize">
+                                {menuItem.dayOfWeek || 'Menu'}
                               </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                              No categories
-                            </span>
-                          )}
+                            </div>
+                            {/* Show parent menu name */}
+                            <p className="text-xs text-gray-500 mt-2 break-words">
+                              From: {menuItem.menuName}
+                            </p>
+                          </div>
+                          
+                          {/* 3. Menu Category Names */}
+                          <div className="mb-3">
+                            <h5 className="text-xs font-semibold text-gray-700 mb-2">Categories:</h5>
+                            <div className="flex flex-wrap gap-1">
+                              {menuItem.categories && menuItem.categories.length > 0 ? (
+                                menuItem.categories.slice(0, 2).map((category) => (
+                                  <span key={category.id} className="bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 text-xs font-medium px-2 py-1 rounded-full border border-purple-200">
+                                    {category.name}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                  No categories
+                                </span>
+                              )}
+                              {menuItem.categories && menuItem.categories.length > 2 && (
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                  +{menuItem.categories.length - 2} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* 4. Meal Types Included */}
+                          <div className="mb-3">
+                            <h5 className="text-xs font-semibold text-gray-700 mb-2">Meal Types:</h5>
+                            <div className="flex flex-wrap gap-1">
+                              {menuItem.hasBreakfast && (
+                                <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs font-medium px-2 py-1 rounded-full border border-green-200">
+                                  🍳
+                                </span>
+                              )}
+                              {menuItem.hasLunch && (
+                                <span className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-700 text-xs font-medium px-2 py-1 rounded-full border border-yellow-200">
+                                  🍽️
+                                </span>
+                              )}
+                              {menuItem.hasDinner && (
+                                <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs font-medium px-2 py-1 rounded-full border border-pink-200">
+                                  🌙
+                                </span>
+                              )}
+                            </div>   
+                          </div>
+
+                          {/* Selection indicator */}
+                          <div className={`absolute bottom-3 right-3 transition-all duration-300 ${
+                            selectedMenu?.id === menuItem.id 
+                              ? 'opacity-100' 
+                              : 'opacity-0 group-hover:opacity-100'
+                          }`}>
+                            <div className="bg-blue-500 text-white rounded-full p-1.5 shadow-lg">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      
-                      {/* 4. Meal Types Included */}
-                      <div className="mb-3 sm:mb-4">
-                        <h5 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">Meal Types Included:</h5>
-                        <div className="flex flex-wrap gap-1 sm:gap-2">
-                          {menuItem.hasBreakfast && (
-                            <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-green-200">
-                              🍳 Breakfast
-                            </span>
-                          )}
-                          {menuItem.hasLunch && (
-                            <span className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-700 text-xs font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-yellow-200">
-                              🍽️ Lunch
-                            </span>
-                          )}
-                          {menuItem.hasDinner && (
-                            <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-pink-200">
-                              🌙 Dinner
-                            </span>
-                          )}
-                        </div>   
-                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
-                      {/* Selection indicator */}
-                      <div className={`absolute bottom-3 sm:bottom-4 right-3 sm:right-4 transition-all duration-300 ${
+              {/* Desktop: Grid layout */}
+              <div className="hidden lg:block">
+                <div className="grid grid-cols-2 gap-6">
+                  {getFilteredMenus().map((menuItem) => (
+                    <div 
+                      key={menuItem.id}
+                      className={`group relative overflow-hidden transition-all duration-500 hover:shadow-2xl rounded-3xl ${
                         selectedMenu?.id === menuItem.id 
-                          ? 'opacity-100 scale-100' 
-                          : 'opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100'
-                      }`}>
-                        <div className="bg-blue-500 text-white rounded-full p-1.5 sm:p-2 shadow-lg">
-                          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                          ? 'border-2 border-blue-500 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-xl' 
+                          : 'border-2 border-gray-200 hover:border-blue-300'
+                      }`}
+                      onClick={() => onMenuSelection(menuItem)}
+                    >
+                      {/* Gradient overlay on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      
+                      <div className="relative p-6">
+                        {/* 1. Menu Item Name and Price */}
+                        <div className="mb-4">
+                          <h4 className="font-bold text-xl text-gray-800 break-words">{menuItem.name}</h4>
+                          {menuItem.price > 0 && (
+                            <p className="text-lg font-semibold text-green-600 mt-1">
+                              ₹{menuItem.price}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`inline-block w-2 h-2 rounded-full ${
+                              isWeekdayMenu(menuItem) ? 'bg-blue-500' : 
+                              menuItem.dayOfWeek?.toLowerCase().includes('weekend') ? 'bg-purple-500' : 'bg-green-500'
+                            }`}></span>
+                            <span className="text-sm font-medium text-gray-600 capitalize">
+                              {menuItem.dayOfWeek || 'Menu'}
+                            </span>
+                          </div>
+                          {/* Show parent menu name */}
+                          <p className="text-sm text-gray-500 mt-1 break-words">
+                            From: {menuItem.menuName}
+                          </p>
+                        </div>
+                        
+                        {/* 3. Menu Category Names */}
+                        <div className="mb-4">
+                          <h5 className="text-sm font-semibold text-gray-700 mb-2">Categories:</h5>
+                          <div className="flex flex-wrap gap-2">
+                            {menuItem.categories && menuItem.categories.length > 0 ? (
+                              menuItem.categories.map((category) => (
+                                <span key={category.id} className="bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-full border border-purple-200">
+                                  {category.name}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                No categories
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* 4. Meal Types Included */}
+                        <div className="mb-4">
+                          <h5 className="text-sm font-semibold text-gray-700 mb-2">Meal Types Included:</h5>
+                          <div className="flex flex-wrap gap-2">
+                            {menuItem.hasBreakfast && (
+                              <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs font-medium px-3 py-1.5 rounded-full border border-green-200">
+                                🍳 Breakfast
+                              </span>
+                            )}
+                            {menuItem.hasLunch && (
+                              <span className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-700 text-xs font-medium px-3 py-1.5 rounded-full border border-yellow-200">
+                                🍽️ Lunch
+                              </span>
+                            )}
+                            {menuItem.hasDinner && (
+                              <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs font-medium px-3 py-1.5 rounded-full border border-pink-200">
+                                🌙 Dinner
+                              </span>
+                            )}
+                          </div>   
+                        </div>
+
+                        {/* Selection indicator */}
+                        <div className={`absolute bottom-4 right-4 transition-all duration-300 ${
+                          selectedMenu?.id === menuItem.id 
+                            ? 'opacity-100' 
+                            : 'opacity-0 group-hover:opacity-100'
+                        }`}>
+                          <div className="bg-blue-500 text-white rounded-full p-2 shadow-lg">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
               {!menusLoading && !menusError && getFilteredMenus().length === 0 && (

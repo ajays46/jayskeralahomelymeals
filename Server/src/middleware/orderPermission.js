@@ -1,4 +1,4 @@
-import AppError from '../utils/AppError.js';
+
 
 /**
  * Middleware to check if user has permission to order menu items
@@ -8,34 +8,54 @@ import AppError from '../utils/AppError.js';
 export const checkOrderPermission = (req, res, next) => {
   try {
     if (!req.user) {
-      throw new AppError('User not authenticated', 401);
+      return res.status(401).json({
+        success: false,
+        message: 'Please login to place orders',
+        errorType: 'AUTHENTICATION_REQUIRED'
+      });
     }
 
     if (!req.user.role) {
-      throw new AppError('User role not found', 403);
+      return res.status(403).json({
+        success: false,
+        message: 'User role not found. Please contact support.',
+        errorType: 'ROLE_NOT_FOUND'
+      });
     }
 
     // Support multiple roles (comma-separated string in token)
     const userRoles = req.user.role.split(',').map(role => role.trim());
 
     // Check if user has admin role
-    const isAdmin = userRoles.includes('admin');
+    const isAdmin = userRoles.includes('admin') || userRoles.includes('ADMIN');
     
     if (isAdmin) {
-      throw new AppError('Admins are not allowed to place orders. Please use a seller or user account.', 403);
+      return res.status(403).json({
+        success: false,
+        message: 'Admins are not allowed to place orders. Please use a seller or user account.',
+        errorType: 'ADMIN_ORDER_BLOCKED'
+      });
     }
 
     // Check if user has at least one allowed role (seller or user)
-    const allowedRoles = ['SELLER', 'USER'];
+    const allowedRoles = ['SELLER', 'USER', 'seller', 'user'];
     const hasAllowedRole = userRoles.some(role => allowedRoles.includes(role));
 
     if (!hasAllowedRole) {
-      throw new AppError('You do not have permission to place orders. Only sellers and users can place orders.', 403);
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to place orders. Only sellers and users can place orders.',
+        errorType: 'INSUFFICIENT_PERMISSIONS'
+      });
     }
 
     next();
   } catch (error) {
-    next(error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while checking permissions',
+      errorType: 'PERMISSION_CHECK_ERROR'
+    });
   }
 };
 
@@ -47,26 +67,42 @@ export const checkOrderPermission = (req, res, next) => {
 export const checkOrderManagementPermission = (req, res, next) => {
   try {
     if (!req.user) {
-      throw new AppError('User not authenticated', 401);
+      return res.status(401).json({
+        success: false,
+        message: 'Please login to manage orders',
+        errorType: 'AUTHENTICATION_REQUIRED'
+      });
     }
 
     if (!req.user.role) {
-      throw new AppError('User role not found', 403);
+      return res.status(403).json({
+        success: false,
+        message: 'User role not found. Please contact support.',
+        errorType: 'ROLE_NOT_FOUND'
+      });
     }
 
     // Support multiple roles (comma-separated string in token)
     const userRoles = req.user.role.split(',').map(role => role.trim());
 
     // Check if user has admin or seller role
-    const allowedRoles = ['admin', 'seller'];
+    const allowedRoles = ['admin', 'seller', 'ADMIN', 'SELLER'];
     const hasPermission = userRoles.some(role => allowedRoles.includes(role));
 
     if (!hasPermission) {
-      throw new AppError('You do not have permission to manage orders. Only admins and sellers can manage orders.', 403);
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to manage orders. Only admins and sellers can manage orders.',
+        errorType: 'INSUFFICIENT_PERMISSIONS'
+      });
     }
 
     next();
   } catch (error) {
-    next(error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while checking permissions',
+      errorType: 'PERMISSION_CHECK_ERROR'
+    });
   }
 };

@@ -397,9 +397,10 @@ const AddressPicker = ({
           <div className="address-dropdown-container fixed bg-white border border-gray-300 rounded-lg shadow-xl z-[99999] max-h-96 overflow-y-auto" style={{ 
             minHeight: '200px', 
             maxHeight: '400px',
-            top: inputRef.current ? inputRef.current.getBoundingClientRect().bottom + 5 : 'auto',
-            left: inputRef.current ? inputRef.current.getBoundingClientRect().left : 'auto',
-            width: inputRef.current ? inputRef.current.offsetWidth : 'auto'
+            top: inputRef.current ? Math.min(inputRef.current.getBoundingClientRect().bottom + 5, window.innerHeight - 250) : 'auto',
+            left: inputRef.current ? Math.max(0, Math.min(inputRef.current.getBoundingClientRect().left, window.innerWidth - 300)) : 'auto',
+            width: inputRef.current ? Math.min(inputRef.current.offsetWidth, window.innerWidth - 20) : 'auto',
+            maxWidth: 'calc(100vw - 20px)'
           }}>
             {/* Add New Address Button */}
             <button
@@ -407,10 +408,10 @@ const AddressPicker = ({
               onClick={() => {
                 setShowAddFormDropdown(true);
               }}
-              className="w-full p-2 sm:p-3 border-b border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-2 text-left"
+              className="w-full p-3 sm:p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-3 text-left"
             >
-              <FiPlus className="text-orange-500 flex-shrink-0" />
-              <span className="text-xs sm:text-sm font-medium text-orange-600">Add New Address</span>
+              <FiPlus className="text-orange-500 flex-shrink-0 w-5 h-5" />
+              <span className="text-sm sm:text-base font-medium text-orange-600">Add New Address</span>
             </button>
             {/* Add/Edit Address Form Dropdown */}
             {showAddFormDropdown && (
@@ -579,7 +580,7 @@ const AddressPicker = ({
               userAddresses.map((address) => (
                 <div
                   key={address.id}
-                  className="p-2 sm:p-3 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="p-3 sm:p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => {
                     const fullAddress = `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
                     // Send both the address ID and the display name
@@ -588,34 +589,40 @@ const AddressPicker = ({
                     setShowDropdown(false);
                   }}
                 >
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <div className="mt-1 flex-shrink-0">
-                      {getAddressTypeIcon(address.addressType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs sm:text-sm font-medium text-gray-800">
-                          {getAddressTypeLabel(address.addressType)}
-                        </span>
-                        {address.housename && (
-                          <span className="text-xs text-gray-500">({address.housename})</span>
-                        )}
+                  <div className="flex flex-col gap-3 sm:gap-4">
+                    {/* Address Info Row */}
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="mt-1 flex-shrink-0">
+                        {getAddressTypeIcon(address.addressType)}
                       </div>
-                      <p className="text-xs sm:text-sm text-gray-600 mb-1 break-words">{address.street}</p>
-                      <p className="text-xs sm:text-sm text-gray-600 break-words">
-                        {address.city} - {address.pincode}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm sm:text-base font-medium text-gray-800">
+                            {getAddressTypeLabel(address.addressType)}
+                          </span>
+                          {address.housename && (
+                            <span className="text-xs sm:text-sm text-gray-500">({address.housename})</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1 break-words">{address.street}</p>
+                        <p className="text-sm text-gray-600 break-words">
+                          {address.city} - {address.pincode}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
+                    
+                    {/* Action Buttons Row - Below address on mobile, to the right on desktop */}
+                    <div className="flex gap-2 sm:ml-auto sm:mt-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           editAddress(address);
                         }}
-                        className="p-1 text-gray-400 hover:text-blue-600"
+                        className="flex-1 sm:flex-none p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-md hover:bg-blue-50 flex items-center justify-center gap-2 sm:gap-1"
                         title="Edit address"
                       >
-                        <FiEdit size={12} className="sm:w-3.5 sm:h-3.5" />
+                        <FiEdit size={16} className="w-4 h-4" />
+                        <span className="text-xs sm:hidden">Edit</span>
                       </button>
                       <button
                         onClick={(e) => {
@@ -623,10 +630,11 @@ const AddressPicker = ({
                           const addressName = `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
                           handleDeleteAddress(address.id, addressName);
                         }}
-                        className="p-1 text-gray-400 hover:text-red-600"
+                        className="flex-1 sm:flex-none p-2 text-gray-400 hover:text-red-600 transition-colors rounded-md hover:bg-red-50 flex items-center justify-center gap-2 sm:gap-1"
                         title="Delete address"
                       >
-                        <FiTrash2 size={12} className="sm:w-3.5 sm:h-3.5" />
+                        <FiTrash2 size={16} className="w-4 h-4" />
+                        <span className="text-xs sm:hidden">Delete</span>
                       </button>
                     </div>
                   </div>

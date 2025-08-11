@@ -966,39 +966,40 @@ const BookingPage = () => {
               {/* Selected Menu Details */}
               {selectedMenu && (
                 <div className="mb-6">
-                  <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-visible">
-                    <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white">
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-visible">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-4 sm:p-6 text-white rounded-t-xl">
                       <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-xl font-bold mb-1">{selectedMenu.name}</h3>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg sm:text-xl font-bold mb-1 truncate">{selectedMenu.name}</h3>
                           {selectedMenu.price > 0 && (
-                            <p className="text-blue-100 text-sm">₹{selectedMenu.price}</p>
+                            <p className="text-emerald-100 text-sm">₹{selectedMenu.price}</p>
                           )}
-                          <p className="text-blue-100 text-xs">From: {selectedMenu.menuName}</p>
-                          <p className="text-blue-100 text-sm capitalize">{selectedMenu.dayOfWeek} Menu</p>
+                          <p className="text-emerald-100 text-xs">From: {selectedMenu.menuName}</p>
+                          <p className="text-emerald-100 text-sm capitalize">{selectedMenu.dayOfWeek} Menu</p>
                         </div>
                         <button
                           onClick={() => setSelectedMenu(null)}
-                          className="text-white/80 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
+                          className="text-white/80 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 ml-2 flex-shrink-0"
                         >
-                          <span className="text-xl">✕</span>
+                          <span className="text-lg">✕</span>
                         </button>
                       </div>
                     </div>
 
-                    <div className="p-6">
+                    <div className="p-4 sm:p-6">
                       {/* Categories Section */}
                       {selectedMenu.categories && selectedMenu.categories.length > 0 && (
-                        <div className="mb-8">
-                          <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        <div className="mb-6 sm:mb-8">
+                          <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
                             Menu Categories
                           </h4>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {selectedMenu.categories.map((category) => (
-                              <div key={category.id} className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                <h5 className="font-semibold text-gray-800 mb-2">{category.name}</h5>
-                                <p className="text-sm text-gray-600 line-clamp-2">{category.description}</p>
+                              <div key={category.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-sm transition-shadow">
+                                <h5 className="font-semibold text-gray-800 mb-2 text-sm sm:text-base">{category.name}</h5>
+                                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{category.description}</p>
                               </div>
                             ))}
                           </div>
@@ -1006,132 +1007,121 @@ const BookingPage = () => {
                       )}
 
                       {/* Menu Items by Meal Type */}
-                      <div className="space-y-8 overflow-visible">
-                       
-
+                      <div className="space-y-4 sm:space-y-6 overflow-visible">
                         {/* Breakfast Items */}
                         {selectedMenu.hasBreakfast && (
-                          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100 overflow-visible">
-                            <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-3">
-                              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">B</span>
+                          <div className="bg-gray-50 rounded-xl p-4 sm:p-6 border border-emerald-200 overflow-visible">
+                            <h4 className="text-base sm:text-lg font-semibold text-emerald-800 mb-3 sm:mb-4 flex items-center gap-3">
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-white font-bold text-xs sm:text-sm">B</span>
                               </div>
-                              Breakfast Items
+                              <span>Breakfast Items</span>
                             </h4>
                           
                             {/* Breakfast Delivery Location */}
-                            <div className="bg-white rounded-lg p-4 border border-green-200 relative overflow-visible mb-4 w-full">
-                              <label className="block text-sm font-semibold text-green-800 mb-3 flex items-center gap-2">
-                                <span className="text-green-500">📍</span>
-                                🍳 Breakfast Delivery Address
+                            <div className="bg-white rounded-lg p-3 sm:p-4 border border-emerald-200 relative overflow-visible w-full">
+                              <label className="block text-sm font-semibold text-emerald-800 mb-2 sm:mb-3 flex items-center gap-2">
+                                <span className="text-emerald-500">📍</span>
+                                <span className="text-sm sm:text-base">🍳 Breakfast Delivery Address</span>
                               </label>
                               <div className="relative z-20 w-full">
-                              <AddressPicker
-                                value={deliveryLocationNames.breakfast || deliveryLocations.breakfast}
-                                onChange={(e) => {
-                                  const addressId = e.target.value;
-                                  const displayName = e.target.displayName || getAddressDisplayName(addressId);
+                                <AddressPicker
+                                  value={deliveryLocationNames.breakfast || deliveryLocations.breakfast}
+                                  onChange={(e) => {
+                                    const addressId = e.target.value;
+                                    const displayName = e.target.displayName || getAddressDisplayName(addressId);
                                     handleDeliveryLocationChange('breakfast', addressId, displayName);
-                                }}
-                                placeholder="Select breakfast delivery address (optional - will use primary address if not selected)..."
-                                className="w-full px-4 py-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-sm"
-                                mealType="breakfast"
-                              />
+                                  }}
+                                  placeholder="Select breakfast delivery address..."
+                                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-sm"
+                                  mealType="breakfast"
+                                />
                               </div>
                               {!deliveryLocations.breakfast && (
-                                <div className="mt-2 text-xs text-green-600 flex items-center gap-1">
-                                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                <div className="mt-2 text-xs text-emerald-600 flex items-center gap-1">
+                                  <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
                                   Will use primary address for breakfast delivery
                                 </div>
                               )}
                             </div>
-
-
                           </div>
                         )}
 
                         {/* Lunch Items */}
                         {selectedMenu.hasLunch && (
-                          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-100 overflow-visible">
-                            <h4 className="text-lg font-semibold text-yellow-800 mb-4 flex items-center gap-3">
-                              <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">L</span>
+                          <div className="bg-gray-50 rounded-xl p-4 sm:p-6 border border-amber-200 overflow-visible">
+                            <h4 className="text-base sm:text-lg font-semibold text-amber-800 mb-3 sm:mb-4 flex items-center gap-3">
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-white font-bold text-xs sm:text-sm">L</span>
                               </div>
-                              Lunch Items
+                              <span>Lunch Items</span>
                             </h4>
                             
-
                             {/* Lunch Delivery Location */}
-                            <div className="bg-white rounded-lg p-4 border border-yellow-200 relative overflow-visible mb-4 w-full">
-                              <label className="block text-sm font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-                                <span className="text-yellow-500">📍</span>
-                                🍽️ Lunch Delivery Address
+                            <div className="bg-white rounded-lg p-3 sm:p-4 border border-amber-200 relative overflow-visible w-full">
+                              <label className="block text-sm font-semibold text-amber-800 mb-2 sm:mb-3 flex items-center gap-2">
+                                <span className="text-amber-500">📍</span>
+                                <span className="text-sm sm:text-base">🍽️ Lunch Delivery Address</span>
                               </label>
                               <div className="relative z-20 w-full">
-                              <AddressPicker
-                                value={deliveryLocationNames.lunch || deliveryLocations.lunch}
-                                onChange={(e) => {
-                                  const addressId = e.target.value;
-                                  const displayName = e.target.displayName || getAddressDisplayName(addressId);
+                                <AddressPicker
+                                  value={deliveryLocationNames.lunch || deliveryLocations.lunch}
+                                  onChange={(e) => {
+                                    const addressId = e.target.value;
+                                    const displayName = e.target.displayName || getAddressDisplayName(addressId);
                                     handleDeliveryLocationChange('lunch', addressId, displayName);
-                                }}
-                                placeholder="Select lunch delivery address (optional - will use primary address if not selected)..."
-                                className="w-full px-4 py-3 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 bg-white text-sm"
-                                mealType="lunch"
-                              />
+                                  }}
+                                  placeholder="Select lunch delivery address..."
+                                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-sm"
+                                  mealType="lunch"
+                                />
                               </div>
                               {!deliveryLocations.lunch && (
-                                <div className="mt-2 text-xs text-yellow-600 flex items-center gap-1">
-                                  <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                                <div className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+                                  <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
                                   Will use primary address for lunch delivery
                                 </div>
                               )}
                             </div>
-
-
                           </div>
                         )}
 
                         {/* Dinner Items */}
                         {selectedMenu.hasDinner && (
-                          <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-6 border border-pink-100 overflow-visible relative">
-                            <h4 className="text-lg font-semibold text-pink-800 mb-4 flex items-center gap-3">
-                              <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">D</span>
+                          <div className="bg-gray-50 rounded-xl p-4 sm:p-6 border border-rose-200 overflow-visible relative">
+                            <h4 className="text-base sm:text-lg font-semibold text-rose-800 mb-3 sm:mb-4 flex items-center gap-3">
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-rose-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-white font-bold text-xs sm:text-sm">D</span>
                               </div>
-                              Dinner Items
+                              <span>Dinner Items</span>
                             </h4>
                             
-                            
-
                             {/* Dinner Delivery Location */}
-                            <div className="bg-white rounded-lg p-4 border border-pink-200 relative overflow-visible mb-4 w-full" style={{ zIndex: 50 }}>
-                              <label className="block text-sm font-semibold text-pink-800 mb-3 flex items-center gap-2">
-                                <span className="text-pink-500">📍</span>
-                                🌙 Dinner Delivery Address
+                            <div className="bg-white rounded-lg p-3 sm:p-4 border border-rose-200 relative overflow-visible w-full" style={{ zIndex: 50 }}>
+                              <label className="block text-sm font-semibold text-rose-800 mb-2 sm:mb-3 flex items-center gap-2">
+                                <span className="text-rose-500">📍</span>
+                                <span className="text-sm sm:text-base">🌙 Dinner Delivery Address</span>
                               </label>
                               <div className="relative z-40 w-full">
-                              <AddressPicker
-                                value={deliveryLocationNames.dinner || deliveryLocations.dinner}
-                                onChange={(e) => {
-                                  const addressId = e.target.value;
-                                  const displayName = e.target.displayName || getAddressDisplayName(addressId);
+                                <AddressPicker
+                                  value={deliveryLocationNames.dinner || deliveryLocations.dinner}
+                                  onChange={(e) => {
+                                    const addressId = e.target.value;
+                                    const displayName = e.target.displayName || getAddressDisplayName(addressId);
                                     handleDeliveryLocationChange('dinner', addressId, displayName);
-                                }}
-                                placeholder="Select dinner delivery address (optional - will use primary address if not selected)..."
-                                className="w-full px-4 py-3 border border-pink-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white text-sm"
-                                mealType="dinner"
-                              />
+                                  }}
+                                  placeholder="Select dinner delivery address..."
+                                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-rose-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white text-sm"
+                                  mealType="dinner"
+                                />
                               </div>
                               {!deliveryLocations.dinner && (
-                                <div className="mt-2 text-xs text-pink-600 flex items-center gap-1">
-                                  <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
+                                <div className="mt-2 text-xs text-rose-600 flex items-center gap-1">
+                                  <span className="w-2 h-2 bg-rose-500 rounded-full"></span>
                                   Will use primary address for dinner delivery
                                 </div>
                               )}
                             </div>
-
-
                           </div>
                         )}
                       </div>
