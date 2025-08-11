@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSlide from '../../components/AdminSlide';
 import ConfirmationModal from '../../components/ConfirmationModal';
-import { FiArrowLeft, FiEdit, FiTrash2, FiSearch, FiFilter } from 'react-icons/fi';
+import MenuItemPriceModal from '../../components/MenuItemPriceModal';
+import { FiArrowLeft, FiEdit, FiTrash2, FiSearch, FiFilter, FiDollarSign } from 'react-icons/fi';
 import { useMenuItemList, useDeleteMenuItem } from '../../hooks/adminHook/adminHook';
 
 const MenuItemsTablePage = () => {
@@ -16,6 +17,11 @@ const MenuItemsTablePage = () => {
     isOpen: false,
     menuItemId: null,
     menuItemName: ''
+  });
+
+  const [priceModal, setPriceModal] = useState({
+    isOpen: false,
+    menuItem: null
   });
 
   // API hooks
@@ -35,10 +41,19 @@ const MenuItemsTablePage = () => {
   const filteredAndSortedItems = menuItems
     .filter(item => {
       const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            item.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.menuItem?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.menu?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.menuItemPrices?.[0]?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            item.menu?.name?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesMealType = !filterMealType || item.productName === filterMealType;
+      const matchesMealType = !filterMealType || 
+                              item.product?.productName === filterMealType ||
+                              item.productName === filterMealType ||
+                              item.menuItem?.productName === filterMealType ||
+                              item.menu?.productName === filterMealType ||
+                              item.menuItemPrices?.[0]?.productName === filterMealType;
       
       return matchesSearch && matchesMealType;
     })
@@ -51,12 +66,16 @@ const MenuItemsTablePage = () => {
           bValue = b.name || '';
           break;
         case 'product':
-          aValue = a.productName || '';
-          bValue = b.productName || '';
+          aValue = a.product?.productName || a.productName || a.menuItem?.productName || a.menu?.productName || a.menuItemPrices?.[0]?.productName || '';
+          bValue = b.product?.productName || b.productName || b.menuItem?.productName || b.menu?.productName || b.menuItemPrices?.[0]?.productName || '';
           break;
         case 'menu':
           aValue = a.menu?.name || '';
           bValue = b.menu?.name || '';
+          break;
+        case 'price':
+          aValue = a.product?.price || a.price || a.menuItem?.price || a.menu?.price || a.menuItemPrices?.[0]?.totalPrice || 0;
+          bValue = b.product?.price || b.price || b.menuItem?.price || b.menu?.price || b.menuItemPrices?.[0]?.totalPrice || 0;
           break;
 
         case 'company':
@@ -76,7 +95,11 @@ const MenuItemsTablePage = () => {
     });
 
   // Get unique values for filters
-  const uniqueMealTypes = [...new Set(menuItems.map(item => item.productName).filter(Boolean))];
+  const uniqueMealTypes = [...new Set(
+    menuItems
+      .map(item => item.product?.productName || item.productName || item.menuItem?.productName || item.menu?.productName || item.menuItemPrices?.[0]?.productName)
+      .filter(Boolean)
+  )];
 
   const handleSort = (column) => {
     if (sortBy === column) {
@@ -105,6 +128,13 @@ const MenuItemsTablePage = () => {
     });
   };
 
+  const handleViewPrices = (menuItem) => {
+    setPriceModal({
+      isOpen: true,
+      menuItem
+    });
+  };
+
   const confirmDelete = () => {
     if (deleteModal.menuItemId) {
       deleteMenuItem(deleteModal.menuItemId);
@@ -116,6 +146,13 @@ const MenuItemsTablePage = () => {
       isOpen: false,
       menuItemId: null,
       menuItemName: ''
+    });
+  };
+
+  const closePriceModal = () => {
+    setPriceModal({
+      isOpen: false,
+      menuItem: null
     });
   };
 
@@ -250,7 +287,14 @@ const MenuItemsTablePage = () => {
                         Menu {getSortIcon('menu')}
                       </div>
                     </th>
-
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
+                      onClick={() => handleSort('price')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Price {getSortIcon('price')}
+                      </div>
+                    </th>
                     <th 
                       className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
                       onClick={() => handleSort('company')}
@@ -270,7 +314,7 @@ const MenuItemsTablePage = () => {
                 <tbody className="bg-gray-800 divide-y divide-gray-700">
                   {filteredAndSortedItems.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-gray-400">
+                      <td colSpan="7" className="px-4 py-8 text-center text-gray-400">
                         <div className="flex flex-col items-center">
                           <FiSearch size={32} className="mb-2" />
                           <p>No menu items found</p>
@@ -286,16 +330,36 @@ const MenuItemsTablePage = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-300">
-                            {menuItem.productName ? 
-                              menuItem.productName : 
-                              'N/A'
+                            {menuItem.product?.productName || 
+                             menuItem.productName || 
+                             menuItem.menuItem?.productName || 
+                             menuItem.menu?.productName || 
+                             menuItem.menuItemPrices?.[0]?.productName ||
+                             'N/A'
                             }
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-300">{menuItem.menu?.name || 'N/A'}</div>
                         </td>
-
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-300">
+                            {menuItem.product?.price ? 
+                               `₹${menuItem.product.price.toFixed(2)}` :
+                               menuItem.price ? 
+                                 `₹${menuItem.price.toFixed(2)}` : 
+                                 menuItem.menuItem?.price ? 
+                                   `₹${menuItem.menuItem.price.toFixed(2)}` :
+                                   menuItem.menu?.price ? 
+                                     `₹${menuItem.menu.price.toFixed(2)}` :
+                                     menuItem.menuItemPrices?.[0]?.totalPrice ? 
+                                       `₹${menuItem.menuItemPrices[0].totalPrice.toFixed(2)}` :
+                                       <span className="text-yellow-400 cursor-pointer hover:text-yellow-300" onClick={() => handleViewPrices(menuItem)}>
+                                         Click to view prices
+                                       </span>
+                             }
+                           </div>
+                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-300">{menuItem.menu?.company?.name || 'N/A'}</div>
                         </td>
@@ -306,6 +370,13 @@ const MenuItemsTablePage = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleViewPrices(menuItem)}
+                              className="text-green-400 hover:text-green-300 transition-colors"
+                              title="View Prices"
+                            >
+                              <FiDollarSign size={16} />
+                            </button>
                             <button
                               onClick={() => handleEdit(menuItem.id)}
                               className="text-blue-400 hover:text-blue-300 transition-colors"
@@ -352,6 +423,13 @@ const MenuItemsTablePage = () => {
         confirmText="Delete"
         cancelText="Cancel"
         type="danger"
+      />
+
+      {/* Menu Item Price Modal */}
+      <MenuItemPriceModal
+        isOpen={priceModal.isOpen}
+        onClose={closePriceModal}
+        menuItem={priceModal.menuItem}
       />
     </div>
   );
