@@ -60,12 +60,12 @@ model Address {
 }
 
 model UserRole {
-  userId    String   @map("user_id") @db.VarChar(36)
-  name      String   @db.VarChar(255)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  id        String   @id @default(uuid()) @db.VarChar(36)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId    String       @map("user_id") @db.VarChar(36)
+  name      UserRoleName
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  id        String       @id @default(uuid()) @db.VarChar(36)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([userId, name])
   @@map("user_roles")
@@ -563,4 +563,11 @@ enum actual_route_stops_delivery_status {
 enum actual_route_stops_status {
   OnTime
   Late
+}
+
+enum UserRoleName {
+  ADMIN
+  SELLER
+  USER
+  DELIVERY_EXECUTIVE
 }

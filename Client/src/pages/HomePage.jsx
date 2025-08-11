@@ -298,21 +298,170 @@ const HomePage = () => {
           {/* Section Header */}
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Jay's Kerala Monthly Meals
+              JAY'S KERALA HOMELY MEALS
             </h2>
             <p className="text-xl font-semibold text-orange-600 mb-2">
-              Premium Homely Meals Network
+              Homely Meals Network
+            </p>
+            <p className="text-lg font-semibold text-blue-600 mb-2">
+              NEW BREAKFAST-LUNCH-DINNER RATES
             </p>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Breakfast-Lunch-Dinner • Popular Menu Rates 5.0 ⭐
+              Premium Homely Meals Network • Popular Menu Rates 5.0 ⭐
             </p>
           </div>
 
-          {/* Meal Plans Grid */}
+          {/* Popular Meal Plans Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto mb-12">
-            {/* Monthly Rates */}
+            {/* Popular Monthly Rates */}
             <div className="relative group">
-              <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-orange-200 h-full">
+              <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-yellow-200 h-full">
+                <div className="relative h-48 bg-gradient-to-br from-yellow-500 to-orange-600">
+                  <div className="absolute inset-0 bg-black/20"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center text-white">
+                      <div className="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-2xl font-bold mb-1">Popular Monthly</h3>
+                      <p className="text-sm opacity-90">Best Value Plan</p>
+                    </div>
+                  </div>
+                  <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
+                    <span className="text-white text-sm font-semibold">Popular</span>
+                  </div>
+                </div>
+                <div className="p-6 flex flex-col h-64">
+                  <div className="space-y-4 mb-6 flex-grow">
+                    <div className="bg-yellow-50 rounded-lg p-3 border-l-4 border-yellow-400">
+                      <h4 className="font-bold text-yellow-800 text-sm mb-2">POPULAR MONTHLY RATES</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-green-800 text-sm">Veg</span>
+                          <span className="font-bold text-green-600">₹6,900</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-red-800 text-sm">Non-veg</span>
+                          <span className="font-bold text-red-600">₹8,100</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-lg font-semibold transition-colors duration-200">
+                    Choose Popular Monthly
+                  </button>
+                </div>
+              </div>
+            </div>
+
+                         {/* Popular Weekly Rates */}
+             <div className="relative group">
+               <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-yellow-200 h-full">
+                 <div className="relative h-48 bg-gradient-to-br from-yellow-500 to-orange-600">
+                   <div className="absolute inset-0 bg-black/20"></div>
+                   <div className="absolute inset-0 flex items-center justify-center">
+                     <div className="text-center text-white">
+                       <div className="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-full flex items-center justify-center">
+                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                         </svg>
+                       </div>
+                       <h3 className="text-2xl font-bold mb-1">Popular Weekly</h3>
+                       <p className="text-sm opacity-90">Flexible Week Plans</p>
+                     </div>
+                   </div>
+                   <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
+                     <span className="text-white text-sm font-semibold">Popular</span>
+                   </div>
+                 </div>
+                 <div className="p-6 flex flex-col h-80">
+                   <div className="space-y-4 mb-6 flex-grow">
+                     <div className="bg-yellow-50 rounded-lg p-3 border-l-4 border-yellow-400">
+                       <h4 className="font-bold text-yellow-800 text-sm mb-2">POPULAR WEEKLY RATES</h4>
+                       <div className="space-y-3">
+                         <div className="border-b border-gray-200 pb-2">
+                           <p className="text-xs text-gray-600 mb-2">Monday-Sunday Full Week Plan</p>
+                           <div className="flex justify-between items-center">
+                             <span className="font-medium text-gray-800 text-sm">Veg</span>
+                             <span className="font-bold text-green-600">₹1,610</span>
+                           </div>
+                           <div className="flex justify-between items-center">
+                             <span className="font-medium text-gray-800 text-sm">Non-veg</span>
+                             <span className="font-bold text-red-600">₹1,890</span>
+                           </div>
+                         </div>
+                         <div>
+                           <p className="text-xs text-gray-600 mb-2">Monday-Friday Week-Day Plan</p>
+                           <div className="flex justify-between items-center">
+                             <span className="font-medium text-gray-800 text-sm">Veg</span>
+                             <span className="font-bold text-green-600">₹1,150</span>
+                           </div>
+                           <div className="flex justify-between items-center">
+                             <span className="font-medium text-gray-800 text-sm">Non-veg</span>
+                             <span className="font-bold text-red-600">₹1,350</span>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                   <button className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-lg font-semibold transition-colors duration-200">
+                     Choose Popular Weekly
+                   </button>
+                 </div>
+               </div>
+             </div>
+
+            {/* Popular Daily Rates */}
+            <div className="relative group">
+              <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-yellow-200 h-full">
+                <div className="relative h-48 bg-gradient-to-br from-yellow-500 to-orange-600">
+                  <div className="absolute inset-0 bg-black/20"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center text-white">
+                      <div className="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-2xl font-bold mb-1">Popular Daily</h3>
+                      <p className="text-sm opacity-90">Pay Per Day</p>
+                    </div>
+                  </div>
+                  <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
+                    <span className="text-white text-sm font-semibold">Popular</span>
+                  </div>
+                </div>
+                <div className="p-6 flex flex-col h-64">
+                  <div className="space-y-4 mb-6 flex-grow">
+                    <div className="bg-yellow-50 rounded-lg p-3 border-l-4 border-yellow-400">
+                      <h4 className="font-bold text-yellow-800 text-sm mb-2">POPULAR DAILY RATES</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-800 text-sm">Veg</span>
+                          <span className="font-bold text-green-600">₹230</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-800 text-sm">Non-veg</span>
+                          <span className="font-bold text-red-600">₹270</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-lg font-semibold transition-colors duration-200">
+                    Choose Popular Daily
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Premium Meal Plans Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto mb-12">
+            {/* Premium Monthly Rates */}
+            <div className="relative group">
+              <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-blue-200 h-full">
                 <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
                   <div className="absolute inset-0 bg-black/20"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -322,88 +471,98 @@ const HomePage = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <h3 className="text-2xl font-bold mb-1">Monthly Rates</h3>
-                      <p className="text-sm opacity-90">Full Month Plan</p>
+                      <h3 className="text-2xl font-bold mb-1">Premium Monthly</h3>
+                      <p className="text-sm opacity-90">Luxury Plan</p>
                     </div>
                   </div>
                   <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
-                    <span className="text-white text-sm font-semibold">Best Value</span>
+                    <span className="text-white text-sm font-semibold">Premium</span>
                   </div>
                 </div>
                 <div className="p-6 flex flex-col h-64">
                   <div className="space-y-4 mb-6 flex-grow">
-                    <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                      <span className="font-semibold text-green-800">Veg</span>
-                      <span className="text-2xl font-bold text-green-600">₹9,000</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                      <span className="font-semibold text-red-800">Non-veg</span>
-                      <span className="text-2xl font-bold text-red-600">₹10,500</span>
+                    <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-400">
+                      <h4 className="font-bold text-blue-800 text-sm mb-2">PREMIUM MONTHLY RATES</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-green-800 text-sm">Veg</span>
+                          <span className="font-bold text-green-600">₹9,000</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-red-800 text-sm">Non-veg</span>
+                          <span className="font-bold text-red-600">₹10,500</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors duration-200">
-                    Choose Monthly Plan
+                    Choose Premium Monthly
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Weekly Rates */}
-            <div className="relative group">
-              <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-green-200 h-full">
-                <div className="relative h-48 bg-gradient-to-br from-green-500 to-emerald-600">
-                  <div className="absolute inset-0 bg-black/20"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <div className="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-2xl font-bold mb-1">Weekly Rates</h3>
-                      <p className="text-sm opacity-90">Flexible Week Plans</p>
-                    </div>
-                  </div>
-                  <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
-                    <span className="text-white text-sm font-semibold">Popular</span>
-                  </div>
-                </div>
-                <div className="p-6 flex flex-col h-64">
-                  <div className="space-y-3 mb-6 flex-grow">
-                    <div className="border-b border-gray-200 pb-2">
-                      <p className="text-xs text-gray-600 mb-2">Monday-Sunday Full Week</p>
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-800">Veg</span>
-                        <span className="font-bold text-green-600">₹2,100</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-800">Non-veg</span>
-                        <span className="font-bold text-red-600">₹2,450</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 mb-2">Monday-Friday Week-Day</p>
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-800">Veg</span>
-                        <span className="font-bold text-green-600">₹1,500</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-800">Non-veg</span>
-                        <span className="font-bold text-red-600">₹1,750</span>
-                      </div>
-                    </div>
-                  </div>
-                  <button className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors duration-200">
-                    Choose Weekly Plan
-                  </button>
-                </div>
-              </div>
-            </div>
+                         {/* Premium Weekly Rates */}
+             <div className="relative group">
+               <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-blue-200 h-full">
+                 <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
+                   <div className="absolute inset-0 bg-black/20"></div>
+                   <div className="absolute inset-0 flex items-center justify-center">
+                     <div className="text-center text-white">
+                       <div className="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-full flex items-center justify-center">
+                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                         </svg>
+                       </div>
+                       <h3 className="text-2xl font-bold mb-1">Premium Weekly</h3>
+                       <p className="text-sm opacity-90">Luxury Week Plans</p>
+                     </div>
+                   </div>
+                   <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
+                     <span className="text-white text-sm font-semibold">Premium</span>
+                   </div>
+                 </div>
+                 <div className="p-6 flex flex-col h-80">
+                   <div className="space-y-4 mb-6 flex-grow">
+                     <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-400">
+                       <h4 className="font-bold text-blue-800 text-sm mb-2">PREMIUM WEEKLY RATES</h4>
+                       <div className="space-y-3">
+                         <div className="border-b border-gray-200 pb-2">
+                           <p className="text-xs text-gray-600 mb-2">Monday-Sunday Full Week Plan</p>
+                           <div className="flex justify-between items-center">
+                             <span className="font-medium text-gray-800 text-sm">Veg</span>
+                             <span className="font-bold text-green-600">₹2,100</span>
+                           </div>
+                           <div className="flex justify-between items-center">
+                             <span className="font-medium text-gray-800 text-sm">Non-veg</span>
+                             <span className="font-bold text-red-600">₹2,450</span>
+                           </div>
+                         </div>
+                         <div>
+                           <p className="text-xs text-gray-600 mb-2">Monday-Friday Week-Day Plan</p>
+                           <div className="flex justify-between items-center">
+                             <span className="font-medium text-gray-800 text-sm">Veg</span>
+                             <span className="font-bold text-green-600">₹1,500</span>
+                           </div>
+                           <div className="flex justify-between items-center">
+                             <span className="font-medium text-gray-800 text-sm">Non-veg</span>
+                             <span className="font-bold text-red-600">₹1,750</span>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                   <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors duration-200">
+                     Choose Premium Weekly
+                   </button>
+                 </div>
+               </div>
+             </div>
 
-            {/* Daily Rates */}
+            {/* Premium Daily Rates */}
             <div className="relative group">
-              <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-purple-200 h-full">
-                <div className="relative h-48 bg-gradient-to-br from-purple-500 to-pink-600">
+              <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border-2 border-blue-200 h-full">
+                <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
                   <div className="absolute inset-0 bg-black/20"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center text-white">
@@ -412,33 +571,32 @@ const HomePage = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <h3 className="text-2xl font-bold mb-1">Daily Rates</h3>
-                      <p className="text-sm opacity-90">Pay Per Day</p>
+                      <h3 className="text-2xl font-bold mb-1">Premium Daily</h3>
+                      <p className="text-sm opacity-90">Luxury Daily Plan</p>
                     </div>
                   </div>
                   <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
-                    <span className="text-white text-sm font-semibold">Flexible</span>
+                    <span className="text-white text-sm font-semibold">Premium</span>
                   </div>
                 </div>
                 <div className="p-6 flex flex-col h-64">
                   <div className="space-y-4 mb-6 flex-grow">
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <h4 className="font-semibold text-purple-800 text-lg mb-2">Daily Full Plan</h4>
-                      <p className="text-sm text-purple-600 mb-3">Breakfast + Lunch + Dinner</p>
+                    <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-400">
+                      <h4 className="font-bold text-blue-800 text-sm mb-2">PREMIUM DAILY RATES</h4>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="font-medium text-gray-800">Veg</span>
+                          <span className="font-medium text-gray-800 text-sm">Veg</span>
                           <span className="font-bold text-green-600">₹300</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="font-medium text-gray-800">Non-veg</span>
+                          <span className="font-medium text-gray-800 text-sm">Non-veg</span>
                           <span className="font-bold text-red-600">₹350</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-colors duration-200">
-                    Choose Daily Plan
+                  <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors duration-200">
+                    Choose Premium Daily
                   </button>
                 </div>
               </div>
@@ -446,49 +604,103 @@ const HomePage = () => {
           </div>
 
           {/* Daily Flexible Rates */}
-          <div className="max-w-4xl mx-auto mb-12">
+          <div className="max-w-6xl mx-auto mb-12">
             <div className="bg-white rounded-2xl shadow-lg p-8 border-2 border-orange-200">
-              <div className="text-center mb-6">
+              <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Daily Flexible Rates</h3>
                 <p className="text-gray-600">Choose individual meals as per your preference</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Breakfast */}
-                <div className="text-center p-4 bg-yellow-50 rounded-xl">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-yellow-500 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
+              
+              {/* Popular Daily Flexible Rates */}
+              <div className="mb-8">
+                <h4 className="text-xl font-bold text-yellow-700 mb-4 text-center border-b-2 border-yellow-200 pb-2">
+                  POPULAR DAILY FLEXIBLE RATES
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Breakfast */}
+                  <div className="text-center p-4 bg-yellow-50 rounded-xl border-2 border-yellow-200">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-yellow-500 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-bold text-gray-900 mb-2">Breakfast</h4>
+                    <p className="text-2xl font-bold text-yellow-600">₹70</p>
                   </div>
-                  <h4 className="font-bold text-gray-900 mb-2">Breakfast</h4>
-                  <p className="text-2xl font-bold text-yellow-600">₹75</p>
-                </div>
 
-                {/* Lunch */}
-                <div className="text-center p-4 bg-green-50 rounded-xl">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                  {/* Lunch */}
+                  <div className="text-center p-4 bg-green-50 rounded-xl border-2 border-green-200">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-bold text-gray-900 mb-2">Lunch</h4>
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-600">Veg <span className="font-bold text-green-600">₹90</span></p>
+                      <p className="text-sm text-gray-600">Non-veg <span className="font-bold text-red-600">₹110</span></p>
+                    </div>
                   </div>
-                  <h4 className="font-bold text-gray-900 mb-2">Lunch</h4>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-600">Veg <span className="font-bold text-green-600">₹125</span></p>
-                    <p className="text-sm text-gray-600">Non-veg <span className="font-bold text-red-600">₹150</span></p>
+
+                  {/* Dinner */}
+                  <div className="text-center p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-purple-500 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-bold text-gray-900 mb-2">Dinner</h4>
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-600">Veg <span className="font-bold text-green-600">₹80</span></p>
+                      <p className="text-sm text-gray-600">Non-veg <span className="font-bold text-red-600">₹100</span></p>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Dinner */}
-                <div className="text-center p-4 bg-purple-50 rounded-xl">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-purple-500 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
+              {/* Premium Daily Flexible Rates */}
+              <div>
+                <h4 className="text-xl font-bold text-blue-700 mb-4 text-center border-b-2 border-blue-200 pb-2">
+                  PREMIUM DAILY FLEXIBLE RATES
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Breakfast */}
+                  <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-bold text-gray-900 mb-2">Breakfast</h4>
+                    <p className="text-2xl font-bold text-blue-600">₹90</p>
                   </div>
-                  <h4 className="font-bold text-gray-900 mb-2">Dinner</h4>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-600">Veg <span className="font-bold text-green-600">₹115</span></p>
-                    <p className="text-sm text-gray-600">Non-veg <span className="font-bold text-red-600">₹140</span></p>
+
+                  {/* Lunch */}
+                  <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-bold text-gray-900 mb-2">Lunch</h4>
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-600">Veg <span className="font-bold text-green-600">₹130</span></p>
+                      <p className="text-sm text-gray-600">Non-veg <span className="font-bold text-red-600">₹160</span></p>
+                    </div>
+                  </div>
+
+                  {/* Dinner */}
+                  <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-bold text-gray-900 mb-2">Dinner</h4>
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-600">Veg <span className="font-bold text-green-600">₹110</span></p>
+                      <p className="text-sm text-gray-600">Non-veg <span className="font-bold text-red-600">₹140</span></p>
+                    </div>
                   </div>
                 </div>
               </div>

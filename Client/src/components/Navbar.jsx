@@ -173,10 +173,12 @@ const Navbar = ({ onSignInClick }) => {
               </button>
             )}
 
+            {/* Cart - Commented out
             <a href="/cart" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group relative">
               <MdShoppingCart className="text-xl group-hover:scale-110 transition-transform duration-300" /> Cart
               <span className="absolute -top-2 -right-2 bg-[#FE8C00] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
             </a>
+            */}
 
             {/* Search */}
             <div className="relative group">
@@ -290,6 +292,7 @@ const Navbar = ({ onSignInClick }) => {
                     <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
                     <span className="font-medium text-xs text-center">Menu</span>
                   </motion.a>
+                  {/* Cart - Commented out
                   <motion.a 
                     href="/cart" 
                     className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200 relative"
@@ -300,6 +303,7 @@ const Navbar = ({ onSignInClick }) => {
                     <span className="font-medium text-xs text-center">Cart</span>
                     <span className="absolute -top-1 -right-1 bg-[#FE8C00] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">0</span>
                   </motion.a>
+                  */}
                   <motion.a 
                     href="/jkhm/bookings" 
                     className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
