@@ -1,5 +1,9 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const migrationsDir = path.join(__dirname, 'prisma', 'migrations');
 const backupDir = path.join(__dirname, 'migrations_backup_' + Date.now());
@@ -42,8 +46,12 @@ try {
   console.log(`  ✅ Files copied: ${copiedCount}`);
   
   // Create a restore script
-  const restoreScript = `const fs = require('fs');
-const path = require('path');
+  const restoreScript = `import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const sourceDir = '${backupDir.replace(/\\/g, '\\\\')}';
 const targetDir = path.join(__dirname, 'prisma', 'migrations');

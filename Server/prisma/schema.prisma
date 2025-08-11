@@ -61,7 +61,7 @@ model Address {
 
 model UserRole {
   userId    String   @map("user_id") @db.VarChar(36)
-  name      String   @db.VarChar(255) // Changed from RoleName enum to String to support comma-separated values
+  name      String   @db.VarChar(255)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   id        String   @id @default(uuid()) @db.VarChar(36)
@@ -318,7 +318,145 @@ model PaymentReceipt {
   @@map("payment_receipts")
 }
 
+model delivery_executive_profile {
+  user_id             String    @id @db.VarChar(36)
+  license_number      String?   @db.VarChar(50)
+  license_expiry_date DateTime? @db.Date
+  joined_date         DateTime? @db.Date
+  rating              Float?    @db.Float
+  total_routes        Int?
+  created_at          DateTime? @default(now()) @db.Timestamp(0)
 
+  @@ignore
+}
+
+model special_days {
+  id          String    @id @db.VarChar(36)
+  date        DateTime? @db.Date
+  description String?   @db.Text
+  school      String?   @db.VarChar(255)
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+model traffic_weather_log {
+  id            String                             @id @db.VarChar(36)
+  user_id       String?                            @db.VarChar(36)
+  date          DateTime?                          @db.Date
+  weather       String?                            @db.VarChar(100)
+  traffic_level traffic_weather_log_traffic_level?
+  delay_minutes Float?                             @db.Float
+  created_at    DateTime?                          @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+model vehicle_service_log {
+  id              String    @id @db.VarChar(36)
+  vehicle_id      String?   @db.VarChar(36)
+  user_id         String?   @db.VarChar(36)
+  service_date    DateTime? @db.Date
+  service_details String?   @db.Text
+  cost            Float?    @db.Float
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+model vehicle_tracking_log {
+  id         String    @id @db.VarChar(36)
+  vehicle_id String?   @db.VarChar(36)
+  user_id    String?   @db.VarChar(36)
+  timestamp  DateTime? @db.DateTime(0)
+  latitude   Float?    @db.Float
+  longitude  Float?    @db.Float
+  speed      Float?    @db.Float
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+model vehicles {
+  id                  String    @id @db.VarChar(36)
+  user_id             String?   @db.VarChar(36)
+  registration_number String?   @db.VarChar(50)
+  model               String?   @db.VarChar(100)
+  purchase_date       DateTime? @db.Date
+  insurance_expiry    DateTime? @db.Date
+  puc_expiry          DateTime? @db.Date
+  fitness_expiry      DateTime? @db.Date
+  road_tax_expiry     DateTime? @db.Date
+  created_at          DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+model fuel_log {
+  id          String    @id @db.VarChar(36)
+  vehicle_id  String?   @db.VarChar(36)
+  user_id     String?   @db.VarChar(36)
+  refuel_date DateTime? @db.Date
+  litres      Float?    @db.Float
+  cost        Float?    @db.Float
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+model planned_route_stops {
+  id                          String                       @id @db.VarChar(36)
+  user_id                     String?                      @db.VarChar(36)
+  date                        DateTime?                    @db.Date
+  session                     planned_route_stops_session?
+  stop_order                  Int?
+  delivery_name               String?                      @db.VarChar(255)
+  location                    String?                      @db.VarChar(255)
+  latitude                    Float?                       @db.Float
+  longitude                   Float?                       @db.Float
+  packages                    Int?
+  customer_type               String?                      @default("normal") @db.VarChar(50)
+  priority_level              String?                      @db.VarChar(50)
+  distance_from_previous      Float?                       @db.Float
+  expected_time_from_previous Float?                       @db.Float
+  cumulative_distance         Float?                       @db.Float
+  cumulative_time             Float?                       @db.Float
+  planned_arrival_time        DateTime?                    @db.DateTime(0)
+  created_at                  DateTime?                    @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+model actual_route_stops {
+  id                            String                              @id @db.VarChar(36)
+  user_id                       String?                             @db.VarChar(36)
+  planned_stop_id               String?                             @db.VarChar(36)
+  stop_order                    Int?
+  delivery_name                 String?                             @db.VarChar(255)
+  location                      String?                             @db.VarChar(255)
+  latitude                      Float?                              @db.Float
+  longitude                     Float?                              @db.Float
+  packages_delivered            Int?
+  actual_arrival_time           DateTime?                           @db.DateTime(0)
+  actual_distance_from_previous Float?                              @db.Float
+  actual_time_from_previous     Float?                              @db.Float
+  delivery_status               actual_route_stops_delivery_status?
+  delay_reason                  String?                             @db.Text
+  geo_accuracy                  Float?                              @db.Float
+  status                        actual_route_stops_status?
+
+  @@ignore
+}
+
+model customer_subscriptions {
+  customer_id       Int                                   @id
+  subscription_type Int
+  morning_status    customer_subscriptions_morning_status
+  lunch_status      customer_subscriptions_lunch_status
+  dinner_status     customer_subscriptions_dinner_status
+
+  @@ignore
+}
 
 enum Status {
   ACTIVE
@@ -389,4 +527,40 @@ enum ReceiptType {
   PDF
 }
 
+enum customer_subscriptions_morning_status {
+  YES
+  NO
+}
 
+enum customer_subscriptions_lunch_status {
+  YES
+  NO
+}
+
+enum planned_route_stops_session {
+  Breakfast
+  Lunch
+  Dinner
+}
+
+enum customer_subscriptions_dinner_status {
+  YES
+  NO
+}
+
+enum traffic_weather_log_traffic_level {
+  Low
+  Medium
+  High
+}
+
+enum actual_route_stops_delivery_status {
+  Delivered
+  Missed
+  Skipped
+}
+
+enum actual_route_stops_status {
+  OnTime
+  Late
+}
