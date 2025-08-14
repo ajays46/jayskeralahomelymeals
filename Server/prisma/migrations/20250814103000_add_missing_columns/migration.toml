@@ -1,0 +1,5 @@
+# This is an empty migration.
+# The database schema was already updated manually.
+# This migration file is created to resolve schema drift.
+
+migration_lock = "mysql"
