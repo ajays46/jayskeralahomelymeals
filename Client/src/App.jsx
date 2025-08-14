@@ -20,8 +20,9 @@ import ProductsPage from './pages/admin/ProductsPage';
 import AddMenuPage from './pages/admin/AddMenuPage';
 import MenuItemPage from './pages/admin/MenuItemPage';
 import MenuItemsTablePage from './pages/admin/MenuItemsTablePage';
+import UsersPage from './pages/admin/UsersPage';
 
-
+import CreateUserPage from './pages/CreateUserPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,7 @@ const App = () => {
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
           <Route path="/jkhm/menu" element={<MenuPage />} />
           <Route path="/jkhm/bookings" element={<BookingPage />} />
+          <Route path="/jkhm/payment" element={<PaymentPage />} />
           <Route path="/jkhm/payment/:orderId" element={<PaymentPage />} />
 
           {/* ✅ Protected Route */}
@@ -60,9 +62,12 @@ const App = () => {
             <Route path='/admin/menu-items' element={<MenuItemPage/>} ></Route>
             <Route path='/admin/menu-items/:menuItemId' element={<MenuItemPage/>} ></Route>
             <Route path='/admin/menu-items-table' element={<MenuItemsTablePage/>} ></Route>
+            <Route path='/admin/users' element={<UsersPage/>} ></Route>
     
-            <Route path='/seller' element={<SellerPage />}></Route>
+    
+            <Route path='/jkhm/seller' element={<SellerPage />}></Route>
             <Route path='/jkhm/profile' element={<ProfilePage />}></Route>
+            <Route path='/jkhm/create-user' element={<CreateUserPage />}></Route>
           </Route>
 
           {/* Add more protected routes here */}

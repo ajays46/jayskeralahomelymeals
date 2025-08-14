@@ -126,9 +126,10 @@ const Navbar = ({ onSignInClick }) => {
                       <a href="/jkhm/profile" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
                         <MdPerson className="text-xl" /> Profile
                       </a>
-                      <a href="/orders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
-                        <MdRestaurantMenu className="text-xl" /> My Orders
-                      </a>
+                                             <a href="/jkhm/orders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
+                         <MdRestaurantMenu className="text-xl" /> My Orders
+                       </a>
+
 
                       {/* Admin Options */}
                       {userIsAdmin && (
@@ -146,7 +147,7 @@ const Navbar = ({ onSignInClick }) => {
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Seller Panel</div>
-                          <a href="/seller" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
+                          <a href="/jkhm/seller" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
                             <MdStore className="text-xl" /> Seller Dashboard
                           </a>
                         </>
@@ -338,25 +339,26 @@ const Navbar = ({ onSignInClick }) => {
                   </h3>
                   
                   {/* Primary Actions */}
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    <motion.a 
-                      href="/profile" 
-                      className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
-                      whileHover={{ y: -1, scale: 1.01 }}
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      <MdPerson className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
-                      <span className="font-medium text-xs text-center">Profile</span>
-                    </motion.a>
-                    <motion.a 
-                      href="/orders" 
-                      className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
-                      whileHover={{ y: -1, scale: 1.01 }}
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      <MdRestaurantMenu className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
-                      <span className="font-medium text-xs text-center">Orders</span>
-                    </motion.a>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                                         <motion.a 
+                       href="/jkhm/profile" 
+                       className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                       whileHover={{ y: -1, scale: 1.01 }}
+                       onClick={() => setMenuOpen(false)}
+                     >
+                       <MdPerson className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
+                       <span className="font-medium text-xs text-center">Profile</span>
+                     </motion.a>
+                                         <motion.a 
+                       href="/jkhm/orders" 
+                       className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
+                       whileHover={{ y: -1, scale:1.01 }}
+                       onClick={() => setMenuOpen(false)}
+                     >
+                       <MdRestaurantMenu className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
+                       <span className="font-medium text-xs text-center">Orders</span>
+                     </motion.a>
+
                   </div>
 
                   {/* Admin/Seller Options */}
@@ -376,7 +378,7 @@ const Navbar = ({ onSignInClick }) => {
                         )}
                         {userIsSeller && (
                           <motion.a 
-                            href="/seller" 
+                            href="/jkhm/seller" 
                             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group"
                             whileHover={{ x: 3 }}
                             onClick={() => setMenuOpen(false)}

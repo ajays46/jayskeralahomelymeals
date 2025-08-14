@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MdLock, MdVisibility, MdVisibilityOff, MdClose, MdCheck } from 'react-icons/md';
 import api from '../api/axios';
-import { toast } from 'react-toastify';
+import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 const ChangePassword = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
@@ -108,11 +108,11 @@ const ChangePassword = ({ isOpen, onClose }) => {
       // For now, simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      toast.success('Password changed successfully!');
+              showSuccessToast('Password changed successfully!');
       handleClose();
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Failed to change password';
-      toast.error(errorMessage);
+              showErrorToast(errorMessage);
     } finally {
       setIsLoading(false);
     }

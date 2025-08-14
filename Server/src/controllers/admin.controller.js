@@ -1,6 +1,6 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
-import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService, createMenuCategoryService, menuCategoryListService, getMenuCategoryByIdService, updateMenuCategoryService, deleteMenuCategoryService, createMenuItemPriceService, menuItemPriceListService, getMenuItemPriceByIdService, updateMenuItemPriceService, deleteMenuItemPriceService, getMealsByDayService, getMenusForBookingService } from '../services/admin.service.js';
+import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService, createMenuCategoryService, menuCategoryListService, getMenuCategoryByIdService, updateMenuCategoryService, deleteMenuCategoryService, createMenuItemPriceService, menuItemPriceListService, getMenuItemPriceByIdService, updateMenuItemPriceService, deleteMenuItemPriceService, getMealsByDayService, getMenusForBookingService, getAllOrdersService, updateOrderStatusService, deleteOrderService } from '../services/admin.service.js';
 
 export const createCompany = async (req, res, next) => {
     try {
@@ -519,6 +519,70 @@ export const getMenusForBooking = async (req, res, next) => {
         next(error);
     }
 };
+
+// Admin Order Management
+export const getAllOrders = async (req, res, next) => {
+    try {
+        const { status, startDate, endDate, orderTime, page = 1, limit = 10 } = req.query;
+        
+        const filters = {
+            status,
+            startDate,
+            endDate,
+            orderTime,
+            page: parseInt(page),
+            limit: parseInt(limit)
+        };
+
+        const orders = await getAllOrdersService(filters);
+        
+        res.status(200).json({
+            status: 'success',
+            data: orders
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateOrderStatus = async (req, res, next) => {
+    try {
+        const { orderId } = req.params;
+        const { status } = req.body;
+        
+        if (!status) {
+            throw new AppError('Status is required', 400);
+        }
+
+        const order = await updateOrderStatusService(orderId, status);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Order status updated successfully',
+            data: order
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteOrder = async (req, res, next) => {
+    try {
+        const { orderId } = req.params;
+        
+        const deletedOrder = await deleteOrderService(orderId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Order deleted successfully',
+            data: deletedOrder
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 
 
 

@@ -54,7 +54,7 @@ const ConfirmationModal = ({
   const modalContent = (
     <>
       {/* Global CSS to ensure modal displays above everything */}
-      <style jsx global>{`
+      <style>{`
         .confirmation-modal-overlay {
           position: fixed !important;
           top: 0 !important;

@@ -18,7 +18,6 @@ const AdminSlide = ({ isFooter = false }) => {
   const navItems = [
     { icon: FaHome, path: '/admin', title: 'Dashboard', color: 'hover:bg-blue-200' },
     { icon: FaGlobe, path: '/jkhm', title: 'Website Home', color: 'hover:bg-emerald-200' },
-    { icon: FaRegChartBar, path: '/admin/analytics', title: 'Analytics', color: 'hover:bg-purple-200' },
     { icon: FaUsers, path: '/admin/users', title: 'Users', color: 'hover:bg-green-200' },
     { icon: FaClipboardList, path: '/admin/menu-items-table', title: 'Menu Items Table', color: 'hover:bg-yellow-200' },
     { icon: FaPlus, path: '/admin/add-product', title: 'Add Product', color: 'hover:bg-red-200' },

@@ -4,8 +4,10 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import sellerRoutes from './routes/seller.routes.js';
 import addressRoutes from './routes/auth.address.route.js';
 import orderRoutes from './routes/order.routes.js';
+
 import paymentRoutes from './routes/payment.routes.js';
 import deliveryItemRoutes from './routes/deliveryItem.routes.js';
 import path from 'path';
@@ -62,7 +64,7 @@ app.use('/payment-receipts', (req, res, next) => {
 // Test database connection and log success
 prisma.$connect()
   .then(() => {
-    console.log('✅ Database connected successfully');
+
   })
   .catch((error) => {
     console.error('❌ Database connection failed:', error);
@@ -92,8 +94,10 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/seller', sellerRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/orders', orderRoutes);
+
 app.use('/api/payments', paymentRoutes);
 app.use('/api', deliveryItemRoutes);
 

@@ -1,233 +1,108 @@
-import AppError from '../utils/AppError.js';
-import {
-    createOrderService,
-    getUserOrdersService,
-    getOrderByIdService,
-    updateOrderStatusService,
-    cancelOrderService,
-    getOrdersByDateRangeService,
-    calculateMenuPricingService,
-    calculateOrderTotalService
-} from '../services/order.service.js';
+import { createOrderService, getOrderByIdService, getOrdersByUserIdService } from '../services/order.service.js';
 
 // Create a new order
-export const createOrder = async (req, res, next) => {
-    try {
-        const userId = req.user.userId;
-        const orderData = req.body;
-        
-        const order = await createOrderService(userId, orderData);
-        
-        res.status(201).json({
-            success: true,
-            message: 'Order created successfully',
-            data: {
-                order: order
-            }
-        });
-    } catch (error) {
-        next(error);
+export const createOrderController = async (req, res, next) => {
+  try {
+    const orderData = req.body;
+    
+    // Validate required fields
+    if (!orderData.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId is required'
+      });
     }
+
+    if (!orderData.selectedDates || orderData.selectedDates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one delivery date is required'
+      });
+    }
+
+    if (!orderData.orderItems || orderData.orderItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one menu item is required'
+      });
+    }
+
+    // Create the order
+    const result = await createOrderService(orderData);
+
+    res.status(201).json({
+      success: true,
+      message: 'Order created successfully',
+      data: {
+        order: result.order,
+        deliveryItems: result.deliveryItems
+      }
+    });
+  } catch (error) {
+    console.error('Error in createOrderController:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to create order'
+    });
+  }
 };
 
-// Get all orders for a user
-export const getUserOrders = async (req, res, next) => {
-    try {
-        const userId = req.user.userId;
-        const filters = {
-            status: req.query.status,
-            startDate: req.query.startDate,
-            endDate: req.query.endDate,
-            orderTime: req.query.orderTime
-        };
-
-        const orders = await getUserOrdersService(userId, filters);
-
-        res.status(200).json({
-            success: true,
-            message: 'Orders retrieved successfully',
-            data: {
-                orders: orders
-            }
-        });
-    } catch (error) {
-        next(error);
+// Get order by ID
+export const getOrderByIdController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order ID is required'
+      });
     }
+
+    const order = await getOrderByIdService(orderId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Order retrieved successfully',
+      data: {
+        order
+      }
+    });
+  } catch (error) {
+    console.error('Error in getOrderByIdController:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get order'
+    });
+  }
 };
 
-// Get a specific order by ID
-export const getOrderById = async (req, res, next) => {
-    try {
-        const userId = req.user.userId;
-        const orderId = req.params.id;
-
-        const order = await getOrderByIdService(userId, orderId);
-
-        res.status(200).json({
-            success: true,
-            message: 'Order retrieved successfully',
-            data: {
-                order: order
-            }
-        });
-    } catch (error) {
-        next(error);
+// Get orders by user ID
+export const getOrdersByUserIdController = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
     }
-};
 
-// Update order status
-export const updateOrderStatus = async (req, res, next) => {
-    try {
-        const userId = req.user.userId;
-        const orderId = req.params.id;
-        const { status } = req.body;
+    const orders = await getOrdersByUserIdService(userId);
 
-        if (!status) {
-            return next(new AppError('Status is required', 400));
-        }
-
-        const order = await updateOrderStatusService(userId, orderId, status);
-
-        res.status(200).json({
-            success: true,
-            message: 'Order status updated successfully',
-            data: {
-                order: order
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// Cancel order (delete from database)
-export const cancelOrder = async (req, res, next) => {
-    try {
-        const userId = req.user.userId;
-        const orderId = req.params.id;
-
-        const result = await cancelOrderService(userId, orderId);
-
-        res.status(200).json({
-            success: true,
-            message: 'Order cancelled successfully',
-            data: {
-                orderId: result.id,
-                message: result.message
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// Get orders by date range (for delivery management)
-export const getOrdersByDateRange = async (req, res, next) => {
-    try {
-        const { startDate, endDate } = req.params;
-        const filters = {
-            status: req.query.status,
-            orderTime: req.query.orderTime,
-            userId: req.query.userId
-        };
-
-        if (!startDate || !endDate) {
-            return next(new AppError('Start date and end date are required', 400));
-        }
-
-        const orders = await getOrdersByDateRangeService(startDate, endDate, filters);
-
-        res.status(200).json({
-            success: true,
-            message: 'Orders retrieved successfully',
-            data: {
-                orders: orders
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// Get delivery orders for a specific date and time
-export const getDeliveryOrders = async (req, res, next) => {
-    try {
-        const { date, orderTime } = req.params;
-        const filters = {
-            status: req.query.status || 'Confirmed',
-            orderTime: orderTime
-        };
-
-        if (!date) {
-            return next(new AppError('Date is required', 400));
-        }
-
-        const orders = await getOrdersByDateRangeService(date, date, filters);
-
-        res.status(200).json({
-            success: true,
-            message: 'Delivery orders retrieved successfully',
-            data: {
-                orders: orders
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-
-
-// Calculate menu pricing for different plans
-export const calculateMenuPricing = async (req, res, next) => {
-    try {
-        const { menuId, orderMode } = req.body;
-
-        if (!menuId) {
-            return next(new AppError('Menu ID is required', 400));
-        }
-
-        const pricingData = await calculateMenuPricingService(menuId, orderMode);
-
-        res.status(200).json({
-            success: true,
-            message: 'Menu pricing calculated successfully',
-            data: pricingData
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// Calculate total order price with dates and skip meals
-export const calculateOrderTotal = async (req, res, next) => {
-    try {
-        const { 
-            menuId, 
-            selectedDates, 
-            skipMeals, 
-            orderMode, 
-            dateMenuSelections 
-        } = req.body;
-
-        if (!menuId || !selectedDates || selectedDates.length === 0) {
-            return next(new AppError('Menu ID and selected dates are required', 400));
-        }
-
-        const totalData = await calculateOrderTotalService(
-            menuId, 
-            selectedDates, 
-            skipMeals, 
-            orderMode, 
-            dateMenuSelections
-        );
-
-        res.status(200).json({
-            success: true,
-            message: 'Order total calculated successfully',
-            data: totalData
-        });
-    } catch (error) {
-        next(error);
-    }
+    res.status(200).json({
+      success: true,
+      message: 'Orders retrieved successfully',
+      data: {
+        orders
+      }
+    });
+  } catch (error) {
+    console.error('Error in getOrdersByUserIdController:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get user orders'
+    });
+  }
 };

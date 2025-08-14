@@ -99,6 +99,65 @@ export const useDeleteProduct = () => {
     });
 };
 
+// Admin Order Management Hooks
+export const useAdminOrders = (filters = {}) => {
+    return useQuery({
+        queryKey: ['admin-orders', filters],
+        queryFn: async () => {
+            const params = new URLSearchParams();
+            
+            if (filters.status && filters.status !== 'all') {
+                params.append('status', filters.status);
+            }
+            if (filters.startDate) {
+                params.append('startDate', filters.startDate);
+            }
+            if (filters.endDate) {
+                params.append('endDate', filters.endDate);
+            }
+            if (filters.orderTime && filters.orderTime !== 'all') {
+                params.append('orderTime', filters.orderTime);
+            }
+            if (filters.page) {
+                params.append('page', filters.page);
+            }
+            if (filters.limit) {
+                params.append('limit', filters.limit);
+            }
+
+            const response = await api.get(`/admin/orders?${params.toString()}`);
+            return response.data;
+        },
+        keepPreviousData: true
+    });
+};
+
+export const useUpdateOrderStatus = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ orderId, status }) => {
+            const response = await api.put(`/admin/orders/${orderId}/status`, { status });
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['admin-orders']);
+        }
+    });
+};
+
+export const useDeleteOrder = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (orderId) => {
+            const response = await api.delete(`/admin/orders/${orderId}`);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['admin-orders']);
+        }
+    });
+};
+
 // Menu hooks
 export const useCreateMenu = () => {
     const queryClient = useQueryClient();

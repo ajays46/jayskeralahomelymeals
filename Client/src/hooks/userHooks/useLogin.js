@@ -1,6 +1,6 @@
 import { useMutation,useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
-import { showLoginError } from '../../utils/toastConfig';
+import { showLoginError } from '../../utils/toastConfig.jsx';
 import useAuthStore from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ export const useLogin = () => {
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const setRoles = useAuthStore((state) => state.setRoles);
   const setUser = useAuthStore((state) => state.setUser);
+  const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
   const navigate = useNavigate();
 
   return useMutation({
@@ -22,6 +23,7 @@ export const useLogin = () => {
         setAccessToken(data.accessToken);
         setRoles(roles);
         setUser(data.data);
+        setIsAuthenticated(true);
         // showLoginSuccess();
         navigate('/jkhm');
       }

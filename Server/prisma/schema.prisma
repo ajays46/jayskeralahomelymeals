@@ -30,13 +30,17 @@ model User {
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at")
   customerId      Int              @unique @map("customer_id")
+  createdBy       String?          @map("created_by") @db.VarChar(36)
   auth            Auth             @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  creator         User?            @relation("SellerCreatedUsers", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdUsers    User[]           @relation("SellerCreatedUsers")
   userRoles       UserRole[]
   addresses       Address[]
   deliveryItems   DeliveryItem[]
   contacts        Contact[]
   payments        Payment[]
   paymentReceipts PaymentReceipt[]
+  orders          Order[]
 
   @@map("users")
 }
@@ -234,6 +238,7 @@ model Order {
   deliveryAddress        Address?       @relation(fields: [deliveryAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   deliveryItems          DeliveryItem[]
   payments               Payment[]
+  user                   User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("orders")
 }
@@ -319,13 +324,14 @@ model PaymentReceipt {
 }
 
 model delivery_executive_profile {
-  user_id             String    @id @db.VarChar(36)
-  license_number      String?   @db.VarChar(50)
-  license_expiry_date DateTime? @db.Date
-  joined_date         DateTime? @db.Date
-  rating              Float?    @db.Float
+  user_id             String                            @id @db.VarChar(36)
+  license_number      String?                           @db.VarChar(50)
+  license_expiry_date DateTime?                         @db.Date
+  joined_date         DateTime?                         @db.Date
+  rating              Float?                            @db.Float
   total_routes        Int?
-  created_at          DateTime? @default(now()) @db.Timestamp(0)
+  created_at          DateTime?                         @default(now()) @db.Timestamp(0)
+  status              delivery_executive_profile_status @default(ACTIVE)
 
   @@ignore
 }
@@ -570,4 +576,9 @@ enum UserRoleName {
   SELLER
   USER
   DELIVERY_EXECUTIVE
+}
+
+enum delivery_executive_profile_status {
+  ACTIVE
+  NON_ACTIVE
 }

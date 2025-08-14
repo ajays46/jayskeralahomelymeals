@@ -1,5 +1,5 @@
-const AppError = require('../utils/AppError');
-const { ValidationError, UniqueConstraintError } = require('sequelize');
+import AppError from '../utils/AppError.js';
+import { ValidationError, UniqueConstraintError } from 'sequelize';
 
 const errorHandler = (err, req, res, next) => {
 
@@ -69,4 +69,4 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
-module.exports = errorHandler;
+export default errorHandler;

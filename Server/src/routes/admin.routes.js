@@ -3,7 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -199,5 +199,26 @@ router.get('/menus-for-booking',
     // checkRole('admin'),
     getMenusForBooking
 );
+
+// Admin Order Management routes
+router.get('/orders',
+    // authenticateToken,
+    // checkRole('admin'),
+    getAllOrders
+);
+
+router.put('/orders/:orderId/status',
+    // authenticateToken,
+    // checkRole('admin'),
+    updateOrderStatus
+);
+
+router.delete('/orders/:orderId',
+    // authenticateToken,
+    // checkRole('admin'),
+    deleteOrder
+);
+
+
 
 export default router; 

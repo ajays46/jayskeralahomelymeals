@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSlide from '../../components/AdminSlide';
 import ConfirmationModal from '../../components/ConfirmationModal';
@@ -10,7 +10,6 @@ const MenuItemsTablePage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMealType, setFilterMealType] = useState('');
-
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
   const [deleteModal, setDeleteModal] = useState({
@@ -29,132 +28,165 @@ const MenuItemsTablePage = () => {
   const { mutate: deleteMenuItem, isLoading: isDeleting, isSuccess: deleteSuccess } = useDeleteMenuItem();
   const menuItems = menuItemListData?.data || [];
 
+  // Input sanitization helper
+  const sanitizeInput = useCallback((input) => {
+    if (typeof input !== 'string') return '';
+    return input.trim().toLowerCase().replace(/[<>]/g, '');
+  }, []);
+
   // Show success message when item is deleted
   useEffect(() => {
     if (deleteSuccess) {
       // You can add a toast notification here if you have a toast system
-      
     }
   }, [deleteSuccess]);
 
-  // Filter and sort menu items
-  const filteredAndSortedItems = menuItems
-    .filter(item => {
-      const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.menuItem?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.menu?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.menuItemPrices?.[0]?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.menu?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesMealType = !filterMealType || 
-                              item.product?.productName === filterMealType ||
-                              item.productName === filterMealType ||
-                              item.menuItem?.productName === filterMealType ||
-                              item.menu?.productName === filterMealType ||
-                              item.menuItemPrices?.[0]?.productName === filterMealType;
-      
-      return matchesSearch && matchesMealType;
-    })
-    .sort((a, b) => {
-      let aValue, bValue;
-      
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name || '';
-          bValue = b.name || '';
-          break;
-        case 'product':
-          aValue = a.product?.productName || a.productName || a.menuItem?.productName || a.menu?.productName || a.menuItemPrices?.[0]?.productName || '';
-          bValue = b.product?.productName || b.productName || b.menuItem?.productName || b.menu?.productName || b.menuItemPrices?.[0]?.productName || '';
-          break;
-        case 'menu':
-          aValue = a.menu?.name || '';
-          bValue = b.menu?.name || '';
-          break;
-        case 'price':
-          aValue = a.product?.price || a.price || a.menuItem?.price || a.menu?.price || a.menuItemPrices?.[0]?.totalPrice || 0;
-          bValue = b.product?.price || b.price || b.menuItem?.price || b.menu?.price || b.menuItemPrices?.[0]?.totalPrice || 0;
-          break;
+  // Memoized search and filter logic
+  const filteredAndSortedItems = useMemo(() => {
+    const sanitizedSearchTerm = sanitizeInput(searchTerm);
+    
+    return menuItems
+      .filter(item => {
+        // Secure search matching with sanitized input
+        const matchesSearch = !sanitizedSearchTerm || 
+          sanitizeInput(item.name || '').includes(sanitizedSearchTerm) ||
+          sanitizeInput(item.product?.productName || '').includes(sanitizedSearchTerm) ||
+          sanitizeInput(item.productName || '').includes(sanitizedSearchTerm) ||
+          sanitizeInput(item.menuItem?.productName || '').includes(sanitizedSearchTerm) ||
+          sanitizeInput(item.menu?.productName || '').includes(sanitizedSearchTerm) ||
+          sanitizeInput(item.menuItemPrices?.[0]?.productName || '').includes(sanitizedSearchTerm) ||
+          sanitizeInput(item.menu?.name || '').includes(sanitizedSearchTerm);
+        
+        const matchesMealType = !filterMealType || 
+          item.product?.productName === filterMealType ||
+          item.productName === filterMealType ||
+          item.menuItem?.productName === filterMealType ||
+          item.menu?.productName === filterMealType ||
+          item.menuItemPrices?.[0]?.productName === filterMealType;
+        
+        return matchesSearch && matchesMealType;
+      })
+      .sort((a, b) => {
+        let aValue, bValue;
+        
+        switch (sortBy) {
+          case 'name':
+            aValue = a.name || '';
+            bValue = b.name || '';
+            break;
+          case 'product':
+            aValue = a.product?.productName || a.productName || a.menuItem?.productName || a.menu?.productName || a.menuItemPrices?.[0]?.productName || '';
+            bValue = b.product?.productName || b.productName || b.menuItem?.productName || b.menu?.productName || b.menuItemPrices?.[0]?.productName || '';
+            break;
+          case 'menu':
+            aValue = a.menu?.name || '';
+            bValue = b.menu?.name || '';
+            break;
+          case 'price':
+            aValue = a.product?.price || a.price || a.menuItem?.price || a.menu?.price || a.menuItemPrices?.[0]?.totalPrice || 0;
+            bValue = b.product?.price || b.price || b.menuItem?.price || b.menu?.price || b.menuItemPrices?.[0]?.totalPrice || 0;
+            break;
+          case 'company':
+            aValue = a.menu?.company?.name || '';
+            bValue = b.menu?.company?.name || '';
+            break;
+          default:
+            aValue = a.name || '';
+            bValue = b.name || '';
+        }
+        
+        if (sortOrder === 'asc') {
+          return aValue.localeCompare(bValue);
+        } else {
+          return bValue.localeCompare(aValue);
+        }
+      });
+  }, [menuItems, searchTerm, filterMealType, sortBy, sortOrder, sanitizeInput]);
 
-        case 'company':
-          aValue = a.menu?.company?.name || '';
-          bValue = b.menu?.company?.name || '';
-          break;
-        default:
-          aValue = a.name || '';
-          bValue = b.name || '';
-      }
-      
-      if (sortOrder === 'asc') {
-        return aValue.localeCompare(bValue);
-      } else {
-        return bValue.localeCompare(aValue);
-      }
-    });
+  // Memoized unique meal types
+  const uniqueMealTypes = useMemo(() => {
+    return [...new Set(
+      menuItems
+        .map(item => item.product?.productName || item.productName || item.menuItem?.productName || item.menu?.productName || item.menuItemPrices?.[0]?.productName)
+        .filter(Boolean)
+    )];
+  }, [menuItems]);
 
-  // Get unique values for filters
-  const uniqueMealTypes = [...new Set(
-    menuItems
-      .map(item => item.product?.productName || item.productName || item.menuItem?.productName || item.menu?.productName || item.menuItemPrices?.[0]?.productName)
-      .filter(Boolean)
-  )];
-
-  const handleSort = (column) => {
+  // Memoized event handlers
+  const handleSort = useCallback((column) => {
     if (sortBy === column) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(column);
       setSortOrder('asc');
     }
-  };
+  }, [sortBy, sortOrder]);
 
-  const getSortIcon = (column) => {
+  const getSortIcon = useCallback((column) => {
     if (sortBy !== column) return null;
     return sortOrder === 'asc' ? '↑' : '↓';
-  };
+  }, [sortBy, sortOrder]);
 
-  const handleEdit = (menuItemId) => {
-    // Navigate to edit page
+  const handleEdit = useCallback((menuItemId) => {
+    if (!menuItemId) return;
     navigate(`/admin/menu-items/${menuItemId}`);
-  };
+  }, [navigate]);
 
-  const handleDelete = (menuItemId, menuItemName) => {
+  const handleDelete = useCallback((menuItemId, menuItemName) => {
+    if (!menuItemId || !menuItemName) return;
     setDeleteModal({
       isOpen: true,
       menuItemId,
       menuItemName
     });
-  };
+  }, []);
 
-  const handleViewPrices = (menuItem) => {
+  const handleViewPrices = useCallback((menuItem) => {
+    if (!menuItem) return;
     setPriceModal({
       isOpen: true,
       menuItem
     });
-  };
+  }, []);
 
-  const confirmDelete = () => {
+  const confirmDelete = useCallback(() => {
     if (deleteModal.menuItemId) {
       deleteMenuItem(deleteModal.menuItemId);
     }
-  };
+  }, [deleteModal.menuItemId, deleteMenuItem]);
 
-  const closeDeleteModal = () => {
+  const closeDeleteModal = useCallback(() => {
     setDeleteModal({
       isOpen: false,
       menuItemId: null,
       menuItemName: ''
     });
-  };
+  }, []);
 
-  const closePriceModal = () => {
+  const closePriceModal = useCallback(() => {
     setPriceModal({
       isOpen: false,
       menuItem: null
     });
-  };
+  }, []);
+
+  // Secure search input handler
+  const handleSearchChange = useCallback((e) => {
+    const value = e.target.value;
+    // Basic input validation - only allow alphanumeric, spaces, and common punctuation
+    if (/^[a-zA-Z0-9\s\-_.,!?]*$/.test(value) || value === '') {
+      setSearchTerm(value);
+    }
+  }, []);
+
+  // Secure filter change handler
+  const handleFilterChange = useCallback((e) => {
+    const value = e.target.value;
+    // Validate filter value
+    if (typeof value === 'string') {
+      setFilterMealType(value);
+    }
+  }, []);
 
   if (isLoading) {
     return (
@@ -209,6 +241,7 @@ const MenuItemsTablePage = () => {
               <button
                 onClick={() => navigate('/admin')}
                 className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Go back to admin dashboard"
               >
                 <FiArrowLeft size={20} />
               </button>
@@ -229,24 +262,25 @@ const MenuItemsTablePage = () => {
                   type="text"
                   placeholder="Search menu items..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                   className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400"
+                  aria-label="Search menu items"
+                  maxLength={100}
                 />
               </div>
 
               {/* Product Name Filter */}
               <select
                 value={filterMealType}
-                onChange={(e) => setFilterMealType(e.target.value)}
+                onChange={handleFilterChange}
                 className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+                aria-label="Filter by product type"
               >
                 <option value="">All Product Types</option>
                 {uniqueMealTypes.map(mealType => (
                   <option key={mealType} value={mealType}>{mealType}</option>
                 ))}
               </select>
-
-
 
               {/* Results Count */}
               <div className="flex items-center justify-end">
@@ -260,12 +294,14 @@ const MenuItemsTablePage = () => {
           {/* Table */}
           <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full" role="table" aria-label="Menu items table">
                 <thead className="bg-gray-700">
                   <tr>
                     <th 
                       className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
                       onClick={() => handleSort('name')}
+                      role="columnheader"
+                      aria-sort={sortBy === 'name' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
                     >
                       <div className="flex items-center gap-2">
                         Menu Item Name {getSortIcon('name')}
@@ -274,6 +310,8 @@ const MenuItemsTablePage = () => {
                     <th 
                       className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
                       onClick={() => handleSort('product')}
+                      role="columnheader"
+                      aria-sort={sortBy === 'product' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
                     >
                       <div className="flex items-center gap-2">
                         Product {getSortIcon('product')}
@@ -282,6 +320,8 @@ const MenuItemsTablePage = () => {
                     <th 
                       className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
                       onClick={() => handleSort('menu')}
+                      role="columnheader"
+                      aria-sort={sortBy === 'menu' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
                     >
                       <div className="flex items-center gap-2">
                         Menu {getSortIcon('menu')}
@@ -290,6 +330,8 @@ const MenuItemsTablePage = () => {
                     <th 
                       className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
                       onClick={() => handleSort('price')}
+                      role="columnheader"
+                      aria-sort={sortBy === 'price' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
                     >
                       <div className="flex items-center gap-2">
                         Price {getSortIcon('price')}
@@ -298,6 +340,8 @@ const MenuItemsTablePage = () => {
                     <th 
                       className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
                       onClick={() => handleSort('company')}
+                      role="columnheader"
+                      aria-sort={sortBy === 'company' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
                     >
                       <div className="flex items-center gap-2">
                         Company {getSortIcon('company')}
@@ -374,6 +418,7 @@ const MenuItemsTablePage = () => {
                               onClick={() => handleViewPrices(menuItem)}
                               className="text-green-400 hover:text-green-300 transition-colors"
                               title="View Prices"
+                              aria-label={`View prices for ${menuItem.name}`}
                             >
                               <FiDollarSign size={16} />
                             </button>
@@ -381,6 +426,7 @@ const MenuItemsTablePage = () => {
                               onClick={() => handleEdit(menuItem.id)}
                               className="text-blue-400 hover:text-blue-300 transition-colors"
                               title="Edit"
+                              aria-label={`Edit ${menuItem.name}`}
                             >
                               <FiEdit size={16} />
                             </button>
@@ -389,6 +435,7 @@ const MenuItemsTablePage = () => {
                               disabled={isDeleting}
                               className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Delete"
+                              aria-label={`Delete ${menuItem.name}`}
                             >
                               {isDeleting ? (
                                 <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>

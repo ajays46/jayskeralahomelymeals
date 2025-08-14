@@ -15,7 +15,12 @@ import {
 } from 'react-icons/fi';
 import { MdLocationOn, MdMap } from 'react-icons/md';
 import { useAddress } from '../hooks/userHooks/userAddress';
-import { toast } from 'react-toastify';
+import { 
+  showSuccessToast, 
+  showErrorToast, 
+  showWarningToast, 
+  showInfoToast 
+} from '../utils/toastConfig.jsx';
 import ConfirmationModal from './ConfirmationModal';
 
 const AddressPicker = ({ 
@@ -24,7 +29,10 @@ const AddressPicker = ({
   placeholder = "Select or add delivery address...",
   className = "",
   showMap = false,
-  mealType = "general" // breakfast, lunch, dinner, or general
+  mealType = "general", // breakfast, lunch, dinner, or general
+  addresses = null, // Optional: override default addresses (for seller-selected users)
+  onAddressCreate = null, // Optional: callback for creating addresses for seller-selected users
+  selectedUserId = null // Optional: ID of the user for whom we're managing addresses
 }) => {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState('');
@@ -59,6 +67,11 @@ const AddressPicker = ({
     isUpdating,
     isDeleting
   } = useAddress();
+
+  // Use provided addresses if available, otherwise use user addresses
+  const addressesToUse = addresses || userAddresses;
+  const isLoadingAddressesForDisplay = addresses ? false : isLoadingAddresses;
+  const addressErrorForDisplay = addresses ? null : addressError;
 
   // Form state for adding/editing address
   const [addressForm, setAddressForm] = useState({
@@ -239,40 +252,127 @@ const AddressPicker = ({
     setShowAddFormDropdown(true);
   };
 
-  // Delete address
-  const handleDeleteAddress = (addressId, addressName) => {
-    setDeleteModal({
-      isOpen: true,
-      addressId,
-      addressName
-    });
+  // Handle address creation
+  const handleCreateAddress = async (e) => {
+    e.preventDefault();
+    
+    // If addresses are provided externally (seller-selected user), allow creation
+    if (addresses) {
+      // Call saveAddress which will handle seller-selected users
+      await saveAddress();
+      return;
+    }
+    
+    if (!addressForm.street || !addressForm.city || !addressForm.pincode) {
+      showErrorToast('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const newAddress = await createAddress({
+        ...addressForm,
+        geoLocation: currentLocation || selectedLocation
+      });
+
+      if (newAddress) {
+        setAddressForm({
+          street: '',
+          housename: '',
+          city: '',
+          pincode: '',
+          geoLocation: '',
+          addressType: 'HOME'
+        });
+        setShowAddForm(false);
+        setCurrentLocation(null);
+        setSelectedLocation(null);
+        showSuccessToast('Address added successfully!');
+      }
+    } catch (error) {
+      console.error('Error creating address:', error);
+    }
+  };
+
+  // Handle address update
+  const handleUpdateAddress = async (e) => {
+    e.preventDefault();
+    
+    // If addresses are provided externally (seller-selected user), show message
+    if (addresses) {
+      showInfoToast('Address management is handled by the seller for this user');
+      return;
+    }
+    
+    if (!addressForm.street || !addressForm.city || !addressForm.pincode) {
+      showErrorToast('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const updatedAddress = await updateAddress({
+        id: selectedAddress.id,
+        ...addressForm,
+        geoLocation: currentLocation || selectedLocation
+      });
+
+      if (updatedAddress) {
+        setAddressForm({
+          street: '',
+          housename: '',
+          city: '',
+          pincode: '',
+          geoLocation: '',
+          addressType: 'HOME'
+        });
+        setShowAddForm(false);
+        setSelectedAddress(null);
+        setCurrentLocation(null);
+        setSelectedLocation(null);
+        showSuccessToast('Address updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating address:', error);
+    }
+  };
+
+  // Handle address deletion
+  const handleDeleteAddress = async () => {
+    // If addresses are provided externally (seller-selected user), show message
+    if (addresses) {
+      showInfoToast('Address management is handled by the seller for this user');
+      setDeleteModal({ isOpen: false, addressId: null, addressName: '' });
+      return;
+    }
+    
+    try {
+      const success = await deleteAddress(deleteModal.addressId);
+      if (success) {
+        showSuccessToast('Address deleted successfully!');
+        setDeleteModal({ isOpen: false, addressId: null, addressName: '' });
+      }
+    } catch (error) {
+      console.error('Error deleting address:', error);
+    }
   };
 
   const confirmDelete = async () => {
+    // If addresses are provided externally (seller-selected user), show message
+    if (addresses) {
+      showInfoToast('Address management is handled by the seller for this user');
+      closeDeleteModal();
+      return;
+    }
+    
     try {
       await deleteAddress(deleteModal.addressId);
       
       // Show success toast
-      toast.success('Address deleted successfully!', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      showSuccessToast('Address deleted successfully!');
     } catch (error) {
       console.error('Error deleting address:', error);
       
       // Show error toast
-      toast.error('Failed to delete address. Please try again.', {
-        position: "top-right",
-        autoClose: 4000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      showErrorToast('Failed to delete address. Please try again.');
     }
   };
 
@@ -286,17 +386,68 @@ const AddressPicker = ({
 
   // Save new address or update existing address
   const saveAddress = async () => {
+    // If addresses are provided externally (seller-selected user), allow creation for that user
+    if (addresses) {
+      // This means we're managing addresses for a seller-selected user
+      // We'll need to create the address through a different API endpoint
+      try {
+        // Validate required fields
+        if (!addressForm.street || !addressForm.city || !addressForm.pincode) {
+          showWarningToast('Please fill in all required fields (Street, City, Pincode)');
+          return;
+        }
+
+        // Create address data object
+        const addressData = {
+          street: addressForm.street,
+          housename: addressForm.housename,
+          city: addressForm.city,
+          pincode: parseInt(addressForm.pincode),
+          geoLocation: addressForm.geoLocation || '',
+          addressType: addressForm.addressType
+        };
+
+        // For seller-selected users, create address through the callback
+        if (onAddressCreate && selectedUserId) {
+          try {
+            const savedAddress = await onAddressCreate(selectedUserId, addressData);
+            if (savedAddress) {
+              showSuccessToast('Address created successfully for the selected user!');
+              
+              // Update the form value with address ID
+              onChange({ target: { value: savedAddress.id, displayName: `${savedAddress.housename ? savedAddress.housename + ', ' : ''}${savedAddress.street}, ${savedAddress.city} - ${savedAddress.pincode}` } });
+              
+              // Close form dropdown and reset
+              setShowAddFormDropdown(false);
+              setSelectedAddress(null);
+              setAddressForm({
+                street: '',
+                housename: '',
+                city: '',
+                pincode: '',
+                geoLocation: '',
+                addressType: 'HOME'
+              });
+            }
+          } catch (error) {
+            console.error('Error creating address for user:', error);
+            showErrorToast('Failed to create address for the selected user. Please try again.');
+          }
+          return;
+        }
+        
+        showErrorToast('Address creation not configured for seller-selected users');
+        return;
+      } catch (error) {
+        console.error('Error preparing address data:', error);
+        return;
+      }
+    }
+    
     try {
       // Validate required fields
       if (!addressForm.street || !addressForm.city || !addressForm.pincode) {
-        toast.warning('Please fill in all required fields (Street, City, Pincode)', {
-          position: "top-right",
-          autoClose: 4000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        showWarningToast('Please fill in all required fields (Street, City, Pincode)');
         return;
       }
 
@@ -316,25 +467,11 @@ const AddressPicker = ({
       if (selectedAddress) {
         // Update existing address
         savedAddress = await updateAddress(selectedAddress.id, addressData);
-        toast.success('Address updated successfully!', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        showSuccessToast('Address updated successfully!');
       } else {
         // Create new address
         savedAddress = await createAddress(addressData);
-        toast.success('Address saved successfully!', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        showSuccessToast('Address saved successfully!');
       }
       
       // Update the form value with address ID
@@ -354,14 +491,7 @@ const AddressPicker = ({
       
     } catch (error) {
       console.error('Error saving address:', error);
-      toast.error('Error saving address. Please try again.', {
-        position: "top-right",
-        autoClose: 4000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      showErrorToast('Error saving address. Please try again.');
     }
   };
 
@@ -571,13 +701,13 @@ const AddressPicker = ({
             )}
 
             {/* Saved Addresses */}
-            {isLoadingAddresses ? (
+            {isLoadingAddressesForDisplay ? (
               <div className="p-3 sm:p-4 text-center">
                 <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-orange-500 mx-auto"></div>
                 <p className="text-gray-500 text-xs sm:text-sm mt-2">Loading addresses...</p>
               </div>
-            ) : userAddresses.length > 0 ? (
-              userAddresses.map((address) => (
+            ) : addressesToUse.length > 0 ? (
+              addressesToUse.map((address) => (
                 <div
                   key={address.id}
                   className="p-3 sm:p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
@@ -670,9 +800,9 @@ const AddressPicker = ({
       )}
 
       {/* Address Error */}
-      {addressError && (
+      {addressErrorForDisplay && (
         <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-          {addressError.message?.includes('401') || addressError.message?.includes('unauthorized') ? (
+          {addressErrorForDisplay.message?.includes('401') || addressErrorForDisplay.message?.includes('unauthorized') ? (
             <div>
               <p className="text-red-600 text-xs sm:text-sm mb-2">Please log in to manage your addresses</p>
               <button 
@@ -695,7 +825,7 @@ const AddressPicker = ({
             </div>
           ) : (
             <div>
-              <p className="text-red-600 text-xs sm:text-sm">{addressError.message || addressError}</p>
+              <p className="text-red-600 text-xs sm:text-sm">{addressErrorForDisplay.message || addressErrorForDisplay}</p>
               <button 
                 onClick={clearError}
                 className="text-red-500 hover:text-red-700 text-xs underline mt-1"

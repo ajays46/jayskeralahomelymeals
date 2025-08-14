@@ -24,7 +24,11 @@ const OrderSummary = ({
   orderMode,
   dateMenuSelections,
   onDateMenuSelection,
-  onRemoveDateMenuSelection
+  onRemoveDateMenuSelection,
+  // New props for seller-selected users
+  addresses = null,
+  onAddressCreate = null,
+  selectedUserId = null
 }) => {
   return (
     <div className="lg:col-span-1">
@@ -58,6 +62,10 @@ const OrderSummary = ({
                 className="text-xs sm:text-sm lg:text-base"
                 mealType="full"
                 showMap={true}
+                // Pass addresses for seller-selected users
+                addresses={addresses}
+                onAddressCreate={onAddressCreate}
+                selectedUserId={selectedUserId}
               />
             </div>
           </div>

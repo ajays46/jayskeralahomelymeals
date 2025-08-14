@@ -345,3 +345,124 @@ export const hasRole = async (userId, roleName) => {
         throw error;
     }
 };
+
+export const createUserWithContact = async ({ firstName, lastName, phoneNumber, email, password }) => {
+    if (!firstName || !lastName || !phoneNumber || !email || !password) {
+        throw new AppError('All fields are required: firstName, lastName, phoneNumber, email, password', 400);
+    }
+
+    // Check if email already exists
+    const existingAuth = await prisma.auth.findUnique({ 
+        where: { email } 
+    });
+    if (existingAuth) {
+        throw new AppError('Email already registered', 409);
+    }
+
+    // Check if phone number already exists
+    const existingPhone = await prisma.auth.findFirst({ 
+        where: { phoneNumber } 
+    });
+    if (existingPhone) {
+        throw new AppError('This phone number is already registered', 400);
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const api_key = generateApiKey();
+
+    try {
+        // Use a transaction to ensure all records are created together
+        const result = await prisma.$transaction(async (tx) => {
+            // Get the next customer ID
+            const lastUser = await tx.user.findFirst({
+                orderBy: { customerId: 'desc' }
+            });
+            const nextCustomerId = lastUser ? lastUser.customerId + 1 : 1;
+
+            // 1. Create Auth record
+            const auth = await tx.auth.create({
+                data: {
+                    email,
+                    password: hashedPassword,
+                    phoneNumber,
+                    apiKey: api_key,
+                    status: 'ACTIVE'
+                }
+            });
+
+            // 2. Create User record
+            const user = await tx.user.create({
+                data: {
+                    customerId: nextCustomerId,
+                    authId: auth.id,
+                    status: 'ACTIVE'
+                }
+            });
+
+            // 3. Create UserRole
+            const userRole = await tx.userRole.create({
+                data: {
+                    userId: user.id,
+                    name: 'USER'
+                }
+            });
+
+            // 4. Create Contact record
+            const contact = await tx.contact.create({
+                data: {
+                    userId: user.id,
+                    firstName,
+                    lastName
+                }
+            });
+
+            // 5. Create PhoneNumber record
+            const phone = await tx.phoneNumber.create({
+                data: {
+                    contactId: contact.id,
+                    type: 'PRIMARY',
+                    number: phoneNumber
+                }
+            });
+
+            return {
+                auth: {
+                    id: auth.id,
+                    email: auth.email,
+                    phoneNumber: auth.phoneNumber,
+                    apiKey: auth.apiKey,
+                    status: auth.status
+                },
+                user: {
+                    id: user.id,
+                    customerId: user.customerId,
+                    status: user.status
+                },
+                contact: {
+                    id: contact.id,
+                    firstName: contact.firstName,
+                    lastName: contact.lastName
+                },
+                phoneNumber: {
+                    id: phone.id,
+                    type: phone.type,
+                    number: phone.number
+                }
+            };
+        });
+
+        return result;
+
+    } catch (err) {
+        console.error('Create user with contact error:', {
+            name: err.name,
+            message: err.message,
+            stack: err.stack
+        });
+        
+        if (err.code === 'P2002') {
+            throw new AppError('Email or API key already exists', 409);
+        }
+        throw new AppError('Database error occurred: ' + err.message, 500);
+    }
+};

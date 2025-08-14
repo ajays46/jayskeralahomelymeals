@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { 
+  showSuccessToast, 
+  showErrorToast, 
+  showWarningToast,
+  showPaymentSuccess,
+  showPaymentError,
+  showAddressSuccess,
+  showCopiedToClipboard
+} from '../utils/toastConfig.jsx';
 import { Modal } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { 
@@ -233,6 +241,21 @@ const AddressEditModal = ({ isOpen, onClose, onSave, addressType, currentAddress
 const PaymentPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get order data from navigation state or localStorage
+  const orderDataFromState = location.state?.orderData;
+  
+  // Log the initial data for debugging
+  console.log('PaymentPage - Initial data:', {
+    orderId,
+    orderDataFromState: orderDataFromState ? {
+      userId: orderDataFromState.userId,
+      orderItems: orderDataFromState.orderItems?.length || 0,
+      selectedDates: orderDataFromState.selectedDates?.length || 0,
+      orderTimes: orderDataFromState.orderTimes?.length || 0
+    } : 'none'
+  });
   
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -285,24 +308,56 @@ const PaymentPage = () => {
   useEffect(() => {
     // Fetch order details
     fetchOrderDetails();
-  }, [orderId]);
+  }, [orderId, orderDataFromState]);
+
+  // Log order data changes for debugging
+  useEffect(() => {
+    if (order) {
+      console.log('PaymentPage - Order state changed:', {
+        userId: order.userId,
+        orderItems: order.orderItems?.length || 0,
+        selectedDates: order.selectedDates?.length || 0,
+        orderTimes: order.orderTimes?.length || 0,
+        deliveryAddressId: order.deliveryAddressId
+      });
+    }
+  }, [order]);
 
   const fetchOrderDetails = async () => {
     try {
-      // In a real app, you would fetch order details from API
-      // For now, we'll use localStorage or redirect to booking page
+      // Priority: 1. Navigation state, 2. localStorage, 3. Fetch by orderId
+      if (orderDataFromState) {
+        setOrder(orderDataFromState);
+        setLoading(false);
+        return;
+      }
+      
       const savedOrder = localStorage.getItem('savedOrder');
-             if (savedOrder) {
-         const orderData = JSON.parse(savedOrder);
-         setOrder(orderData);
+      
+      if (savedOrder) {
+        const orderData = JSON.parse(savedOrder);
+        console.log('PaymentPage - Loaded order data from localStorage:', {
+          userId: orderData.userId,
+          orderItems: orderData.orderItems?.length || 0,
+          selectedDates: orderData.selectedDates?.length || 0,
+          orderTimes: orderData.orderTimes?.length || 0,
+          deliveryAddressId: orderData.deliveryAddressId
+        });
+        setOrder(orderData);
+      } else if (orderId) {
+        // If orderId is provided, try to fetch order from API
+        // This handles the case where user comes directly to payment page
+        // For now, redirect to booking page
+        navigate('/jkhm/bookings');
+        return;
       } else {
-        // If no order found, redirect to booking page
+        // If no order data found, redirect to booking page
         navigate('/jkhm/bookings');
         return;
       }
     } catch (error) {
       console.error('Error fetching order:', error);
-      toast.error('Failed to load order details');
+      showErrorToast('Failed to load order details');
     } finally {
       setLoading(false);
     }
@@ -329,13 +384,25 @@ const PaymentPage = () => {
   };
 
   const handlePaymentSubmit = async () => {
+    // Check if order data is available
+    if (!order) {
+      showErrorToast('Order data is missing. Please try booking again.');
+      return;
+    }
+
+    // Check if user ID is present
+    if (!order.userId) {
+      showErrorToast('User ID is missing from order data. Please try booking again.');
+      return;
+    }
+
     if (!paymentMethod) {
-      toast.error('Please select a payment method');
+      showErrorToast('Please select a payment method');
       return;
     }
 
     if (!receiptFile) {
-      toast.error('Please upload payment receipt');
+      showErrorToast('Please upload payment receipt');
       return;
     }
 
@@ -343,11 +410,37 @@ const PaymentPage = () => {
 
     try {
       const formData = new FormData();
-      formData.append('orderId', orderId);
+      
+      // Only append orderId if it exists (for existing orders)
+      if (orderId) {
+        formData.append('orderId', orderId);
+      }
+      
       formData.append('paymentMethod', paymentMethod);
       formData.append('paymentAmount', order.totalPrice);
       formData.append('receipt', receiptFile);
       formData.append('receiptType', receiptFile.type.startsWith('image/') ? 'Image' : 'PDF');
+
+      // Validate that all required order data is present
+      if (!order.userId) {
+        showErrorToast('User ID is missing from order data. Please try booking again.');
+        return;
+      }
+      
+      if (!order.orderItems || order.orderItems.length === 0) {
+        showErrorToast('Order items are missing. Please try booking again.');
+        return;
+      }
+      
+      if (!order.selectedDates || order.selectedDates.length === 0) {
+        showErrorToast('Selected dates are missing. Please try booking again.');
+        return;
+      }
+      
+      if (!order.orderTimes || order.orderTimes.length === 0) {
+        showErrorToast('Order times are missing. Please try booking again.');
+        return;
+      }
 
       // Add orderData for delivery items creation
       const orderData = {
@@ -359,10 +452,61 @@ const PaymentPage = () => {
         orderDate: order.orderDate,
         orderMode: order.orderMode,
         menuId: order.menuId,
-        menuName: order.menuName
+        menuName: order.menuName,
+        deliveryAddressId: order.deliveryAddressId || 
+          order.deliveryLocations?.full || 
+          order.deliveryLocations?.breakfast || 
+          order.deliveryLocations?.lunch || 
+          order.deliveryLocations?.dinner,
+        userId: order.userId // Include userId for server-side order creation
       };
 
+      // Log the order data being sent for debugging
+      console.log('PaymentPage - Order data being sent:', {
+        userId: orderData.userId,
+        orderItems: orderData.orderItems?.length || 0,
+        selectedDates: orderData.selectedDates?.length || 0,
+        orderTimes: orderData.orderTimes?.length || 0,
+        deliveryAddressId: orderData.deliveryAddressId
+      });
+      
+      // Additional validation of orderData before sending
+      if (!orderData.userId) {
+        showErrorToast('User ID is missing. Please try booking again.');
+        return;
+      }
+      
+      if (!orderData.orderItems || orderData.orderItems.length === 0) {
+        showErrorToast('Order items are missing. Please try booking again.');
+        return;
+      }
+      
+      if (!orderData.selectedDates || orderData.selectedDates.length === 0) {
+        showErrorToast('Selected dates are missing. Please try booking again.');
+        return;
+      }
+      
+      if (!orderData.orderTimes || orderData.orderTimes.length === 0) {
+        showErrorToast('Order times are missing. Please try booking again.');
+        return;
+      }
+
       formData.append('orderData', JSON.stringify(orderData));
+
+      // Log the final form data being sent
+      console.log('PaymentPage - Final form data being sent:', {
+        orderId: orderId || 'none',
+        paymentMethod,
+        paymentAmount: order.totalPrice,
+        receiptType: receiptFile.type.startsWith('image/') ? 'Image' : 'PDF',
+        orderData: {
+          userId: orderData.userId,
+          orderItems: orderData.orderItems?.length || 0,
+          selectedDates: orderData.selectedDates?.length || 0,
+          orderTimes: orderData.orderTimes?.length || 0,
+          deliveryAddressId: orderData.deliveryAddressId
+        }
+      });
 
       const response = await createPayment(formData);
       
@@ -372,60 +516,71 @@ const PaymentPage = () => {
         // Show success popup instead of immediate navigation
         setShowSuccessPopup(true);
       } else {
-        toast.error(response.message || 'Payment submission failed');
+        showPaymentError(response.message || 'Payment submission failed');
       }
     } catch (error) {
       console.error('Payment error:', error);
-      toast.error('Payment submission failed. Please try again.');
+      showPaymentError('Payment submission failed. Please try again.');
     } finally {
       setPaymentProcessing(false);
     }
   };
 
-  const handleCancelOrder = async () => {
-    
-    try {
-      // Use Modal hook instead of static method
-      modal.confirm({
-        title: 'Cancel Order',
-        content: 'Are you sure you want to cancel this order? This action cannot be undone.',
-        okText: 'Yes, Cancel Order',
-        okType: 'danger',
-        cancelText: 'No, Keep Order',
-        centered: true,
-        maskClosable: false,
-        closable: true,
-        onOk: async () => {
-          await performCancelOrder();
-        },
-        onCancel: () => {
-        },
-      });
-    } catch (error) {
-      // Fallback to browser confirm if Ant Design fails
-      console.error('Ant Design Modal failed, using browser confirm:', error);
-      if (window.confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
-        await performCancelOrder();
-      }
-    }
-  };
+    const handleCancelOrder = async () => {
+     // For new orders (no orderId), just redirect back to booking
+     if (!orderId) {
+       navigate('/jkhm/bookings');
+       return;
+     }
+     
+     try {
+       // Use Modal hook instead of static method
+       modal.confirm({
+         title: 'Cancel Order',
+         content: 'Are you sure you want to cancel this order? This action cannot be undone.',
+         okText: 'Yes, Cancel Order',
+         okType: 'danger',
+         cancelText: 'No, Keep Order',
+         centered: true,
+         maskClosable: false,
+         closable: true,
+         onOk: async () => {
+           await performCancelOrder();
+         },
+         onCancel: () => {
+         },
+       });
+     } catch (error) {
+       // Fallback to browser confirm if Ant Design fails
+       console.error('Ant Design Modal failed, using browser confirm:', error);
+       if (window.confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+         await performCancelOrder();
+       }
+     }
+   };
 
-  const performCancelOrder = async () => {
-    try {
-      const response = await cancelOrder(orderId);
-      if (response.success) {
-        // Clear the saved order from localStorage
-        localStorage.removeItem('savedOrder');
-        toast.success('Order cancelled successfully');
-        navigate('/jkhm/bookings');
-      } else {
-        toast.error(response.message || 'Failed to cancel order');
+    const performCancelOrder = async () => {
+     // This function should only be called when orderId exists
+     if (!orderId) {
+       navigate('/jkhm/bookings');
+       return;
+     }
+     
+     try {
+       const response = await cancelOrder(orderId);
+               if (response.success) {
+          // Clear the saved order from localStorage
+          localStorage.removeItem('savedOrder');
+          showSuccessToast('Order cancelled successfully', 'Order Cancelled');
+          navigate('/jkhm/bookings');
+        } else {
+          showErrorToast(response.message || 'Failed to cancel order', 'Cancel Failed');
+        }
+      } catch (error) {
+        console.error('Cancel order error:', error);
+        showErrorToast('Failed to cancel order', 'Cancel Failed');
       }
-    } catch (error) {
-      console.error('Cancel order error:', error);
-      toast.error('Failed to cancel order');
-    }
-  };
+   };
 
   const handleEditAddress = (addressType) => {
     // Get the current address data
@@ -473,7 +628,7 @@ const PaymentPage = () => {
     setOrder(updatedOrder);
     setShowAddressModal(false);
     setEditingAddress(null);
-    toast.success('Address updated successfully');
+    showAddressSuccess('Address updated successfully');
   };
 
   const handleCloseAddressModal = () => {
@@ -485,7 +640,7 @@ const PaymentPage = () => {
     try {
       await navigator.clipboard.writeText(upiId);
       setCopied(true);
-      toast.success('UPI ID copied to clipboard!');
+      showCopiedToClipboard('UPI ID');
       
       // Reset copied state after 2 seconds
       setTimeout(() => {
@@ -493,7 +648,7 @@ const PaymentPage = () => {
       }, 2000);
     } catch (error) {
       console.error('Failed to copy UPI ID:', error);
-      toast.error('Failed to copy UPI ID');
+      showErrorToast('Failed to copy UPI ID', 'Copy Failed');
     }
   };
 
@@ -582,7 +737,9 @@ const PaymentPage = () => {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">Payment Checkout</h1>
-                <p className="text-sm text-gray-600">Order #{orderId}</p>
+                <p className="text-sm text-gray-600">
+          {orderId ? `Order #${orderId}` : 'New Order'}
+        </p>
               </div>
             </div>
             <button

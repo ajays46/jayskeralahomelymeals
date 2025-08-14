@@ -1154,3 +1154,179 @@ export const getMenusForBookingService = async () => {
   return transformedMenuItems;
 };
 
+// Admin Order Management Services
+export const getAllOrdersService = async (filters) => {
+  const { status, startDate, endDate, orderTime, page = 1, limit = 10 } = filters;
+  
+  const skip = (page - 1) * limit;
+  
+  // Build where clause
+  const where = {};
+  
+  if (status && status !== 'all' && status !== null) {
+    where.status = status;
+  }
+  
+  if (startDate && endDate && startDate !== 'null' && endDate !== 'null' && startDate !== null && endDate !== null) {
+    where.orderDate = {
+      gte: new Date(startDate),
+      lte: new Date(endDate)
+    };
+  }
+  
+  if (orderTime && orderTime !== 'all' && orderTime !== null) {
+    where.orderTimes = orderTime;
+  }
+
+  // Get orders with pagination (without including problematic relations)
+  const orders = await prisma.order.findMany({
+    where,
+    include: {
+      deliveryAddress: true
+    },
+    orderBy: {
+      createdAt: 'desc'
+    },
+    skip,
+    take: parseInt(limit)
+  });
+
+  // Fetch delivery items separately to avoid relationship issues
+  const ordersWithDetails = await Promise.all(
+    orders.map(async (order) => {
+      try {
+        const deliveryItems = await prisma.deliveryItem.findMany({
+          where: { 
+            orderId: order.id,
+            user: {
+              isNot: null
+            }
+          },
+          include: {
+            user: {
+              include: {
+                auth: true
+              }
+            },
+            menuItem: {
+              include: {
+                product: true
+              }
+            }
+          }
+        });
+
+        return {
+          ...order,
+          deliveryItems: deliveryItems
+        };
+      } catch (error) {
+        console.error(`Error fetching delivery items for order ${order.id}:`, error);
+        // Return order with empty delivery items if there's an error
+        return {
+          ...order,
+          deliveryItems: []
+        };
+      }
+    })
+  );
+
+  // Get total count for pagination
+  const totalOrders = await prisma.order.count({ where });
+  
+  return {
+    orders: ordersWithDetails,
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(totalOrders / limit),
+      totalOrders,
+      hasNextPage: page * limit < totalOrders,
+      hasPrevPage: page > 1
+    }
+  };
+};
+
+export const updateOrderStatusService = async (orderId, status) => {
+  // Check if order exists
+  const existingOrder = await prisma.order.findUnique({
+    where: { id: orderId }
+  });
+
+  if (!existingOrder) {
+    throw new Error('Order not found');
+  }
+
+  // Update order status
+  const updatedOrder = await prisma.order.update({
+    where: { id: orderId },
+    data: { status },
+    include: {
+      deliveryAddress: true
+    }
+  });
+
+  // Fetch delivery items separately
+  try {
+    const deliveryItems = await prisma.deliveryItem.findMany({
+      where: { 
+        orderId: orderId,
+        user: {
+          isNot: null
+        }
+      },
+      include: {
+        user: {
+          include: {
+            auth: true
+          }
+        },
+        menuItem: {
+          include: {
+            product: true
+          }
+        }
+      }
+    });
+
+    const orderWithDetails = {
+      ...updatedOrder,
+      deliveryItems: deliveryItems
+    };
+
+    return orderWithDetails;
+  } catch (error) {
+    console.error(`Error fetching delivery items for order ${orderId}:`, error);
+    // Return order with empty delivery items if there's an error
+    return {
+      ...updatedOrder,
+      deliveryItems: []
+    };
+  }
+};
+
+export const deleteOrderService = async (orderId) => {
+  // Check if order exists
+  const existingOrder = await prisma.order.findUnique({
+    where: { id: orderId }
+  });
+
+  if (!existingOrder) {
+    throw new Error('Order not found');
+  }
+
+  // Use transaction to ensure all related records are deleted together
+  return await prisma.$transaction(async (tx) => {
+    // Delete delivery items first (due to foreign key constraints)
+    await tx.deliveryItem.deleteMany({
+      where: { orderId }
+    });
+
+    // Delete the order
+    const deletedOrder = await tx.order.delete({
+      where: { id: orderId }
+    });
+
+    return deletedOrder;
+  });
+};
+
