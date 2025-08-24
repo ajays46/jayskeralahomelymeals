@@ -29,11 +29,10 @@ model User {
   status          UserStatus       @default(ACTIVE)
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at")
-  customerId      Int              @unique @map("customer_id")
   createdBy       String?          @map("created_by") @db.VarChar(36)
+  companyId       String?          @map("company_id") @db.VarChar(36)
   auth            Auth             @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  creator         User?            @relation("SellerCreatedUsers", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  createdUsers    User[]           @relation("SellerCreatedUsers")
+  company         Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   userRoles       UserRole[]
   addresses       Address[]
   deliveryItems   DeliveryItem[]
@@ -41,6 +40,7 @@ model User {
   payments        Payment[]
   paymentReceipts PaymentReceipt[]
   orders          Order[]
+  deliveryExecutive DeliveryExecutive?
 
   @@map("users")
 }
@@ -64,12 +64,12 @@ model Address {
 }
 
 model UserRole {
-  userId    String       @map("user_id") @db.VarChar(36)
-  name      UserRoleName
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
-  id        String       @id @default(uuid()) @db.VarChar(36)
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId    String          @map("user_id") @db.VarChar(36)
+  name      user_roles_name
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  id        String          @id @default(uuid()) @db.VarChar(36)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([userId, name])
   @@map("user_roles")
@@ -81,6 +81,7 @@ model Company {
   address_id        String
   created_at        DateTime          @default(now())
   updated_at        DateTime          @updatedAt
+  users             User[]
   products          Product[]
   menus             Menu[]
   productCategories ProductCategory[]
@@ -214,16 +215,6 @@ model Deliveries {
   Distance_Diff_km Decimal? @db.Decimal(10, 2)
 }
 
-model CustomerSubscription {
-  customerId       Int                @id @map("customer_id")
-  subscriptionType Int                @map("subscription_type")
-  morningStatus    SubscriptionStatus @map("morning_status")
-  lunchStatus      SubscriptionStatus @map("lunch_status")
-  dinnerStatus     SubscriptionStatus @map("dinner_status")
-
-  @@map("customer_subscription")
-}
-
 model Order {
   id                     String         @id @default(uuid()) @db.VarChar(36)
   userId                 String         @map("user_id") @db.VarChar(36)
@@ -323,7 +314,17 @@ model PaymentReceipt {
   @@map("payment_receipts")
 }
 
+model delivery_executive_profile {
+  user_id             String    @id @db.VarChar(36)
+  license_number      String?   @db.VarChar(50)
+  license_expiry_date DateTime? @db.Date
+  joined_date         DateTime? @db.Date
+  rating              Float?    @db.Float
+  total_routes        Int?
+  created_at          DateTime? @default(now()) @db.Timestamp(0)
 
+  @@ignore
+}
 
 model special_days {
   id          String    @id @db.VarChar(36)
@@ -453,6 +454,23 @@ model customer_subscriptions {
   @@ignore
 }
 
+
+
+model DeliveryExecutive {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  userId    String   @unique @map("user_id") @db.VarChar(36)  // Link to User table
+  imageUrl  String?  @map("image_url") @db.VarChar(500)       // Store image URL/path
+  location  String?  @db.Text                                  // Store location JSON data
+  latitude  Float?   @db.Float                                 // Store latitude
+  longitude Float?   @db.Float                                 // Store longitude
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("delivery_executives")
+}
+
 enum Status {
   ACTIVE
   INACTIVE
@@ -477,11 +495,6 @@ enum MenuStatus {
   INACTIVE
   DRAFT
   PUBLISHED
-}
-
-enum SubscriptionStatus {
-  YES
-  NO
 }
 
 enum AddressType {
@@ -560,11 +573,12 @@ enum actual_route_stops_status {
   Late
 }
 
-enum UserRoleName {
+enum user_roles_name {
   ADMIN
   SELLER
   USER
   DELIVERY_EXECUTIVE
+  DELIVERY_MANAGER
 }
 
 

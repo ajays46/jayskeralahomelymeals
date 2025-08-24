@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, refreshToken, usersList, forgotPassword, resetPassword, logout, addRoleToUser, removeRoleFromUser, getUserRolesController, checkUserRole } from '../controllers/auth.controller.js';
+import { register, login, refreshToken, usersList, forgotPassword, resetPassword, logout, addRoleToUser, removeRoleFromUser, getUserRolesController, checkUserRole, changePassword } from '../controllers/auth.controller.js';
 import { authenticateToken } from '../middleware/authHandler.js';
 
 const router = express.Router();
@@ -18,5 +18,8 @@ router.post('/roles/add', authenticateToken, addRoleToUser);
 router.post('/roles/remove', authenticateToken, removeRoleFromUser);
 router.get('/roles/:userId', authenticateToken, getUserRolesController);
 router.get('/roles/:userId/:roleName', authenticateToken, checkUserRole);
+
+// Password management routes (protected)
+router.post('/change-password', authenticateToken, changePassword);
 
 export default router; 

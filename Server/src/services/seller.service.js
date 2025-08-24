@@ -1,8 +1,9 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
+import { increaseProductQuantitiesService } from './inventory.service.js';
 
 // Create contact with minimal user account (for sellers)
-export const createContactOnly = async ({ firstName, lastName, phoneNumber, sellerId }) => {
+export const createContactOnly = async ({ firstName, lastName, phoneNumber, sellerId, companyId }) => {
   try {
     // Check if phone number already exists in contacts
     const existingContact = await prisma.contact.findFirst({
@@ -21,33 +22,27 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, sell
 
     // Use a transaction to ensure all records are created together
     const result = await prisma.$transaction(async (tx) => {
-      // Get the next customer ID
-      const lastUser = await tx.user.findFirst({
-        orderBy: { customerId: 'desc' }
-      });
-      const nextCustomerId = lastUser ? lastUser.customerId + 1 : 1;
-
       // Generate a unique email for the auth record (required field)
       const timestamp = Date.now();
-      const uniqueEmail = `contact_${nextCustomerId}_${timestamp}@system.local`;
+      const uniqueEmail = `contact_${timestamp}@system.local`;
 
       // 1. Create a minimal Auth record (required for User)
       const auth = await tx.auth.create({
         data: {
           email: uniqueEmail,
           password: 'NO_PASSWORD_NEEDED', // Placeholder password
-          apiKey: `contact_${nextCustomerId}_${timestamp}`,
+          apiKey: `contact_${timestamp}`,
           status: 'ACTIVE'
         }
       });
 
-      // 2. Create a minimal User record linked to the auth and seller
+      // 2. Create a minimal User record linked to the auth, seller, and company
       const user = await tx.user.create({
         data: {
           authId: auth.id,
-          customerId: nextCustomerId,
           status: 'ACTIVE',
-          createdBy: sellerId // Set the seller who created this user
+          createdBy: sellerId, // Set the seller who created this user
+          companyId: companyId // Set the company ID for this user
         }
       });
 
@@ -72,9 +67,9 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, sell
       return {
         user: {
           id: user.id,
-          customerId: user.customerId,
           status: user.status,
-          createdBy: user.createdBy
+          createdBy: user.createdBy,
+          companyId: user.companyId
         },
         contact: {
           id: contact.id,
@@ -321,7 +316,8 @@ export const cancelDeliveryItem = async (deliveryItemId, sellerId) => {
       },
       include: {
         order: true,
-        user: true
+        user: true,
+        menuItem: true
       }
     });
 
@@ -344,6 +340,9 @@ export const cancelDeliveryItem = async (deliveryItemId, sellerId) => {
         updatedAt: new Date()
       }
     });
+
+    // Note: We do NOT restore product quantities for individual delivery item cancellation
+    // Product quantities are only restored when the entire order is cancelled
 
     return updatedDeliveryItem;
   } catch (error) {

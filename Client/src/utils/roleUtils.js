@@ -77,6 +77,20 @@ export const isAdmin = (roles) => hasRole(roles, 'ADMIN');
 export const isSeller = (roles) => hasRole(roles, 'SELLER');
 
 /**
+ * Check if user is delivery manager
+ * @param {string|Array} roles - Comma-separated role string or array
+ * @returns {boolean} - True if user is delivery manager
+ */
+export const isDeliveryManager = (roles) => hasRole(roles, 'DELIVERY_MANAGER');
+
+/**
+ * Check if user is delivery executive
+ * @param {string|Array} roles - Comma-separated role string or array
+ * @returns {boolean} - True if user is delivery executive
+ */
+export const isDeliveryExecutive = (roles) => hasRole(roles, 'DELIVERY_EXECUTIVE');
+
+/**
  * Check if user is regular user
  * @param {string|Array} roles - Comma-separated role string or array
  * @returns {boolean} - True if user is regular user
@@ -92,6 +106,8 @@ export const getRoleDisplayName = (role) => {
   const roleMap = {
     'ADMIN': 'Administrator',
     'SELLER': 'Seller',
+    'DELIVERY_MANAGER': 'Delivery Manager',
+    'DELIVERY_EXECUTIVE': 'Delivery Executive',
     'USER': 'User'
   };
   return roleMap[role] || role;
@@ -116,6 +132,8 @@ export const getRoleColor = (role) => {
   const roleColors = {
     'ADMIN': 'bg-red-100 text-red-800 border-red-200',
     'SELLER': 'bg-blue-100 text-blue-800 border-blue-200',
+    'DELIVERY_MANAGER': 'bg-purple-100 text-purple-800 border-purple-200',
+    'DELIVERY_EXECUTIVE': 'bg-green-100 text-green-800 border-green-200',
     'USER': 'bg-gray-100 text-gray-800 border-gray-200'
   };
   return roleColors[role?.toUpperCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
@@ -130,6 +148,8 @@ export const getRoleIcon = (role) => {
   const roleIcons = {
     'ADMIN': '👑',
     'SELLER': '🏪',
+    'DELIVERY_MANAGER': '🚚',
+    'DELIVERY_EXECUTIVE': '📦',
     'USER': '👤'
   };
   return roleIcons[role?.toUpperCase()] || '👤';

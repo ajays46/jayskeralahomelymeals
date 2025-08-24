@@ -10,6 +10,7 @@ const OrderSummary = ({
   deliveryLocationNames,
   savedOrder,
   isCreating,
+
   getTotalItems,
   getTotalPrice,
   getAddressDisplayName,
@@ -28,7 +29,9 @@ const OrderSummary = ({
   // New props for seller-selected users
   addresses = null,
   onAddressCreate = null,
-  selectedUserId = null
+  selectedUserId = null,
+  // New prop for product quantities
+  productQuantities = null
 }) => {
   return (
     <div className="lg:col-span-1">
@@ -94,6 +97,48 @@ const OrderSummary = ({
                 )}
                 <p className="text-blue-600 text-xs sm:text-sm capitalize">{selectedMenu.dayOfWeek}</p>
                 <p className="text-blue-500 text-xs sm:text-sm break-words">From: {selectedMenu.menuName}</p>
+                
+                {/* Stock Status Indicator */}
+                {selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && (
+                  <div className="mt-2 pt-2 border-t border-blue-200">
+                    {(() => {
+                      const productQuantity = productQuantities[selectedMenu.product.id];
+                      if (productQuantity.quantity === 0) {
+                        return (
+                          <div className="flex items-center gap-2 text-red-600 text-xs">
+                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                            <span className="font-semibold">Cannot Purchase</span>
+                            <span className="text-red-500">(Available: {productQuantity.quantity})</span>
+                          </div>
+                        );
+                      } else if (productQuantity.quantity < 5) {
+                        return (
+                          <div className="flex items-center gap-2 text-red-600 text-xs">
+                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                            <span className="font-semibold">Out of Stock Warning</span>
+                            <span className="text-red-500">(Available: {productQuantity.quantity})</span>
+                          </div>
+                        );
+                      } else if (productQuantity.quantity < 10) {
+                        return (
+                          <div className="flex items-center gap-2 text-orange-600 text-xs">
+                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                            <span className="font-semibold">Low Stock</span>
+                            <span className="text-orange-500">(Available: {productQuantity.quantity})</span>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="flex items-center gap-2 text-green-600 text-xs">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="font-semibold">In Stock</span>
+                            <span className="text-green-500">(Available: {productQuantity.quantity})</span>
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                )}
               </div>
             )}
 
@@ -296,37 +341,25 @@ const OrderSummary = ({
         {/* Action Buttons */}
         {selectedMenu && (
           <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-lg sm:shadow-xl border border-orange-100">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <div className="flex items-center gap-3">
-                <div>
-                  {getTotalPrice() > 0 && (
-                    <p className="text-orange-600 font-semibold text-base sm:text-lg lg:text-xl">Total: ₹{formatPrice ? formatPrice(getTotalPrice()) : getTotalPrice()}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Total Amount */}
-            {selectedMenu && selectedDates.length > 0 && (
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 sm:p-4 border border-green-200 mb-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-green-800 font-semibold text-base sm:text-lg">Total Amount</span>
-                  <span className="text-green-900 font-bold text-lg sm:text-xl">₹{getTotalPrice()}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            {/* Action Buttons */}
+            <div className="space-y-3 sm:space-y-4">
+              {/* Cancel Button */}
               <button
                 onClick={onCancel}
-                className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white py-3 sm:py-4 rounded-xl sm:rounded-2xl font-bold hover:from-gray-600 hover:to-gray-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base lg:text-lg"
+                className="w-full bg-gradient-to-r from-gray-600 to-gray-700 text-white py-3 sm:py-4 px-4 sm:px-6 rounded-xl sm:rounded-2xl font-semibold hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base lg:text-lg"
               >
                 Cancel
               </button>
+              
+              {/* Save Order Button */}
               <button
                 onClick={onSaveOrder}
                 disabled={getTotalItems() === 0 || isCreating || selectedDates.length === 0 || (!deliveryLocations.full && !deliveryLocations.breakfast && !deliveryLocations.lunch && !deliveryLocations.dinner)}
-                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 sm:py-4 rounded-xl sm:rounded-2xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-base lg:text-lg flex items-center justify-center gap-2 sm:gap-3"
+                className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base lg:text-lg flex items-center justify-center gap-2 sm:gap-3 ${
+                  getTotalItems() === 0 || isCreating || selectedDates.length === 0 || (!deliveryLocations.full && !deliveryLocations.breakfast && !deliveryLocations.lunch && !deliveryLocations.dinner)
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed transform-none shadow-md'
+                    : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                }`}
               >
                 {isCreating ? (
                   <>
@@ -336,9 +369,9 @@ const OrderSummary = ({
                   </>
                 ) : (
                   <>
-                    <MdCheck className="text-lg sm:text-xl" />
-                    <span className="hidden sm:inline">Save Order</span>
-                    <span className="sm:hidden">Save</span>
+                    <MdShoppingCart className="text-lg sm:text-xl lg:text-2xl flex-shrink-0" />
+                    <span className="hidden sm:inline">Save Order & Proceed to Payment</span>
+                    <span className="sm:hidden">Save Order & Pay</span>
                   </>
                 )}
               </button>

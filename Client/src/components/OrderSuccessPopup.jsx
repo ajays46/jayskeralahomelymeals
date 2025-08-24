@@ -234,19 +234,19 @@ const OrderSuccessPopup = ({
           {/* Action Buttons */}
           <div className="flex flex-col gap-2">
             <button
-              onClick={onGoHome}
-              className="w-full bg-gradient-to-r from-gray-500 to-gray-600 text-white py-2 sm:py-2.5 rounded-lg font-bold hover:from-gray-600 hover:to-gray-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2 text-sm sm:text-base"
+              onClick={() => window.location.href = '/jkhm/bookings'}
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 sm:py-2.5 rounded-lg font-bold hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <MdHome className="text-base sm:text-lg" />
-              Go to Home
+              <MdShoppingCart className="text-base sm:text-lg" />
+              New Booking
             </button>
             
             <button
-              onClick={onViewOrder}
+              onClick={() => window.location.href = '/jkhm/seller'}
               className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-2 sm:py-2.5 rounded-lg font-bold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <MdArrowForward className="text-base sm:text-lg" />
-              View Order Details
+              Seller Dashboard
             </button>
           </div>
         </div>

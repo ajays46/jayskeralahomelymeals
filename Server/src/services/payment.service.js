@@ -2,11 +2,10 @@ import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 import { savePaymentReceipt, deletePaymentReceipt } from './paymentReceiptUpload.service.js';
 import { createDeliveryItemsAfterPaymentService } from './deliveryItem.service.js';
+import { reduceProductQuantitiesService } from './inventory.service.js';
 
 // Helper function to create delivery items (can work with transaction or main client)
 const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData, userId) => {
-
-  
   const { selectedDates, orderItems, deliveryLocations, skipMeals } = orderData;
   const deliveryItems = [];
   let skippedMealsCount = 0;
@@ -22,14 +21,11 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
       continue;
     }
     
-
-    
     for (const item of orderItems) {
       // Check if this meal type is skipped for this date
       if (skipMeals && skipMeals[dateStr] && skipMeals[dateStr][item.mealType]) {
         // Skip this meal for this date - don't create delivery item
         skippedMealsCount++;
-
         continue;
       }
       
@@ -46,8 +42,6 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
         itemAddressId = deliveryLocations[item.mealType];
       }
       
-      
-      
       const deliveryItem = await prismaClient.deliveryItem.create({
         data: {
           orderId: orderId,
@@ -61,11 +55,9 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
         }
       });
       
-      
       deliveryItems.push(deliveryItem);
     }
   }
-  
   
   return deliveryItems;
 };
@@ -187,8 +179,6 @@ export const createPaymentService = async (userId, paymentData) => {
         // Extract the selected user's ID before the transaction
         const orderUserId = parsedOrderData?.userId;
         
-        
-        
         // Create payment with transaction
         const payment = await prisma.$transaction(async (tx) => {
             let finalOrderId = orderId;
@@ -222,8 +212,6 @@ export const createPaymentService = async (userId, paymentData) => {
                     throw new AppError('Selected user ID is required in orderData. Please select a customer before creating the order.', 400);
                 }
                 
-
-                
                 const newOrder = await tx.order.create({
                     data: {
                         userId: orderUserId, // Always use the selected user's ID
@@ -235,7 +223,6 @@ export const createPaymentService = async (userId, paymentData) => {
                     }
                 });
                 
-
                 finalOrderId = newOrder.id;
                 order = newOrder;
             } else if (orderId) {
@@ -247,7 +234,6 @@ export const createPaymentService = async (userId, paymentData) => {
             }
             
             // Create the payment
-            
             const newPayment = await tx.payment.create({
                 data: {
                     userId: orderUserId || userId, // Use selected user's ID if available, otherwise use seller's ID
@@ -260,13 +246,9 @@ export const createPaymentService = async (userId, paymentData) => {
                     paymentStatus: 'Pending'
                 }
             });
-            
-
 
             // Create payment receipt record
             if (receiptUrl) {
-
-                
                 await tx.paymentReceipt.create({
                     data: {
                         userId: orderUserId || userId, // Use selected user's ID if available, otherwise use seller's ID
@@ -275,8 +257,6 @@ export const createPaymentService = async (userId, paymentData) => {
                         receipt: receiptUrl
                     }
                 });
-                
-
             }
 
             return newPayment;
@@ -285,8 +265,6 @@ export const createPaymentService = async (userId, paymentData) => {
         // Create delivery items after the transaction is complete
         if (parsedOrderData && !orderId && orderUserId) {
             try {
-
-                
                 // Get the order ID from the created order - use the selected user's ID
                 const createdOrder = await prisma.order.findFirst({
                     where: { userId: orderUserId },
@@ -295,6 +273,20 @@ export const createPaymentService = async (userId, paymentData) => {
                 
                 if (createdOrder) {
                     const deliveryItems = await createDeliveryItemsInTransaction(prisma, createdOrder.id, parsedOrderData, orderUserId);
+                    
+                    // Reduce product quantities after delivery items are created successfully
+                    try {
+                        const quantityReduction = await reduceProductQuantitiesService(
+                            parsedOrderData.orderItems,
+                            parsedOrderData.selectedDates,
+                            parsedOrderData.skipMeals || {},
+                            createdOrder.id // Pass the order ID to prevent duplicate reductions
+                        );
+                    } catch (inventoryError) {
+                        console.error(`❌ Failed to reduce product quantities for order ${createdOrder.id}:`, inventoryError);
+                        // Don't fail the payment if inventory reduction fails
+                        // The quantities can be reduced manually later
+                    }
                 }
             } catch (deliveryError) {
                 // Don't fail the payment if delivery items creation fails
@@ -302,16 +294,13 @@ export const createPaymentService = async (userId, paymentData) => {
             }
         }
 
-        // Delivery items are now created in the main flow above
-
         // Fetch the complete payment with relations
         const completePayment = await prisma.payment.findUnique({
             where: { id: payment.id },
             include: {
                 user: {
                     select: {
-                        id: true,
-                        customerId: true
+                        id: true
                     }
                 },
                 order: {
@@ -347,8 +336,7 @@ export const getPaymentByIdService = async (userId, paymentId) => {
             include: {
                 user: {
                     select: {
-                        id: true,
-                        customerId: true
+                        id: true
                     }
                 },
                 order: {
@@ -457,8 +445,7 @@ export const updatePaymentStatusService = async (userId, paymentId, status) => {
             include: {
                 user: {
                     select: {
-                        id: true,
-                        customerId: true
+                        id: true
                     }
                 },
                 order: {
@@ -537,7 +524,6 @@ export const deletePaymentService = async (userId, paymentId) => {
                 const filePath = path.join(process.cwd(), 'src/services/payment-receipts', filename);
                 if (fs.existsSync(filePath)) {
                     fs.unlinkSync(filePath);
-                
                 }
             } catch (fileError) {
                 console.error(`Failed to delete payment receipt file: ${filename}`, fileError);

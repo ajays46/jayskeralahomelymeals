@@ -1,0 +1,231 @@
+import { 
+  createOrUpdateDeliveryExecutive, 
+  getDeliveryExecutiveProfile, 
+  uploadDeliveryExecutiveImage, 
+  updateDeliveryExecutiveLocation,
+  getAllDeliveryExecutives,
+  deleteDeliveryExecutiveProfile
+} from '../services/deliveryExecutive.service.js';
+
+// Create or update delivery executive profile
+export const createOrUpdateProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { imageUrl, location, latitude, longitude } = req.body;
+
+    // Validate required fields
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    const result = await createOrUpdateDeliveryExecutive(userId, {
+      imageUrl,
+      location,
+      latitude,
+      longitude
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in createOrUpdateProfile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Get delivery executive profile
+export const getProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    const result = await getDeliveryExecutiveProfile(userId);
+
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in getProfile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Upload delivery executive image
+export const uploadImage = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { imageData } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    if (!imageData) {
+      return res.status(400).json({
+        success: false,
+        message: 'Image data is required'
+      });
+    }
+
+    const result = await uploadDeliveryExecutiveImage(userId, imageData);
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in uploadImage:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Update delivery executive location
+export const updateLocation = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { location, latitude, longitude } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    if (!location || latitude === undefined || longitude === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Location, latitude, and longitude are required'
+      });
+    }
+
+    const result = await updateDeliveryExecutiveLocation(userId, {
+      location,
+      latitude,
+      longitude
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in updateLocation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Get all delivery executives
+export const getAllProfiles = async (req, res) => {
+  try {
+    const result = await getAllDeliveryExecutives();
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in getAllProfiles:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete delivery executive profile
+export const deleteProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    const result = await deleteDeliveryExecutiveProfile(userId);
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in deleteProfile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Combined endpoint for updating both image and location
+export const updateDeliveryDetails = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { imageData, location, latitude, longitude } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    let result;
+
+    // If image data is provided, upload image first
+    if (imageData) {
+      result = await uploadDeliveryExecutiveImage(userId, imageData);
+    }
+
+    // If location data is provided, update location
+    if (location && latitude !== undefined && longitude !== undefined) {
+      result = await updateDeliveryExecutiveLocation(userId, {
+        location,
+        latitude,
+        longitude
+      });
+    }
+
+    if (!result) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either image data or location data must be provided'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery details updated successfully',
+      data: result.data
+    });
+  } catch (error) {
+    console.error('Error in updateDeliveryDetails:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};

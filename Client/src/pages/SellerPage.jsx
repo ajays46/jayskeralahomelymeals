@@ -32,7 +32,8 @@ import {
   MdWarning,
   MdPerson,
   MdPayment,
-  MdAccessTime
+  MdAccessTime,
+  MdFilterAlt
 } from 'react-icons/md';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
@@ -41,7 +42,6 @@ import axiosInstance from '../api/axios';
 
 const SellerPage = () => {
   try {
-    console.log('SellerPage component rendered');
     const navigate = useNavigate();
     const { user, roles } = useAuthStore();
     const { sellerUsers, loading: sellerUsersLoading, getSellerUsers } = useSeller();
@@ -64,15 +64,26 @@ const SellerPage = () => {
     const [deletingUsers, setDeletingUsers] = useState(new Set());
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
+    
+    
+    
+    // New state for order cancellation
+    const [cancellingOrders, setCancellingOrders] = useState(new Set());
+    const [showCancelOrderModal, setShowCancelOrderModal] = useState(false);
+    const [orderToCancel, setOrderToCancel] = useState(null);
+
+    // New state for order filtering
+    const [orderFilters, setOrderFilters] = useState({
+      status: 'all',
+      dateRange: 'all',
+      searchTerm: '',
+      sortBy: 'recent'
+    });
 
     // Fetch seller users on component mount
     useEffect(() => {
-      console.log('SellerPage useEffect - user:', user, 'roles:', roles);
       if (user && roles?.includes('SELLER')) {
-        console.log('Fetching seller users...');
         getSellerUsers();
-      } else {
-        console.log('Not fetching seller users - user:', !!user, 'has SELLER role:', roles?.includes('SELLER'));
       }
     }, [user, roles]);
 
@@ -135,7 +146,17 @@ const SellerPage = () => {
       try {
         const response = await axiosInstance.put(`/seller/delivery-items/${deliveryItemId}/cancel`);
         if (response.data.success) {
-          showSuccessToast('Delivery item cancelled successfully');
+          // Get the delivery item details to show what was cancelled
+          const deliveryItem = userOrders.flatMap(order => order.deliveryItems || [])
+            .find(item => item.id === deliveryItemId);
+          
+          if (deliveryItem) {
+            const itemName = deliveryItem.menuItem?.name || 'Menu Item';
+            showSuccessToast(`Delivery item cancelled successfully: ${itemName}`);
+          } else {
+            showSuccessToast('Delivery item cancelled successfully');
+          }
+          
           // Refresh the orders to show updated status
           if (selectedUser) {
             fetchUserOrders(selectedUser.id);
@@ -152,6 +173,34 @@ const SellerPage = () => {
           newSet.delete(deliveryItemId);
           return newSet;
         });
+      }
+    };
+
+    const cancelOrder = async (orderId) => {
+      setCancellingOrders(prev => new Set(prev).add(orderId));
+      try {
+        const response = await axiosInstance.put(`/orders/${orderId}/cancel`);
+        if (response.data.success) {
+          showSuccessToast('Order cancelled successfully!');
+          
+          // Refresh the orders to show updated status
+          if (selectedUser) {
+            fetchUserOrders(selectedUser.id);
+          }
+        } else {
+          showErrorToast(response.data.message || 'Failed to cancel order');
+        }
+      } catch (error) {
+        console.error('Error cancelling order:', error);
+        showErrorToast('Failed to cancel order');
+      } finally {
+        setCancellingOrders(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(orderId);
+          return newSet;
+        });
+        setShowCancelOrderModal(false);
+        setOrderToCancel(null);
       }
     };
 
@@ -197,6 +246,8 @@ const SellerPage = () => {
       setUserToDelete(null);
     };
 
+    
+
     const getStatusColor = (status) => {
       switch (status) {
         case 'Payment_Confirmed':
@@ -227,38 +278,20 @@ const SellerPage = () => {
       }
     };
 
-    const getDeliveryItemStatusColor = (status) => {
-      switch (status) {
-        case 'Pending':
-          return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-        case 'In_Progress':
-          return 'bg-blue-100 text-blue-800 border-blue-200';
-        case 'Completed':
-          return 'bg-green-100 text-green-800 border-green-200';
-        case 'Cancelled':
-          return 'bg-red-100 text-red-800 border-red-200';
-        default:
-          return 'bg-gray-100 text-gray-800 border-gray-200';
-      }
+    
+
+    const canCancelOrder = (status) => {
+      return status === 'Pending' || status === 'Payment_Confirmed' || status === 'In_Progress';
     };
 
-    const getDeliveryItemStatusIcon = (status) => {
-      switch (status) {
-        case 'Pending':
-          return <MdPending className="w-4 h-4" />;
-        case 'In_Progress':
-          return <MdDeliveryDining className="w-4 h-4" />;
-        case 'Completed':
-          return <MdCheckCircle className="w-4 h-4" />;
-        case 'Cancelled':
-          return <MdCancel className="w-4 h-4" />;
-        default:
-          return <MdWarning className="w-4 h-4" />;
-      }
+    const handleCancelOrder = (order) => {
+      setOrderToCancel(order);
+      setShowCancelOrderModal(true);
     };
 
-    const canCancelDeliveryItem = (status) => {
-      return status === 'Pending' || status === 'In_Progress';
+    const closeCancelOrderModal = () => {
+      setShowCancelOrderModal(false);
+      setOrderToCancel(null);
     };
 
     const formatPrice = (price) => {
@@ -297,6 +330,8 @@ const SellerPage = () => {
       return `${firstDate.getDate()} ${firstDate.toLocaleDateString('en-IN', { month: 'short' })} to ${lastDate.getDate()} ${lastDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`;
     };
 
+    
+
     const filteredUsers = sellerUsers.filter(user => {
       const matchesSearch = user.contacts?.[0]?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            user.contacts?.[0]?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -325,6 +360,83 @@ const SellerPage = () => {
       }
       return 0;
     });
+
+    
+
+      // Filter and sort orders for the selected user
+    const getFilteredOrders = () => {
+      if (!userOrders || userOrders.length === 0) return [];
+      
+      let filtered = [...userOrders];
+      
+      // Apply status filter
+      if (orderFilters.status !== 'all') {
+        filtered = filtered.filter(order => order.status === orderFilters.status);
+      }
+      
+      // Apply date range filter
+      if (orderFilters.dateRange !== 'all') {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const nextWeek = new Date(today);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        
+        filtered = filtered.filter(order => {
+          const orderDate = new Date(order.orderDate || order.createdAt);
+          
+          switch (orderFilters.dateRange) {
+            case 'today':
+              return orderDate.toDateString() === today.toDateString();
+            case 'tomorrow':
+              return orderDate.toDateString() === tomorrow.toDateString();
+            case 'thisWeek':
+              return orderDate >= today && orderDate <= nextWeek;
+            case 'lastWeek':
+              const lastWeek = new Date(today);
+              lastWeek.setDate(lastWeek.getDate() - 7);
+              return orderDate >= lastWeek && orderDate < today;
+            case 'thisMonth':
+              return orderDate.getMonth() === today.getMonth() && 
+                     orderDate.getFullYear() === today.getFullYear();
+            default:
+              return true;
+          }
+        });
+      }
+      
+      // Apply search filter
+      if (orderFilters.searchTerm) {
+        const searchTerm = orderFilters.searchTerm.toLowerCase();
+        filtered = filtered.filter(order => 
+          order.id.toLowerCase().includes(searchTerm) ||
+          order.status?.toLowerCase().includes(searchTerm) ||
+          (order.deliveryItems && order.deliveryItems.some(item => 
+            item.menuItem?.name?.toLowerCase().includes(searchTerm)
+          ))
+        );
+      }
+      
+      // Apply sorting
+      filtered.sort((a, b) => {
+        switch (orderFilters.sortBy) {
+          case 'recent':
+            return new Date(b.orderDate || b.createdAt) - new Date(a.orderDate || a.createdAt);
+          case 'oldest':
+            return new Date(a.orderDate || a.createdAt) - new Date(b.orderDate || b.createdAt);
+          case 'amount-high':
+            return (b.totalPrice || 0) - (a.totalPrice || 0);
+          case 'amount-low':
+            return (a.totalPrice || 0) - (b.totalPrice || 0);
+          case 'status':
+            return (a.status || '').localeCompare(b.status || '');
+          default:
+            return 0;
+        }
+      });
+      
+      return filtered;
+    };
 
     if (!user || !roles?.includes('SELLER')) {
       return (
@@ -510,7 +622,7 @@ const SellerPage = () => {
                       {sortedUsers.map((user) => (
                         <div
                           key={user.id}
-                          className={`p-3 sm:p-4 hover:bg-gray-50 transition-colors ${
+                          className={`p-4 hover:bg-gray-50 transition-colors ${
                             selectedUser?.id === user.id ? 'bg-blue-50 border-r-4 border-blue-500' : ''
                           }`}
                         >
@@ -554,7 +666,7 @@ const SellerPage = () => {
                                   e.stopPropagation();
                                   handleUserSelect(user);
                                 }}
-                                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+                                className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
                                   selectedUser?.id === user.id 
                                     ? 'bg-blue-600 text-white' 
                                     : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
@@ -571,7 +683,7 @@ const SellerPage = () => {
                                   handleDeleteUser(user);
                                 }}
                                 disabled={deletingUsers.has(user.id)}
-                                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+                                className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
                                   deletingUsers.has(user.id)
                                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                     : 'bg-red-100 text-red-700 hover:bg-red-200'
@@ -597,12 +709,12 @@ const SellerPage = () => {
 
               {/* Orders Table Section - Now below Customer Management */}
               {selectedUser && userOrders.length > 0 && (
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden mt-4 sm:mt-6">
-                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 sm:p-4 text-white">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden mt-6">
+                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-4 text-white">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
                       <div className="flex items-center gap-2 sm:gap-3">
                         <MdShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-                        <h3 className="text-sm sm:text-base font-bold">Orders for {selectedUser.contacts?.[0]?.firstName} {selectedUser.contacts?.[0]?.lastName} ({userOrders.length})</h3>
+                        <h3 className="text-sm sm:text-base font-bold">Orders for {selectedUser.contacts?.[0]?.firstName} {selectedUser.contacts?.[0]?.lastName} ({getFilteredOrders().length} of {userOrders.length})</h3>
                       </div>
                       <div className="text-xs bg-white/20 px-2 py-1 rounded-full self-start sm:self-auto">
                         Total: {formatPrice(userOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0))}
@@ -610,179 +722,304 @@ const SellerPage = () => {
                     </div>
                   </div>
                   
+                  {/* Order Filters Section */}
+                  <div className="p-4 border-b border-gray-200 bg-gray-50">
+                    <div className="flex flex-col gap-4">
+                      {/* Search Bar */}
+                      <div className="flex-1">
+                        <div className="relative">
+                          <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <input
+                            type="text"
+                            placeholder="Search orders by ID, status, or menu items..."
+                            value={orderFilters.searchTerm}
+                            onChange={(e) => setOrderFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                            className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Filter Controls */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        {/* Status Filter */}
+                        <select
+                          value={orderFilters.status}
+                          onChange={(e) => setOrderFilters(prev => ({ ...prev, status: e.target.value }))}
+                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="all">All Status</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Payment_Confirmed">Payment Confirmed</option>
+                          <option value="Confirmed">Confirmed</option>
+                          <option value="In_Progress">In Progress</option>
+                          <option value="Delivered">Delivered</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                        
+                        {/* Date Range Filter */}
+                        <select
+                          value={orderFilters.dateRange}
+                          onChange={(e) => setOrderFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="all">All Dates</option>
+                          <option value="today">Today</option>
+                          <option value="tomorrow">Tomorrow</option>
+                          <option value="thisWeek">This Week</option>
+                          <option value="lastWeek">Last Week</option>
+                          <option value="thisMonth">This Month</option>
+                        </select>
+                        
+                        {/* Sort By */}
+                        <select
+                          value={orderFilters.sortBy}
+                          onChange={(e) => setOrderFilters(prev => ({ ...prev, sortBy: e.target.value }))}
+                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="recent">Most Recent</option>
+                          <option value="oldest">Oldest First</option>
+                          <option value="amount-high">Amount High to Low</option>
+                          <option value="amount-low">Amount Low to High</option>
+                          <option value="status">By Status</option>
+                        </select>
+                        
+                        {/* Clear Filters Button */}
+                        <button
+                          onClick={() => setOrderFilters({
+                            status: 'all',
+                            dateRange: 'all',
+                            searchTerm: '',
+                            sortBy: 'recent'
+                          })}
+                          className="px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+                        >
+                          <MdFilterAlt className="w-4 h-4" />
+                          Clear
+                        </button>
+                      </div>
+                      
+                      {/* Active Filters Display */}
+                      {(orderFilters.status !== 'all' || orderFilters.dateRange !== 'all' || orderFilters.searchTerm || orderFilters.sortBy !== 'recent') && (
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="text-gray-600">Active filters:</span>
+                          {orderFilters.status !== 'all' && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                              Status: {orderFilters.status}
+                            </span>
+                          )}
+                          {orderFilters.dateRange !== 'all' && (
+                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                              Date: {orderFilters.dateRange}
+                            </span>
+                          )}
+                          {orderFilters.searchTerm && (
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                              Search: "{orderFilters.searchTerm}"
+                            </span>
+                          )}
+                          {orderFilters.sortBy !== 'recent' && (
+                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full">
+                              Sort: {orderFilters.sortBy}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full table-fixed">
                       <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
-                          <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                             Order Details
                           </th>
-                          <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                             Payment & Status
                           </th>
-                          <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Menu & Items
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                            View Items
                           </th>
-                          <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                             Address
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                            Actions
                           </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {userOrders.map((order) => (
-                          <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                            {/* Order Details Column */}
-                            <td className="px-2 sm:px-4 py-2 sm:py-3">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                                    <MdShoppingCart className="w-3 h-3 sm:w-3 sm:h-3 text-blue-600" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="font-semibold text-gray-900 text-xs truncate">
-                                      #{order.id.slice(-8)}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {formatDate(order.orderDate)}
-                                    </div>
-                                  </div>
+                        {getFilteredOrders().length === 0 ? (
+                          <tr>
+                            <td colSpan="5" className="px-4 py-8 text-center">
+                              <div className="flex flex-col items-center gap-3">
+                                <MdSearch className="text-4xl text-gray-300" />
+                                <div>
+                                  <p className="text-gray-500 font-medium">No orders found</p>
+                                  <p className="text-sm text-gray-400">
+                                    {userOrders.length > 0 
+                                      ? 'Try adjusting your filters or search terms'
+                                      : 'This customer has no orders yet'
+                                    }
+                                  </p>
                                 </div>
-                                <div className="text-sm font-bold text-gray-900">
-                                  {formatPrice(order.totalPrice)}
-                                </div>
-                              </div>
-                            </td>
-                            
-                            {/* Payment & Status Column */}
-                            <td className="px-2 sm:px-4 py-2 sm:py-3">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-                                    {getStatusIcon(order.status)}
-                                    <span className="hidden sm:inline">{order.status}</span>
-                                  </span>
-                                </div>
-                                {order.payments && order.payments.length > 0 && (
-                                  <div className="space-y-1">
-                                    <div className="text-xs text-gray-600">
-                                      <span className="font-medium">Payment:</span> {order.payments[0].paymentMethod}
-                                    </div>
-                                    <div className="text-xs">
-                                      <span className={`font-medium ${order.payments[0].paymentStatus === 'Completed' ? 'text-green-600' : 'text-orange-600'}`}>
-                                        {order.payments[0].paymentStatus}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            
-                            {/* Menu & Items Column */}
-                            <td className="px-2 sm:px-4 py-2 sm:py-3">
-                              <div className="space-y-1">
-                                {order.deliveryItems && order.deliveryItems.length > 0 ? (
-                                  <div className="text-xs text-gray-900">
-                                    {/* Show delivery date range */}
-                                    <div className="flex items-center gap-1 mb-2">
-                                      <MdCalendarToday className="w-3 h-3 text-gray-400" />
-                                      <span className="text-xs font-medium text-gray-700">
-                                        {formatDeliveryDateRange(order.deliveryItems)}
-                                      </span>
-                                    </div>
-                                    
-                                    {/* Show menu name */}
-                                    {order.deliveryItems[0]?.menuItem?.menu?.name && (
-                                      <div className="text-xs font-medium text-blue-600">
-                                        📋 {order.deliveryItems[0].menuItem.menu.name}
-                                      </div>
-                                    )}
-                                    
-                                    {/* Show individual delivery items with status and cancel buttons */}
-                                    <div className="space-y-1 mt-2">
-                                      {order.deliveryItems.slice(0, 3).map((item, index) => (
-                                        <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 bg-gray-50 rounded border gap-2">
-                                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getDeliveryItemStatusColor(item.status)}`}>
-                                              {getDeliveryItemStatusIcon(item.status)}
-                                              <span className="hidden sm:inline">{item.status}</span>
-                                            </span>
-                                            <span className="text-xs text-gray-600 truncate">
-                                              {item.quantity > 1 ? `${item.quantity}x ` : ''}
-                                              {item.menuItem?.name || `Item ${index + 1}`}
-                                            </span>
-                                          </div>
-                                          
-                                          {/* Cancel button for cancellable items */}
-                                          {canCancelDeliveryItem(item.status) && (
-                                            <button
-                                              onClick={() => cancelDeliveryItem(item.id)}
-                                              disabled={cancellingItems.has(item.id)}
-                                              className={`px-2 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap ${
-                                                cancellingItems.has(item.id)
-                                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
-                                              }`}
-                                            >
-                                              {cancellingItems.has(item.id) ? (
-                                                <div className="animate-spin rounded-full h-3 w-3 border-b border-red-600 mx-auto"></div>
-                                              ) : (
-                                                'Cancel'
-                                              )}
-                                            </button>
-                                          )}
-                                        </div>
-                                      ))}
-                                      
-                                      {order.deliveryItems.length > 3 && (
-                                        <div className="text-blue-600 text-xs pl-2">
-                                          +{order.deliveryItems.length - 3} more items
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="text-xs text-gray-500 italic">No items</div>
-                                )}
-                              </div>
-                            </td>
-                            
-                            {/* Address Column */}
-                            <td className="px-2 sm:px-4 py-2 sm:py-3">
-                              <div className="text-xs text-gray-900">
-                                {order.deliveryItems && order.deliveryItems.length > 0 && order.deliveryItems[0].deliveryAddress ? (
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-1">
-                                      <MdLocationOn className="w-3 h-3 text-red-500" />
-                                      <span className="font-medium">Address:</span>
-                                    </div>
-                                    <div className="pl-4 text-gray-600">
-                                      {order.deliveryItems[0].deliveryAddress.street && (
-                                        <div className="text-xs truncate">{order.deliveryItems[0].deliveryAddress.street}</div>
-                                      )}
-                                      {order.deliveryItems[0].deliveryAddress.housename && (
-                                        <div className="text-xs truncate">{order.deliveryItems[0].deliveryAddress.housename}</div>
-                                      )}
-                                      {order.deliveryItems[0].deliveryAddress.city && (
-                                        <div className="text-xs truncate">{order.deliveryItems[0].deliveryAddress.city}</div>
-                                      )}
-                                      {order.deliveryItems[0].deliveryAddress.pincode && (
-                                        <div className="text-xs">{order.deliveryItems[0].deliveryAddress.pincode}</div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ) : order.deliveryAddressId ? (
-                                  <div className="flex items-center gap-1">
-                                    <MdLocationOn className="w-3 h-3 text-red-500" />
-                                    <span className="font-medium">Address ID:</span>
-                                    <span className="text-gray-600">{order.deliveryAddressId.slice(-8)}</span>
-                                  </div>
-                                ) : (
-                                  <div className="text-gray-500 italic text-xs">No address</div>
+                                {userOrders.length > 0 && (
+                                  <button
+                                    onClick={() => setOrderFilters({
+                                      status: 'all',
+                                      dateRange: 'all',
+                                      searchTerm: '',
+                                      sortBy: 'recent'
+                                    })}
+                                    className="px-3 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                  >
+                                    Clear All Filters
+                                  </button>
                                 )}
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          getFilteredOrders().map((order) => (
+                            <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                              {/* Order Details Column */}
+                              <td className="px-4 py-4 align-top">
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                      <MdShoppingCart className="w-3 h-3 text-blue-600" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-semibold text-gray-900 text-sm">
+                                        #{order.id.slice(-6)}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {formatDate(order.orderDate)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-lg font-bold text-gray-900">
+                                    {formatPrice(order.totalPrice)}
+                                  </div>
+                                </div>
+                              </td>
+                              
+                              {/* Payment & Status Column */}
+                              <td className="px-4 py-4 align-top">
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
+                                      {getStatusIcon(order.status)}
+                                      <span className="hidden sm:inline">{order.status}</span>
+                                    </span>
+                                    {canCancelOrder(order.status) && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                        <MdCancel className="w-3 h-3" />
+                                        Cancellable
+                                      </span>
+                                    )}
+                                  </div>
+                                  {order.payments && order.payments.length > 0 && (
+                                    <div className="space-y-2">
+                                      <div className="text-sm text-gray-600">
+                                        <span className="font-medium">Payment:</span> {order.payments[0].paymentMethod}
+                                      </div>
+                                      <div className="text-sm">
+                                        <span className={`font-medium ${order.payments[0].paymentStatus === 'Confirmed' ? 'text-green-600' : 'text-orange-600'}`}>
+                                          {order.payments[0].paymentStatus}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              
+                                                             {/* View Items Column */}
+                               <td className="px-4 py-4 align-middle">
+                                 <div className="flex items-center justify-center">
+                                   <button
+                                     onClick={() => navigate(`/jkhm/delivery-items/${order.id}`, { state: { orderData: order } })}
+                                     className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 whitespace-nowrap"
+                                   >
+                                     <MdVisibility className="w-4 h-4" />
+                                     View Items
+                                   </button>
+                                 </div>
+                               </td>
+                              
+                              {/* Address Column */}
+                              <td className="px-4 py-4 align-top">
+                                <div className="text-sm text-gray-900">
+                                  {order.deliveryItems && order.deliveryItems.length > 0 && order.deliveryItems[0].deliveryAddress ? (
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-2">
+                                        <MdLocationOn className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                        <span className="font-medium">Address:</span>
+                                      </div>
+                                      <div className="pl-6 text-gray-600 space-y-1">
+                                        {order.deliveryItems[0].deliveryAddress.street && (
+                                          <div className="text-sm truncate max-w-48" title={order.deliveryItems[0].deliveryAddress.street}>
+                                            {order.deliveryItems[0].deliveryAddress.street}
+                                          </div>
+                                        )}
+                                        {order.deliveryItems[0].deliveryAddress.housename && (
+                                          <div className="text-sm truncate max-w-48" title={order.deliveryItems[0].deliveryAddress.housename}>
+                                            {order.deliveryItems[0].deliveryAddress.housename}
+                                          </div>
+                                        )}
+                                        {order.deliveryItems[0].deliveryAddress.city && (
+                                          <div className="text-sm truncate max-w-48" title={order.deliveryItems[0].deliveryAddress.city}>
+                                            {order.deliveryItems[0].deliveryAddress.city}
+                                          </div>
+                                        )}
+                                        {order.deliveryItems[0].deliveryAddress.pincode && (
+                                          <div className="text-sm">{order.deliveryItems[0].deliveryAddress.pincode}</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ) : order.deliveryAddressId ? (
+                                    <div className="flex items-center gap-2">
+                                      <MdLocationOn className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                      <span className="font-medium">Address ID:</span>
+                                      <span className="text-gray-600 text-sm">{order.deliveryAddressId.slice(-6)}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-gray-500 italic text-sm">No address</div>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Actions Column */}
+                              <td className="px-4 py-4 align-top">
+                                <div className="flex items-center gap-2">
+                                  {canCancelOrder(order.status) && (
+                                    <button
+                                      onClick={() => handleCancelOrder(order)}
+                                      disabled={cancellingOrders.has(order.id)}
+                                      className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+                                        cancellingOrders.has(order.id)
+                                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                          : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                      }`}
+                                    >
+                                      {cancellingOrders.has(order.id) ? (
+                                        <div className="flex items-center gap-2">
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b border-red-600"></div>
+                                          Cancelling...
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <MdCancel className="w-3 h-3 inline mr-1" />
+                                          Cancel Order
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -792,7 +1029,7 @@ const SellerPage = () => {
 
             {/* Right Column - User Details & Quick Actions */}
             <div className="xl:col-span-1">
-              <div className="sticky top-8 space-y-4 sm:space-y-6">
+              <div className="sticky top-8 space-y-6">
                 {/* Selected User Info */}
                 {selectedUser && (
                   <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
@@ -810,29 +1047,29 @@ const SellerPage = () => {
                       </div>
                     </div>
                     
-                    <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-                      <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                    <div className="p-4 sm:p-6 space-y-4">
+                      <div className="flex items-center gap-3 text-sm">
                         <MdPhone className="w-4 h-4 text-gray-500 flex-shrink-0" />
                         <span className="text-gray-700 truncate">
                           {selectedUser.contacts?.[0]?.phoneNumbers?.[0]?.number || 'No phone'}
                         </span>
                       </div>
                       
-                      <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                      <div className="flex items-center gap-3 text-sm">
                         <MdEmail className="w-4 h-4 text-gray-500 flex-shrink-0" />
                         <span className="text-gray-700 truncate">
                           {selectedUser.auth?.email || 'No email'}
                         </span>
                       </div>
                       
-                      <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                      <div className="flex items-center gap-3 text-sm">
                         <MdShoppingCart className="w-4 h-4 text-gray-500 flex-shrink-0" />
                         <span className="text-gray-700">
                           {userOrders.length} orders
                         </span>
                       </div>
                       
-                      <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                      <div className="flex items-center gap-3 text-sm">
                         <MdAttachMoney className="w-4 h-4 text-gray-500 flex-shrink-0" />
                         <span className="text-gray-700 font-medium">
                           Total: {formatPrice(userOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0))}
@@ -844,8 +1081,8 @@ const SellerPage = () => {
 
                 {/* Quick Actions */}
                 <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">Quick Actions</h3>
-                  <div className="space-y-2 sm:space-y-3">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
+                  <div className="space-y-3">
                     <button
                       onClick={() => navigate('/jkhm/bookings')}
                       className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
@@ -878,6 +1115,9 @@ const SellerPage = () => {
             </div>
           </div>
         </div>
+
+
+
 
         {/* Delete User Confirmation Modal */}
         {showDeleteModal && userToDelete && (
@@ -935,6 +1175,64 @@ const SellerPage = () => {
             </div>
           </div>
         )}
+
+        {/* Cancel Order Confirmation Modal */}
+        {showCancelOrderModal && orderToCancel && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <MdWarning className="w-6 h-6 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Cancel Order</h3>
+                  <p className="text-sm text-gray-600">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <div className="mb-6 space-y-4">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">
+                    <span className="font-medium">Order ID:</span> #{orderToCancel.id.slice(-6)}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-2">
+                    <span className="font-medium">Order Amount:</span> {formatPrice(orderToCancel.totalPrice)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Status:</span> {orderToCancel.status}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={closeCancelOrderModal}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Keep Order
+                </button>
+                <button
+                  onClick={() => cancelOrder(orderToCancel.id)}
+                  disabled={cancellingOrders.has(orderToCancel.id)}
+                  className={`flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                    cancellingOrders.has(orderToCancel.id)
+                      ? 'bg-orange-400 cursor-not-allowed'
+                      : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+                >
+                  {cancellingOrders.has(orderToCancel.id) ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Cancelling...
+                    </div>
+                  ) : (
+                    'Cancel Order & Restore Quantities'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   } catch (error) {
@@ -956,5 +1254,4 @@ const SellerPage = () => {
   }
 };
 
-console.log('SellerPage component exported');
 export default SellerPage;

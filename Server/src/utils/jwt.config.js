@@ -5,7 +5,7 @@ dotenv.config();
 
 
 export const generateAccessToken = (userId,role) => {
-    return jwt.sign({ userId,role }, process.env.JWT_ACCESS_SECRET, { expiresIn: '1m' });
+    return jwt.sign({ userId,role }, process.env.JWT_ACCESS_SECRET, { expiresIn: '1h' });
 }
 
 export const generateRefreshToken = (userId,role) => {

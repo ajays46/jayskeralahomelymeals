@@ -233,7 +233,7 @@ const AddProductPage = () => {
         updateProduct({ productId, productData }, {
           onSuccess: (data) => {
             message.success('Product updated successfully!');
-            navigate('/admin/products');
+            navigate('/jkhm/admin/products');
           },
           onError: (error) => {
             const errorMessage = error?.response?.data?.message || 'Failed to update product';
@@ -311,7 +311,7 @@ const AddProductPage = () => {
                 <div className="flex items-center gap-3">
                   {isEditMode && (
                     <Button
-                      onClick={() => navigate('/admin/products')}
+                      onClick={() => navigate('/jkhm/admin/products')}
                       className="bg-gray-700 hover:bg-gray-600 border-gray-600 text-white"
                       icon={<FaArrowLeft />}
                     >
@@ -421,7 +421,7 @@ const AddProductPage = () => {
                             <p>No companies available. Please create a company first.</p>
                             <button
                               type="button"
-                              onClick={() => window.location.href = '/admin/company-create'}
+                              onClick={() => window.location.href = '/jkhm/admin/company-create'}
                               className="text-blue-400 hover:text-blue-300 underline mt-1"
                             >
                               Go to Create Company
@@ -692,7 +692,7 @@ const AddProductPage = () => {
                   {isEditMode && (
                     <button 
                       type="button" 
-                      onClick={() => navigate('/admin/products')}
+                      onClick={() => navigate('/jkhm/admin/products')}
                       className="flex-1 bg-gray-600 text-white py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
                       disabled={isCreating || isUpdating}
                     >

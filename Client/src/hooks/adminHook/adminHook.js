@@ -447,5 +447,99 @@ export const useMenusForBooking = () => {
     });
 };
 
+// Get available user roles from the system
+export const useUserRoles = () => {
+    return useQuery({
+        queryKey: ['userRoles'],
+        queryFn: async () => {
+            // For now, return the system-defined roles
+            // TODO: Replace with actual API call when backend endpoint is created
+            // Example: const response = await api.get('/admin/user-roles');
+            // return response.data;
+            return {
+                success: true,
+                data: [
+                    { value: 'SELLER', label: 'Seller' },
+                    { value: 'DELIVERY_EXECUTIVE', label: 'Delivery Executive' },
+                    { value: 'DELIVERY_MANAGER', label: 'Delivery Manager' }
+                ]
+            };
+        },
+        staleTime: 60 * 60 * 1000, // 1 hour - roles don't change often
+        cacheTime: 24 * 60 * 60 * 1000, // 24 hours
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+    });
+};
+
+// Admin User Management Hooks
+export const useAdminUsers = () => {
+    return useQuery({
+        queryKey: ['adminUsers'],
+        queryFn: async () => {
+            try {
+                const response = await api.get('/admin/users/list');
+                return response.data;
+            } catch (error) {
+                console.error('Error fetching admin users:', error);
+                // Throw a more user-friendly error
+                throw new Error(
+                    error.response?.data?.message || 
+                    error.message || 
+                    'Failed to fetch users'
+                );
+            }
+        },
+        staleTime: 30 * 1000, // 30 seconds
+        cacheTime: 5 * 60 * 1000, // 5 minutes
+        refetchOnWindowFocus: false,
+        refetchOnMount: true,
+        retry: 2, // Retry failed requests up to 2 times
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    });
+};
+
+export const useCreateAdminUser = () => {
+    const queryClient = useQueryClient();
+    
+    return useMutation({
+        mutationFn: async (userData) => {
+            // The admin ID will be automatically extracted from the JWT token on the backend
+            const response = await api.post('/admin/users/create', userData);
+            return response.data;
+        },
+        onSuccess: (data) => {
+            // Invalidate and refetch users list
+            queryClient.invalidateQueries(['adminUsers']);
+            
+            // Show success message
+            if (data.status === 'success') {
+                alert('User created successfully!');
+            }
+        },
+        onError: (error) => {
+            console.error('Error creating user:', error);
+            const errorMessage = error.response?.data?.message || 'Failed to create user. Please try again.';
+            alert(errorMessage);
+        }
+    });
+};
+
+// Get product quantities for menus
+export const useProductQuantitiesForMenus = () => {
+    return useQuery({
+        queryKey: ['productQuantitiesForMenus'],
+        queryFn: async () => {
+            const response = await api.get('/admin/product-quantities-for-menus');
+            return response.data;
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        cacheTime: 15 * 60 * 1000, // 15 minutes
+        refetchOnWindowFocus: false,
+        refetchOnMount: true,
+        keepPreviousData: true,
+    });
+};
+
 
 

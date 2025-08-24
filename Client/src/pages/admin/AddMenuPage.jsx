@@ -85,7 +85,7 @@ const AddMenuPage = () => {
       // Show success message and navigate
       setTimeout(() => {
         setIsSuccess(false);
-        navigate('/admin');
+        navigate('/jkhm/admin');
       }, 2000);
     }
   }, [menuCreated, navigate]);
@@ -512,7 +512,7 @@ const AddMenuPage = () => {
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
               <button
-                onClick={() => navigate('/admin')}
+                onClick={() => navigate('/jkhm/admin')}
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <FaArrowLeft size={20} />
@@ -605,7 +605,7 @@ const AddMenuPage = () => {
                             <p>No companies available. Please create a company first.</p>
                             <button
                               type="button"
-                              onClick={() => navigate('/admin/company-create')}
+                              onClick={() => navigate('/jkhm/admin/company-create')}
                               className="text-blue-400 hover:text-blue-300 underline mt-1"
                             >
                               Go to Create Company

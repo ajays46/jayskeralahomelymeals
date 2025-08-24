@@ -7,9 +7,10 @@ import adminRoutes from './routes/admin.routes.js';
 import sellerRoutes from './routes/seller.routes.js';
 import addressRoutes from './routes/auth.address.route.js';
 import orderRoutes from './routes/order.routes.js';
-
 import paymentRoutes from './routes/payment.routes.js';
 import deliveryItemRoutes from './routes/deliveryItem.routes.js';
+import deliveryManagerRoutes from './routes/deliveryManager.routes.js';
+import deliveryExecutiveRoutes from './routes/deliveryExecutive.routes.js';
 import path from 'path';
 import './models/index.js'; // Import models to ensure associations are loaded
 import prisma from './config/prisma.js';
@@ -100,6 +101,8 @@ app.use('/api/orders', orderRoutes);
 
 app.use('/api/payments', paymentRoutes);
 app.use('/api', deliveryItemRoutes);
+app.use('/api/delivery-managers', deliveryManagerRoutes);
+app.use('/api/delivery-executives', deliveryExecutiveRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

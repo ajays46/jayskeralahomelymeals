@@ -10,7 +10,6 @@ export const useSeller = () => {
   const { accessToken, roles } = useAuthStore();
 
   const isSeller = roles?.includes('SELLER');
-  console.log('useSeller hook - roles:', roles, 'isSeller:', isSeller);
 
   // Get seller profile
   const getSellerProfile = async () => {

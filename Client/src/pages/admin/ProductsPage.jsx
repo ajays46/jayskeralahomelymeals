@@ -130,7 +130,7 @@ const ProductsPage = () => {
                   </div>
                 </div>
                 <Button
-                  onClick={() => navigate('/admin/add-product')}
+                  onClick={() => navigate('/jkhm/admin/add-product')}
                   className="bg-teal-600 hover:bg-teal-700 border-teal-600 text-white flex items-center gap-2"
                 >
                   <FaPlus className="text-sm" />
@@ -236,7 +236,7 @@ const ProductsPage = () => {
                 </p>
                 {products.length === 0 && (
                   <Button
-                    onClick={() => navigate('/admin/add-product')}
+                    onClick={() => navigate('/jkhm/admin/add-product')}
                     className="bg-teal-600 hover:bg-teal-700 border-teal-600 text-white"
                   >
                     Add Your First Product
@@ -340,7 +340,7 @@ const ProductsPage = () => {
                           size="small"
                           className="flex-1 bg-yellow-600 hover:bg-yellow-700 border-yellow-600 text-white"
                           icon={<FaEdit />}
-                          onClick={() => navigate(`/admin/add-product/${product.id}`)}
+                          onClick={() => navigate(`/jkhm/admin/add-product/${product.id}`)}
                         >
                           Edit
                         </Button>

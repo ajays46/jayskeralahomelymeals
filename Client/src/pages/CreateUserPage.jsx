@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { FaUser, FaPhone, FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaUser, FaPhone, FaArrowLeft, FaCheckCircle, FaBuilding } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
+import axiosInstance from '../api/axios';
 
 const CreateUserPage = () => {
   const navigate = useNavigate();
@@ -12,12 +13,35 @@ const CreateUserPage = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    phoneNumber: ''
+    phoneNumber: '',
+    companyId: ''
   });
+  const [companies, setCompanies] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdUser, setCreatedUser] = useState(null);
+
+  // Fetch companies when component mounts
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await axiosInstance.get('/admin/company-list');
+        if (response.data && response.data.data) {
+          setCompanies(response.data.data);
+        } else {
+          setCompanies(response.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+        // Show error to user
+        alert('Failed to load companies. Please try again.');
+      }
+    };
+
+    // Fetch companies regardless of seller status for now
+    fetchCompanies();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -49,12 +73,14 @@ const CreateUserPage = () => {
       newErrors.lastName = 'Last name must be at least 2 characters';
     }
 
-
-
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Phone number is required';
     } else if (!/^[\+]?[1-9][\d]{0,15}$/.test(formData.phoneNumber.replace(/\s/g, ''))) {
       newErrors.phoneNumber = 'Please enter a valid phone number';
+    }
+
+    if (!formData.companyId) {
+      newErrors.companyId = 'Please select a company';
     }
 
     setErrors(newErrors);
@@ -76,7 +102,10 @@ const CreateUserPage = () => {
     setIsSubmitting(true);
     
     try {
-      const result = await createContact(formData);
+      const result = await createContact({
+        ...formData,
+        companyId: formData.companyId
+      });
       
       // Store the created user data
       setCreatedUser(result.data);
@@ -88,7 +117,8 @@ const CreateUserPage = () => {
       setFormData({
         firstName: '',
         lastName: '',
-        phoneNumber: ''
+        phoneNumber: '',
+        companyId: ''
       });
       
     } catch (error) {
@@ -155,7 +185,7 @@ const CreateUserPage = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-gray-400"
           >
-            Add a new contact with customer ID
+            Add a new contact with company assignment
           </motion.p>
         </div>
 
@@ -167,6 +197,47 @@ const CreateUserPage = () => {
           onSubmit={handleSubmit}
           className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20"
         >
+          {/* Company Selection Field */}
+          <div className="mb-6">
+            <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+              <FaBuilding className="text-orange-400" />
+              Company
+            </label>
+            <select
+              name="companyId"
+              value={formData.companyId}
+              onChange={handleInputChange}
+              className={`w-full px-4 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 ${
+                errors.companyId ? 'border-red-500' : 'border-gray-600'
+              }`}
+            >
+              <option value="">Select a company</option>
+              {companies.length > 0 ? (
+                companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>No companies available</option>
+              )}
+            </select>
+            {companies.length === 0 && (
+              <p className="text-yellow-400 text-sm mt-1">
+                No companies found. Please contact an administrator to create companies first.
+              </p>
+            )}
+            {errors.companyId && (
+              <motion.p
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-red-400 text-sm mt-1"
+              >
+                {errors.companyId}
+              </motion.p>
+            )}
+          </div>
+
           {/* First Name Field */}
           <div className="mb-6">
             <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
@@ -298,7 +369,12 @@ const CreateUserPage = () => {
                 Contact Created Successfully!
               </h3>
               <p className="text-green-600 mb-4">
-                <strong>{createdUser.contact.firstName} {createdUser.contact.lastName}</strong> has been added with Customer ID: <strong>{createdUser.user.customerId}</strong>
+                <strong>{createdUser.contact.firstName} {createdUser.contact.lastName}</strong> has been added to the company successfully.
+                {createdUser.user.companyId && (
+                  <span className="block mt-2 text-sm">
+                    Company ID: <strong>{createdUser.user.companyId}</strong>
+                  </span>
+                )}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button
