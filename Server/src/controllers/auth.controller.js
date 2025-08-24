@@ -5,6 +5,7 @@ import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.j
 import { clearJWTCookie, setJWTCookie } from '../utils/cookieUtils.js';
 import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -241,6 +242,51 @@ export const checkUserRole = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: { userId, roleName, hasRole: hasUserRole }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Change password
+export const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId; // Get user ID from JWT token
+
+    if (!currentPassword || !newPassword) {
+      throw new AppError('Current password and new password are required', 400);
+    }
+
+    // Find user with auth details
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { auth: true }
+    });
+
+    if (!user || !user.auth) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.auth.password);
+    
+    if (!isCurrentPasswordValid) {
+      throw new AppError('Current password is incorrect', 400);
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await prisma.auth.update({
+      where: { id: user.auth.id },
+      data: { password: hashedNewPassword }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
     });
   } catch (error) {
     next(error);

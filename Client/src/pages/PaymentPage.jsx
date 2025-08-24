@@ -29,7 +29,6 @@ import {
 } from 'react-icons/md';
 import { createPayment, cancelOrder } from '../hooks/userHooks/useOrder';
 import Navbar from '../components/Navbar';
-import OrderSuccessPopup from '../components/OrderSuccessPopup';
 
 // Address Edit Modal Component
 const AddressEditModal = ({ isOpen, onClose, onSave, addressType, currentAddress }) => {
@@ -246,16 +245,7 @@ const PaymentPage = () => {
   // Get order data from navigation state or localStorage
   const orderDataFromState = location.state?.orderData;
   
-  // Log the initial data for debugging
-  console.log('PaymentPage - Initial data:', {
-    orderId,
-    orderDataFromState: orderDataFromState ? {
-      userId: orderDataFromState.userId,
-      orderItems: orderDataFromState.orderItems?.length || 0,
-      selectedDates: orderDataFromState.selectedDates?.length || 0,
-      orderTimes: orderDataFromState.orderTimes?.length || 0
-    } : 'none'
-  });
+
   
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -267,7 +257,6 @@ const PaymentPage = () => {
   const [editingAddress, setEditingAddress] = useState(null);
   const [upiId, setUpiId] = useState('jayskerala@okicici'); // Default UPI ID
   const [copied, setCopied] = useState(false);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   
   // Use Modal hook for better control
   const [modal, contextHolder] = Modal.useModal();
@@ -310,18 +299,7 @@ const PaymentPage = () => {
     fetchOrderDetails();
   }, [orderId, orderDataFromState]);
 
-  // Log order data changes for debugging
-  useEffect(() => {
-    if (order) {
-      console.log('PaymentPage - Order state changed:', {
-        userId: order.userId,
-        orderItems: order.orderItems?.length || 0,
-        selectedDates: order.selectedDates?.length || 0,
-        orderTimes: order.orderTimes?.length || 0,
-        deliveryAddressId: order.deliveryAddressId
-      });
-    }
-  }, [order]);
+
 
   const fetchOrderDetails = async () => {
     try {
@@ -336,13 +314,6 @@ const PaymentPage = () => {
       
       if (savedOrder) {
         const orderData = JSON.parse(savedOrder);
-        console.log('PaymentPage - Loaded order data from localStorage:', {
-          userId: orderData.userId,
-          orderItems: orderData.orderItems?.length || 0,
-          selectedDates: orderData.selectedDates?.length || 0,
-          orderTimes: orderData.orderTimes?.length || 0,
-          deliveryAddressId: orderData.deliveryAddressId
-        });
         setOrder(orderData);
       } else if (orderId) {
         // If orderId is provided, try to fetch order from API
@@ -417,7 +388,7 @@ const PaymentPage = () => {
       }
       
       formData.append('paymentMethod', paymentMethod);
-      formData.append('paymentAmount', order.totalPrice);
+      formData.append('paymentAmount', order.totalPrice || 0);
       formData.append('receipt', receiptFile);
       formData.append('receiptType', receiptFile.type.startsWith('image/') ? 'Image' : 'PDF');
 
@@ -461,14 +432,7 @@ const PaymentPage = () => {
         userId: order.userId // Include userId for server-side order creation
       };
 
-      // Log the order data being sent for debugging
-      console.log('PaymentPage - Order data being sent:', {
-        userId: orderData.userId,
-        orderItems: orderData.orderItems?.length || 0,
-        selectedDates: orderData.selectedDates?.length || 0,
-        orderTimes: orderData.orderTimes?.length || 0,
-        deliveryAddressId: orderData.deliveryAddressId
-      });
+
       
       // Additional validation of orderData before sending
       if (!orderData.userId) {
@@ -493,28 +457,21 @@ const PaymentPage = () => {
 
       formData.append('orderData', JSON.stringify(orderData));
 
-      // Log the final form data being sent
-      console.log('PaymentPage - Final form data being sent:', {
-        orderId: orderId || 'none',
-        paymentMethod,
-        paymentAmount: order.totalPrice,
-        receiptType: receiptFile.type.startsWith('image/') ? 'Image' : 'PDF',
-        orderData: {
-          userId: orderData.userId,
-          orderItems: orderData.orderItems?.length || 0,
-          selectedDates: orderData.selectedDates?.length || 0,
-          orderTimes: orderData.orderTimes?.length || 0,
-          deliveryAddressId: orderData.deliveryAddressId
-        }
-      });
+
 
       const response = await createPayment(formData);
       
       if (response.success) {
         // Clear the saved order from localStorage
         localStorage.removeItem('savedOrder');
-        // Show success popup instead of immediate navigation
-        setShowSuccessPopup(true);
+        // Navigate to booking page with success state
+        navigate('/jkhm/bookings', { 
+          state: { 
+            showOrderSuccess: true,
+            orderDetails: order,
+            successMessage: 'Order placed successfully! Payment confirmed.'
+          } 
+        });
       } else {
         showPaymentError(response.message || 'Payment submission failed');
       }
@@ -1098,22 +1055,14 @@ const PaymentPage = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Order Total:</span>
                     <span className="font-bold text-2xl text-orange-600">
-                      {formatPrice(order.menu?.price || order.totalPrice)}
+                      {formatPrice(order.totalPrice || 0)}
                     </span>
                   </div>
                   
                   <div className="border-t border-gray-200 pt-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">Menu Price:</span>
-                      <span className="font-medium">{formatPrice(order.menu?.price || order.totalPrice)}</span>
-                    </div>
-                    <div className="flex justify-between items-center mb-2">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-600">Delivery:</span>
                       <span className="font-medium text-green-600">Free</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Taxes:</span>
-                      <span className="font-medium">Included</span>
                     </div>
                   </div>
                   
@@ -1121,7 +1070,7 @@ const PaymentPage = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-semibold text-gray-800">Total Amount:</span>
                       <span className="text-xl font-bold text-orange-600">
-                        {formatPrice(order.menu?.price || order.totalPrice)}
+                        {formatPrice(order.totalPrice || 0)}
                       </span>
                     </div>
                   </div>
@@ -1181,22 +1130,6 @@ const PaymentPage = () => {
           />
         )}
 
-        {/* Order Success Popup */}
-        {showSuccessPopup && (
-          <OrderSuccessPopup
-            isOpen={showSuccessPopup}
-            onClose={() => setShowSuccessPopup(false)}
-            orderDetails={order}
-            onViewOrder={() => {
-              setShowSuccessPopup(false);
-              navigate('/jkhm/profile');
-            }}
-            onGoHome={() => {
-              setShowSuccessPopup(false);
-              navigate('/jkhm');
-            }}
-          />
-        )}
      </div>
    );
  };

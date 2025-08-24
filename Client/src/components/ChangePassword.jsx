@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MdLock, MdVisibility, MdVisibilityOff, MdClose, MdCheck } from 'react-icons/md';
 import api from '../api/axios';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import useAuthStore from '../stores/Zustand.store';
 
 const ChangePassword = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
@@ -78,6 +79,8 @@ const ChangePassword = ({ isOpen, onClose }) => {
       newErrors.newPassword = 'Password must contain at least one number';
     } else if (!/[!@#$%^&*]/.test(formData.newPassword)) {
       newErrors.newPassword = 'Password must contain at least one special character (!@#$%^&*)';
+    } else if (formData.newPassword === formData.currentPassword) {
+      newErrors.newPassword = 'New password must be different from current password';
     }
 
     if (!formData.confirmPassword) {
@@ -99,20 +102,53 @@ const ChangePassword = ({ isOpen, onClose }) => {
 
     setIsLoading(true);
     try {
-      // Here you would make the API call to change password
-      // await api.post('/auth/change-password', {
-      //   currentPassword: formData.currentPassword,
-      //   newPassword: formData.newPassword
-      // });
-
-      // For now, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Check if we have an access token
+      const store = useAuthStore.getState();
+      const accessToken = store.accessToken;
       
-              showSuccessToast('Password changed successfully!');
-      handleClose();
+      if (!accessToken) {
+        showErrorToast('No authentication token found. Please log in again.');
+        return;
+      }
+      
+      // Make the API call to change password
+      const response = await api.post('/auth/change-password', {
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword
+      });
+      
+      if (response.data.success) {
+        showSuccessToast('Password changed successfully!');
+        handleClose();
+      } else {
+        showErrorToast(response.data.message || 'Failed to change password');
+      }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Failed to change password';
-              showErrorToast(errorMessage);
+      let errorMessage = 'Failed to change password';
+      
+      if (error.response) {
+        // Server responded with error status
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        if (status === 401) {
+          errorMessage = 'Authentication failed. Please log in again.';
+        } else if (status === 400) {
+          errorMessage = data?.message || 'Invalid request data';
+        } else if (status === 404) {
+          errorMessage = 'User not found. Please contact support.';
+        } else {
+          errorMessage = data?.message || `Server error: ${status}`;
+        }
+      } else if (error.request) {
+        // Network error
+        errorMessage = 'Network error: Please check your connection';
+      } else {
+        // Other error
+        errorMessage = error.message || 'An unexpected error occurred';
+      }
+      
+      showErrorToast(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -288,9 +324,16 @@ const ChangePassword = ({ isOpen, onClose }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-4 py-3 bg-[#FE8C00] text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-3 bg-[#FE8C00] text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isLoading ? 'Changing...' : 'Change Password'}
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Changing...
+                </>
+              ) : (
+                'Change Password'
+              )}
             </button>
           </div>
         </form>

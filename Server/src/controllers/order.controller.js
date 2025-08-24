@@ -1,4 +1,4 @@
-import { createOrderService, getOrderByIdService, getOrdersByUserIdService } from '../services/order.service.js';
+import { createOrderService, getOrderByIdService, getOrdersByUserIdService, cancelOrderService } from '../services/order.service.js';
 
 // Create a new order
 export const createOrderController = async (req, res, next) => {
@@ -103,6 +103,38 @@ export const getOrdersByUserIdController = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get user orders'
+    });
+  }
+};
+
+// Cancel order by ID
+export const cancelOrderController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user.userId;
+    const userRole = req.user.role || '';
+    
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order ID is required'
+      });
+    }
+
+    const result = await cancelOrderService(orderId, userId, [userRole]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Order cancelled successfully',
+      data: {
+        order: result
+      }
+    });
+  } catch (error) {
+    console.error('Error in cancelOrderController:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to cancel order'
     });
   }
 };

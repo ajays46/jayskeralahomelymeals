@@ -1,7 +1,7 @@
 import prisma from '../config/prisma.js';
 import { saveBase64Image } from './imageUpload.service.js';
 
-export const createCompanyService = async ({ name, address_id }) => {
+export const createCompanyService = async ({ name, address }) => {
   // Check if a company with the same name exists
   const existing = await prisma.company.findFirst({
     where: { name },
@@ -9,18 +9,64 @@ export const createCompanyService = async ({ name, address_id }) => {
   if (existing) {
     return existing;
   }
-  // If not, create a new company
-  return await prisma.company.create({
+
+  // Create a system user ID for company addresses
+  // This is a placeholder - in a real system you might want to create a system user
+  const systemUserId = '00000000-0000-0000-0000-000000000000';
+  
+  // First create the address
+  const newAddress = await prisma.address.create({
+    data: {
+      userId: systemUserId,
+      street: address.street,
+      housename: address.housename || '',
+      city: address.city,
+      pincode: parseInt(address.pincode),
+      geoLocation: address.geoLocation || null,
+      addressType: address.addressType || 'HOME'
+    }
+  });
+  
+  // Then create the company with the address ID
+  const newCompany = await prisma.company.create({
     data: {
       name,
-      address_id,
-    },
+      address_id: newAddress.id,
+    }
   });
+
+  // Return company with address details
+  return {
+    ...newCompany,
+    address: newAddress
+  };
 };
 
 export const companyListService = async () => {
- const companies = await prisma.company.findMany();
- return companies;
+  const companies = await prisma.company.findMany();
+  
+  // Fetch address details for each company
+  const companiesWithAddresses = await Promise.all(
+    companies.map(async (company) => {
+      try {
+        const address = await prisma.address.findUnique({
+          where: { id: company.address_id }
+        });
+        return {
+          ...company,
+          address: address || null
+        };
+      } catch (error) {
+        console.error(`Error fetching address for company ${company.id}:`, error);
+        return {
+          ...company,
+          address: null
+        };
+      }
+    })
+  );
+  
+  return companiesWithAddresses;
 };
 
 export const companyDeleteService = async (id) => {
@@ -1065,13 +1111,26 @@ export const getMenusForBookingService = async () => {
       // Check if this is a comprehensive menu item
       const itemName = item.name?.toLowerCase() || '';
       const productName = item.product?.productName?.toLowerCase() || '';
+      const menuName = menu.name?.toLowerCase() || '';
       
-      // Exclude "Daily Rates" from being treated as comprehensive
-      const isDailyRates = itemName.includes('daily rates') || itemName.includes('daily rate');
+      // Define comprehensive menu keywords
+      const comprehensiveKeywords = [
+        'monthly', 'plan', 'weekly', 'weekday', 'week-day', 'full week', 'comprehensive'
+      ];
       
-      const isComprehensiveItem = !isDailyRates && (
-        itemName.includes('monthly') || itemName.includes('plan') || itemName.includes('weekly') ||
-        productName.includes('monthly') || productName.includes('plan') || productName.includes('weekly')
+      // Define daily rate keywords
+      const dailyRateKeywords = [
+        'breakfast', 'lunch', 'dinner', 'meal', 'daily', 'per day', 'single'
+      ];
+      
+      // Check if item is comprehensive (monthly/weekly packages)
+      const isComprehensiveItem = comprehensiveKeywords.some(keyword => 
+        itemName.includes(keyword) || productName.includes(keyword) || menuName.includes(keyword)
+      );
+      
+      // Check if item is daily rate (individual meals like breakfast)
+      const isDailyRateItem = dailyRateKeywords.some(keyword => 
+        itemName.includes(keyword) || productName.includes(keyword)
       );
       
       // Determine meal types for this item
@@ -1091,37 +1150,30 @@ export const getMenusForBookingService = async () => {
         mealTypes.breakfast.push(comprehensiveItem);
         mealTypes.lunch.push(comprehensiveItem);
         mealTypes.dinner.push(comprehensiveItem);
-      } else {
-        // For regular items, determine meal type based on name
-        const productName = item.product?.productName?.toLowerCase() || '';
-        const itemName = item.name?.toLowerCase() || '';
-        
-        // For Daily Rates, check if it includes specific meal types
-        if (isDailyRates) {
-          // Daily Rates should show all meal types by default, but check if specific meal types are mentioned
-          if (productName.includes('breakfast') || itemName.includes('breakfast')) {
-            mealTypes.breakfast.push(item);
-          } else if (productName.includes('lunch') || itemName.includes('lunch')) {
-            mealTypes.lunch.push(item);
-          } else if (productName.includes('dinner') || itemName.includes('dinner')) {
-            mealTypes.dinner.push(item);
-          } else {
-            // If no specific meal type is mentioned, include in all meal types
-            mealTypes.breakfast.push(item);
-            mealTypes.lunch.push(item);
-            mealTypes.dinner.push(item);
-          }
+      } else if (isDailyRateItem) {
+        // For daily rate items, determine specific meal type
+        if (itemName.includes('breakfast') || productName.includes('breakfast')) {
+          mealTypes.breakfast.push(item);
+        } else if (itemName.includes('lunch') || productName.includes('lunch')) {
+          mealTypes.lunch.push(item);
+        } else if (itemName.includes('dinner') || productName.includes('dinner')) {
+          mealTypes.dinner.push(item);
         } else {
-          // For other regular items, determine meal type based on name
-          if (productName.includes('breakfast') || itemName.includes('breakfast')) {
-            mealTypes.breakfast.push(item);
-          }
-          if (productName.includes('lunch') || itemName.includes('lunch')) {
-            mealTypes.lunch.push(item);
-          }
-          if (productName.includes('dinner') || itemName.includes('dinner')) {
-            mealTypes.dinner.push(item);
-          }
+          // If no specific meal type is mentioned, include in all meal types
+          mealTypes.breakfast.push(item);
+          mealTypes.lunch.push(item);
+          mealTypes.dinner.push(item);
+        }
+      } else {
+        // For other regular items, determine meal type based on name
+        if (itemName.includes('breakfast') || productName.includes('breakfast')) {
+          mealTypes.breakfast.push(item);
+        }
+        if (itemName.includes('lunch') || productName.includes('lunch')) {
+          mealTypes.lunch.push(item);
+        }
+        if (itemName.includes('dinner') || productName.includes('dinner')) {
+          mealTypes.dinner.push(item);
         }
       }
       
@@ -1140,6 +1192,7 @@ export const getMenusForBookingService = async () => {
         hasLunch: mealTypes.lunch.length > 0,
         hasDinner: mealTypes.dinner.length > 0,
         isComprehensiveMenu: isComprehensiveItem,
+        isDailyRateItem: isDailyRateItem,
         // Include the menu item data
         menuItem: item,
         // Include pricing
@@ -1328,5 +1381,49 @@ export const deleteOrderService = async (orderId) => {
 
     return deletedOrder;
   });
+};
+
+// Get product quantities for menu items
+export const getProductQuantitiesForMenusService = async () => {
+  try {
+    // Get all menu items with their associated products and quantities
+    const menuItemsWithQuantities = await prisma.menuItem.findMany({
+      where: {
+        productId: {
+          not: null
+        }
+      },
+      include: {
+        product: {
+          include: {
+            quantities: {
+              orderBy: {
+                createdAt: 'desc'
+              },
+              take: 1 // Get the latest quantity
+            }
+          }
+        }
+      }
+    });
+
+    // Transform the data to return product ID and quantity
+    const productQuantities = {};
+    menuItemsWithQuantities.forEach(menuItem => {
+      if (menuItem.product && menuItem.product.quantities && menuItem.product.quantities.length > 0) {
+        productQuantities[menuItem.product.id] = {
+          productId: menuItem.product.id,
+          productName: menuItem.product.productName,
+          quantity: menuItem.product.quantities[0].quantity,
+          lastUpdated: menuItem.product.quantities[0].updatedAt
+        };
+      }
+    });
+
+    return productQuantities;
+  } catch (error) {
+    console.error('Error getting product quantities for menus:', error);
+    throw new Error('Failed to get product quantities for menus');
+  }
 };
 

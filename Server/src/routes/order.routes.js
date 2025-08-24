@@ -3,7 +3,8 @@ import { authenticateToken } from '../middleware/authHandler.js';
 import { 
   createOrderController,
   getOrderByIdController,
-  getOrdersByUserIdController
+  getOrdersByUserIdController,
+  cancelOrderController
 } from '../controllers/order.controller.js';
 
 const router = express.Router();
@@ -19,5 +20,8 @@ router.get('/:orderId', getOrderByIdController);
 
 // Get orders by user ID
 router.get('/user/:userId', getOrdersByUserIdController);
+
+// Cancel order by ID
+router.put('/:orderId/cancel', cancelOrderController);
 
 export default router;

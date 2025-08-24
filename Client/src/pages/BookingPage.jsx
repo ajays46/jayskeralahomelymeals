@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Modal } from 'antd';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
-import { useMenusForBooking } from '../hooks/adminHook/adminHook';
+import OrderSuccessPopup from '../components/OrderSuccessPopup';
+import { useMenusForBooking, useProductQuantitiesForMenus } from '../hooks/adminHook/adminHook'; 
 import { useOrder, useCalculateMenuPricing, useCalculateOrderTotal } from '../hooks/userHooks/useOrder';
 import { useAddress } from '../hooks/userHooks/userAddress';
 import { useAdminOrderBlock } from '../hooks/userHooks/useAdminOrderBlock';
@@ -31,6 +32,7 @@ import axiosInstance from '../api/axios.js';
 
 const BookingPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -49,6 +51,10 @@ const BookingPage = () => {
   // State for Ant Design popup
   const [showMenuPopup, setShowMenuPopup] = useState(false);
   const [menuPopupMessage, setMenuPopupMessage] = useState('');
+
+  // State for order success popup
+  const [showOrderSuccessPopup, setShowOrderSuccessPopup] = useState(false);
+  const [orderSuccessDetails, setOrderSuccessDetails] = useState(null);
 
   const [deliveryLocations, setDeliveryLocations] = useState({
     breakfast: '',
@@ -79,12 +85,14 @@ const BookingPage = () => {
   const { createOrder, isCreating } = useOrder();  
   const { addresses: userAddresses } = useAddress();
   const { data: menusData, isLoading: menusLoading, error: menusError } = useMenusForBooking();
+  const { data: productQuantitiesData, isLoading: productQuantitiesLoading } = useProductQuantitiesForMenus();
   const { sellerUsers, loading: sellerUsersLoading, getSellerUsers, isSeller } = useSeller();
   const calculateMenuPricing = useCalculateMenuPricing();
   const calculateOrderTotal = useCalculateOrderTotal();
   const { showAdminBlockModal, handleOrderError, handleSwitchAccount, closeAdminBlockModal } = useAdminOrderBlock();
   const { user } = useAuthStore();
   const menus = menusData?.data || [];
+  const productQuantities = productQuantitiesData?.data || {};
 
   // Helper functions
   const getAddressDisplayName = (addressId) => {
@@ -291,6 +299,16 @@ const BookingPage = () => {
     };
   }, []);
 
+  // Check for order success state from navigation
+  useEffect(() => {
+    if (location.state?.showOrderSuccess) {
+      setShowOrderSuccessPopup(true);
+      setOrderSuccessDetails(location.state.orderDetails);
+      // Clear the navigation state to prevent showing popup again on refresh
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, navigate]);
+
   // Date initialization
   useEffect(() => {
     if (!selectedMenu || !isWeekdayMenu(selectedMenu)) {
@@ -389,6 +407,15 @@ const BookingPage = () => {
   };
 
   const handleMenuSelection = (menu) => {
+    // Check if menu item is completely out of stock (cannot be purchased)
+    if (menu.product && productQuantities && productQuantities[menu.product.id]) {
+      const productQuantity = productQuantities[menu.product.id];
+      if (productQuantity.quantity === 0) {
+        showErrorToast(`Cannot select "${menu.name}" - Completely Out of Stock (Available: ${productQuantity.quantity})`);
+        return;
+      }
+    }
+    
     // For daily flexible mode, handle differently
     if (orderMode === 'daily-flexible') {
       if (selectedDates.length === 0) {
@@ -449,7 +476,7 @@ const BookingPage = () => {
       menuMessage = 'Week-Day Plan Selected! Click any date to auto-select 5 weekdays.';
     }
     // Check for daily rates
-    else if (hasMenuItemType(menu, 'daily rates') || hasMenuItemType(menu, 'daily rate')) {
+    else if (menu.isDailyRateItem) {
       menuMessage = 'Daily Rates Selected! Select individual dates for your meals.';
     }
     // Check for weekday menu (consolidated condition)
@@ -507,7 +534,7 @@ const BookingPage = () => {
     }
     
     // For daily rates, count based on selected dates and meal types
-    if (selectedMenu && (hasMenuItemType(selectedMenu, 'daily rates') || hasMenuItemType(selectedMenu, 'daily rate'))) {
+    if (selectedMenu && selectedMenu.isDailyRateItem) {
       let total = 0;
       if (selectedMenu.hasBreakfast) total += selectedDates.length;
       if (selectedMenu.hasLunch) total += selectedDates.length;
@@ -542,7 +569,17 @@ const BookingPage = () => {
       return total;
     }
     
-    // For all menu types, simply return the selected menu item price
+    // Check if this is a daily rate menu item using the backend flag
+    if (selectedMenu.isDailyRateItem) {
+      // For daily rate menu items: Base Price × Number of Selected Days
+      // Each day gets charged the base price
+      const basePrice = selectedMenu.price || 0;
+      const numberOfDays = selectedDates.length;
+      return basePrice * numberOfDays;
+    }
+    
+    // For comprehensive menus (monthly/weekly/weekday): Keep original price
+    // These are package deals with fixed pricing
     return selectedMenu.price || 0;
   };
 
@@ -592,10 +629,128 @@ const BookingPage = () => {
         return;
       }
 
+      // For daily flexible mode, check if any selected menus are completely out of stock
+      if (orderMode === 'daily-flexible') {
+        const completelyOutOfStockDates = [];
+        selectedDates.forEach(date => {
+          const dateStr = date.toISOString().split('T')[0];
+          const menuForDate = dateMenuSelections[dateStr];
+          if (menuForDate && menuForDate.product && productQuantities && productQuantities[menuForDate.product.id]) {
+            const productQuantity = productQuantities[menuForDate.product.id];
+            if (productQuantity.quantity === 0) {
+              completelyOutOfStockDates.push({
+                date: formatDateForDisplay(date),
+                menu: menuForDate.name,
+                available: productQuantity.quantity
+              });
+            }
+          }
+        });
+        
+        if (completelyOutOfStockDates.length > 0) {
+          const errorMessage = `Cannot place order - Some selected menus are completely out of stock:\n${completelyOutOfStockDates.map(item => `• ${item.date}: ${item.menu} (Available: ${item.available})`).join('\n')}`;
+          showErrorToast(errorMessage);
+          return;
+        }
+      }
+
       if (!selectedMenu) {
         showErrorToast('Please select a menu for your order');
         return;
       }
+
+      // Check if selected menu is completely out of stock (cannot be purchased)
+      if (selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id]) {
+        const productQuantity = productQuantities[selectedMenu.product.id];
+        if (productQuantity.quantity === 0) {
+          showErrorToast(`Cannot place order - "${selectedMenu.name}" is Completely Out of Stock (Available: ${productQuantity.quantity})`);
+          return;
+        }
+      }
+
+      const orderItems = [];
+      
+      // Create order items based on menu type
+      if (selectedMenu.isComprehensiveMenu) {
+        if (selectedMenu.mealTypes.breakfast && selectedMenu.mealTypes.breakfast.length > 0) {
+          selectedMenu.mealTypes.breakfast.forEach(item => {
+            orderItems.push({
+              menuItemId: item.id,
+              quantity: 1,
+              mealType: 'breakfast'
+            });
+          });
+        }
+        if (selectedMenu.mealTypes.lunch && selectedMenu.mealTypes.lunch.length > 0) {
+          selectedMenu.mealTypes.lunch.forEach(item => {
+            orderItems.push({
+              menuItemId: item.id,
+              quantity: 1,
+              mealType: 'lunch'
+            });
+          });
+        }
+        if (selectedMenu.mealTypes.dinner && selectedMenu.mealTypes.dinner.length > 0) {
+          selectedMenu.mealTypes.dinner.forEach(item => {
+            orderItems.push({
+              menuItemId: item.id,
+              quantity: 1,
+              mealType: 'dinner'
+            });
+          });
+        }
+      } else if (selectedMenu.isDailyRateItem) {
+        if (selectedMenu.menuItem) {
+          if (selectedMenu.hasBreakfast) {
+            orderItems.push({
+              menuItemId: selectedMenu.menuItem.id,
+              quantity: selectedDates.length,
+              mealType: 'breakfast'
+            });
+          }
+          if (selectedMenu.hasLunch) {
+            orderItems.push({
+              menuItemId: selectedMenu.menuItem.id,
+              quantity: selectedDates.length,
+              mealType: 'lunch'
+            });
+          }
+          if (selectedMenu.hasDinner) {
+            orderItems.push({
+              menuItemId: selectedMenu.menuItem.id,
+              quantity: selectedDates.length,
+              mealType: 'dinner'
+            });
+          }
+        }
+      } else {
+        // Regular menu
+        if (selectedMenu.menuItem) {
+          if (selectedMenu.hasBreakfast) {
+            orderItems.push({
+              menuItemId: selectedMenu.menuItem.id,
+              quantity: selectedDates.length,
+              mealType: 'breakfast'
+            });
+          }
+          if (selectedMenu.hasLunch) {
+            orderItems.push({
+              menuItemId: selectedMenu.menuItem.id,
+              quantity: selectedDates.length,
+              mealType: 'lunch'
+            });
+          }
+          if (selectedMenu.hasDinner) {
+            orderItems.push({
+              menuItemId: selectedMenu.menuItem.id,
+              quantity: selectedDates.length,
+              mealType: 'dinner'
+            });
+          }
+        }
+      }
+
+
 
       // Check if user has provided either primary address or meal-specific addresses
       const hasPrimaryAddress = deliveryLocations.full;
@@ -682,8 +837,11 @@ const BookingPage = () => {
           menu: selectedMenu,
           items: [],
           deliveryLocationNames: deliveryLocationNames,
-          totalPrice: getTotalPrice()
+          totalPrice: getTotalPrice(),
+          isDailyRateItem: selectedMenu.isDailyRateItem
         };
+
+
 
 
 
@@ -701,7 +859,7 @@ const BookingPage = () => {
         navigate('/jkhm/payment', { 
           state: { orderData: orderDataForPayment } 
         });
-              } else if (hasMenuItemType(selectedMenu, 'daily rates') || hasMenuItemType(selectedMenu, 'daily rate')) {
+              } else if (selectedMenu.isDailyRateItem) {
           // For daily rates, create delivery items for each selected date and meal type
           
           const orderTimes = [];
@@ -780,10 +938,7 @@ const BookingPage = () => {
             totalPrice: getTotalPrice()
           };
 
-          // Ensure userId is always set for daily rates
-          if (!orderData.userId) {
-            // userId is missing from daily rates orderData
-          }
+
 
           setSavedOrder(orderDataForPayment);
           
@@ -865,7 +1020,8 @@ const BookingPage = () => {
           menu: selectedMenu,
           items: [],
           deliveryLocationNames: deliveryLocationNames,
-          totalPrice: getTotalPrice()
+          totalPrice: getTotalPrice(),
+          isDailyRateItem: selectedMenu.isDailyRateItem
         };
 
 
@@ -965,6 +1121,15 @@ const BookingPage = () => {
   };
 
   const handleDateMenuSelection = (date, menu) => {
+    // Check if menu item is completely out of stock (cannot be purchased)
+    if (menu.product && productQuantities && productQuantities[menu.product.id]) {
+      const productQuantity = productQuantities[menu.product.id];
+      if (productQuantity.quantity === 0) {
+        showErrorToast(`Cannot select "${menu.name}" - Completely Out of Stock (Available: ${productQuantity.quantity})`);
+        return;
+      }
+    }
+    
     const dateStr = date.toISOString().split('T')[0];
     setDateMenuSelections(prev => ({
       ...prev,
@@ -1177,11 +1342,11 @@ const BookingPage = () => {
       />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-10 lg:gap-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-16">
           {/* Left Column - Menu Sections */}
           <div className="lg:col-span-2">
-            <div className="max-w-2xl lg:max-w-none mx-auto lg:mx-0 space-y-8">
+            <div className="max-w-2xl lg:max-w-none mx-auto lg:mx-0 space-y-6 sm:space-y-8">
               <MenuSelector
                 menus={menus}
                 selectedMenu={selectedMenu}
@@ -1196,6 +1361,8 @@ const BookingPage = () => {
                 getCleanMenuItemName={getCleanMenuItemName}
                 isWeekdayMenu={isWeekdayMenu}
                 orderMode={orderMode}
+                productQuantities={productQuantities}
+                productQuantitiesLoading={productQuantitiesLoading}
               />
 
               {/* Meal Skip Selector */}
@@ -1439,6 +1606,102 @@ const BookingPage = () => {
           {/* Right Column - Order Summary & Actions */}
           <div className="lg:col-span-1">
             <div className="sticky top-8">
+              
+              {/* Pricing Breakdown Display - Moved above OrderSummary */}
+              {selectedMenu && selectedDates.length > 0 && (
+                <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden mb-6">
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-4 sm:p-6 text-white">
+                    <h3 className="text-lg sm:text-xl font-bold flex items-center gap-3">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
+                      Pricing Breakdown
+                    </h3>
+                  </div>
+                  <div className="p-4 sm:p-6 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium text-sm sm:text-base">Menu Item:</span>
+                      <span className="font-semibold text-gray-800 text-sm sm:text-base truncate max-w-[150px] sm:max-w-[200px]">{selectedMenu.name}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium text-sm sm:text-base">Base Price:</span>
+                      <span className="font-semibold text-gray-800 text-sm sm:text-base">₹{selectedMenu.price || 0}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium text-sm sm:text-base">Selected Days:</span>
+                      <span className="font-semibold text-gray-800 text-sm sm:text-base">{selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    
+                    {selectedMenu.isDailyRateItem ? (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 font-medium text-sm sm:text-base">Calculation:</span>
+                        <span className="font-semibold text-gray-800 text-sm sm:text-base">₹{selectedMenu.price || 0} × {selectedDates.length} = ₹{(selectedMenu.price || 0) * selectedDates.length}</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 font-medium text-sm sm:text-base">Package Type:</span>
+                        <span className="font-semibold text-gray-800 text-sm sm:text-base">Fixed Price Package</span>
+                      </div>
+                    )}
+                    
+                    {/* Stock Status Warning */}
+                    {selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && (
+                      <div className="border-t border-gray-200 pt-4">
+                        {(() => {
+                          const productQuantity = productQuantities[selectedMenu.product.id];
+                          if (productQuantity.quantity < 5) {
+                            return (
+                              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                                <div className="flex items-center gap-2 text-red-700">
+                                  <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                  </svg>
+                                  <span className="font-semibold text-sm">⚠️ Out of Stock Warning</span>
+                                </div>
+                                <p className="text-red-600 text-xs mt-1">Available quantity: {productQuantity.quantity} (Minimum required: 5)</p>
+                              </div>
+                            );
+                          } else if (productQuantity.quantity < 10) {
+                            return (
+                              <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+                                <div className="flex items-center gap-2 text-orange-700">
+                                  <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                  </svg>
+                                  <span className="font-semibold text-sm">⚠️ Low Stock Warning</span>
+                                </div>
+                                <p className="text-orange-600 text-xs mt-1">Available quantity: {productQuantity.quantity} (Running low)</p>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                                <div className="flex items-center gap-2 text-green-700">
+                                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  <span className="font-semibold text-sm">✅ In Stock</span>
+                                </div>
+                                <p className="text-green-600 text-xs mt-1">Available quantity: {productQuantity.quantity}</p>
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
+                    )}
+                    
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-base sm:text-lg font-bold text-gray-800">Total Price:</span>
+                        <span className="text-xl sm:text-2xl font-bold text-blue-600">₹{getTotalPrice()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <OrderSummary
                selectedMenu={selectedMenu}
                selectedDates={selectedDates}
@@ -1447,6 +1710,7 @@ const BookingPage = () => {
                deliveryLocationNames={deliveryLocationNames}
                savedOrder={savedOrder}
                isCreating={isCreating}
+
                getTotalItems={getTotalItems}
                getTotalPrice={getTotalPrice}
                getAddressDisplayName={getAddressDisplayName}
@@ -1466,7 +1730,98 @@ const BookingPage = () => {
                addresses={selectedUserAddresses}
                onAddressCreate={createAddressForUser}
                selectedUserId={selectedUser?.id}
+               // Pass product quantities for stock status
+               productQuantities={productQuantities}
              />
+             
+             {/* Mobile Save Order Button - Only visible on small screens */}
+             <div className="lg:hidden mt-6">
+               <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-6">
+                 <div className="space-y-4">
+                   <div className="text-center">
+                     <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Ready to Order?</h3>
+                     <p className="text-sm text-gray-600">Review your selection and proceed to payment</p>
+                   </div>
+                   
+                   <div className="flex flex-col sm:flex-row gap-3">
+                     <button
+                       onClick={handleCancel}
+                       className="flex-1 px-4 sm:px-6 py-3 sm:py-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 text-sm sm:text-base"
+                     >
+                       Cancel
+                     </button>
+                     <button
+                       onClick={handleSaveOrder}
+                       disabled={!selectedMenu || selectedDates.length === 0 || isCreating || (selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && productQuantities[selectedMenu.product.id].quantity === 0)}
+                       className={`flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl font-medium transition-all duration-200 text-sm sm:text-base ${
+                         !selectedMenu || selectedDates.length === 0 || isCreating || (selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && productQuantities[selectedMenu.product.id].quantity === 0)
+                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                           : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105'
+                       }`}
+                     >
+                       {isCreating ? (
+                         <div className="flex items-center justify-center gap-2">
+                           <div className="animate-spin rounded-full h-4 w-4 border-b border-white"></div>
+                           Processing...
+                         </div>
+                       ) : (
+                         <div className="flex items-center justify-center gap-2">
+                           <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                           </svg>
+                           Save Order
+                         </div>
+                       )}
+                     </button>
+                   </div>
+                   
+                   {selectedMenu && selectedDates.length > 0 && (
+                     <div className="text-center text-sm text-gray-600">
+                       <p>Total: <span className="font-semibold text-blue-600">₹{getTotalPrice()}</span></p>
+                       <p>{getTotalItems()} item{getTotalItems() !== 1 ? 's' : ''} • {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''}</p>
+                       
+                       {/* Stock Status for Mobile */}
+                       {selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && (
+                         <div className="mt-3">
+                           {(() => {
+                             const productQuantity = productQuantities[selectedMenu.product.id];
+                             if (productQuantity.quantity === 0) {
+                               return (
+                                 <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                                   <p className="text-red-600 text-xs font-semibold">❌ Cannot Purchase</p>
+                                   <p className="text-red-500 text-xs">Available: {productQuantity.quantity}</p>
+                                 </div>
+                               );
+                             } else if (productQuantity.quantity < 5) {
+                               return (
+                                 <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                                   <p className="text-red-600 text-xs font-semibold">⚠️ Out of Stock</p>
+                                   <p className="text-red-500 text-xs">Available: {productQuantity.quantity}</p>
+                                 </div>
+                               );
+                             } else if (productQuantity.quantity < 10) {
+                               return (
+                                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-2">
+                                   <p className="text-orange-600 text-xs font-semibold">⚠️ Low Stock</p>
+                                   <p className="text-orange-500 text-xs">Available: {productQuantity.quantity}</p>
+                                 </div>
+                               );
+                             } else {
+                               return (
+                                 <div className="bg-green-50 border border-green-200 rounded-lg p-2">
+                                   <p className="text-green-600 text-xs font-semibold">✅ In Stock</p>
+                                   <p className="text-green-500 text-xs">Available: {productQuantity.quantity}</p>
+                                 </div>
+                               );
+                             }
+                           })()}
+                         </div>
+                       )}
+                     </div>
+                   )}
+                 </div>
+               </div>
+             </div>
             </div>
           </div>
         </div>
@@ -1526,6 +1881,88 @@ const BookingPage = () => {
         onClose={closeAdminBlockModal}
         onSwitchAccount={handleSwitchAccount}
       />
+
+      {/* Floating Action Button for Mobile - Save Order */}
+      {selectedMenu && selectedDates.length > 0 && (
+        <div className="lg:hidden fixed bottom-6 right-6 z-40">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-4">
+            <div className="text-center mb-3">
+              <p className="text-xs text-gray-600 mb-1">Total: <span className="font-bold text-blue-600">₹{getTotalPrice()}</span></p>
+              <p className="text-xs text-gray-500">{getTotalItems()} item{getTotalItems() !== 1 ? 's' : ''} • {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''}</p>
+              
+              {/* Stock Status for Mobile */}
+              {selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && (
+                <div className="mt-2">
+                  {(() => {
+                    const productQuantity = productQuantities[selectedMenu.product.id];
+                    if (productQuantity.quantity === 0) {
+                      return (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                          <p className="text-red-600 text-xs font-semibold">❌ Cannot Purchase</p>
+                          <p className="text-red-500 text-xs">Available: {productQuantity.quantity}</p>
+                        </div>
+                      );
+                    } else if (productQuantity.quantity < 5) {
+                      return (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                          <p className="text-red-600 text-xs font-semibold">⚠️ Out of Stock</p>
+                          <p className="text-red-500 text-xs">Available: {productQuantity.quantity}</p>
+                        </div>
+                      );
+                    } else if (productQuantity.quantity < 10) {
+                      return (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-2">
+                          <p className="text-orange-600 text-xs font-semibold">⚠️ Low Stock</p>
+                          <p className="text-orange-500 text-xs">Available: {productQuantity.quantity}</p>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-2">
+                          <p className="text-green-600 text-xs font-semibold">✅ In Stock</p>
+                          <p className="text-green-500 text-xs">Available: {productQuantity.quantity}</p>
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleSaveOrder}
+              disabled={isCreating || (selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && productQuantities[selectedMenu.product.id].quantity === 0)}
+              className={`w-full px-6 py-3 rounded-xl font-medium transition-all duration-200 text-sm ${
+                isCreating || (selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && productQuantities[selectedMenu.product.id].quantity === 0)
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105'
+              }`}
+            >
+              {isCreating ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Processing...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Save Order
+                </div>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Order Success Popup */}
+      {showOrderSuccessPopup && orderSuccessDetails && (
+        <OrderSuccessPopup
+          isOpen={showOrderSuccessPopup}
+          onClose={() => setShowOrderSuccessPopup(false)}
+          orderDetails={orderSuccessDetails}
+        />
+      )}
     </div>
   );
 };

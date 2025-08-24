@@ -1,4 +1,5 @@
 import prisma from '../config/prisma.js';
+import { increaseProductQuantitiesService } from './inventory.service.js';
 
 // Create a new order
 export const createOrderService = async (orderData) => {
@@ -46,17 +47,16 @@ export const createOrderService = async (orderData) => {
       }
       
       for (const item of orderItems) {
-              // Check if this meal type is skipped for this date
-      if (skipMeals && skipMeals[dateStr] && skipMeals[dateStr][item.mealType]) {
-        // Skip this meal for this date - don't create delivery item
-        skippedMealsCount++;
-        continue;
-      }
+        // Check if this meal type is skipped for this date
+        if (skipMeals && skipMeals[dateStr] && skipMeals[dateStr][item.mealType]) {
+          // Skip this meal for this date - don't create delivery item
+          skippedMealsCount++;
+          continue;
+        }
         
         // Map meal type to delivery time slot
         let deliveryTimeSlot = 'Breakfast'; // Default
         
-        // Map meal type to delivery time slot
         if (item.mealType === 'breakfast') deliveryTimeSlot = 'Breakfast';
         else if (item.mealType === 'lunch') deliveryTimeSlot = 'Lunch';
         else if (item.mealType === 'dinner') deliveryTimeSlot = 'Dinner';
@@ -83,6 +83,9 @@ export const createOrderService = async (orderData) => {
         deliveryItems.push(deliveryItem);
       }
     }
+
+    // Remove the duplicate inventory reduction - it's handled in payment service
+    // This prevents double inventory reduction for the same order
 
     return {
       order,
@@ -149,5 +152,74 @@ export const getOrdersByUserIdService = async (userId) => {
     return orders;
   } catch (error) {
     throw new Error(`Failed to get user orders: ${error.message}`);
+  }
+};
+
+// Cancel an order
+export const cancelOrderService = async (orderId, userId, userRoles = []) => {
+  try {
+    // Get the order with delivery items
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        deliveryItems: {
+          include: {
+            menuItem: true
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    // Check if user has permission to cancel this order
+    // Allow sellers to cancel any order, customers can only cancel their own orders
+    const isSeller = userRoles && userRoles.includes('SELLER');
+    if (!isSeller && order.userId !== userId) {
+      throw new Error('You do not have permission to cancel this order');
+    }
+
+    // Check if order can be cancelled
+    if (order.status === 'Delivered' || order.status === 'Cancelled') {
+      throw new Error('Cannot cancel an order that is already delivered or cancelled');
+    }
+
+    // Use a transaction to ensure data consistency
+    const result = await prisma.$transaction(async (tx) => {
+      // Update order status to cancelled
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: { 
+          status: 'Cancelled',
+          updatedAt: new Date()
+        }
+      });
+
+      // Cancel all delivery items for this order
+      await tx.deliveryItem.updateMany({
+        where: { orderId: orderId },
+        data: { 
+          status: 'Cancelled',
+          updatedAt: new Date()
+        }
+      });
+
+      return updatedOrder;
+    });
+
+    // After successfully cancelling the order, restore product quantities
+    try {
+      const restorationResult = await increaseProductQuantitiesService(order.deliveryItems);
+    } catch (restorationError) {
+      console.error('⚠️ Warning: Failed to restore product quantities:', restorationError.message);
+      // Don't fail the order cancellation if quantity restoration fails
+      // The order is already cancelled, but we log the warning
+    }
+
+    return result;
+  } catch (error) {
+    throw new Error(`Failed to cancel order: ${error.message}`);
   }
 };

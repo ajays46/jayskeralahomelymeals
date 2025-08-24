@@ -10,7 +10,7 @@ const AdminPage = () => {
       </div>
       
       {/* Main content */}
-      <div className="flex-1 flex flex-col md:ml-14">
+      <div className="flex-1 flex flex-col md:ml-24">
         <div className="flex-1 p-3 sm:p-4 lg:p-8 overflow-auto">
           <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Admin Space</h1>
         </div>

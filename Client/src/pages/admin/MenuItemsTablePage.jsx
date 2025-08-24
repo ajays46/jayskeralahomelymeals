@@ -239,7 +239,7 @@ const MenuItemsTablePage = () => {
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
               <button
-                onClick={() => navigate('/admin')}
+                onClick={() => navigate('/jkhm/admin')}
                 className="text-gray-400 hover:text-white transition-colors"
                 aria-label="Go back to admin dashboard"
               >

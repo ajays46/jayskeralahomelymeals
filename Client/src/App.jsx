@@ -9,6 +9,8 @@ import HomePage from './pages/HomePage';
 import ProtectedRoute from './protectRoute/Protect';
 import AdminPage from './pages/admin/AdminPage';
 import SellerPage from './pages/SellerPage';
+import DeliveryManagerPage from './pages/DeliveryManagerPage';
+import DeliveryExecutivePage from './pages/DeliveryExecutivePage';
 import ProfilePage from './pages/ProfilePage';
 import ResetPassword from './components/ResetPassword';
 import CompanyCreatePage from './pages/admin/CompanyCreatePage';
@@ -23,6 +25,7 @@ import MenuItemsTablePage from './pages/admin/MenuItemsTablePage';
 import UsersPage from './pages/admin/UsersPage';
 
 import CreateUserPage from './pages/CreateUserPage';
+import DeliveryItemsPage from './pages/DeliveryItemsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,19 +56,22 @@ const App = () => {
           {/* ✅ Protected Route */}
           <Route element={<ProtectedRoute />}>
      
-            <Route path='/admin' element={<AdminPage/>} ></Route>
-            <Route path='/admin/company-create' element={<CompanyCreatePage/>} ></Route>
-            <Route path='/admin/add-product' element={<AddProductPage/>} ></Route>
-            <Route path='/admin/add-product/:productId' element={<AddProductPage/>} ></Route>
-            <Route path='/admin/products' element={<ProductsPage/>} ></Route>
-            <Route path='/admin/add-menu' element={<AddMenuPage/>} ></Route>
-            <Route path='/admin/menu-items' element={<MenuItemPage/>} ></Route>
-            <Route path='/admin/menu-items/:menuItemId' element={<MenuItemPage/>} ></Route>
-            <Route path='/admin/menu-items-table' element={<MenuItemsTablePage/>} ></Route>
-            <Route path='/admin/users' element={<UsersPage/>} ></Route>
+            <Route path='/jkhm/admin' element={<AdminPage/>} ></Route>
+            <Route path='/jkhm/admin/company-create' element={<CompanyCreatePage/>} ></Route>
+            <Route path='/jkhm/admin/add-product' element={<AddProductPage/>} ></Route>
+            <Route path='/jkhm/admin/add-product/:productId' element={<AddProductPage/>} ></Route>
+            <Route path='/jkhm/admin/products' element={<ProductsPage/>} ></Route>
+            <Route path='/jkhm/admin/add-menu' element={<AddMenuPage/>} ></Route>
+            <Route path='/jkhm/admin/menu-items' element={<MenuItemPage/>} ></Route>
+            <Route path='/jkhm/admin/menu-items/:menuItemId' element={<MenuItemPage/>} ></Route>
+            <Route path='/jkhm/admin/menu-items-table' element={<MenuItemsTablePage/>} ></Route>
+            <Route path='/jkhm/admin/users' element={<UsersPage/>} ></Route>
     
     
             <Route path='/jkhm/seller' element={<SellerPage />}></Route>
+            <Route path='/jkhm/delivery-items/:orderId' element={<DeliveryItemsPage />}></Route>
+            <Route path='/jkhm/delivery-manager' element={<DeliveryManagerPage />}></Route>
+            <Route path='/jkhm/delivery-executive' element={<DeliveryExecutivePage />}></Route>
             <Route path='/jkhm/profile' element={<ProfilePage />}></Route>
             <Route path='/jkhm/create-user' element={<CreateUserPage />}></Route>
           </Route>

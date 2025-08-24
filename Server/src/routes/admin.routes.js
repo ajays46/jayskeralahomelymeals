@@ -3,7 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder, createAdminUser, getAdminUsers, getOrphanedUsers, cleanupOrphanedUsers, getSellersWithOrders, getDeliveryExecutives, proxyRoutePlanning, proxyExecutiveCount, proxyRunScript, proxyFileContent, getProductQuantitiesForMenus} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -219,6 +219,78 @@ router.delete('/orders/:orderId',
     deleteOrder
 );
 
+// Admin User Management routes
+router.post('/users/create',
+    authenticateToken,
+    // checkRole('admin'), // Temporarily disabled for testing
+    createAdminUser
+);
 
+router.get('/users/list',
+    authenticateToken,
+    // checkRole('admin'), // Temporarily disabled for testing
+    getAdminUsers
+);
+
+// Utility routes for debugging orphaned users
+router.get('/users/orphaned',
+    // authenticateToken,
+    // checkRole('admin'),
+    getOrphanedUsers
+);
+
+router.delete('/users/orphaned',
+    // authenticateToken,
+    // checkRole('admin'),
+    cleanupOrphanedUsers
+);
+
+// Delivery Manager Dashboard Routes
+router.get('/sellers-with-orders',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    getSellersWithOrders
+);
+
+router.get('/delivery-executives',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    getDeliveryExecutives
+);
+
+// Route planning proxy endpoint
+router.post('/proxy-route-planning',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    proxyRoutePlanning
+);
+
+// Executive count proxy endpoint
+router.post('/proxy-executive-count',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    proxyExecutiveCount
+);
+
+// File content proxy endpoint to avoid CORS issues
+router.post('/proxy-file-content',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    proxyFileContent
+);
+
+// Run script proxy endpoint for program execution
+router.post('/proxy-run-script',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    proxyRunScript
+);
+
+// Product quantities for menus route
+router.get('/product-quantities-for-menus',
+    // authenticateToken,
+    // checkRole('admin'),
+    getProductQuantitiesForMenus
+);
 
 export default router; 

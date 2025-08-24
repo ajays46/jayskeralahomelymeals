@@ -27,3 +27,6 @@ coverage
 *.swp
 *.swo 
 /src/generated/prisma
+
+# Test files and scripts
+tests/

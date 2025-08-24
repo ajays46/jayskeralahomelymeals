@@ -16,18 +16,18 @@ const AdminSlide = ({ isFooter = false }) => {
   const isActive = (path) => location.pathname === path;
 
   const navItems = [
-    { icon: FaHome, path: '/admin', title: 'Dashboard', color: 'hover:bg-blue-200' },
+    { icon: FaHome, path: '/jkhm/admin', title: 'Dashboard', color: 'hover:bg-blue-200' },
     { icon: FaGlobe, path: '/jkhm', title: 'Website Home', color: 'hover:bg-emerald-200' },
-    { icon: FaUsers, path: '/admin/users', title: 'Users', color: 'hover:bg-green-200' },
-    { icon: FaClipboardList, path: '/admin/menu-items-table', title: 'Menu Items Table', color: 'hover:bg-yellow-200' },
-    { icon: FaPlus, path: '/admin/add-product', title: 'Add Product', color: 'hover:bg-red-200' },
-    { icon: FaList, path: '/admin/products', title: 'View Products', color: 'hover:bg-teal-200' },
-    { icon: FaBuilding, path: '/admin/company-create', title: 'Create Company', color: 'hover:bg-orange-200' },
+    { icon: FaUsers, path: '/jkhm/admin/users', title: 'Users', color: 'hover:bg-green-200' },
+    { icon: FaClipboardList, path: '/jkhm/admin/menu-items-table', title: 'Menu Items Table', color: 'hover:bg-yellow-200' },
+    { icon: FaPlus, path: '/jkhm/admin/add-product', title: 'Add Product', color: 'hover:bg-red-200' },
+    { icon: FaList, path: '/jkhm/admin/products', title: 'View Products', color: 'hover:bg-teal-200' },
+    { icon: FaBuilding, path: '/jkhm/admin/company-create', title: 'Create Company', color: 'hover:bg-orange-200' },
   ];
 
   const menuSubItems = [
-    { icon: FaPlus, path: '/admin/add-menu', title: 'Add Menu', color: 'hover:bg-indigo-200' },
-    { icon: FaList, path: '/admin/menu-items', title: 'Add Menu Item', color: 'hover:bg-pink-200' },
+    { icon: FaPlus, path: '/jkhm/admin/add-menu', title: 'Add Menu', color: 'hover:bg-indigo-200' },
+    { icon: FaList, path: '/jkhm/admin/menu-items', title: 'Add Menu Item', color: 'hover:bg-pink-200' },
   ];
 
   const containerClasses = isFooter 
@@ -59,7 +59,7 @@ const AdminSlide = ({ isFooter = false }) => {
     if (isProfileDropdownOpen) {
       setIsProfileDropdownOpen(false);
     } else {
-      navigate('/admin');
+      navigate('/jkhm/admin');
     }
   };
 

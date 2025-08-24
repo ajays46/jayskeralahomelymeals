@@ -214,15 +214,38 @@ export const updateDeliveryItemStatusService = async (deliveryItemId, userId, st
             throw new AppError('Invalid delivery item status', 400);
         }
 
+        // First, get the user to check their role
+        const user = await prisma.user.findFirst({
+            where: { id: userId },
+            include: {
+                userRoles: true
+            }
+        });
+
+        if (!user) {
+            throw new AppError('User not found', 404);
+        }
+
+        // Check if user is admin or delivery manager
+        const isAdmin = user.userRoles.some(ur => 
+            ur.name === 'ADMIN' || ur.name === 'DELIVERY_MANAGER'
+        );
+
+        // Find the delivery item
         const deliveryItem = await prisma.deliveryItem.findFirst({
             where: {
                 id: deliveryItemId,
-                userId: userId
+                ...(isAdmin ? {} : { userId: userId }) // If admin, don't restrict by userId
             }
         });
 
         if (!deliveryItem) {
             throw new AppError('Delivery item not found', 404);
+        }
+
+        // If not admin, verify the delivery item belongs to the user
+        if (!isAdmin && deliveryItem.userId !== userId) {
+            throw new AppError('You can only cancel your own delivery items', 403);
         }
 
         const updatedDeliveryItem = await prisma.deliveryItem.update({
