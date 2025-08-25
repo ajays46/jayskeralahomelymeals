@@ -321,6 +321,7 @@ model delivery_executive_profile {
   joined_date         DateTime? @db.Date
   rating              Float?    @db.Float
   total_routes        Int?
+  status              DeliveryExecutiveStatus? @default(ACTIVE)
   created_at          DateTime? @default(now()) @db.Timestamp(0)
 
   @@ignore
@@ -579,6 +580,11 @@ enum user_roles_name {
   USER
   DELIVERY_EXECUTIVE
   DELIVERY_MANAGER
+}
+
+enum DeliveryExecutiveStatus {
+  ACTIVE
+  INACTIVE
 }
 
 

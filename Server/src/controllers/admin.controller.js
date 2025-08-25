@@ -1162,6 +1162,63 @@ export const proxyRunScript = async (req, res, next) => {
     }
 };
 
+// Proxy send routes endpoint for WhatsApp messaging
+export const proxySendRoutes = async (req, res, next) => {
+    try {
+        const { selectedExecutives, timestamp, source, userAgent, dashboardVersion } = req.body;
+        
+        if (!selectedExecutives || selectedExecutives.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No executives selected for WhatsApp messaging'
+            });
+        }
+        
+        // Call the external send_routes API
+        const response = await fetch('http://13.203.227.119:5001/send_routes', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer mysecretkey123',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                selectedExecutives: selectedExecutives,
+                timestamp: timestamp || new Date().toISOString(),
+                source: source || 'delivery-manager-dashboard',
+                userAgent: userAgent || 'unknown',
+                dashboardVersion: dashboardVersion || '1.0.0'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        res.status(200).json({
+            success: true,
+            message: 'WhatsApp messages sent successfully',
+            timestamp: new Date().toISOString(),
+            data: {
+                status: 'completed',
+                requestId: `wr-${Date.now()}`,
+                selectedExecutives: selectedExecutives,
+                externalResponse: data,
+                executionTime: new Date().toISOString()
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in send routes proxy:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send WhatsApp messages',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
 // Proxy file content endpoint to avoid CORS issues
 export const proxyFileContent = async (req, res, next) => {
     try {

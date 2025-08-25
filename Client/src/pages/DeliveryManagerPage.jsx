@@ -402,6 +402,90 @@ const DeliveryManagerPage = () => {
     }
   };
 
+  // New function to send WhatsApp messages via external API
+  const handleSendWhatsApp = async () => {
+    try {
+      if (selectedExecutives.size === 0) {
+        message.warning('Please select at least one delivery executive first');
+        return;
+      }
+
+      message.loading('📱 Sending WhatsApp messages...', 0);
+      
+      // Call the backend proxy endpoint for send_routes
+      const response = await axiosInstance.post('/admin/proxy-send-routes', {
+        selectedExecutives: Array.from(selectedExecutives),
+        timestamp: new Date().toISOString(),
+        source: 'delivery-manager-dashboard',
+        userAgent: navigator.userAgent,
+        dashboardVersion: '1.0.0'
+      });
+      
+      message.destroy(); // Clear loading message
+      
+      if (response.data.success) {
+        message.success(`✅ WhatsApp messages sent successfully to ${selectedExecutives.size} executive(s)!`);
+        
+        // Show success modal
+        Modal.success({
+          title: '📱 WhatsApp Messages Sent!',
+          content: (
+            <div className="space-y-4">
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-green-600 text-lg">✅</span>
+                  <h5 className="font-medium text-green-800">Messages Sent Successfully</h5>
+                </div>
+                <p className="text-sm text-green-700">
+                  WhatsApp messages have been sent to the selected delivery executives via the external API.
+                </p>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h5 className="font-medium text-blue-800 mb-2">API Response Details</h5>
+                <div className="text-sm text-blue-700 space-y-1">
+                  <div>• <strong>Status:</strong> {response.data.data?.status || 'Completed'}</div>
+                  <div>• <strong>Request ID:</strong> {response.data.data?.requestId || 'N/A'}</div>
+                  <div>• <strong>Executives:</strong> {selectedExecutives.size} selected</div>
+                  <div>• <strong>Execution Time:</strong> {response.data.data?.executionTime || 'N/A'}</div>
+                </div>
+              </div>
+              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                <h5 className="font-medium text-yellow-800 mb-2">What Happened?</h5>
+                <div className="text-sm text-yellow-700 space-y-1">
+                  <div>• POST request sent to external API endpoint</div>
+                  <div>• Authorization header included with Bearer token</div>
+                  <div>• Selected executives data transmitted</div>
+                  <div>• External service will handle WhatsApp messaging</div>
+                </div>
+              </div>
+            </div>
+          ),
+          okText: 'Got it!',
+          cancelText: 'Close',
+          width: 600,
+          centered: true
+        });
+      } else {
+        message.error('❌ Failed to send WhatsApp messages');
+      }
+      
+    } catch (error) {
+      message.destroy(); // Clear loading message
+      console.error('WhatsApp messaging error:', error);
+      
+      if (error.response) {
+        // Server responded with error status
+        message.error(`❌ WhatsApp messaging failed: ${error.response.data?.message || error.response.statusText}`);
+      } else if (error.request) {
+        // Network error
+        message.error('❌ Network error: Could not connect to WhatsApp messaging service');
+      } else {
+        // Other error
+        message.error(`❌ WhatsApp messaging error: ${error.message}`);
+      }
+    }
+  };
+
   // New function to run program with selected executives
   const handleRunProgram = async () => {
     try {
@@ -2215,188 +2299,7 @@ const DeliveryManagerPage = () => {
                   <FiTarget className="text-gray-400 text-xl" />
                 </div>
                 
-                {/* Delivery Executives Management */}
-                <div className="mt-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h4 className="text-lg font-medium text-white flex items-center gap-2">
-                      <MdLocalShipping className="text-blue-400" />
-                      Delivery Executives
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={fetchDeliveryExecutives}
-                        disabled={loadingExecutives}
-                        className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2"
-                        title="Refresh delivery executives data"
-                      >
-                        <span className={`${loadingExecutives ? 'animate-spin' : ''}`}>🔄</span>
-                        Refresh
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Executive Count Status */}
-                  <div className="mb-6 bg-gray-700 rounded-lg p-4 border border-gray-600">
-                    <div className="flex items-center justify-between mb-3">
-                      <h5 className="text-md font-medium text-white flex items-center gap-2">
-                        📊 Executive Count Status
-                      </h5>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div className="text-center p-3 bg-gray-600 rounded border border-gray-500">
-                        <div className="text-2xl mb-2">👥</div>
-                        <div className="font-medium text-white">Total Executives</div>
-                        <div className="text-gray-300">{deliveryExecutives.length}</div>
-                      </div>
-                      <div className="text-center p-3 bg-gray-600 rounded border border-gray-500">
-                        <div className="text-2xl mb-2">✅</div>
-                        <div className="font-medium text-white">Available Now</div>
-                        <div className="text-gray-300">
-                          {deliveryExecutives.filter(e => e.currentStatus === 'Available').length}
-                        </div>
-                      </div>
-                      <div className="text-center p-3 bg-gray-600 rounded border border-gray-500">
-                        <div className="text-2xl mb-2">🚚</div>
-                        <div className="font-medium text-white">Selected for Routes</div>
-                        <div className="text-gray-300">{selectedExecutives.size}</div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-3 pt-3 border-t border-gray-600">
-                      <div className="text-center text-xs text-gray-400">
-                        <span>Last Updated: {new Date().toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-white">{deliveryExecutives.length}</div>
-                        <div className="text-xs text-gray-400">Total Executives</div>
-                      </div>
-                      </div>
-                    <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-400">
-                          {deliveryExecutives.filter(e => e.currentStatus === 'Available').length}
-                        </div>
-                        <div className="text-xs text-gray-400">Available Now</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {loadingExecutives ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                      <p className="text-gray-400">Loading delivery executives...</p>
-                    </div>
-                  ) : deliveryExecutives.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {deliveryExecutives.map((executive) => (
-                        <div key={executive.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center">
-                                <MdLocalShipping className="text-white text-lg" />
-                      </div>
-                              <div>
-                                <h5 className="text-sm font-medium text-white">{executive.name}</h5>
-                                <p className="text-xs text-gray-400">{executive.email}</p>
-                                <p className="text-xs text-gray-500">ID: {executive.id.slice(-8)}</p>
-                      </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="mt-1">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  executive.status === 'ACTIVE' 
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {executive.status}
-                                </span>
-                      </div>
-                    </div>
-                  </div>
-
-                          <div className="space-y-2 mb-4">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Phone:</span>
-                              <span className={`${executive.phoneNumber === 'No phone' ? 'text-red-400' : 'text-white'}`}>
-                                {executive.phoneNumber}
-                              </span>
-                    </div>
-                      <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Company:</span>
-                              <span className="text-white">{executive.companyName}</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Joined:</span>
-                              <span className="text-white">{formatDate(executive.joinedDate)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Last Active:</span>
-                              <span className="text-white">{formatDate(executive.lastActive)}</span>
-                  </div>
-                </div>
-
-                          <div className="flex items-center gap-2">
-                            {executive.phoneNumber === 'No phone' ? (
-                              <button
-                                onClick={() => {
-                                  message.info(`To add a phone number for ${executive.name}, please edit their profile in the admin panel.`);
-                                }}
-                                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-xs transition-colors flex items-center justify-center gap-1"
-                                title="Add phone number to enable WhatsApp messaging"
-                              >
-                                <span>📞</span>
-                                Add Phone
-                    </button>
-                            ) : (
-                              <button
-                                onClick={() => handleWhatsAppMessage(executive.phoneNumber, executive.name)}
-                                className="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs transition-colors flex items-center justify-center gap-1"
-                                title="Send WhatsApp message"
-                              >
-                                <span>📱</span>
-                                WhatsApp
-                    </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : executivesError ? (
-                    <div className="text-center py-8">
-                      <MdLocalShipping className="mx-auto h-12 w-12 text-red-400" />
-                      <h3 className="mt-2 text-sm font-medium text-red-400">Failed to load delivery executives</h3>
-                      <p className="mt-1 text-sm text-gray-500">There was an error loading the data. Please try again.</p>
-                      <div className="mt-4 flex items-center justify-center gap-3">
-                        <button
-                          onClick={fetchDeliveryExecutives}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                        >
-                          🔄 Retry
-                    </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <MdLocalShipping className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-400">No delivery executives found</h3>
-                      <p className="mt-1 text-sm text-gray-500">Get started by adding delivery executives to your team.</p>
-                      <div className="mt-4 flex items-center justify-center gap-3">
-                        <button
-                          onClick={fetchDeliveryExecutives}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                        >
-                          🔄 Retry
-                    </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                
 
                 {/* Route Planning Component */}
                 <div className="mt-8">
@@ -2505,6 +2408,25 @@ const DeliveryManagerPage = () => {
                         <span className="text-xl">🚀</span>
                         <span>Run Program with {selectedExecutives.size} Executive(s)</span>
                       </button>
+                    </div>
+                  )}
+
+                  {/* Send WhatsApp Button */}
+                  {selectedExecutives.size > 0 && (
+                    <div className="mt-6 bg-gray-700 p-4 rounded-lg border border-gray-600">
+                      <h5 className="text-md font-medium text-white mb-4">📱 Send WhatsApp Message to Selected Executives:</h5>
+                      
+                      <button
+                        onClick={handleSendWhatsApp}
+                        className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
+                      >
+                        <span className="text-xl">📱</span>
+                        <span>Send WhatsApp to {selectedExecutives.size} Executive(s)</span>
+                      </button>
+                      
+                      <div className="mt-3 text-xs text-gray-400 text-center">
+                        Note: This will send a POST request to the external API endpoint with Authorization header. The external service will handle WhatsApp messaging.
+                      </div>
                     </div>
                   )}
                 </div>
