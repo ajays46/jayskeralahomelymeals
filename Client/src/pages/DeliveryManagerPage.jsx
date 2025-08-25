@@ -47,6 +47,8 @@ const DeliveryManagerPage = () => {
   const [showFullContent, setShowFullContent] = useState({}); // Toggle between preview and full content
   const [selectedExecutives, setSelectedExecutives] = useState(new Set()); // Store selected executives for route planning
   const [programExecutionResults, setProgramExecutionResults] = useState(null); // Store program execution results
+  const [sessionData, setSessionData] = useState(null); // Store session data
+  const [loadingSessionData, setLoadingSessionData] = useState(false); // Loading state for session data
 
   useEffect(() => {
     fetchSellersData();
@@ -351,7 +353,7 @@ const DeliveryManagerPage = () => {
                   <div>• <strong>Status:</strong> {response.data.data?.status || 'Completed'}</div>
                   <div>• <strong>Request ID:</strong> {response.data.data?.requestId || 'N/A'}</div>
                   <div>• <strong>Files Generated:</strong> {response.data.data?.externalResponse?.data?.files?.length || 0} files</div>
-                  <div>• <strong>Estimated Time:</strong> {response.data.data?.estimatedCompletion || '5 minutes'}</div>
+                  <div>• <strong>Estimated Time:</strong> {response.data.data?.estimatedCompletion || 'N/A'}</div>
                 </div>
               </div>
               <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
@@ -402,19 +404,61 @@ const DeliveryManagerPage = () => {
     }
   };
 
+  // Function to fetch session data
+  const handleFetchSessionData = async () => {
+    try {
+      setLoadingSessionData(true);
+      message.loading('📊 Fetching session data...', 0);
+      
+      // Use backend proxy to avoid CORS issues when calling external API
+      const response = await axiosInstance.get('/admin/proxy-session-data');
+      
+      message.destroy(); // Clear loading message
+      
+      if (response.data.success) {
+        message.success('✅ Session data fetched successfully!');
+        
+        // Store the session data
+        setSessionData(response.data);
+      } else {
+        message.error('❌ Failed to fetch session data');
+      }
+      
+    } catch (error) {
+      message.destroy(); // Clear loading message
+      console.error('Session data fetch error:', error);
+      
+      if (error.response) {
+        // Server responded with error status
+        message.error(`❌ Session data fetch failed: ${error.response.data?.message || error.response.statusText}`);
+      } else if (error.request) {
+        // Network error
+        message.error('❌ Network error: Could not connect to session data service');
+      } else {
+        // Other error
+        message.error(`❌ Session data fetch error: ${error.message}`);
+      }
+    } finally {
+      setLoadingSessionData(false);
+    }
+  };
+
   // New function to send WhatsApp messages via external API
   const handleSendWhatsApp = async () => {
     try {
       if (selectedExecutives.size === 0) {
-        message.warning('Please select at least one delivery executive first');
+        message.warning('Please enter a count for delivery executives first');
         return;
       }
 
-      message.loading('📱 Sending WhatsApp messages...', 0);
+      // Get the count from the selectedExecutives set (it now contains just the count number)
+      const executiveCount = Array.from(selectedExecutives)[0];
+
+      message.loading(`📱 Sending WhatsApp messages for ${executiveCount} executive(s)...`, 0);
       
       // Call the backend proxy endpoint for send_routes
       const response = await axiosInstance.post('/admin/proxy-send-routes', {
-        selectedExecutives: Array.from(selectedExecutives),
+        executiveCount: executiveCount,
         timestamp: new Date().toISOString(),
         source: 'delivery-manager-dashboard',
         userAgent: navigator.userAgent,
@@ -424,7 +468,7 @@ const DeliveryManagerPage = () => {
       message.destroy(); // Clear loading message
       
       if (response.data.success) {
-        message.success(`✅ WhatsApp messages sent successfully to ${selectedExecutives.size} executive(s)!`);
+        message.success(`✅ WhatsApp messages sent successfully for ${executiveCount} executive(s)!`);
         
         // Show success modal
         Modal.success({
@@ -437,7 +481,7 @@ const DeliveryManagerPage = () => {
                   <h5 className="font-medium text-green-800">Messages Sent Successfully</h5>
                 </div>
                 <p className="text-sm text-green-700">
-                  WhatsApp messages have been sent to the selected delivery executives via the external API.
+                  WhatsApp messages have been sent for {executiveCount} delivery executive(s) via the external API.
                 </p>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -445,7 +489,7 @@ const DeliveryManagerPage = () => {
                 <div className="text-sm text-blue-700 space-y-1">
                   <div>• <strong>Status:</strong> {response.data.data?.status || 'Completed'}</div>
                   <div>• <strong>Request ID:</strong> {response.data.data?.requestId || 'N/A'}</div>
-                  <div>• <strong>Executives:</strong> {selectedExecutives.size} selected</div>
+                  <div>• <strong>Executives:</strong> {executiveCount} count</div>
                   <div>• <strong>Execution Time:</strong> {response.data.data?.executionTime || 'N/A'}</div>
                 </div>
               </div>
@@ -454,7 +498,7 @@ const DeliveryManagerPage = () => {
                 <div className="text-sm text-yellow-700 space-y-1">
                   <div>• POST request sent to external API endpoint</div>
                   <div>• Authorization header included with Bearer token</div>
-                  <div>• Selected executives data transmitted</div>
+                  <div>• Executive count ({executiveCount}) transmitted</div>
                   <div>• External service will handle WhatsApp messaging</div>
                 </div>
               </div>
@@ -490,19 +534,35 @@ const DeliveryManagerPage = () => {
   const handleRunProgram = async () => {
     try {
       if (selectedExecutives.size === 0) {
-        message.warning('Please select at least one delivery executive first');
+        message.warning('Please enter a count for delivery executives first');
         return;
       }
 
-      message.loading('🚀 Starting program execution...', 0);
+      // Get the count from the selectedExecutives set (it now contains just the count number)
+      const executiveCount = Array.from(selectedExecutives)[0];
+
+      message.loading(`🚀 Sending executive count and starting program execution with ${executiveCount} executive(s)...`, 0);
       
       // Clear previous program execution results
       setProgramExecutionResults(null);
       
-      // Execute the program with selected executives (includes executive count)
+      // First, send the executive count to the API
+      try {
+        await axiosInstance.post('/admin/proxy-executive-count', {
+          executiveCount: executiveCount,
+          timestamp: new Date().toISOString(),
+          source: 'delivery-manager-dashboard',
+          userAgent: navigator.userAgent,
+          dashboardVersion: '1.0.0'
+        });
+      } catch (countError) {
+        console.warn('Warning: Could not send executive count to API:', countError);
+        // Continue with program execution even if count sending fails
+      }
+      
+      // Execute the program with executive count
       const response = await axiosInstance.post('/admin/proxy-run-script', {
-        executiveCount: selectedExecutives.size,
-        selectedExecutives: Array.from(selectedExecutives),
+        executiveCount: executiveCount,
         timestamp: new Date().toISOString(),
         source: 'delivery-manager-dashboard',
         userAgent: navigator.userAgent,
@@ -512,7 +572,7 @@ const DeliveryManagerPage = () => {
       message.destroy(); // Clear loading message
       
       if (response.data.success) {
-        message.success(`✅ Program executed successfully with ${selectedExecutives.size} executive(s)!`);
+        message.success(`✅ Program executed successfully with ${executiveCount} executive(s)!`);
         
         // Store the program execution results for display
         setProgramExecutionResults(response.data);
@@ -528,7 +588,7 @@ const DeliveryManagerPage = () => {
                   <h5 className="font-medium text-green-800">Program Executed Successfully</h5>
                 </div>
                 <p className="text-sm text-green-700">
-                  Your program has been executed with the selected delivery executives.
+                  Your program has been executed with {executiveCount} delivery executive(s).
                 </p>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -536,16 +596,16 @@ const DeliveryManagerPage = () => {
                 <div className="text-sm text-blue-700 space-y-1">
                   <div>• <strong>Status:</strong> {response.data.data?.status || 'Completed'}</div>
                   <div>• <strong>Request ID:</strong> {response.data.data?.requestId || 'N/A'}</div>
-                  <div>• <strong>Executives Used:</strong> {selectedExecutives.size}</div>
+                  <div>• <strong>Executives Used:</strong> {executiveCount}</div>
                   <div>• <strong>Execution Time:</strong> {response.data.data?.executionTime || 'N/A'}</div>
                 </div>
               </div>
               <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                 <h5 className="font-medium text-yellow-800 mb-2">What Happened?</h5>
                 <div className="text-sm text-yellow-700 space-y-1">
-                  <div>• Driver count ({selectedExecutives.size}) was sent to the external API</div>
+                  <div>• Executive count ({executiveCount}) was sent to the external API</div>
                   <div>• Program script was executed on external server</div>
-                  <div>• {selectedExecutives.size} delivery executive(s) were assigned</div>
+                  <div>• {executiveCount} delivery executive(s) were assigned</div>
                   <div>• Execution completed successfully</div>
                   <div>• Results are available in the external system</div>
                 </div>
@@ -693,43 +753,44 @@ const DeliveryManagerPage = () => {
     }
   };
 
-  const handleExecutiveSelection = (executiveId) => {
-    setSelectedExecutives(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(executiveId)) {
-        newSet.delete(executiveId);
-      } else {
-        newSet.add(executiveId);
-      }
-      return newSet;
-    });
-  };
+  // These functions are no longer needed with the count-based approach
+  // const handleExecutiveSelection = (executiveId) => {
+  //   setSelectedExecutives(prev => {
+  //     const newSet = new Set(prev);
+  //     if (newSet.has(executiveId)) {
+  //       newSet.delete(executiveId);
+  //     } else {
+  //       newSet.add(executiveId);
+  //     }
+  //     return newSet;
+  //   });
+  // };
 
-  const handleSelectAllExecutives = () => {
-    if (selectedExecutives.size === deliveryExecutives.length) {
-      // If all are selected, deselect all
-      setSelectedExecutives(new Set());
-    } else {
-      // Select all executives
-      setSelectedExecutives(new Set(deliveryExecutives.map(e => e.id)));
-    }
-  };
+  // const handleSelectAllExecutives = () => {
+  //   if (selectedExecutives.size === deliveryExecutives.length) {
+  //     // If all are selected, deselect all
+  //     setSelectedExecutives(new Set());
+  //     } else {
+  //       // Select all executives
+  //       setSelectedExecutives(new Set(deliveryExecutives.map(e => e.id)));
+  //     }
+  //   };
 
   const handleSendSelectedExecutives = async () => {
     if (selectedExecutives.size === 0) {
-      message.warning('Please select at least one delivery executive');
+      message.warning('Please enter a count for delivery executives');
       return;
     }
 
-    const selectedExecs = deliveryExecutives.filter(e => selectedExecutives.has(e.id));
-    const selectedNames = selectedExecs.map(e => e.name || e.email).join(', ');
+    // Get the count from the selectedExecutives set (it now contains just the count number)
+    const executiveCount = Array.from(selectedExecutives)[0];
     
     try {
-      message.loading('🚚 Sending executive count to EC2 instance...', 0);
+      message.loading(`🚚 Sending executive count (${executiveCount}) to EC2 instance...`, 0);
       
       // Send only the executive count to the EC2 instance
       const response = await axiosInstance.post('/admin/proxy-executive-count', {
-        executiveCount: selectedExecutives.size,
+        executiveCount: executiveCount,
         timestamp: new Date().toISOString(),
         source: 'delivery-manager-dashboard',
         userAgent: navigator.userAgent,
@@ -739,42 +800,42 @@ const DeliveryManagerPage = () => {
       message.destroy(); // Clear loading message
       
               if (response.data.success) {
-          message.success(`✅ Executive count (${selectedExecutives.size}) sent to EC2 instance!`);
-          
-          // Show simple success modal
-          Modal.success({
-            title: '🚚 Executive Count Sent',
-            content: (
-              <div className="space-y-3">
-                <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                  <p className="text-sm text-green-800">
-                    <strong>Executive count: {selectedExecutives.size}</strong> has been sent to the EC2 instance.
-                  </p>
-                </div>
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                  <h6 className="font-medium text-blue-800 mb-2">What was sent:</h6>
-                  <div className="text-xs text-blue-700 space-y-1">
-                    <div>• <strong>Executive Count:</strong> {selectedExecutives.size}</div>
-                    <div>• <strong>Data Type:</strong> Count only (no personal details)</div>
-                    <div>• <strong>Destination:</strong> EC2 instance at 13.203.227.119:5001</div>
-                  </div>
-                </div>
-                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                  <p className="text-sm text-yellow-800">
-                    The count has been sent to the route planning system. No response is expected.
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                  <h6 className="font-medium text-gray-800 mb-2">Request Details:</h6>
-                  <div className="text-xs text-gray-700 space-y-1">
-                    <div>• <strong>Status:</strong> {response.data.data?.status || 'Sent'}</div>
-                    <div>• <strong>Request ID:</strong> {response.data.data?.requestId || 'N/A'}</div>
-                    <div>• <strong>Count Sent:</strong> {selectedExecutives.size}</div>
-                    <div>• <strong>Timestamp:</strong> {new Date().toLocaleString()}</div>
-                  </div>
+                  message.success(`✅ Executive count (${executiveCount}) sent to EC2 instance!`);
+        
+        // Show simple success modal
+        Modal.success({
+          title: '🚚 Executive Count Sent',
+          content: (
+            <div className="space-y-3">
+              <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                <p className="text-sm text-green-800">
+                  <strong>Executive count: {executiveCount}</strong> has been sent to the EC2 instance.
+                </p>
+              </div>
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <h6 className="font-medium text-blue-800 mb-2">What was sent:</h6>
+                <div className="text-xs text-blue-700 space-y-1">
+                  <div>• <strong>Executive Count:</strong> {executiveCount}</div>
+                  <div>• <strong>Data Type:</strong> Count only (no personal details)</div>
+                  <div>• <strong>Destination:</strong> EC2 instance at 13.203.227.119:5001</div>
                 </div>
               </div>
-            ),
+              <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                <p className="text-sm text-yellow-800">
+                  The count has been sent to the route planning system. No response is expected.
+                </p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <h6 className="font-medium text-gray-800 mb-2">Request Details:</h6>
+                <div className="text-xs text-gray-700 space-y-1">
+                  <div>• <strong>Status:</strong> {response.data.data?.status || 'Sent'}</div>
+                  <div>• <strong>Request ID:</strong> {response.data.data?.requestId || 'N/A'}</div>
+                  <div>• <strong>Count Sent:</strong> {executiveCount}</div>
+                  <div>• <strong>Timestamp:</strong> {new Date().toLocaleString()}</div>
+                </div>
+              </div>
+            </div>
+          ),
             okText: 'Got it!',
             cancelText: 'Close',
             width: 500,
@@ -809,7 +870,7 @@ const DeliveryManagerPage = () => {
           <div className="space-y-3">
             <div className="bg-red-50 p-3 rounded-lg border border-red-200">
               <p className="text-sm text-red-800">
-                Failed to send {selectedExecutives.size} executive(s) to the route planning system.
+                Failed to send {executiveCount} executive(s) to the route planning system.
               </p>
             </div>
             <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
@@ -818,25 +879,17 @@ const DeliveryManagerPage = () => {
               </p>
             </div>
             <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-              <h6 className="font-medium text-blue-800 mb-2">Selected Executives (Local):</h6>
-              <div className="space-y-1 text-sm text-blue-700">
-                {selectedExecs.map(exec => (
-                  <div key={exec.id} className="flex items-center justify-between">
-                    <span>{exec.name || exec.email}</span>
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      exec.currentStatus === 'Available' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {exec.currentStatus}
-                    </span>
-                  </div>
-                ))}
+              <h6 className="font-medium text-blue-800 mb-2">Count Information:</h6>
+              <div className="text-sm text-blue-700">
+                <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                  <span>Executive Count:</span>
+                  <span className="font-bold">{executiveCount}</span>
+                </div>
               </div>
             </div>
             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
               <p className="text-sm text-gray-800">
-                The executives are still selected locally. You can try sending them again or contact support.
+                The count is still stored locally. You can try sending it again or contact support.
               </p>
             </div>
           </div>
@@ -2301,8 +2354,171 @@ const DeliveryManagerPage = () => {
                 
                 
 
-                {/* Route Planning Component */}
+                {/* Session Data Component */}
                 <div className="mt-8">
+                  <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
+                    <div className="flex items-center justify-between mb-6">
+                      <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                        <FiBarChart2 className="text-blue-400" />
+                        Session Data Monitor
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        {sessionData && (
+                          <div className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white text-xs rounded-full">
+                            <span>📊</span>
+                            <span>Data Available</span>
+                          </div>
+                        )}
+                        <div className="p-2 bg-blue-500/20 rounded-full">
+                          <FiActivity className="text-blue-400 text-lg" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                      <button
+                        onClick={handleFetchSessionData}
+                        disabled={loadingSessionData}
+                        className={`w-full sm:w-auto px-8 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3 ${
+                          loadingSessionData
+                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white'
+                        }`}
+                      >
+                        {loadingSessionData ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                            <span>Fetching...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FiBarChart2 className="text-lg" />
+                            <span>📊 Fetch Session Data</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Session Data Display */}
+                    {sessionData && (
+                      <div className="mt-6 bg-gray-800 rounded-lg border border-gray-600 p-4">
+                        <h5 className="text-md font-semibold text-white mb-4 flex items-center gap-2">
+                          📊 Session Data Results
+                        </h5>
+                        
+                        {/* API Response Summary */}
+                        <div className="mb-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
+                          <h6 className="font-medium text-white mb-2">API Response Summary:</h6>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                            <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
+                              <div className="text-lg mb-1">✅</div>
+                              <div className="font-medium text-white">Status</div>
+                              <div className="text-gray-300">
+                                {sessionData.data?.status || 'Completed'}
+                              </div>
+                            </div>
+                            <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
+                              <div className="text-lg mb-1">🆔</div>
+                              <div className="font-medium text-white">Request ID</div>
+                              <div className="text-gray-300">
+                                {sessionData.data?.requestId || 'N/A'}
+                              </div>
+                            </div>
+                            <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
+                              <div className="text-lg mb-1">⏰</div>
+                              <div className="font-medium text-white">Execution Time</div>
+                              <div className="text-gray-300">
+                                {sessionData.data?.executionTime ? new Date(sessionData.data.executionTime).toLocaleString() : 'N/A'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Session Data Table */}
+                        <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
+                          <h6 className="font-medium text-white mb-2">Session Data Table:</h6>
+                          <div className="bg-gray-800 rounded border border-gray-600 overflow-hidden">
+                            {sessionData.data?.externalResponse ? (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="bg-gray-700 text-white">
+                                      <th className="px-4 py-3 text-left border-b border-gray-600">Field</th>
+                                      <th className="px-4 py-3 text-left border-b border-gray-600">Value</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="text-gray-300">
+                                    {Object.entries(sessionData.data.externalResponse).map(([key, value], index) => (
+                                      <tr key={index} className={index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-750'}>
+                                        <td className="px-4 py-3 border-b border-gray-600 font-medium">
+                                          {typeof key === 'string' ? key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ') : key}
+                                        </td>
+                                        <td className="px-4 py-3 border-b border-gray-600">
+                                          {typeof value === 'object' && value !== null ? (
+                                            <div className="bg-gray-700 p-2 rounded border border-gray-600">
+                                              <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap">
+                                                {JSON.stringify(value, null, 2)}
+                                              </pre>
+                                            </div>
+                                          ) : typeof value === 'boolean' ? (
+                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                              value ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                                            }`}>
+                                              {value ? 'True' : 'False'}
+                                            </span>
+                                          ) : typeof value === 'number' ? (
+                                            <span className="text-blue-400 font-mono">{value}</span>
+                                          ) : (
+                                            <span className="text-gray-200">{String(value)}</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <div className="p-4 text-center text-gray-400">
+                                No external response data available
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Raw API Response (Collapsible) */}
+                        <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
+                          <details className="group">
+                            <summary className="font-medium text-white mb-2 cursor-pointer list-none flex items-center gap-2 hover:text-blue-400 transition-colors">
+                              <span>📄 Raw API Response</span>
+                              <span className="text-xs text-gray-400 group-open:hidden">(Click to expand)</span>
+                              <span className="text-xs text-gray-400 hidden group-open:inline">(Click to collapse)</span>
+                            </summary>
+                            <div className="bg-gray-800 rounded border border-gray-600 p-3 max-h-96 overflow-y-auto mt-2">
+                              <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap">
+                                {JSON.stringify(sessionData.data?.externalResponse, null, 2)}
+                              </pre>
+                            </div>
+                          </details>
+                        </div>
+
+                        {/* API Details */}
+                        <div className="mt-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
+                          <h6 className="font-medium text-white mb-2">API Details:</h6>
+                          <div className="text-xs text-gray-300 space-y-1">
+                            <div>• <strong>Endpoint:</strong> GET http://13.203.227.119:5001/session_data</div>
+                            <div>• <strong>Headers:</strong> Authorization: Bearer mysecretkey123</div>
+                            <div>• <strong>Method:</strong> GET</div>
+                            <div>• <strong>Body:</strong> None</div>
+                            <div>• <strong>Timestamp:</strong> {sessionData.timestamp ? new Date(sessionData.timestamp).toLocaleString() : 'N/A'}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Route Planning Component */}
+                <div className="mt-6">
                   <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
                     <div className="flex items-center justify-between mb-6">
                       <h4 className="text-lg font-medium text-white flex items-center gap-2">
@@ -2366,14 +2582,11 @@ const DeliveryManagerPage = () => {
                         <input
                           type="number"
                           min="1"
-                          max={deliveryExecutives.length}
-                          value={selectedExecutives.size || ''}
+                          value={selectedExecutives.size > 0 ? Array.from(selectedExecutives)[0] : ''}
                           onChange={(e) => {
                             const count = parseInt(e.target.value) || 0;
-                            if (count > 0 && count <= deliveryExecutives.length) {
-                              // Select first N executives
-                              const firstN = deliveryExecutives.slice(0, count).map(e => e.id);
-                              setSelectedExecutives(new Set(firstN));
+                            if (count > 0) {
+                              setSelectedExecutives(new Set([count])); // Store just the count number
                             } else {
                               setSelectedExecutives(new Set());
                             }
@@ -2381,7 +2594,6 @@ const DeliveryManagerPage = () => {
                           className="w-20 px-3 py-2 bg-gray-600 text-white border border-gray-500 rounded text-center"
                           placeholder="0"
                         />
-                        <span className="text-xs text-gray-400">of {deliveryExecutives.length} available</span>
                       </div>
                     </div>
                     
@@ -2389,14 +2601,15 @@ const DeliveryManagerPage = () => {
                       <div className="p-3 bg-green-600/20 border border-green-600/30 rounded">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-green-300">
-                            ✅ {selectedExecutives.size} executive(s) will be assigned for route planning
+                            ✅ {Array.from(selectedExecutives)[0]} executive(s) will be assigned for route planning
                           </span>
                         </div>
                       </div>
                     )}
+                    
                   </div>
 
-                  {/* Run Program with Selected Executives Button */}
+                  {/* Combined Run Program Button */}
                   {selectedExecutives.size > 0 && (
                     <div className="mt-6 bg-gray-700 p-4 rounded-lg border border-gray-600">
                       <h5 className="text-md font-medium text-white mb-4">⚡ Run Program with Selected Executives:</h5>
@@ -2406,8 +2619,12 @@ const DeliveryManagerPage = () => {
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
                       >
                         <span className="text-xl">🚀</span>
-                        <span>Run Program with {selectedExecutives.size} Executive(s)</span>
+                        <span>Run Program With {Array.from(selectedExecutives)[0]} Executives</span>
                       </button>
+                      
+                      <div className="mt-3 text-xs text-gray-400 text-center">
+                        This will send the executive count to the API and run the program with {Array.from(selectedExecutives)[0]} executive(s).
+                      </div>
                     </div>
                   )}
 
@@ -2421,7 +2638,7 @@ const DeliveryManagerPage = () => {
                         className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
                       >
                         <span className="text-xl">📱</span>
-                        <span>Send WhatsApp to {selectedExecutives.size} Executive(s)</span>
+                        <span>Send WhatsApp to {Array.from(selectedExecutives)[0]} Executive(s)</span>
                       </button>
                       
                       <div className="mt-3 text-xs text-gray-400 text-center">

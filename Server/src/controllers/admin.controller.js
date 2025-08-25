@@ -1105,19 +1105,12 @@ export const proxyRunScript = async (req, res, next) => {
     try {
 
         
-        const { executiveCount, selectedExecutives, timestamp, source, userAgent, dashboardVersion } = req.body;
+        const { executiveCount, timestamp, source, userAgent, dashboardVersion } = req.body;
         
         if (!executiveCount || executiveCount <= 0) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid executive count provided'
-            });
-        }
-        
-        if (!selectedExecutives || selectedExecutives.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No executives selected for program execution'
             });
         }
         
@@ -1165,12 +1158,12 @@ export const proxyRunScript = async (req, res, next) => {
 // Proxy send routes endpoint for WhatsApp messaging
 export const proxySendRoutes = async (req, res, next) => {
     try {
-        const { selectedExecutives, timestamp, source, userAgent, dashboardVersion } = req.body;
+        const { executiveCount, timestamp, source, userAgent, dashboardVersion } = req.body;
         
-        if (!selectedExecutives || selectedExecutives.length === 0) {
+        if (!executiveCount || executiveCount <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'No executives selected for WhatsApp messaging'
+                message: 'Invalid executive count provided for WhatsApp messaging'
             });
         }
         
@@ -1182,7 +1175,7 @@ export const proxySendRoutes = async (req, res, next) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                selectedExecutives: selectedExecutives,
+                executiveCount: executiveCount,
                 timestamp: timestamp || new Date().toISOString(),
                 source: source || 'delivery-manager-dashboard',
                 userAgent: userAgent || 'unknown',
@@ -1203,7 +1196,7 @@ export const proxySendRoutes = async (req, res, next) => {
             data: {
                 status: 'completed',
                 requestId: `wr-${Date.now()}`,
-                selectedExecutives: selectedExecutives,
+                executiveCount: executiveCount,
                 externalResponse: data,
                 executionTime: new Date().toISOString()
             }
@@ -1214,7 +1207,7 @@ export const proxySendRoutes = async (req, res, next) => {
         res.status(500).json({
             success: false,
             message: 'Failed to send WhatsApp messages',
-            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+            error: process.env.NODE_ENV === 'response.env' ? error.message : 'Internal server error'
         });
     }
 };
@@ -1265,6 +1258,46 @@ export const proxyFileContent = async (req, res, next) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch file content',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Proxy session data endpoint
+export const proxySessionData = async (req, res, next) => {
+    try {
+        // Call the external session_data API
+        const response = await fetch('http://13.203.227.119:5001/session_data', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer mysecretkey123',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        res.status(200).json({
+            success: true,
+            message: 'Session data fetched successfully',
+            timestamp: new Date().toISOString(),
+            data: {
+                status: 'completed',
+                requestId: `sd-${Date.now()}`,
+                externalResponse: data,
+                executionTime: new Date().toISOString()
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in session data proxy:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch session data',
             error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }
