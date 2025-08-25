@@ -297,14 +297,14 @@ const MenuSelector = ({
                           {/* Gradient overlay on hover */}
                           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                           
-                          {/* Stock Status Badge */}
-                          {stockStatus && (
-                            <div className={`absolute top-3 right-3 z-10 px-2 py-1 rounded-full text-xs font-semibold ${stockStatus.bgColor} ${stockStatus.color} ${stockStatus.borderColor} border`}>
-                              {stockStatus.text}
-                            </div>
-                          )}
-                          
                           <div className="relative p-4">
+                            {/* Stock Status Badge - Moved below the header */}
+                            {stockStatus && (
+                              <div className={`mb-3 px-2 py-1 rounded-full text-xs font-semibold ${stockStatus.bgColor} ${stockStatus.color} ${stockStatus.borderColor} border inline-block`}>
+                                {stockStatus.text}
+                              </div>
+                            )}
+                            
                             {/* 1. Menu Item Name and Price */}
                             <div className="mb-3">
                               <h4 className="font-bold text-base text-gray-800 break-words leading-tight">{menuItem.name}</h4>
@@ -436,14 +436,14 @@ const MenuSelector = ({
                       {/* Gradient overlay on hover */}
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       
-                      {/* Stock Status Badge */}
-                      {stockStatus && (
-                        <div className={`absolute top-4 right-4 z-10 px-3 py-1.5 rounded-full text-sm font-semibold ${stockStatus.bgColor} ${stockStatus.color} ${stockStatus.borderColor} border`}>
-                          {stockStatus.text}
-                        </div>
-                      )}
-                      
                       <div className="relative p-6">
+                        {/* Stock Status Badge - Moved below the header */}
+                        {stockStatus && (
+                          <div className={`mb-4 px-3 py-1.5 rounded-full text-sm font-semibold ${stockStatus.bgColor} ${stockStatus.color} ${stockStatus.borderColor} border inline-block`}>
+                            {stockStatus.text}
+                          </div>
+                        )}
+                        
                         {/* 1. Menu Item Name and Price */}
                         <div className="mb-4">
                           <h4 className="font-bold text-xl text-gray-800 break-words">{menuItem.name}</h4>
