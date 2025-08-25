@@ -279,6 +279,7 @@ CREATE TABLE `delivery_executive_profile` (
     `joined_date` DATE NULL,
     `rating` FLOAT NULL,
     `total_routes` INTEGER NULL,
+    `status` ENUM('ACTIVE', 'INACTIVE') NULL DEFAULT 'ACTIVE',
     `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
 
     PRIMARY KEY (`user_id`)
