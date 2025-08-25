@@ -706,9 +706,9 @@ export const getAdminUsers = async (req, res, next) => {
             })
             .map(user => ({
                 id: user.id,
-                name: user.auth.email.split('@')[0], // Use email prefix as name
-                email: user.auth.email,
-                phone: user.auth.phoneNumber || 'No Phone',
+                name: user.auth?.email?.split('@')[0] || 'Unknown User', // Use email prefix as name
+                email: user.auth?.email || 'No Email',
+                phone: user.auth?.phoneNumber || 'No Phone',
                 role: user.userRoles[0]?.name || 'USER',
                 company: user.company?.name || 'No Company',
                 companyId: user.companyId,

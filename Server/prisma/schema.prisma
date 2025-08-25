@@ -31,7 +31,7 @@ model User {
   updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at")
   createdBy       String?          @map("created_by") @db.VarChar(36)
   companyId       String?          @map("company_id") @db.VarChar(36)
-  auth            Auth             @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  auth            Auth?            @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   company         Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   userRoles       UserRole[]
   addresses       Address[]
