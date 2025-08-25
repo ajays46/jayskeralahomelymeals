@@ -20,9 +20,19 @@ const MenuSelector = ({
 }) => {
   // Helper function to check if menu item should show out of stock label
   const shouldShowOutOfStockLabel = (menuItem) => {
-    if (!menuItem.product || !productQuantities || productQuantitiesLoading) return false;
+    if (!productQuantities || productQuantitiesLoading) return false;
     
-    const productQuantity = productQuantities[menuItem.product.id];
+    // Check if menu item has a product with an ID
+    let productId = null;
+    if (menuItem.product && menuItem.product.id) {
+      productId = menuItem.product.id;
+    } else if (menuItem.productId) {
+      productId = menuItem.productId;
+    }
+    
+    if (!productId) return false;
+    
+    const productQuantity = productQuantities[productId];
     if (!productQuantity) return false;
     
     return productQuantity.quantity < 5;
@@ -30,9 +40,19 @@ const MenuSelector = ({
 
   // Helper function to check if menu item is completely out of stock (cannot be purchased)
   const isCompletelyOutOfStock = (menuItem) => {
-    if (!menuItem.product || !productQuantities || productQuantitiesLoading) return false;
+    if (!productQuantities || productQuantitiesLoading) return false;
     
-    const productQuantity = productQuantities[menuItem.product.id];
+    // Check if menu item has a product with an ID
+    let productId = null;
+    if (menuItem.product && menuItem.product.id) {
+      productId = menuItem.product.id;
+    } else if (menuItem.productId) {
+      productId = menuItem.productId;
+    }
+    
+    if (!productId) return false;
+    
+    const productQuantity = productQuantities[productId];
     if (!productQuantity) return false;
     
     return productQuantity.quantity === 0;
@@ -40,9 +60,19 @@ const MenuSelector = ({
 
   // Helper function to get stock status text
   const getStockStatus = (menuItem) => {
-    if (!menuItem.product || !productQuantities || productQuantitiesLoading) return null;
+    if (!productQuantities || productQuantitiesLoading) return null;
     
-    const productQuantity = productQuantities[menuItem.product.id];
+    // Check if menu item has a product with an ID
+    let productId = null;
+    if (menuItem.product && menuItem.product.id) {
+      productId = menuItem.product.id;
+    } else if (menuItem.productId) {
+      productId = menuItem.productId;
+    }
+    
+    if (!productId) return null;
+    
+    const productQuantity = productQuantities[productId];
     if (!productQuantity) return null;
     
     if (productQuantity.quantity === 0) {
@@ -75,6 +105,8 @@ const MenuSelector = ({
       };
     }
   };
+
+
 
   return (
     <div className="mb-6 sm:mb-8">
@@ -195,6 +227,8 @@ const MenuSelector = ({
           {/* Menu Cards */}
           {!menusLoading && !menusError && (
             <div>
+
+              
               {/* Dietary Preference Filter */}
               <div className="mb-6 sm:mb-8">
                 <h4 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3">
@@ -202,6 +236,17 @@ const MenuSelector = ({
                   Choose Your Preference
                 </h4>
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <button 
+                    onClick={() => onDietaryPreferenceChange('all')}
+                    className={`group relative overflow-hidden px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl border-2 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl ${
+                      dietaryPreference === 'all'
+                        ? 'border-blue-500 bg-gradient-to-r from-blue-500 to-indigo-600 text-white transform scale-105 shadow-blue-200'
+                        : 'border-blue-300 bg-white text-blue-700 hover:bg-blue-50 hover:border-blue-400 hover:scale-105'
+                    }`}
+                  >
+                    <span className="text-xl sm:text-2xl mr-2">🍽️</span>
+                    Show All
+                  </button>
                   <button 
                     onClick={() => onDietaryPreferenceChange('veg')}
                     className={`group relative overflow-hidden px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl border-2 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl ${
@@ -271,10 +316,15 @@ const MenuSelector = ({
                               <div className="flex items-center gap-2 mt-2">
                                 <span className={`inline-block w-2 h-2 rounded-full ${
                                   isWeekdayMenu(menuItem) ? 'bg-blue-500' : 
-                                  menuItem.dayOfWeek?.toLowerCase().includes('weekend') ? 'bg-purple-500' : 'bg-green-500'
+                                  (menuItem.name?.toLowerCase().includes('weekend') || menuItem.name?.toLowerCase().includes('saturday') || menuItem.name?.toLowerCase().includes('sunday')) ? 'bg-purple-500' : 'bg-green-500'
                                 }`}></span>
                                 <span className="text-xs font-medium text-gray-600 capitalize">
-                                  {menuItem.dayOfWeek || 'Menu'}
+                                  {(() => {
+                                    const itemName = menuItem.name?.toLowerCase() || '';
+                                    if (isWeekdayMenu(menuItem)) return 'Weekday';
+                                    if (itemName.includes('weekend') || itemName.includes('saturday') || itemName.includes('sunday')) return 'Weekend';
+                                    return 'Menu';
+                                  })()}
                                 </span>
                               </div>
                               {/* Show parent menu name */}
@@ -405,10 +455,15 @@ const MenuSelector = ({
                           <div className="flex items-center gap-2 mt-1">
                             <span className={`inline-block w-2 h-2 rounded-full ${
                               isWeekdayMenu(menuItem) ? 'bg-blue-500' : 
-                              menuItem.dayOfWeek?.toLowerCase().includes('weekend') ? 'bg-purple-500' : 'bg-green-500'
+                              (menuItem.name?.toLowerCase().includes('weekend') || menuItem.name?.toLowerCase().includes('saturday') || menuItem.name?.toLowerCase().includes('sunday')) ? 'bg-purple-500' : 'bg-green-500'
                             }`}></span>
                             <span className="text-sm font-medium text-gray-600 capitalize">
-                              {menuItem.dayOfWeek || 'Menu'}
+                              {(() => {
+                                const itemName = menuItem.name?.toLowerCase() || '';
+                                if (isWeekdayMenu(menuItem)) return 'Weekday';
+                                if (itemName.includes('weekend') || itemName.includes('saturday') || itemName.includes('sunday')) return 'Weekend';
+                                return 'Menu';
+                              })()}
                             </span>
                           </div>
                           {/* Show parent menu name */}
@@ -512,6 +567,21 @@ const MenuSelector = ({
                       : 'Please check back later for new menu options'
                     }
                   </p>
+                  {/* Debug: Show why no menus are available */}
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl max-w-md mx-auto">
+                    <p className="text-red-700 text-xs font-semibold">Debug: Why no menus?</p>
+                    <p className="text-red-600 text-xs">Total menus: {menus.length}</p>
+                    <p className="text-red-600 text-xs">Filtered menus: {getFilteredMenus().length}</p>
+                    <p className="text-red-600 text-xs">Dietary preference: {dietaryPreference}</p>
+                    {menus.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-red-600 text-xs font-semibold">Sample menu data:</p>
+                        <pre className="text-red-500 text-xs bg-red-100 p-2 rounded overflow-auto">
+                          {JSON.stringify(menus[0], null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

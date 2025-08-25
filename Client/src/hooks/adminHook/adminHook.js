@@ -28,7 +28,7 @@ export const useCompanyDelete = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id) => {
-            const response = await api.put('/admin/admin/company-delete', { id });
+            const response = await api.put('/admin/company-delete', { id });
             return response.data;
         },
         onSuccess: () => {

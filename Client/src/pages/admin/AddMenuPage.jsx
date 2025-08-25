@@ -519,9 +519,9 @@ const AddMenuPage = () => {
               </button>
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Add New Menu</h1>
             </div>
-            <p className="text-gray-400 text-sm sm:text-base">
+            {/* <p className="text-gray-400 text-sm sm:text-base">
               Create a new menu for your restaurant with date and company information
-            </p>
+            </p> */}
           </div>
 
           {/* Success/Error Messages */}

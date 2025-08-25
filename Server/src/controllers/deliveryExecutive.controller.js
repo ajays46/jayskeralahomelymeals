@@ -88,6 +88,15 @@ export const uploadImage = async (req, res) => {
       });
     }
 
+    // First check if delivery executive profile exists
+    const existingProfile = await getDeliveryExecutiveProfile(userId);
+    if (!existingProfile.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Delivery executive profile not found. Please contact admin to create your profile first.'
+      });
+    }
+
     const result = await uploadDeliveryExecutiveImage(userId, imageData);
 
     res.status(200).json(result);
@@ -118,6 +127,15 @@ export const updateLocation = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Location, latitude, and longitude are required'
+      });
+    }
+
+    // First check if delivery executive profile exists
+    const existingProfile = await getDeliveryExecutiveProfile(userId);
+    if (!existingProfile.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Delivery executive profile not found. Please contact admin to create your profile first.'
       });
     }
 
@@ -189,6 +207,15 @@ export const updateDeliveryDetails = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'User ID is required'
+      });
+    }
+
+    // First check if delivery executive profile exists
+    const existingProfile = await getDeliveryExecutiveProfile(userId);
+    if (!existingProfile.success) {
+      return res.status(404).json({
+        success: false,
+        message: 'Delivery executive profile not found. Please contact admin to create your profile first.'
       });
     }
 

@@ -95,50 +95,70 @@ const OrderSummary = ({
                 {selectedMenu.price > 0 && (
                   <p className="text-blue-600 text-xs sm:text-sm">₹{selectedMenu.price}</p>
                 )}
-                <p className="text-blue-600 text-xs sm:text-sm capitalize">{selectedMenu.dayOfWeek}</p>
+                <p className="text-blue-600 text-xs sm:text-sm capitalize">
+                  {(() => {
+                    const itemName = selectedMenu.name?.toLowerCase() || '';
+                    if (itemName.includes('weekday') || itemName.includes('week day') || itemName.includes('monday') || itemName.includes('tuesday') || itemName.includes('wednesday') || itemName.includes('thursday') || itemName.includes('friday')) return 'Weekday';
+                    if (itemName.includes('weekend') || itemName.includes('saturday') || itemName.includes('sunday')) return 'Weekend';
+                    return 'Menu';
+                  })()}
+                </p>
                 <p className="text-blue-500 text-xs sm:text-sm break-words">From: {selectedMenu.menuName}</p>
                 
                 {/* Stock Status Indicator */}
-                {selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && (
-                  <div className="mt-2 pt-2 border-t border-blue-200">
-                    {(() => {
-                      const productQuantity = productQuantities[selectedMenu.product.id];
-                      if (productQuantity.quantity === 0) {
-                        return (
-                          <div className="flex items-center gap-2 text-red-600 text-xs">
-                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                            <span className="font-semibold">Cannot Purchase</span>
-                            <span className="text-red-500">(Available: {productQuantity.quantity})</span>
-                          </div>
-                        );
-                      } else if (productQuantity.quantity < 5) {
-                        return (
-                          <div className="flex items-center gap-2 text-red-600 text-xs">
-                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                            <span className="font-semibold">Out of Stock Warning</span>
-                            <span className="text-red-500">(Available: {productQuantity.quantity})</span>
-                          </div>
-                        );
-                      } else if (productQuantity.quantity < 10) {
-                        return (
-                          <div className="flex items-center gap-2 text-orange-600 text-xs">
-                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                            <span className="font-semibold">Low Stock</span>
-                            <span className="text-orange-500">(Available: {productQuantity.quantity})</span>
-                          </div>
-                        );
-                      } else {
-                        return (
-                          <div className="flex items-center gap-2 text-green-600 text-xs">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="font-semibold">In Stock</span>
-                            <span className="text-green-500">(Available: {productQuantity.quantity})</span>
-                          </div>
-                        );
-                      }
-                    })()}
-                  </div>
-                )}
+                {(() => {
+                  // Check if menu item has a product with an ID
+                  let productId = null;
+                  if (selectedMenu.product && selectedMenu.product.id) {
+                    productId = selectedMenu.product.id;
+                  } else if (selectedMenu.productId) {
+                    productId = selectedMenu.productId;
+                  }
+                  
+                  if (!productId || !productQuantities || !productQuantities[productId]) return null;
+                  
+                  const productQuantity = productQuantities[productId];
+                  
+                  return (
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      {(() => {
+                        if (productQuantity.quantity === 0) {
+                          return (
+                            <div className="flex items-center gap-2 text-red-600 text-xs">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span className="font-semibold">Cannot Purchase</span>
+                              <span className="text-red-500">(Available: {productQuantity.quantity})</span>
+                            </div>
+                          );
+                        } else if (productQuantity.quantity < 5) {
+                          return (
+                            <div className="flex items-center gap-2 text-red-600 text-xs">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span className="font-semibold">Out of Stock Warning</span>
+                              <span className="text-red-500">(Available: {productQuantity.quantity})</span>
+                            </div>
+                          );
+                        } else if (productQuantity.quantity < 10) {
+                          return (
+                            <div className="flex items-center gap-2 text-orange-600 text-xs">
+                              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                              <span className="font-semibold">Low Stock</span>
+                              <span className="text-red-500">(Available: {productQuantity.quantity})</span>
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="flex items-center gap-2 text-green-600 text-xs">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="font-semibold">In Stock</span>
+                              <span className="text-green-500">(Available: {productQuantity.quantity})</span>
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

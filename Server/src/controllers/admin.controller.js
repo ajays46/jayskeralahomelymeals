@@ -822,10 +822,7 @@ export const getSellersWithOrders = async (req, res, next) => {
                                     take: 10 // Limit to recent 10 orders
                                 });
                                 
-                                console.log(`Found ${orders.length} orders for seller ${seller.id}:`, orders.map(o => ({
-                                    orderId: o.id,
-                                    deliveryItemsCount: o.deliveryItems?.length || 0
-                                })));
+
                                 
                                 // Calculate total revenue
                                 totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
@@ -866,11 +863,7 @@ export const getSellersWithOrders = async (req, res, next) => {
                         
                         // Transform orders to match the expected format
                         const transformedOrders = orders.map(order => {
-                            console.log(`Processing order ${order.id}:`, {
-                                orderId: order.id,
-                                deliveryItemsCount: order.deliveryItems?.length || 0,
-                                deliveryItems: order.deliveryItems
-                            });
+
                             
                             return {
                                 id: order.id,
@@ -880,12 +873,7 @@ export const getSellersWithOrders = async (req, res, next) => {
                                 status: order.status || 'PENDING',
                                 createdAt: order.createdAt,
                                 deliveryItems: order.deliveryItems?.map(item => {
-                                    console.log(`Processing delivery item ${item.id}:`, {
-                                        itemId: item.id,
-                                        menuItem: item.menuItem,
-                                        quantity: item.quantity,
-                                        status: item.status
-                                    });
+
                                     
                                     return {
                                         id: item.id,
@@ -1014,7 +1002,7 @@ export const getDeliveryExecutives = async (req, res, next) => {
 // Proxy route planning endpoint
 export const proxyRoutePlanning = async (req, res, next) => {
     try {
-        console.log('Route planning triggered:', req.body);
+
         
         // Call the external route planning API
         const response = await fetch('http://13.203.227.119:5001/trigger', {
@@ -1062,7 +1050,7 @@ export const proxyRoutePlanning = async (req, res, next) => {
 // Proxy executive count endpoint
 export const proxyExecutiveCount = async (req, res, next) => {
     try {
-        console.log('Executive count request received:', req.body);
+
         
         const { executiveCount, timestamp, source, userAgent, dashboardVersion } = req.body;
         
@@ -1115,7 +1103,7 @@ export const proxyExecutiveCount = async (req, res, next) => {
 // Proxy run script endpoint for program execution
 export const proxyRunScript = async (req, res, next) => {
     try {
-        console.log('Program execution request received:', req.body);
+
         
         const { executiveCount, selectedExecutives, timestamp, source, userAgent, dashboardVersion } = req.body;
         
@@ -1186,7 +1174,7 @@ export const proxyFileContent = async (req, res, next) => {
             });
         }
         
-        console.log(`Fetching file content for: ${filename} from: ${url}`);
+
         
         // Fetch the file content from the external URL
         const response = await fetch(url, {
@@ -1204,7 +1192,7 @@ export const proxyFileContent = async (req, res, next) => {
         // Get the content as text
         const content = await response.text();
         
-        console.log(`Successfully fetched ${content.length} characters for ${filename}`);
+
         
         res.status(200).json({
             success: true,

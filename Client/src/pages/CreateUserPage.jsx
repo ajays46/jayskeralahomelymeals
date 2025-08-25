@@ -176,7 +176,7 @@ const CreateUserPage = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-3xl font-bold text-white mb-2"
           >
-            Add New Contact
+           Create New User
           </motion.h1>
           
           <motion.p

@@ -1183,7 +1183,6 @@ export const getMenusForBookingService = async () => {
         menuId: menu.id, // Keep reference to parent menu
         name: item.name, // Menu item name
         menuName: menu.name, // Parent menu name for reference
-        dayOfWeek: menu.dayOfWeek,
         status: menu.status,
         company: menu.company,
         categories: categories,

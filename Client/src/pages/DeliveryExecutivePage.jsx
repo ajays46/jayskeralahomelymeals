@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiUser, FiClock, FiCheckCircle, FiMapPin } from 'react-icons/fi';
+import { FiArrowLeft, FiUser, FiMapPin } from 'react-icons/fi';
 import { MdLocalShipping, MdPerson, MdAttachMoney, MdPhone } from 'react-icons/md';
 import { message } from 'antd';
 import useAuthStore from '../stores/Zustand.store';
@@ -192,37 +192,29 @@ const DeliveryExecutivePage = () => {
     setPhotoError(null);
 
     try {
-      // Convert photo to base64 for API
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const imageData = e.target.result; // This is the base64 string
-        
-        try {
-          // Send to backend API using axios
-          const response = await axiosInstance.post(`/delivery-executives/${user?.id}/image`, {
-            imageData: imageData
-          });
-
-          if (response.data.success) {
-            message.success(response.data.message || 'Photo uploaded successfully!');
-            
-            // Clear the form after successful upload
-            setSelectedPhoto(null);
-            setPhotoPreview(null);
-          } else {
-            throw new Error(response.data.message || 'Failed to upload photo');
-          }
-        } catch (apiError) {
-          setPhotoError(apiError.response?.data?.message || apiError.message || 'Failed to upload photo. Please try again.');
-        } finally {
-          setPhotoLoading(false);
-        }
-      };
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('image', selectedPhoto);
       
-      reader.readAsDataURL(selectedPhoto);
+      // Send to backend API using axios
+      const response = await axiosInstance.post(`/delivery-details/${user?.id}/delivery-details`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-    } catch (error) {
-      setPhotoError('Failed to process photo. Please try again.');
+      if (response.data.success) {
+        message.success(response.data.message || 'Photo uploaded successfully!');
+        
+        // Clear the form after successful upload
+        setSelectedPhoto(null);
+        setPhotoPreview(null);
+      } else {
+        throw new Error(response.data.message || 'Failed to upload photo');
+      }
+    } catch (apiError) {
+      setPhotoError(apiError.response?.data?.message || apiError.message || 'Failed to upload photo. Please try again.');
+    } finally {
       setPhotoLoading(false);
     }
   };
@@ -263,38 +255,30 @@ const DeliveryExecutivePage = () => {
     setPhotoError(null);
 
     try {
-      // Convert photo to base64 for API
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const imageData = e.target.result; // This is the base64 string
-        
-        try {
-          // Send to backend API using axios
-          const response = await axiosInstance.put(`/delivery-executives/${user?.id}/delivery-details`, {
-            imageData: imageData,
-            location: currentLocation,
-            latitude: currentLocation.latitude,
-            longitude: currentLocation.longitude
-          });
-
-          if (response.data.success) {
-            message.success(response.data.message || 'Delivery details sent successfully!');
-            clearLocation();
-            clearPhoto();
-          } else {
-            throw new Error(response.data.message || 'Failed to send delivery details');
-          }
-        } catch (apiError) {
-          setPhotoError(apiError.response?.data?.message || apiError.message || 'Failed to send delivery details. Please try again.');
-        } finally {
-          setPhotoLoading(false);
-        }
-      };
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('image', selectedPhoto);
+      formData.append('location', currentLocation.address || JSON.stringify(currentLocation));
+      formData.append('latitude', currentLocation.latitude?.toString() || '');
+      formData.append('longitude', currentLocation.longitude?.toString() || '');
       
-      reader.readAsDataURL(selectedPhoto);
+      // Send to backend API using axios
+      const response = await axiosInstance.post(`/delivery-details/${user?.id}/delivery-details`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-    } catch (error) {
-      setPhotoError('Failed to process photo. Please try again.');
+      if (response.data.success) {
+        message.success(response.data.message || 'Delivery details sent successfully!');
+        clearLocation();
+        clearPhoto();
+      } else {
+        throw new Error(response.data.message || 'Failed to send delivery details');
+      }
+    } catch (apiError) {
+      setPhotoError(apiError.response?.data?.message || apiError.message || 'Failed to send delivery details. Please try again.');
+    } finally {
       setPhotoLoading(false);
     }
   };
@@ -329,53 +313,53 @@ const DeliveryExecutivePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-900 text-white overflow-x-hidden">
       {/* Navbar */}
-      <div className="fixed top-0 left-0 w-full h-20 lg:h-24 bg-gray-800 border-b border-gray-700 z-40 flex items-center px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
+      <div className="fixed top-0 left-0 w-full h-16 sm:h-20 lg:h-24 bg-gray-800 border-b border-gray-700 z-40 flex items-center px-3 sm:px-4 lg:px-8">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => navigate('/jkhm')}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-colors p-1"
             aria-label="Go back to home"
           >
-            <FiArrowLeft size={20} />
+            <FiArrowLeft size={18} className="sm:w-5 sm:h-5" />
           </button>
-          <div className="flex items-center gap-3">
-            <MdLocalShipping className="text-2xl text-blue-500" />
-            <h1 className="text-xl font-bold">Delivery Executive Profile</h1>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <MdLocalShipping className="text-xl sm:text-2xl text-blue-500" />
+            <h1 className="text-base sm:text-xl font-bold text-white">Delivery Executive</h1>
           </div>
         </div>
-        <div className="text-sm text-gray-400 ml-auto">
+        <div className="text-xs sm:text-sm text-gray-400 ml-auto hidden sm:block">
           Welcome, {user?.name || 'Delivery Executive'}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="pt-24">
+      <div className="pt-16 sm:pt-20 lg:pt-24">
         {/* Mobile Sidebar Toggle */}
-        <div className="lg:hidden fixed top-28 left-4 z-50">
+        <div className="lg:hidden fixed top-20 sm:top-24 left-3 z-50">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="bg-gray-800 text-white p-2 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors"
+            className="bg-gray-800 text-white p-2 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors shadow-lg"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         </div>
 
         {/* Sidebar */}
-        <div className={`fixed left-0 top-24 w-64 h-screen bg-gray-800 border-r border-gray-700 z-30 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        <div className={`fixed left-0 top-16 sm:top-20 lg:top-24 w-64 h-screen bg-gray-800 border-r border-gray-700 z-30 transform transition-transform duration-300 ease-in-out lg:translate-x-0 shadow-xl lg:shadow-none ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-white px-2">Navigation</h2>
+          <div className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-base sm:text-lg font-semibold text-white px-2">Navigation</h2>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="lg:hidden text-gray-400 hover:text-white p-1"
+                className="lg:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -386,13 +370,13 @@ const DeliveryExecutivePage = () => {
                   setActiveTab('profile');
                   setSidebarOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-left transition-colors text-sm sm:text-base ${
                   activeTab === 'profile'
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`}
               >
-                <MdPerson className="text-lg" />
+                <MdPerson className="text-base sm:text-lg" />
                 <span>Profile</span>
               </button>
 
@@ -401,13 +385,13 @@ const DeliveryExecutivePage = () => {
                   setActiveTab('delivery');
                   setSidebarOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-left transition-colors text-sm sm:text-base ${
                   activeTab === 'delivery'
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`}
               >
-                <MdLocalShipping className="text-lg" />
+                <MdLocalShipping className="text-base sm:text-lg" />
                 <span>Delivery</span>
               </button>
             </nav>
@@ -415,7 +399,7 @@ const DeliveryExecutivePage = () => {
         </div>
 
         {/* Dashboard Content */}
-        <div className="lg:ml-64 px-4 lg:px-6 py-6">
+        <div className="lg:ml-64 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
           {/* Mobile Backdrop */}
           {sidebarOpen && (
             <div 
@@ -426,54 +410,54 @@ const DeliveryExecutivePage = () => {
 
           {/* Profile Content */}
           {activeTab === 'profile' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Profile Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg border border-gray-700 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="h-20 w-20 rounded-full bg-white/20 flex items-center justify-center">
-                    <MdLocalShipping className="text-4xl text-white" />
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg border border-gray-700 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-4 text-center sm:text-left">
+                  <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-white/20 flex items-center justify-center">
+                    <MdLocalShipping className="text-3xl sm:text-4xl text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">{user?.name || 'Delivery Executive'}</h2>
-                    <p className="text-blue-100">Professional Delivery Executive</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    <h2 className="text-xl sm:text-2xl font-bold text-white">{user?.name || 'Delivery Executive'}</h2>
+                    <p className="text-blue-100 text-sm sm:text-base">Professional Delivery Executive</p>
+                    <div className="flex flex-col sm:flex-row items-center gap-2 mt-2">
+                      <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-green-100 text-green-800">
                         ✅ Active
                       </span>
-                      <span className="text-blue-100 text-sm">Member since {user?.createdAt ? formatDate(user.createdAt) : 'Recently'}</span>
+                      <span className="text-blue-100 text-xs sm:text-sm">Member since {user?.createdAt ? formatDate(user.createdAt) : 'Recently'}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Profile Information Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* Personal Information */}
-                <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
                     <MdPerson className="text-blue-400" />
                     Personal Information
                   </h3>
                   
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-400">Full Name</label>
-                      <p className="text-white text-lg font-medium">{user?.name || 'Not provided'}</p>
+                      <label className="text-xs sm:text-sm font-medium text-gray-400">Full Name</label>
+                      <p className="text-white text-base sm:text-lg font-medium">{user?.name || 'Not provided'}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-400">Email Address</label>
-                      <p className="text-white">{user?.email || 'Not provided'}</p>
+                      <label className="text-xs sm:text-sm font-medium text-gray-400">Email Address</label>
+                      <p className="text-white text-sm sm:text-base">{user?.email || 'Not provided'}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-400">Phone Number</label>
-                      <p className="text-white flex items-center gap-2">
+                      <label className="text-xs sm:text-sm font-medium text-gray-400">Phone Number</label>
+                      <p className="text-white flex items-center gap-2 text-sm sm:text-base">
                         <MdPhone className="text-green-400" />
                         {user?.phone || 'Not provided'}
                       </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-400">User ID</label>
-                      <p className="text-gray-300 font-mono text-sm">#{user?.id?.slice(-8) || 'N/A'}</p>
+                      <label className="text-xs sm:text-sm font-medium text-gray-400">User ID</label>
+                      <p className="text-gray-300 font-mono text-xs sm:text-sm">#{user?.id?.slice(-8) || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -537,148 +521,45 @@ const DeliveryExecutivePage = () => {
                 </div>
               </div>
 
-              {/* Additional Profile Sections */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Work Schedule & Availability */}
-                <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <FiClock className="text-orange-400" />
-                    Work Schedule
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-400">Current Status</label>
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                        Available for Deliveries
-                      </span>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-400">Working Hours</label>
-                      <p className="text-white">Flexible (Based on orders)</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-400">Preferred Areas</label>
-                      <p className="text-white">City-wide delivery coverage</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-400">Vehicle Type</label>
-                      <p className="text-white">Two-wheeler / Bicycle</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Skills & Specializations */}
-                <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <FiCheckCircle className="text-purple-400" />
-                    Skills & Specializations
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-400">Delivery Expertise</label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Food Delivery
-                        </span>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Fast Delivery
-                        </span>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          Customer Service
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-400">Languages</label>
-                      <p className="text-white">English, Malayalam, Hindi</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-400">Certifications</label>
-                      <p className="text-white">Food Safety Certified</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Quick Actions */}
-              <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <button 
-                    onClick={() => navigate('/jkhm/profile')}
-                    className="flex items-center gap-3 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                  >
-                    <MdPerson className="text-xl" />
-                    <div className="text-left">
-                      <p className="font-medium">Edit Profile</p>
-                      <p className="text-sm text-blue-100">Update personal info</p>
-                    </div>
-                  </button>
-                  
-                  <button 
-                    onClick={() => navigate('/jkhm')}
-                    className="flex items-center gap-3 p-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                  >
-                    <MdLocalShipping className="text-xl" />
-                    <div className="text-left">
-                      <p className="font-medium">Go to Home</p>
-                      <p className="text-sm text-green-100">Return to main page</p>
-                    </div>
-                  </button>
-                  
-                  <button 
-                    onClick={() => window.location.reload()}
-                    className="flex items-center gap-3 p-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-                  >
-                    <FiCheckCircle className="text-xl" />
-                    <div className="text-left">
-                      <p className="font-medium">Refresh Page</p>
-                      <p className="text-sm text-purple-100">Reload profile data</p>
-                    </div>
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 
           {/* Delivery Page Content - Combined Location & Photo */}
           {activeTab === 'delivery' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Page Header */}
-              <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-lg border border-gray-700 p-6">
-                <div className="flex items-center gap-4">
-                  <MdLocalShipping className="text-4xl text-white" />
+              <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-lg border border-gray-700 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center sm:text-left">
+                  <MdLocalShipping className="text-3xl sm:text-4xl text-white" />
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Delivery Management</h2>
-                    <p className="text-green-100">Location tracking and photo documentation</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white">Delivery Management</h2>
+                    <p className="text-green-100 text-sm sm:text-base">Location tracking and photo documentation</p>
                   </div>
                 </div>
               </div>
 
               {/* Two Column Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Left Column - Location Search */}
-                <div className="space-y-6">
-                  <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                    <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
                       <FiMapPin className="text-blue-400" />
                       📍 Location Management
                     </h3>
                     
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       {/* Location Search */}
-                      <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
-                        <h4 className="text-md font-medium text-white mb-4">🔍 Find Your Current Location</h4>
+                      <div className="bg-gray-700 rounded-lg p-4 sm:p-6 border border-gray-600">
+                        <h4 className="text-sm sm:text-base font-medium text-white mb-3 sm:mb-4">🔍 Find Your Current Location</h4>
                         
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-4">
+                        <div className="space-y-3 sm:space-y-4">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                             <button 
                               onClick={getCurrentLocation}
                               disabled={locationLoading}
-                              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white rounded-lg transition-colors flex items-center gap-2"
+                              className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
                             >
                               {locationLoading ? (
                                 <>
@@ -687,33 +568,33 @@ const DeliveryExecutivePage = () => {
                                 </>
                               ) : (
                                 <>
-                                  <FiMapPin className="text-lg" />
+                                  <FiMapPin className="text-base sm:text-lg" />
                                   Get Current Location
                                 </>
                               )}
                             </button>
-                            <span className="text-gray-400 text-sm">or</span>
+                            <span className="text-gray-400 text-xs sm:text-sm text-center sm:hidden">or</span>
                             <input
                               type="text"
                               value={manualAddress}
                               onChange={(e) => setManualAddress(e.target.value)}
                               placeholder="Enter address manually..."
-                              className="flex-1 px-4 py-3 bg-gray-600 text-white border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-gray-600 text-white border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
                             />
                           </div>
                           
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <button 
                               onClick={handleManualAddressSubmit}
                               disabled={!manualAddress.trim()}
-                              className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white rounded-lg transition-colors"
+                              className="px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white rounded-lg transition-colors text-sm sm:text-base"
                             >
                               Search Location
                             </button>
                             {currentLocation && (
                               <button 
                                 onClick={clearLocation}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                                className="px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm sm:text-base"
                               >
                                 Clear
                               </button>
@@ -785,37 +666,37 @@ const DeliveryExecutivePage = () => {
                 </div>
 
                 {/* Right Column - Photo Upload */}
-                <div className="space-y-6">
-                  <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                    <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                      <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       📸 Photo Documentation
                     </h3>
                     
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       {/* Image Upload Area */}
-                      <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
-                        <h4 className="text-md font-medium text-white mb-4">📤 Upload Delivery Photo</h4>
+                      <div className="bg-gray-700 rounded-lg p-4 sm:p-6 border border-gray-600">
+                        <h4 className="text-sm sm:text-base font-medium text-white mb-3 sm:mb-4">📤 Upload Delivery Photo</h4>
                         
                         <div 
-                          className="border-2 border-dashed border-gray-500 rounded-lg p-8 text-center hover:border-purple-400 transition-colors"
+                          className="border-2 border-dashed border-gray-500 rounded-lg p-4 sm:p-8 text-center hover:border-purple-400 transition-colors"
                           onDragOver={handleDragOver}
                           onDrop={handleDrop}
                         >
                           {!selectedPhoto ? (
                             <>
-                              <div className="text-gray-400 mb-4">
-                                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className="text-gray-400 mb-3 sm:mb-4">
+                                <svg className="w-12 h-12 sm:w-16 sm:h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                 </svg>
                               </div>
-                              <p className="text-gray-400 mb-2">Drag and drop your photo here</p>
-                              <p className="text-gray-500 text-sm mb-4">or click to browse files</p>
+                              <p className="text-gray-400 mb-2 text-sm sm:text-base">Drag and drop your photo here</p>
+                              <p className="text-gray-500 text-xs sm:text-sm mb-3 sm:mb-4">or click to browse files</p>
                               
                               <div className="space-y-3">
-                                <label className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors cursor-pointer inline-block">
+                                <label className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors cursor-pointer inline-block text-sm sm:text-base">
                                   <input
                                     id="photo-upload"
                                     type="file"
@@ -878,31 +759,31 @@ const DeliveryExecutivePage = () => {
                         <h4 className="text-md font-medium text-white mb-4">🖼️ Photo Preview</h4>
                         
                         {photoPreview ? (
-                          <div className="space-y-4">
-                            <div className="bg-gray-600 rounded-lg p-4 border border-gray-500">
+                          <div className="space-y-3 sm:space-y-4">
+                            <div className="bg-gray-600 rounded-lg p-3 sm:p-4 border border-gray-500">
                               <img 
                                 src={photoPreview} 
                                 alt="Delivery Photo Preview" 
-                                className="w-full h-64 object-cover rounded-lg"
+                                className="w-full h-48 sm:h-64 object-cover rounded-lg"
                               />
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                               <div>
-                                <label className="text-sm font-medium text-gray-400">File Name</label>
-                                <p className="text-white mt-1 truncate">{selectedPhoto?.name}</p>
+                                <label className="text-xs sm:text-sm font-medium text-gray-400">File Name</label>
+                                <p className="text-white mt-1 truncate text-xs sm:text-sm">{selectedPhoto?.name}</p>
                               </div>
                               <div>
-                                <label className="text-sm font-medium text-gray-400">File Size</label>
-                                <p className="text-white mt-1">{selectedPhoto ? (selectedPhoto.size / 1024 / 1024).toFixed(2) + ' MB' : 'N/A'}</p>
+                                <label className="text-xs sm:text-sm font-medium text-gray-400">File Size</label>
+                                <p className="text-white mt-1 text-xs sm:text-sm">{selectedPhoto ? (selectedPhoto.size / 1024 / 1024).toFixed(2) + ' MB' : 'N/A'}</p>
                               </div>
                               <div>
-                                <label className="text-sm font-medium text-gray-400">File Type</label>
-                                <p className="text-white mt-1">{selectedPhoto?.type || 'N/A'}</p>
+                                <label className="text-xs sm:text-sm font-medium text-gray-400">File Type</label>
+                                <p className="text-white mt-1 text-xs sm:text-sm">{selectedPhoto?.type || 'N/A'}</p>
                               </div>
                               <div>
-                                <label className="text-sm font-medium text-gray-400">Dimensions</label>
-                                <p className="text-white mt-1">Auto-detected</p>
+                                <label className="text-xs sm:text-sm font-medium text-gray-400">Dimensions</label>
+                                <p className="text-white mt-1 text-xs sm:text-sm">Auto-detected</p>
                               </div>
                             </div>
                           </div>
@@ -924,35 +805,35 @@ const DeliveryExecutivePage = () => {
               </div>
 
               {/* Send Button Section */}
-              <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
                   <MdLocalShipping className="text-green-400" />
                   🚀 Send Delivery Details
                 </h3>
                 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Status Summary */}
-                  <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-                    <h4 className="text-md font-medium text-white mb-3">📋 Delivery Summary</h4>
+                  <div className="bg-gray-700 rounded-lg p-3 sm:p-4 border border-gray-600">
+                    <h4 className="text-sm sm:text-base font-medium text-white mb-3">📋 Delivery Summary</h4>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       {/* Location Status */}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <div className={`w-3 h-3 rounded-full ${currentLocation ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         <div>
-                          <p className="text-white font-medium">Location</p>
-                          <p className="text-gray-400 text-sm">
+                          <p className="text-white font-medium text-sm sm:text-base">Location</p>
+                          <p className="text-gray-400 text-xs sm:text-sm">
                             {currentLocation ? 'Captured' : 'Not captured'}
                           </p>
                         </div>
                       </div>
                       
                       {/* Photo Status */}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <div className={`w-3 h-3 rounded-full ${selectedPhoto ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         <div>
-                          <p className="text-white font-medium">Photo</p>
-                          <p className="text-gray-400 text-sm">
+                          <p className="text-white font-medium text-sm sm:text-base">Photo</p>
+                          <p className="text-gray-400 text-xs sm:text-sm">
                             {selectedPhoto ? 'Selected' : 'Not selected'}
                           </p>
                         </div>
@@ -965,7 +846,7 @@ const DeliveryExecutivePage = () => {
                     <button
                       onClick={handleSendDeliveryDetails}
                       disabled={!currentLocation || !selectedPhoto || photoLoading}
-                      className={`px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 flex items-center justify-center gap-3 mx-auto ${
+                      className={`w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 sm:gap-3 mx-auto ${
                         currentLocation && selectedPhoto && !photoLoading
                           ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
                           : 'bg-gray-500 text-gray-300 cursor-not-allowed'
@@ -973,29 +854,29 @@ const DeliveryExecutivePage = () => {
                     >
                       {photoLoading ? (
                         <>
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                          <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-white"></div>
                           Sending...
                         </>
                       ) : (
                         <>
-                          <MdLocalShipping className="text-2xl" />
+                          <MdLocalShipping className="text-xl sm:text-2xl" />
                           📤 Send Delivery Details
                         </>
                       )}
                     </button>
                     
                     {!currentLocation && !selectedPhoto && (
-                      <p className="text-gray-400 text-sm mt-3">
+                      <p className="text-gray-400 text-xs sm:text-sm mt-3">
                         Please capture location and select photo to enable sending
                       </p>
                     )}
                     {!currentLocation && selectedPhoto && (
-                      <p className="text-gray-400 text-sm mt-3">
+                      <p className="text-gray-400 text-xs sm:text-sm mt-3">
                         Please capture your current location first
                       </p>
                     )}
                     {currentLocation && !selectedPhoto && (
-                      <p className="text-gray-400 text-sm mt-3">
+                      <p className="text-gray-400 text-xs sm:text-sm mt-3">
                         Please select a delivery photo first
                       </p>
                     )}

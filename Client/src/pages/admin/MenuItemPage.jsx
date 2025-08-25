@@ -487,9 +487,9 @@ const MenuItemPage = () => {
               </button>
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Menu Item Management</h1>
             </div>
-            <p className="text-gray-400 text-sm sm:text-base">
+            {/* <p className="text-gray-400 text-sm sm:text-base">
               Add and manage menu items for your restaurant
-            </p>
+            </p> */}
           </div>
 
           <div className="flex justify-center">

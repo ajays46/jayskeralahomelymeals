@@ -11,6 +11,7 @@ import paymentRoutes from './routes/payment.routes.js';
 import deliveryItemRoutes from './routes/deliveryItem.routes.js';
 import deliveryManagerRoutes from './routes/deliveryManager.routes.js';
 import deliveryExecutiveRoutes from './routes/deliveryExecutive.routes.js';
+import deliveryDetailsRoutes from './routes/deliveryDetails.routes.js';
 import path from 'path';
 import './models/index.js'; // Import models to ensure associations are loaded
 import prisma from './config/prisma.js';
@@ -62,6 +63,23 @@ app.use('/payment-receipts', (req, res, next) => {
   }
 });
 
+// Serve delivery detail images
+app.use('/delivery-images', (req, res, next) => {
+  const fs = require('fs');
+  const filePath = path.join(process.cwd(), 'uploads/delivery-details', req.path);
+  
+  // Check if file exists
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    // File doesn't exist, return 404
+    res.status(404).json({ 
+      error: 'Delivery image not found',
+      message: `The requested delivery image ${req.path} was not found`
+    });
+  }
+});
+
 // Test database connection and log success
 prisma.$connect()
   .then(() => {
@@ -103,6 +121,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api', deliveryItemRoutes);
 app.use('/api/delivery-managers', deliveryManagerRoutes);
 app.use('/api/delivery-executives', deliveryExecutiveRoutes);
+app.use('/api/delivery-details', deliveryDetailsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -94,6 +94,8 @@ const BookingPage = () => {
   const menus = menusData?.data || [];
   const productQuantities = productQuantitiesData?.data || {};
 
+
+
   // Helper functions
   const getAddressDisplayName = (addressId) => {
     // If seller has selected a user, use that user's addresses
@@ -111,6 +113,25 @@ const BookingPage = () => {
     return `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
   };
 
+  // Helper function to safely get product ID from menu item
+  const getProductId = (menuItem) => {
+    if (!menuItem) return null;
+    if (menuItem.product && menuItem.product.id) {
+      return menuItem.product.id;
+    }
+    if (menuItem.productId) {
+      return menuItem.productId;
+    }
+    return null;
+  };
+
+  // Helper function to safely get product quantity
+  const getProductQuantity = (menuItem) => {
+    const productId = getProductId(menuItem);
+    if (!productId || !productQuantities) return null;
+    return productQuantities[productId];
+  };
+
   const isWeekday = (date) => {
     const day = date.getDay();
     return day >= 1 && day <= 5;
@@ -118,7 +139,6 @@ const BookingPage = () => {
 
   const isWeekdayMenu = (menu) => {
     if (!menu) return false;
-    const dayOfWeek = menu.dayOfWeek?.toLowerCase() || '';
     
     // Now menu is actually a menu item object
     const itemName = menu.name?.toLowerCase() || '';
@@ -128,9 +148,9 @@ const BookingPage = () => {
       return false; // Full week menu is not a weekday-only menu
     }
     
-    const isWeekdayByDay = dayOfWeek === 'weekday' || dayOfWeek === 'monday' || dayOfWeek === 'tuesday' || dayOfWeek === 'wednesday' || dayOfWeek === 'thursday' || dayOfWeek === 'friday';
+    // Check if it's a weekday menu based on name only
     const isWeekdayByName = itemName.includes('week day') || itemName.includes('weekday') || itemName.includes('monday') || itemName.includes('tuesday') || itemName.includes('wednesday') || itemName.includes('thursday') || itemName.includes('friday');
-    return isWeekdayByDay || isWeekdayByName;
+    return isWeekdayByName;
   };
 
   const getAutoSelectionDays = (menu) => {
@@ -373,8 +393,11 @@ const BookingPage = () => {
       }
     }
     
-    const menuDay = menu.dayOfWeek?.toLowerCase();
-    if (menuDay === 'weekend' || menuDay === 'saturday' || menuDay === 'sunday') {
+    // Check if it's a weekend menu based on name
+    const menuName = menu.name?.toLowerCase() || '';
+    const isWeekendMenu = menuName.includes('weekend') || menuName.includes('saturday') || menuName.includes('sunday');
+    
+    if (isWeekendMenu) {
       const weekdayDates = selectedDates.filter(date => isWeekday(date));
       if (weekdayDates.length > 0) {
         return {
@@ -408,12 +431,10 @@ const BookingPage = () => {
 
   const handleMenuSelection = (menu) => {
     // Check if menu item is completely out of stock (cannot be purchased)
-    if (menu.product && productQuantities && productQuantities[menu.product.id]) {
-      const productQuantity = productQuantities[menu.product.id];
-      if (productQuantity.quantity === 0) {
+    const productQuantity = getProductQuantity(menu);
+    if (productQuantity && productQuantity.quantity === 0) {
         showErrorToast(`Cannot select "${menu.name}" - Completely Out of Stock (Available: ${productQuantity.quantity})`);
         return;
-      }
     }
     
     // For daily flexible mode, handle differently
@@ -584,31 +605,50 @@ const BookingPage = () => {
   };
 
   const getFilteredMenus = () => {
-    if (!menus || dietaryPreference === 'all') {
+    if (!menus || menus.length === 0) {
+      return [];
+    }
+    
+    if (dietaryPreference === 'all') {
       return menus;
     }
 
-    return menus.filter(menuItem => {
+    const filteredMenus = menus.filter(menuItem => {
       if (menuItem.categories && menuItem.categories.length > 0) {
         const categoryNames = menuItem.categories.map(cat => cat.name.toLowerCase());
         
         if (dietaryPreference === 'veg') {
-          return categoryNames.some(name => name.includes('veg') && !name.includes('non'));
+          const isVeg = categoryNames.some(name => name.includes('veg') && !name.includes('non'));
+          return isVeg;
         } else if (dietaryPreference === 'non-veg') {
-          return categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
+          const isNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
+          return isNonVeg;
         }
       }
       
+      // If no categories or categories don't match, be more lenient
       if (dietaryPreference === 'veg') {
         const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
-        return !categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
+        const hasNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
+        // If no non-veg categories found, assume it's veg-friendly
+        const isVeg = !hasNonVeg;
+        return isVeg;
       } else if (dietaryPreference === 'non-veg') {
         const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
-        return categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
+        const hasNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
+        return hasNonVeg;
       }
       
+      // If we can't determine, show it anyway
       return true;
     });
+    
+    // If filtering is too restrictive and removes all menus, show all menus instead
+    if (filteredMenus.length === 0 && menus.length > 0) {
+      return menus;
+    }
+    
+    return filteredMenus;
   };
 
   const handleSaveOrder = async () => {
@@ -635,9 +675,9 @@ const BookingPage = () => {
         selectedDates.forEach(date => {
           const dateStr = date.toISOString().split('T')[0];
           const menuForDate = dateMenuSelections[dateStr];
-          if (menuForDate && menuForDate.product && productQuantities && productQuantities[menuForDate.product.id]) {
-            const productQuantity = productQuantities[menuForDate.product.id];
-            if (productQuantity.quantity === 0) {
+          if (menuForDate) {
+            const productQuantity = getProductQuantity(menuForDate);
+            if (productQuantity && productQuantity.quantity === 0) {
               completelyOutOfStockDates.push({
                 date: formatDateForDisplay(date),
                 menu: menuForDate.name,
@@ -660,12 +700,10 @@ const BookingPage = () => {
       }
 
       // Check if selected menu is completely out of stock (cannot be purchased)
-      if (selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id]) {
-        const productQuantity = productQuantities[selectedMenu.product.id];
-        if (productQuantity.quantity === 0) {
+      const productQuantity = getProductQuantity(selectedMenu);
+      if (productQuantity && productQuantity.quantity === 0) {
           showErrorToast(`Cannot place order - "${selectedMenu.name}" is Completely Out of Stock (Available: ${productQuantity.quantity})`);
           return;
-        }
       }
 
       const orderItems = [];
@@ -1122,12 +1160,10 @@ const BookingPage = () => {
 
   const handleDateMenuSelection = (date, menu) => {
     // Check if menu item is completely out of stock (cannot be purchased)
-    if (menu.product && productQuantities && productQuantities[menu.product.id]) {
-      const productQuantity = productQuantities[menu.product.id];
-      if (productQuantity.quantity === 0) {
+    const productQuantity = getProductQuantity(menu);
+    if (productQuantity && productQuantity.quantity === 0) {
         showErrorToast(`Cannot select "${menu.name}" - Completely Out of Stock (Available: ${productQuantity.quantity})`);
         return;
-      }
     }
     
     const dateStr = date.toISOString().split('T')[0];
@@ -1341,6 +1377,8 @@ const BookingPage = () => {
         isSelected={isSelected}
       />
 
+
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-16">
@@ -1406,7 +1444,7 @@ const BookingPage = () => {
                             </div>
                             <div className="flex flex-wrap gap-3">
                               <span className="text-emerald-100 text-sm bg-white/20 px-3 py-1 rounded-full">From: {selectedMenu.menuName}</span>
-                              <span className="text-emerald-100 text-sm bg-white/20 px-3 py-1 rounded-full capitalize">{selectedMenu.dayOfWeek} Menu</span>
+                              <span className="text-emerald-100 text-sm bg-white/20 px-3 py-1 rounded-full capitalize">Menu Item</span>
                             </div>
                           </div>
                           <button
@@ -1621,7 +1659,18 @@ const BookingPage = () => {
                   <div className="p-4 sm:p-6 space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600 font-medium text-sm sm:text-base">Menu Item:</span>
-                      <span className="font-semibold text-gray-800 text-sm sm:text-base truncate max-w-[150px] sm:max-w-[200px]">{selectedMenu.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-800 text-sm sm:text-base truncate max-w-[120px] sm:max-w-[150px]">{selectedMenu.name}</span>
+                        {selectedMenu.foodType && (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+                            selectedMenu.foodType === 'VEG' 
+                              ? 'bg-green-100 text-green-700 border border-green-200' 
+                              : 'bg-red-100 text-red-700 border border-red-200'
+                          }`}>
+                            {selectedMenu.foodType === 'VEG' ? '🥬 VEG' : '🍖 NON-VEG'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex justify-between items-center">
@@ -1647,10 +1696,13 @@ const BookingPage = () => {
                     )}
                     
                     {/* Stock Status Warning */}
-                    {selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && (
+                    {(() => {
+                      const productQuantity = getProductQuantity(selectedMenu);
+                      if (!productQuantity) return null;
+                      
+                      return (
                       <div className="border-t border-gray-200 pt-4">
                         {(() => {
-                          const productQuantity = productQuantities[selectedMenu.product.id];
                           if (productQuantity.quantity < 5) {
                             return (
                               <div className="bg-red-50 border border-red-200 rounded-xl p-3">
@@ -1690,7 +1742,8 @@ const BookingPage = () => {
                           }
                         })()}
                       </div>
-                    )}
+                      );
+                    })()}
                     
                     <div className="border-t border-gray-200 pt-4">
                       <div className="flex justify-between items-center">
@@ -1752,9 +1805,15 @@ const BookingPage = () => {
                      </button>
                      <button
                        onClick={handleSaveOrder}
-                       disabled={!selectedMenu || selectedDates.length === 0 || isCreating || (selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && productQuantities[selectedMenu.product.id].quantity === 0)}
+                       disabled={!selectedMenu || selectedDates.length === 0 || isCreating || (() => {
+                         const productQuantity = getProductQuantity(selectedMenu);
+                         return productQuantity && productQuantity.quantity === 0;
+                       })()}
                        className={`flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl font-medium transition-all duration-200 text-sm sm:text-base ${
-                         !selectedMenu || selectedDates.length === 0 || isCreating || (selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && productQuantities[selectedMenu.product.id].quantity === 0)
+                         !selectedMenu || selectedDates.length === 0 || isCreating || (() => {
+                           const productQuantity = getProductQuantity(selectedMenu);
+                           return productQuantity && productQuantity.quantity === 0;
+                         })()
                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                            : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105'
                        }`}
@@ -1781,10 +1840,13 @@ const BookingPage = () => {
                        <p>{getTotalItems()} item{getTotalItems() !== 1 ? 's' : ''} • {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''}</p>
                        
                        {/* Stock Status for Mobile */}
-                       {selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && (
+                       {(() => {
+                         const productQuantity = getProductQuantity(selectedMenu);
+                         if (!productQuantity) return null;
+                         
+                         return (
                          <div className="mt-3">
                            {(() => {
-                             const productQuantity = productQuantities[selectedMenu.product.id];
                              if (productQuantity.quantity === 0) {
                                return (
                                  <div className="bg-red-50 border border-red-200 rounded-lg p-2">
@@ -1816,7 +1878,8 @@ const BookingPage = () => {
                              }
                            })()}
                          </div>
-                       )}
+                         );
+                       })()}
                      </div>
                    )}
                  </div>
@@ -1890,11 +1953,27 @@ const BookingPage = () => {
               <p className="text-xs text-gray-600 mb-1">Total: <span className="font-bold text-blue-600">₹{getTotalPrice()}</span></p>
               <p className="text-xs text-gray-500">{getTotalItems()} item{getTotalItems() !== 1 ? 's' : ''} • {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''}</p>
               
+              {/* Food Type Indicator for Mobile */}
+              {selectedMenu.foodType && (
+                <div className="mt-2">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+                    selectedMenu.foodType === 'VEG' 
+                      ? 'bg-green-100 text-green-700 border border-green-200' 
+                      : 'bg-red-100 text-red-700 border border-red-200'
+                  }`}>
+                    {selectedMenu.foodType === 'VEG' ? '🥬 VEG' : '🍖 NON-VEG'}
+                  </span>
+                </div>
+              )}
+              
               {/* Stock Status for Mobile */}
-              {selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && (
+              {(() => {
+                const productQuantity = getProductQuantity(selectedMenu);
+                if (!productQuantity) return null;
+                
+                return (
                 <div className="mt-2">
                   {(() => {
-                    const productQuantity = productQuantities[selectedMenu.product.id];
                     if (productQuantity.quantity === 0) {
                       return (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-2">
@@ -1926,13 +2005,20 @@ const BookingPage = () => {
                     }
                   })()}
                 </div>
-              )}
+                );
+              })()}
             </div>
             <button
               onClick={handleSaveOrder}
-              disabled={isCreating || (selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && productQuantities[selectedMenu.product.id].quantity === 0)}
+              disabled={isCreating || (() => {
+                const productQuantity = getProductQuantity(selectedMenu);
+                return productQuantity && productQuantity.quantity === 0;
+              })()}
               className={`w-full px-6 py-3 rounded-xl font-medium transition-all duration-200 text-sm ${
-                isCreating || (selectedMenu && selectedMenu.product && productQuantities && productQuantities[selectedMenu.product.id] && productQuantities[selectedMenu.product.id].quantity === 0)
+                isCreating || (() => {
+                  const productQuantity = getProductQuantity(selectedMenu);
+                  return productQuantity && productQuantity.quantity === 0;
+                })()
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105'
               }`}
