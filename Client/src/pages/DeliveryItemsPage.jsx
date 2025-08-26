@@ -53,7 +53,6 @@ const DeliveryItemsPage = () => {
         setOrder(response.data.data);
       }
     } catch (error) {
-      console.error('Error fetching order data:', error);
       showErrorToast('Failed to fetch order data');
     } finally {
       setLoading(false);
@@ -79,7 +78,6 @@ const DeliveryItemsPage = () => {
         showErrorToast(response.data.message || 'Failed to cancel delivery item');
       }
     } catch (error) {
-      console.error('Error cancelling delivery item:', error);
       showErrorToast('Failed to cancel delivery item');
     } finally {
       setCancellingItems(prev => {

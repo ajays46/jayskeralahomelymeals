@@ -161,8 +161,6 @@ const DeliveryManagerPage = () => {
         setDeliveryItems(prev => ({ ...prev, [orderId]: mockItems }));
       }
     } catch (error) {
-      console.error('Error processing delivery items:', error);
-      
       // Create mock data on error
       const mockItems = [
         {
@@ -212,7 +210,6 @@ const DeliveryManagerPage = () => {
         message.error('Failed to cancel order');
       }
     } catch (error) {
-      console.error('Error cancelling order:', error);
       if (error.response) {
         if (error.response.status === 401) {
           message.error('Authentication failed. Please log in again.');
@@ -282,14 +279,6 @@ const DeliveryManagerPage = () => {
         message.error('Failed to cancel delivery item');
       }
     } catch (error) {
-      console.error('❌ Error cancelling delivery item:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        url: error.config?.url
-      });
-      
       if (error.response) {
         if (error.response.status === 401) {
           message.error('Authentication failed. Please log in again.');
@@ -402,7 +391,6 @@ const DeliveryManagerPage = () => {
       
     } catch (error) {
       message.destroy(); // Clear loading message
-      console.error('Route planning error:', error);
       
       if (error.response) {
         // Server responded with error status
@@ -439,7 +427,6 @@ const DeliveryManagerPage = () => {
       
     } catch (error) {
       message.destroy(); // Clear loading message
-      console.error('Session data fetch error:', error);
       
       if (error.response) {
         // Server responded with error status
@@ -528,7 +515,6 @@ const DeliveryManagerPage = () => {
       
     } catch (error) {
       message.destroy(); // Clear loading message
-      console.error('WhatsApp messaging error:', error);
       
       if (error.response) {
         // Server responded with error status
@@ -587,8 +573,9 @@ const DeliveryManagerPage = () => {
         userAgent: navigator.userAgent,
         dashboardVersion: '1.0.0'
       });
-      
+
       message.destroy(); // Clear loading message
+
       if (response.data.success) {
         message.success(`✅ Program executed successfully with ${executiveCount} executive(s)!`);
         
@@ -644,7 +631,6 @@ const DeliveryManagerPage = () => {
       
     } catch (error) {
       message.destroy(); // Clear loading message
-      console.error('Program execution error:', error);
       
       if (error.response) {
         // Server responded with error status
@@ -674,7 +660,6 @@ const DeliveryManagerPage = () => {
       
       message.success(`Downloading ${filename}...`);
     } catch (error) {
-      console.error('Download error:', error);
       message.error('Failed to download file. Please try again.');
     }
   };
@@ -684,7 +669,6 @@ const DeliveryManagerPage = () => {
       window.open(url, '_blank');
       message.success(`Opening ${filename} in new tab...`);
     } catch (error) {
-      console.error('Open file error:', error);
       message.error('Failed to open file. Please try again.');
     }
   };
@@ -718,8 +702,6 @@ const DeliveryManagerPage = () => {
         throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error(`Error fetching preview for ${filename}:`, error);
-      
       // Check if it's a CORS error
       if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
         // Try to fetch through backend proxy as fallback
@@ -737,7 +719,7 @@ const DeliveryManagerPage = () => {
             return;
           }
         } catch (proxyError) {
-          console.error(`Backend proxy failed for ${filename}:`, proxyError);
+          // Backend proxy failed
         }
         
         setFilePreviews(prev => ({ 
@@ -873,7 +855,6 @@ const DeliveryManagerPage = () => {
       
     } catch (error) {
       message.destroy(); // Clear loading message
-      console.error('Error sending executive count:', error);
       
       if (error.response) {
         // Server responded with error status
@@ -949,12 +930,9 @@ const DeliveryManagerPage = () => {
           activeSellers
         });
       } else {
-        console.error('API returned error status:', response.data);
         setError('Failed to fetch sellers data: Invalid response from server');
       }
     } catch (error) {
-      console.error('Error fetching sellers data:', error);
-      
       // Provide specific error messages based on error type
       if (error.response?.status === 500) {
         setError('Server error: Unable to fetch sellers data. Please try again later.');
@@ -983,13 +961,10 @@ const DeliveryManagerPage = () => {
       if (response.data.status === 'success') {
         setDeliveryExecutives(response.data.data || []);
       } else {
-        console.error('API returned error status:', response.data);
         message.warning('Failed to fetch delivery executives. Some data may be unavailable.');
         setExecutivesError(true);
       }
     } catch (error) {
-      console.error('Error fetching delivery executives:', error);
-      
       // Show user-friendly error message
       if (error.response?.status === 500) {
         message.error('Server error: Unable to fetch delivery executives. Please try again later.');
@@ -1063,7 +1038,6 @@ const DeliveryManagerPage = () => {
         message.error('Failed to cancel order');
       }
     } catch (error) {
-      console.error('Error cancelling order:', error);
       message.error('Failed to cancel order');
     } finally {
       setCancellingOrder(null);
@@ -1127,7 +1101,6 @@ const DeliveryManagerPage = () => {
       const response = await axiosInstance.get('/seller/profile');
       return response.data;
     } catch (error) {
-      console.error('🔍 Auth check failed:', error);
       return null;
     }
   };
@@ -1342,7 +1315,6 @@ const DeliveryManagerPage = () => {
 
     } catch (error) {
       message.destroy();
-      console.error('Error cancelling all orders for seller:', error);
       message.error('Failed to cancel orders. Please try again.');
     }
   };
