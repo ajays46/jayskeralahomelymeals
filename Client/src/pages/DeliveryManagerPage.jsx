@@ -49,6 +49,7 @@ const DeliveryManagerPage = () => {
   const [programExecutionResults, setProgramExecutionResults] = useState(null); // Store program execution results
   const [sessionData, setSessionData] = useState(null); // Store session data
   const [loadingSessionData, setLoadingSessionData] = useState(false); // Loading state for session data
+  const [programRunTimestamp, setProgramRunTimestamp] = useState(null); // Force refresh timestamp
 
   useEffect(() => {
     fetchSellersData();
@@ -80,16 +81,15 @@ const DeliveryManagerPage = () => {
 
   // Auto-load text file previews when program execution results are available
   useEffect(() => {
-    if (programExecutionResults?.data?.externalResponse?.data?.files) {
+    if (programExecutionResults?.data?.externalResponse?.data?.files && programRunTimestamp) {
       const textFiles = programExecutionResults.data.externalResponse.data.files.filter(file => file.file.includes('.txt'));
+      
+      // Force reload ALL previews for new program execution (ignore cache)
       textFiles.forEach(file => {
-        if (!filePreviews[file.file] && !loadingPreviews[file.file]) {
-          // Small delay to avoid overwhelming the API
-          setTimeout(() => fetchFilePreview(file.url, file.file), 1000 + Math.random() * 2000);
-        }
+        setTimeout(() => fetchFilePreview(file.url, file.file), 500 + Math.random() * 1000);
       });
     }
-  }, [programExecutionResults]);
+  }, [programExecutionResults, programRunTimestamp]); // ← Add timestamp dependency
 
 
 
@@ -554,12 +554,17 @@ const DeliveryManagerPage = () => {
       // Get the count from the selectedExecutives set (it now contains just the count number)
       const executiveCount = Array.from(selectedExecutives)[0];
 
-      message.loading(`🚀 Sending executive count and starting program execution with ${executiveCount} executive(s)...`, 0);
-      
-      // Clear previous program execution results
-      setProgramExecutionResults(null);
-      
-      // First, send the executive count to the API
+              message.loading(`🚀 Sending executive count and starting program execution with ${executiveCount} executive(s)...`, 0);
+        
+        // Clear previous results and set new timestamp to force refresh
+        setProgramExecutionResults(null);
+        setFilePreviews({}); // Clear old file previews
+        setLoadingPreviews({}); // Clear loading states
+        setShowFullContent({}); // Reset content display toggles
+        const newTimestamp = Date.now();
+        setProgramRunTimestamp(newTimestamp); // ← Force new timestamp for refresh
+        
+        // First, send the executive count to the API
       try {
         await axiosInstance.post('/admin/proxy-executive-count', {
           executiveCount: executiveCount,
@@ -574,6 +579,7 @@ const DeliveryManagerPage = () => {
       }
       
       // Execute the program with executive count
+      
       const response = await axiosInstance.post('/admin/proxy-run-script', {
         executiveCount: executiveCount,
         timestamp: new Date().toISOString(),
@@ -583,7 +589,6 @@ const DeliveryManagerPage = () => {
       });
       
       message.destroy(); // Clear loading message
-      
       if (response.data.success) {
         message.success(`✅ Program executed successfully with ${executiveCount} executive(s)!`);
         
@@ -685,7 +690,9 @@ const DeliveryManagerPage = () => {
   };
 
   const fetchFilePreview = async (url, filename) => {
-    if (filePreviews[filename]) return; // Already fetched
+    if (filePreviews[filename]) {
+      return; // Already fetched
+    }
     
     try {
       setLoadingPreviews(prev => ({ ...prev, [filename]: true }));
@@ -703,7 +710,10 @@ const DeliveryManagerPage = () => {
         const content = await response.text();
         
         // Store the full content (no truncation)
-        setFilePreviews(prev => ({ ...prev, [filename]: content }));
+        setFilePreviews(prev => {
+          const newPreviews = { ...prev, [filename]: content };
+          return newPreviews;
+        });
       } else {
         throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
       }
@@ -727,7 +737,7 @@ const DeliveryManagerPage = () => {
             return;
           }
         } catch (proxyError) {
-          console.error(`Backend proxy also failed for ${filename}:`, proxyError);
+          console.error(`Backend proxy failed for ${filename}:`, proxyError);
         }
         
         setFilePreviews(prev => ({ 
