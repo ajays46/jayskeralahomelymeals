@@ -2403,115 +2403,305 @@ const DeliveryManagerPage = () => {
                     {sessionData && (
                       <div className="mt-6 bg-gray-800 rounded-lg border border-gray-600 p-4">
                         <h5 className="text-md font-semibold text-white mb-4 flex items-center gap-2">
-                          📊 Session Data Results
+                          📊 Delivery Session Data Results
                         </h5>
                         
-                        {/* API Response Summary */}
-                        <div className="mb-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
-                          <h6 className="font-medium text-white mb-2">API Response Summary:</h6>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                            <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
-                              <div className="text-lg mb-1">✅</div>
-                              <div className="font-medium text-white">Status</div>
-                              <div className="text-gray-300">
-                                {sessionData.data?.status || 'Completed'}
+
+
+                        {/* Enhanced Delivery Data Summary Cards */}
+                        {sessionData.data?.externalResponse?.data && (
+                          <div className="mb-8 bg-gray-700 p-6 rounded-lg border border-gray-600">
+                            <h6 className="font-medium text-white mb-6 text-center text-lg">📊 Delivery Summary Dashboard</h6>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                              {/* Morning Summary Card */}
+                              <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300">
+                                <div className="text-4xl mb-3">🌅</div>
+                                <div className="text-lg font-semibold text-white mb-2">Morning Delivery</div>
+                                <div className="text-3xl font-bold text-blue-400 mb-2">
+                                  {sessionData.data.externalResponse.data.totals?.morning || 0}
+                                </div>
+                                <div className="text-sm text-blue-300">Total Customers</div>
+                                <div className="mt-3 text-xs text-blue-200">
+                                  {sessionData.data.externalResponse.data.morning?.length || 0} Locations
+                                </div>
+                              </div>
+                              
+                              {/* Lunch Summary Card */}
+                              <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300">
+                                <div className="text-4xl mb-3">🍽️</div>
+                                <div className="text-lg font-semibold text-white mb-2">Lunch Delivery</div>
+                                <div className="text-3xl font-bold text-green-400 mb-2">
+                                  {sessionData.data.externalResponse.data.totals?.lunch || 0}
+                                </div>
+                                <div className="text-sm text-green-300">Total Customers</div>
+                                <div className="mt-3 text-xs text-green-200">
+                                  {sessionData.data.externalResponse.data.lunch?.length || 0} Locations
+                                </div>
+                              </div>
+                              
+                              {/* Dinner Summary Card */}
+                              <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300">
+                                <div className="text-4xl mb-3">🌙</div>
+                                <div className="text-lg font-semibold text-white mb-2">Dinner Delivery</div>
+                                <div className="text-3xl font-bold text-purple-400 mb-2">
+                                  {sessionData.data.externalResponse.data.totals?.dinner || 0}
+                                </div>
+                                <div className="text-sm text-purple-300">Total Customers</div>
+                                <div className="mt-3 text-xs text-purple-200">
+                                  {sessionData.data.externalResponse.data.dinner?.length || 0} Locations
+                                </div>
                               </div>
                             </div>
-                            <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
-                              <div className="text-lg mb-1">🆔</div>
-                              <div className="font-medium text-white">Request ID</div>
-                              <div className="text-gray-300">
-                                {sessionData.data?.requestId || 'N/A'}
-                              </div>
-                            </div>
-                            <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
-                              <div className="text-lg mb-1">⏰</div>
-                              <div className="font-medium text-white">Execution Time</div>
-                              <div className="text-gray-300">
-                                {sessionData.data?.executionTime ? new Date(sessionData.data.executionTime).toLocaleString() : 'N/A'}
+                            
+                            {/* Grand Total */}
+                            <div className="mt-6 pt-6 border-t border-gray-600">
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-white mb-2">
+                                  🎯 Total Delivery Operations
+                                </div>
+                                <div className="text-4xl font-bold text-yellow-400">
+                                  {(sessionData.data.externalResponse.data.totals?.morning || 0) + 
+                                   (sessionData.data.externalResponse.data.totals?.lunch || 0) + 
+                                   (sessionData.data.externalResponse.data.totals?.dinner || 0)} Customers
+                                </div>
+                                <div className="text-sm text-gray-300 mt-2">
+                                  Across {(sessionData.data.externalResponse.data.morning?.length || 0) + 
+                                         (sessionData.data.externalResponse.data.lunch?.length || 0) + 
+                                         (sessionData.data.externalResponse.data.dinner?.length || 0)} Unique Locations
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
+                        )}
 
-                        {/* Session Data Table */}
-                        <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
-                          <h6 className="font-medium text-white mb-2">Session Data Table:</h6>
-                          <div className="bg-gray-800 rounded border border-gray-600 overflow-hidden">
-                            {sessionData.data?.externalResponse ? (
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="bg-gray-700 text-white">
-                                      <th className="px-4 py-3 text-left border-b border-gray-600">Field</th>
-                                      <th className="px-4 py-3 text-left border-b border-gray-600">Value</th>
+                        {/* Enhanced Delivery Data Tables by Time Slot */}
+                        {sessionData.data?.externalResponse?.data && (
+                          <div className="space-y-8">
+                            {/* Morning Delivery Table */}
+                            {sessionData.data.externalResponse.data.morning && (
+                              <div className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden shadow-lg">
+                                                                <div className="px-4 py-3 border-b border-gray-600 bg-gradient-to-r from-blue-600 to-blue-700">
+                                  <h6 className="text-base font-semibold text-white flex items-center gap-2">
+                                    🌅 Morning Delivery Schedule
+                                    <span className="text-xs text-blue-200 font-normal ml-2">
+                                      ({sessionData.data.externalResponse.data.totals?.morning || 0} customers • {sessionData.data.externalResponse.data.morning?.length || 0} locations)
+                                    </span>
+                                  </h6>
+                                </div>
+                                <div className="max-h-96 overflow-y-auto">
+                                  <table className="w-full">
+                                    <thead className="bg-gray-600 sticky top-0 z-10">
+                                      <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                          📍 Location
+                                        </th>
+                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                          👥 Customer Count
+                                        </th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                          🗺️ Delivery Areas
+                                        </th>
                                     </tr>
                                   </thead>
-                                  <tbody className="text-gray-300">
-                                    {Object.entries(sessionData.data.externalResponse).map(([key, value], index) => (
-                                      <tr key={index} className={index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-750'}>
-                                        <td className="px-4 py-3 border-b border-gray-600 font-medium">
-                                          {typeof key === 'string' ? key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ') : key}
-                                        </td>
-                                        <td className="px-4 py-3 border-b border-gray-600">
-                                          {typeof value === 'object' && value !== null ? (
-                                            <div className="bg-gray-700 p-2 rounded border border-gray-600">
-                                              <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap">
-                                                {JSON.stringify(value, null, 2)}
-                                              </pre>
+                                    <tbody className="bg-gray-700 divide-y divide-gray-600">
+                                                                            {sessionData.data.externalResponse.data.morning.map((item, index) => (
+                                        <tr key={index} className="hover:bg-gray-600 transition-colors">
+                                          <td className="px-4 py-3 whitespace-nowrap">
+                                            <div className="flex items-center">
+                                              <div className="flex-shrink-0 h-8 w-8">
+                                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg">
+                                                  <FiMapPin className="text-white text-sm" />
+                                                </div>
+                                              </div>
+                                              <div className="ml-3">
+                                                <div className="text-base font-bold text-white">
+                                                  {item.locations[0] || 'Unknown'}
+                                                </div>
+                                              </div>
                                             </div>
-                                          ) : typeof value === 'boolean' ? (
-                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                              value ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-                                            }`}>
-                                              {value ? 'True' : 'False'}
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                                            <div className="flex flex-col items-center">
+                                              <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                                {item.customer_count}
+                                              </span>
+                                              <div className="text-xs text-gray-400 mt-1">
+                                                customers
+                                            </div>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap">
+                                            <div className="flex flex-wrap gap-1">
+                                              {item.locations.map((location, locIndex) => (
+                                                <span key={locIndex} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                                  locIndex === 0 
+                                                    ? 'bg-blue-600 text-white border border-blue-500' 
+                                                    : 'bg-gray-600 text-gray-300 border border-gray-500'
+                                                }`}>
+                                                  {location}
                                             </span>
-                                          ) : typeof value === 'number' ? (
-                                            <span className="text-blue-400 font-mono">{value}</span>
-                                          ) : (
-                                            <span className="text-gray-200">{String(value)}</span>
-                                          )}
+                                              ))}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Lunch Delivery Table */}
+                            {sessionData.data.externalResponse.data.lunch && (
+                              <div className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden shadow-lg">
+                                                                <div className="px-4 py-3 border-b border-gray-600 bg-gradient-to-r from-green-600 to-green-700">
+                                  <h6 className="text-base font-semibold text-white flex items-center gap-2">
+                                    🍽️ Lunch Delivery Schedule
+                                    <span className="text-xs text-green-200 font-normal ml-2">
+                                      ({sessionData.data.externalResponse.data.totals?.lunch || 0} customers • {sessionData.data.externalResponse.data.lunch?.length || 0} locations)
+                                    </span>
+                                  </h6>
+                                </div>
+                                <div className="max-h-96 overflow-y-auto">
+                                  <table className="w-full">
+                                    <thead className="bg-gray-600 sticky top-0 z-10">
+                                      <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                          📍 Location
+                                        </th>
+                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                          👥 Customer Count
+                                        </th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                          🗺️ Delivery Areas
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="bg-gray-700 divide-y divide-gray-600">
+                                      {sessionData.data.externalResponse.data.lunch.map((item, index) => (
+                                        <tr key={index} className="hover:bg-gray-600 transition-colors">
+                                          <td className="px-4 py-3 whitespace-nowrap">
+                                            <div className="flex items-center">
+                                              <div className="flex-shrink-0 h-8 w-8">
+                                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg">
+                                                  <FiMapPin className="text-white text-sm" />
+                                                </div>
+                                              </div>
+                                              <div className="ml-3">
+                                                <div className="text-base font-bold text-white">
+                                                  {item.locations[0] || 'Unknown'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                                            <div className="flex flex-col items-center">
+                                              <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-bold bg-green-100 text-green-800 border border-green-200">
+                                                {item.customer_count}
+                                              </span>
+                                              <div className="text-xs text-gray-400 mt-1">
+                                                customers
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap">
+                                            <div className="flex flex-wrap gap-1">
+                                              {item.locations.map((location, locIndex) => (
+                                                <span key={locIndex} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                                  locIndex === 0 
+                                                    ? 'bg-green-600 text-white border border-green-500' 
+                                                    : 'bg-gray-600 text-gray-300 border border-gray-500'
+                                                }`}>
+                                                  {location}
+                                                </span>
+                                              ))}
+                                            </div>
                                         </td>
                                       </tr>
                                     ))}
                                   </tbody>
                                 </table>
                               </div>
-                            ) : (
-                              <div className="p-4 text-center text-gray-400">
-                                No external response data available
+                              </div>
+                            )}
+
+                            {/* Dinner Delivery Table */}
+                            {sessionData.data.externalResponse.data.dinner && (
+                              <div className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden shadow-lg">
+                                                                <div className="px-4 py-3 border-b border-gray-600 bg-gradient-to-r from-purple-600 to-purple-700">
+                                  <h6 className="text-base font-semibold text-white flex items-center gap-2">
+                                    🌙 Dinner Delivery Schedule
+                                    <span className="text-xs text-purple-200 font-normal ml-2">
+                                      ({sessionData.data.externalResponse.data.totals?.dinner || 0} customers • {sessionData.data.externalResponse.data.dinner?.length || 0} locations)
+                                    </span>
+                                  </h6>
+                          </div>
+                                <div className="max-h-96 overflow-y-auto">
+                                  <table className="w-full">
+                                    <thead className="bg-gray-600 sticky top-0 z-10">
+                                      <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                          📍 Location
+                                        </th>
+                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                          👥 Customer Count
+                                        </th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                          🗺️ Delivery Areas
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="bg-gray-700 divide-y divide-gray-600">
+                                                                            {sessionData.data.externalResponse.data.dinner.map((item, index) => (
+                                        <tr key={index} className="hover:bg-gray-600 transition-colors">
+                                          <td className="px-4 py-3 whitespace-nowrap">
+                                            <div className="flex items-center">
+                                              <div className="flex-shrink-0 h-8 w-8">
+                                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg">
+                                                  <FiMapPin className="text-white text-sm" />
+                                                </div>
+                                              </div>
+                                              <div className="ml-3">
+                                                <div className="text-base font-bold text-white">
+                                                  {item.locations[0] || 'Unknown'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                                            <div className="flex flex-col items-center">
+                                              <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                                {item.customer_count}
+                                              </span>
+                                              <div className="text-xs text-gray-400 mt-1">
+                                                customers
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3 whitespace-nowrap">
+                                            <div className="flex flex-wrap gap-1">
+                                              {item.locations.map((location, locIndex) => (
+                                                <span key={locIndex} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                                  locIndex === 0 
+                                                    ? 'bg-purple-600 text-white border border-purple-500' 
+                                                    : 'bg-gray-600 text-gray-300 border border-gray-500'
+                                                }`}>
+                                                  {location}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
                               </div>
                             )}
                           </div>
-                        </div>
+                        )}
 
-                        {/* Raw API Response (Collapsible) */}
-                        <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
-                          <details className="group">
-                            <summary className="font-medium text-white mb-2 cursor-pointer list-none flex items-center gap-2 hover:text-blue-400 transition-colors">
-                              <span>📄 Raw API Response</span>
-                              <span className="text-xs text-gray-400 group-open:hidden">(Click to expand)</span>
-                              <span className="text-xs text-gray-400 hidden group-open:inline">(Click to collapse)</span>
-                            </summary>
-                            <div className="bg-gray-800 rounded border border-gray-600 p-3 max-h-96 overflow-y-auto mt-2">
-                              <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap">
-                                {JSON.stringify(sessionData.data?.externalResponse, null, 2)}
-                              </pre>
-                            </div>
-                          </details>
-                        </div>
 
-                        {/* API Details */}
-                        <div className="mt-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
-                          <h6 className="font-medium text-white mb-2">API Details:</h6>
-                          <div className="text-xs text-gray-300 space-y-1">
-                            <div>• <strong>Endpoint:</strong> GET http://13.203.227.119:5001/session_data</div>
-                            <div>• <strong>Headers:</strong> Authorization: Bearer mysecretkey123</div>
-                            <div>• <strong>Method:</strong> GET</div>
-                            <div>• <strong>Body:</strong> None</div>
-                            <div>• <strong>Timestamp:</strong> {sessionData.timestamp ? new Date(sessionData.timestamp).toLocaleString() : 'N/A'}</div>
-                          </div>
-                        </div>
                       </div>
                     )}
                   </div>
