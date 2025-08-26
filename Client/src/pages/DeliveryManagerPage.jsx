@@ -78,6 +78,19 @@ const DeliveryManagerPage = () => {
     }
   }, [routePlanningResults]);
 
+  // Auto-load text file previews when program execution results are available
+  useEffect(() => {
+    if (programExecutionResults?.data?.externalResponse?.data?.files) {
+      const textFiles = programExecutionResults.data.externalResponse.data.files.filter(file => file.file.includes('.txt'));
+      textFiles.forEach(file => {
+        if (!filePreviews[file.file] && !loadingPreviews[file.file]) {
+          // Small delay to avoid overwhelming the API
+          setTimeout(() => fetchFilePreview(file.url, file.file), 1000 + Math.random() * 2000);
+        }
+      });
+    }
+  }, [programExecutionResults]);
+
 
 
   const fetchDeliveryItems = async (orderId) => {
@@ -3221,6 +3234,190 @@ const DeliveryManagerPage = () => {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Text File Previews for Program Execution Results */}
+                  {programExecutionResults.data?.externalResponse?.data?.files && (
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h5 className="text-md font-semibold text-white flex items-center gap-2">
+                          📖 Program Output Previews
+                        </h5>
+                        <button
+                          onClick={() => {
+                            // Clear existing previews and reload
+                            setFilePreviews({});
+                            setLoadingPreviews({});
+                            const textFiles = programExecutionResults.data.externalResponse.data.files.filter(file => file.file.includes('.txt'));
+                            textFiles.forEach(file => {
+                              setTimeout(() => fetchFilePreview(file.url, file.file), 500);
+                            });
+                          }}
+                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors flex items-center gap-2"
+                        >
+                          🔄 Refresh Previews
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {programExecutionResults.data.externalResponse.data.files
+                          .filter(file => file.file.includes('.txt'))
+                          .map((file, index) => (
+                            <div key={index} className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden">
+                              <div className="bg-gray-600 px-4 py-3 border-b border-gray-500">
+                                <div className="flex items-center justify-between">
+                                  <h6 className="font-medium text-white">{file.file}</h6>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleDownloadFile(file.url, file.file)}
+                                      className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                                    >
+                                      📥 Download
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenFileInNewTab(file.url, file.file)}
+                                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                                    >
+                                      🔗 Open Full
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Text File Preview */}
+                              <div className="p-4">
+                                <div className="bg-gray-800 rounded border border-gray-600 p-4 max-h-96 overflow-y-auto">
+                                  <div className="text-sm text-gray-300 font-mono whitespace-pre-wrap">
+                                    {/* Show preview content or loading state */}
+                                    {!filePreviews[file.file] && !loadingPreviews[file.file] ? (
+                                      <div className="text-center py-4">
+                                        <p className="text-gray-400 mb-3">Preview not loaded yet</p>
+                                        <button
+                                          onClick={() => fetchFilePreview(file.url, file.file)}
+                                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                                        >
+                                          🔍 Load Preview
+                                        </button>
+                                      </div>
+                                    ) : loadingPreviews[file.file] ? (
+                                      <div className="text-center py-8">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                                        <p className="text-gray-400">Loading preview...</p>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        {/* Content Display Controls */}
+                                        {filePreviews[file.file] && !filePreviews[file.file].includes('⚠️') && !filePreviews[file.file].includes('❌') && (
+                                          <div className="flex items-center justify-between mb-3 p-2 bg-gray-700 rounded border border-gray-600">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs text-gray-400">
+                                                {showFullContent[file.file] ? '📖 Full Content' : '👁️ Preview Mode'}
+                                              </span>
+                                              <span className="text-xs text-gray-500">
+                                                ({filePreviews[file.file].length} characters)
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <button
+                                                onClick={() => toggleContentDisplay(file.file)}
+                                                className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                                              >
+                                                {showFullContent[file.file] ? '👁️ Show Preview' : '📖 Show Full'}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        {/* Content Display */}
+                                        <div className="text-xs text-gray-300 leading-relaxed">
+                                          {getDisplayContent(file.file, filePreviews[file.file])}
+                                        </div>
+                                        
+                                        {/* Error Messages and Help */}
+                                        {filePreviews[file.file] && filePreviews[file.file].includes('⚠️ CORS restriction') && (
+                                          <div className="mt-3 pt-2 border-t border-gray-600">
+                                            <div className="bg-yellow-900/20 border border-yellow-700/30 rounded p-3">
+                                              <p className="text-xs text-yellow-300 mb-2">
+                                                <span className="font-medium">CORS Issue Detected:</span> Browser cannot directly access external files.
+                                              </p>
+                                              <div className="text-xs text-yellow-400 space-y-1">
+                                                <div>• Use "Open Full" to view complete content</div>
+                                                <div>• Use "Download" to save file locally</div>
+                                                <div>• Preview will be available after download</div>
+                                              </div>
+                                              <div className="mt-3 pt-2 border-t border-yellow-700/30">
+                                                <div className="flex items-center gap-2">
+                                                  <button
+                                                    onClick={() => fetchFilePreview(file.url, file.file)}
+                                                    className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded transition-colors"
+                                                  >
+                                                    🔄 Retry Preview
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleOpenFileInNewTab(file.url, file.file)}
+                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                                                  >
+                                                    🔗 View Full Content
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {filePreviews[file.file] && filePreviews[file.file].includes('❌ Error') && (
+                                          <div className="mt-3 pt-2 border-t border-gray-600">
+                                            <div className="bg-red-900/20 border border-red-700/30 rounded p-3">
+                                              <p className="text-xs text-red-300 mb-2">
+                                                <span className="font-medium">Preview Failed:</span> Unable to load file content.
+                                              </p>
+                                              <div className="text-xs text-red-400 space-y-1">
+                                                <div>• Check your internet connection</div>
+                                                <div>• Try "Open Full" button instead</div>
+                                                <div>• Contact support if issue persists</div>
+                                              </div>
+                                              <div className="mt-3 pt-2 border-t border-red-700/30">
+                                                <div className="flex items-center gap-2">
+                                                  <button
+                                                    onClick={() => fetchFilePreview(file.url, file.file)}
+                                                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                                                  >
+                                                    🔄 Retry Preview
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleOpenFileInNewTab(file.url, file.file)}
+                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                                                  >
+                                                    🔗 View Full Content
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {filePreviews[file.file] && !filePreviews[file.file].includes('⚠️') && !filePreviews[file.file].includes('❌') && filePreviews[file.file].length > 500 && (
+                                          <div className="mt-3 pt-2 border-t border-gray-600">
+                                            <div className="bg-blue-900/20 border border-blue-700/30 rounded p-3">
+                                              <p className="text-xs text-blue-300 mb-2">
+                                                <span className="font-medium">Content Available:</span> 
+                                                {showFullContent[file.file] ? ' Showing complete file content.' : ' Showing preview (first 500 characters).'}
+                                              </p>
+                                              <div className="text-xs text-blue-400 space-y-1">
+                                                <div>• Use toggle button above to switch between preview and full content</div>
+                                                <div>• Use "Download" to save file locally</div>
+                                                <div>• Use "Open Full" to view in new tab</div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   )}
