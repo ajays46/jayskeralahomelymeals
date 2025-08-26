@@ -3,6 +3,7 @@ import api from '../../api/axios';
 import { showLoginError } from '../../utils/toastConfig.jsx';
 import useAuthStore from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
+import { getDashboardRoute } from '../../utils/roleBasedRouting';
 
 export const useLogin = () => {
 
@@ -24,8 +25,10 @@ export const useLogin = () => {
         setRoles(roles);
         setUser(data.data);
         setIsAuthenticated(true);
-        // showLoginSuccess();
-        navigate('/jkhm');
+        
+        // Navigate to role-specific dashboard
+        const dashboardRoute = getDashboardRoute(roles);
+        navigate(dashboardRoute);
       }
     },
     onError: (error) => {
@@ -50,11 +53,13 @@ export const useLogout = () => {
     },
     onSuccess: () => {
       logout();
+      // Navigate to home page after logout
       navigate('/jkhm');
     },
     onError: (error) => {
       // Even if the API call fails, we should still logout locally
       logout();
+      // Navigate to home page after logout
       navigate('/jkhm');
     }
   });

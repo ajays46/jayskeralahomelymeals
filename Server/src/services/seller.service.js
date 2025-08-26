@@ -3,7 +3,7 @@ import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
 
 // Create contact with minimal user account (for sellers)
-export const createContactOnly = async ({ firstName, lastName, phoneNumber, sellerId, companyId }) => {
+export const createContactOnly = async ({ firstName, lastName, phoneNumber, sellerId }) => {
   try {
     // Check if phone number already exists in contacts
     const existingContact = await prisma.contact.findFirst({
@@ -18,6 +18,16 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, sell
 
     if (existingContact) {
       throw new AppError('This phone number is already registered', 400);
+    }
+
+    // First, get the seller's company ID
+    const seller = await prisma.user.findUnique({
+      where: { id: sellerId },
+      select: { companyId: true }
+    });
+
+    if (!seller || !seller.companyId) {
+      throw new AppError('Seller must be associated with a company to create contacts', 400);
     }
 
     // Use a transaction to ensure all records are created together
@@ -42,7 +52,7 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, sell
           authId: auth.id,
           status: 'ACTIVE',
           createdBy: sellerId, // Set the seller who created this user
-          companyId: companyId // Set the company ID for this user
+          companyId: seller.companyId // Automatically use seller's company ID
         }
       });
 
@@ -64,24 +74,27 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, sell
         }
       });
 
-      return {
-        user: {
-          id: user.id,
-          status: user.status,
-          createdBy: user.createdBy,
-          companyId: user.companyId
-        },
-        contact: {
-          id: contact.id,
-          firstName: contact.firstName,
-          lastName: contact.lastName
-        },
-        phoneNumber: {
-          id: phone.id,
-          type: phone.type,
-          number: phone.number
-        }
-      };
+              return {
+          user: {
+            id: user.id,
+            status: user.status,
+            createdBy: user.createdBy,
+            companyId: user.companyId
+          },
+          contact: {
+            id: contact.id,
+            firstName: contact.firstName,
+            lastName: contact.lastName
+          },
+          phoneNumber: {
+            id: phone.id,
+            type: phone.type,
+            number: phone.number
+          },
+          company: {
+            id: seller.companyId
+          }
+        };
     });
 
     return result;

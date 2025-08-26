@@ -4,20 +4,16 @@ import { loginSchema, validateField } from '../validations/loginValidation';
 import { Link } from 'react-router-dom';
 // import { useAuth } from '../context/AuthContext';
 import { useLogin } from '../hooks/userHooks/useLogin';
-import SuccessPopup from './SuccessPopup';
 
 const Login = ({ onClose, onForgotPassword }) => {
   // const { login } = useAuth();
   const { mutate: loginMutation, isPending } = useLogin();
-  const [userRole] = useState('');
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-  const [showPopup, setShowPopup] = useState(false);
-
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -46,12 +42,6 @@ const Login = ({ onClose, onForgotPassword }) => {
 
       // If validation passes, proceed with login
       await loginMutation(formData, {
-        onSuccess: () => {
-        
-            setShowPopup(true);
-        
-          
-        },
         onError: (error) => {
           const errorMessage = error.response?.data?.message;
           if (errorMessage?.toLowerCase().includes('invalid')) {
@@ -77,16 +67,6 @@ const Login = ({ onClose, onForgotPassword }) => {
 
   return (
     <>
-      {showPopup && (
-        <SuccessPopup
-          role={userRole} 
-          buttonText="CONTINUE"
-          onClose={() => {
-            setShowPopup(false);
-            onClose();
-          }}
-        />
-      )}
       <h2 className="text-3xl font-bold text-gray-900 mb-4 lg:text-start text-center">Login to your account</h2>
       <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md">
         <p className="text-gray-500 mb-6 text-sm">Welcome back! Please login to your account</p>

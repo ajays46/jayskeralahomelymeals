@@ -1,47 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { FaUser, FaPhone, FaArrowLeft, FaCheckCircle, FaBuilding } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaUser, FaPhone, FaArrowLeft } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
-import useAuthStore from '../stores/Zustand.store';
-import axiosInstance from '../api/axios';
 
 const CreateUserPage = () => {
   const navigate = useNavigate();
   const { isSeller, createContact, loading, error } = useSeller();
-  const { userId } = useAuthStore(); // Get current user ID
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    phoneNumber: '',
-    companyId: ''
+    phoneNumber: ''
   });
-  const [companies, setCompanies] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [createdUser, setCreatedUser] = useState(null);
 
-  // Fetch companies when component mounts
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        const response = await axiosInstance.get('/admin/company-list');
-        if (response.data && response.data.data) {
-          setCompanies(response.data.data);
-        } else {
-          setCompanies(response.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching companies:', error);
-        // Show error to user
-        alert('Failed to load companies. Please try again.');
-      }
-    };
 
-    // Fetch companies regardless of seller status for now
-    fetchCompanies();
-  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -79,9 +53,7 @@ const CreateUserPage = () => {
       newErrors.phoneNumber = 'Please enter a valid phone number';
     }
 
-    if (!formData.companyId) {
-      newErrors.companyId = 'Please select a company';
-    }
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -102,24 +74,17 @@ const CreateUserPage = () => {
     setIsSubmitting(true);
     
     try {
-      const result = await createContact({
-        ...formData,
-        companyId: formData.companyId
-      });
-      
-      // Store the created user data
-      setCreatedUser(result.data);
-      
-      // Show success state
-      setShowSuccess(true);
+            await createContact(formData);
       
       // Reset form
       setFormData({
         firstName: '',
         lastName: '',
-        phoneNumber: '',
-        companyId: ''
+        phoneNumber: ''
       });
+      
+      // Navigate to booking page immediately
+      navigate('/jkhm/bookings');
       
     } catch (error) {
       console.error('Error creating user:', error);
@@ -185,7 +150,7 @@ const CreateUserPage = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-gray-400"
           >
-            Add a new contact with company assignment
+            Add a new contact to your company
           </motion.p>
         </div>
 
@@ -197,46 +162,7 @@ const CreateUserPage = () => {
           onSubmit={handleSubmit}
           className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20"
         >
-          {/* Company Selection Field */}
-          <div className="mb-6">
-            <label className="block text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
-              <FaBuilding className="text-orange-400" />
-              Company
-            </label>
-            <select
-              name="companyId"
-              value={formData.companyId}
-              onChange={handleInputChange}
-              className={`w-full px-4 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 ${
-                errors.companyId ? 'border-red-500' : 'border-gray-600'
-              }`}
-            >
-              <option value="">Select a company</option>
-              {companies.length > 0 ? (
-                companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>No companies available</option>
-              )}
-            </select>
-            {companies.length === 0 && (
-              <p className="text-yellow-400 text-sm mt-1">
-                No companies found. Please contact an administrator to create companies first.
-              </p>
-            )}
-            {errors.companyId && (
-              <motion.p
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-red-400 text-sm mt-1"
-              >
-                {errors.companyId}
-              </motion.p>
-            )}
-          </div>
+          
 
           {/* First Name Field */}
           <div className="mb-6">
@@ -355,47 +281,7 @@ const CreateUserPage = () => {
           </p>
         </motion.div>
 
-        {/* Success Message */}
-        {showSuccess && createdUser && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mt-6 p-6 bg-green-50 border border-green-200 rounded-2xl"
-          >
-            <div className="text-center">
-              <FaCheckCircle className="text-green-500 text-4xl mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-green-800 mb-2">
-                Contact Created Successfully!
-              </h3>
-              <p className="text-green-600 mb-4">
-                <strong>{createdUser.contact.firstName} {createdUser.contact.lastName}</strong> has been added to the company successfully.
-                {createdUser.user.companyId && (
-                  <span className="block mt-2 text-sm">
-                    Company ID: <strong>{createdUser.user.companyId}</strong>
-                  </span>
-                )}
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={() => {
-                    setShowSuccess(false);
-                    setCreatedUser(null);
-                  }}
-                  className="px-4 py-2 text-sm text-green-600 border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
-                >
-                  Add Another Contact
-                </button>
-                <button
-                  onClick={() => navigate('/jkhm/booking')}
-                  className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Go to Booking Page
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
+
       </div>
     </div>
   );

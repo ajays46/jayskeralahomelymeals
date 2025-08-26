@@ -3,14 +3,14 @@ import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressFor
 // Create contact only (for sellers)
 export const createContactController = async (req, res, next) => {
   try {
-    const { firstName, lastName, phoneNumber, companyId } = req.body;
+    const { firstName, lastName, phoneNumber } = req.body;
     const sellerId = req.user.userId; // Get seller ID from JWT token
     
     // Validate required fields
-    if (!firstName || !lastName || !phoneNumber || !companyId) {
+    if (!firstName || !lastName || !phoneNumber) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required: firstName, lastName, phoneNumber, companyId'
+        message: 'All fields are required: firstName, lastName, phoneNumber'
       });
     }
 
@@ -18,8 +18,7 @@ export const createContactController = async (req, res, next) => {
       firstName, 
       lastName, 
       phoneNumber, 
-      sellerId, // Pass the seller ID to track who created this user
-      companyId // Pass the company ID to assign the user to a company
+      sellerId // Pass the seller ID to track who created this user
     });
     
     res.status(201).json({
