@@ -829,6 +829,7 @@ const PaymentWizardPage = () => {
         navigate('/jkhm/seller/customers', {
           state: {
             showReceiptSuccess: true,
+            receiptUploaded: true,
             message: 'Payment receipt uploaded successfully!',
             customer: location.state.customer
           }

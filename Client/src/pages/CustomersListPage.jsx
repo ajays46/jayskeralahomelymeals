@@ -63,6 +63,22 @@ const CustomersListPage = () => {
     }
   }, [user, roles]); // Removed getSellerUsers from dependency array to prevent infinite loops
 
+  // Refresh customer data when coming back from payment page
+  useEffect(() => {
+    if (location.state?.receiptUploaded) {
+      // Refresh customer data to reflect the uploaded receipt
+      getSellerUsers();
+      
+      // Show success message
+      if (location.state?.message) {
+        showSuccessToast(location.state.message);
+      }
+      
+      // Clear the state to prevent unnecessary refreshes
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location.state?.receiptUploaded]);
+
   // Show success message if coming from successful order
   useEffect(() => {
     if (location.state?.showOrderSuccess && !successMessageShown.current) {
@@ -355,7 +371,7 @@ const CustomersListPage = () => {
     // Check if any order has payments without receipts
     const hasPending = customer.orders.some(order => {
       return order.payments && order.payments.some(payment => 
-        payment.paymentStatus === 'Pending' && !payment.receiptUrl
+        payment.paymentStatus === 'Pending' && (!payment.receiptUrl || payment.receiptUrl === '')
       );
     });
     
@@ -371,7 +387,7 @@ const CustomersListPage = () => {
     for (const order of customer.orders) {
       if (order.payments) {
         const pendingPayment = order.payments.find(payment => 
-          payment.paymentStatus === 'Pending' && !payment.receiptUrl
+          payment.paymentStatus === 'Pending' && (!payment.receiptUrl || payment.receiptUrl === '')
         );
         if (pendingPayment) {
           return pendingPayment;

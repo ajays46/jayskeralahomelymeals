@@ -294,6 +294,7 @@ const BookingWizardPage = () => {
   const getTotalItems = () => {
     // For comprehensive menus, count the menu items automatically
     if (selectedMenu && selectedMenu.isComprehensiveMenu) {
+   
       let total = 0;
       if (selectedMenu.mealTypes.breakfast) total += selectedMenu.mealTypes.breakfast.length;
       if (selectedMenu.mealTypes.lunch) total += selectedMenu.mealTypes.lunch.length;
