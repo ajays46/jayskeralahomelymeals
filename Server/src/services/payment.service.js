@@ -3,6 +3,7 @@ import AppError from '../utils/AppError.js';
 import { savePaymentReceipt, deletePaymentReceipt } from './paymentReceiptUpload.service.js';
 import { createDeliveryItemsAfterPaymentService } from './deliveryItem.service.js';
 import { reduceProductQuantitiesService } from './inventory.service.js';
+import { createAddressForUser } from './seller.service.js';
 
 // Helper function to create delivery items (can work with transaction or main client)
 const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData, userId) => {
@@ -71,12 +72,12 @@ export const createPaymentService = async (userId, paymentData) => {
             paymentAmount, 
             receipt, 
             receiptType,
-            orderData // Add orderData to paymentData for delivery items creation
+            orderData, // Add orderData to paymentData for delivery items creation
+            externalReceiptUrl // Add external receipt URL
         } = paymentData;
-
-        // Validate required fields
-        if (!paymentMethod || !paymentAmount || !receipt) {
-            throw new AppError('Payment method, amount, and receipt are required', 400);
+        // Validate required fields (receipt is now optional)
+        if (!paymentMethod || !paymentAmount) {
+            throw new AppError('Payment method and amount are required', 400);
         }
         
         // Either orderId or orderData must be provided
@@ -98,16 +99,29 @@ export const createPaymentService = async (userId, paymentData) => {
 
         // If orderId is provided, check if order exists
         // If no orderId but orderData is provided, we'll create the order after payment
+        // Special handling for draft orders (orderId starts with "draft_")
         let order = null;
+        let isDraftOrder = false;
+        
         if (orderId) {
-            order = await prisma.order.findFirst({
-                where: {
-                    id: orderId
+            // Check if this is a draft order
+            if (orderId.startsWith('draft_')) {
+                isDraftOrder = true;
+                // For draft orders, we'll create the order from orderData
+                if (!orderData) {
+                    throw new AppError('Order data is required for draft orders', 400);
                 }
-            });
+            } else {
+                // Regular order - check if it exists in database
+                order = await prisma.order.findFirst({
+                    where: {
+                        id: orderId
+                    }
+                });
 
-            if (!order) {
-                throw new AppError('Order not found', 404);
+                if (!order) {
+                    throw new AppError('Order not found', 404);
+                }
             }
         } else if (!orderData) {
             throw new AppError('Either orderId or orderData is required', 400);
@@ -115,7 +129,6 @@ export const createPaymentService = async (userId, paymentData) => {
 
         // For now, allow any authenticated user to create payment for an existing order
         // This handles the case where sellers create orders for users
-        // TODO: Add proper authorization checks if needed
 
         // Check if payment already exists for this order (only if orderId is provided)
         if (orderId) {
@@ -183,8 +196,9 @@ export const createPaymentService = async (userId, paymentData) => {
         const payment = await prisma.$transaction(async (tx) => {
             let finalOrderId = orderId;
             
-            // If no order exists, create it first
-            if (!order && parsedOrderData) {
+            
+            // If no order exists or this is a draft order, create it first
+            if ((!order && parsedOrderData) || isDraftOrder) {
                 // Validate required fields before creating order
                 if (!parsedOrderData.orderDate) {
                     throw new AppError('Order date is required', 400);
@@ -192,7 +206,7 @@ export const createPaymentService = async (userId, paymentData) => {
                 if (!parsedOrderData.orderTimes) {
                     throw new AppError('Order times are required', 400);
                 }
-                if (!parsedOrderData.deliveryAddressId) {
+                if (!parsedOrderData.deliveryAddressId && !parsedOrderData.deliveryAddress) {
                     throw new AppError('Delivery address is required', 400);
                 }
                 
@@ -212,24 +226,47 @@ export const createPaymentService = async (userId, paymentData) => {
                     throw new AppError('Selected user ID is required in orderData. Please select a customer before creating the order.', 400);
                 }
                 
+                // Handle delivery address - create address if we have address object but no ID
+                let finalDeliveryAddressId = parsedOrderData.deliveryAddressId;
+                if (!finalDeliveryAddressId && parsedOrderData.deliveryAddress) {
+                    try {
+                        // Create address using the seller service (outside transaction)
+                        const newAddress = await createAddressForUser(
+                            orderUserId, 
+                            userId, // sellerId
+                            {
+                                street: parsedOrderData.deliveryAddress.street || '',
+                                housename: parsedOrderData.deliveryAddress.housename || 'Default House',
+                                city: parsedOrderData.deliveryAddress.city || '',
+                                pincode: parseInt(parsedOrderData.deliveryAddress.pincode) || 0,
+                                addressType: 'HOME'
+                            }
+                        );
+                        finalDeliveryAddressId = newAddress.id;
+                    } catch (addressError) {
+                        console.error('❌ Failed to create address:', addressError);
+                        throw new AppError('Failed to create delivery address: ' + addressError.message, 400);
+                    }
+                }
+                
                 const newOrder = await tx.order.create({
                     data: {
                         userId: orderUserId, // Always use the selected user's ID
                         orderDate: orderDate,
                         orderTimes: JSON.stringify(parsedOrderData.orderTimes),
                         totalPrice: paymentAmount,
-                        deliveryAddressId: parsedOrderData.deliveryAddressId,
-                        status: 'Payment_Confirmed' // Order is confirmed immediately after payment
+                        deliveryAddressId: finalDeliveryAddressId,
+                        status: receiptUrl ? 'Payment_Confirmed' : 'Pending' // Status based on receipt availability
                     }
                 });
                 
                 finalOrderId = newOrder.id;
                 order = newOrder;
             } else if (orderId) {
-                // Update existing order status to Payment_Confirmed
+                // Update existing order status based on receipt availability
                 await tx.order.update({
                     where: { id: orderId },
-                    data: { status: 'Payment_Confirmed' }
+                    data: { status: receiptUrl ? 'Payment_Confirmed' : 'Pending' }
                 });
             }
             
@@ -240,10 +277,11 @@ export const createPaymentService = async (userId, paymentData) => {
                     orderId: finalOrderId,
                     paymentMethod,
                     paymentAmount,
-                    paymentDate: new Date(),
-                    receiptUrl,
-                    uploadedReceiptType: receiptType || 'Image',
-                    paymentStatus: 'Pending'
+                    paymentDate: receiptUrl ? new Date() : null, // Only set payment date if receipt is provided
+                    receiptUrl: receiptUrl || null,
+                    externalReceiptUrl: externalReceiptUrl || null, // Store external receipt URL
+                    uploadedReceiptType: receiptType || null,
+                    paymentStatus: receiptUrl ? 'Confirmed' : 'Pending' // Set to Pending if no receipt
                 }
             });
 
@@ -263,7 +301,8 @@ export const createPaymentService = async (userId, paymentData) => {
         });
 
         // Create delivery items after the transaction is complete
-        if (parsedOrderData && !orderId && orderUserId) {
+        // This applies to both new orders and draft orders that were just created
+        if (parsedOrderData && orderUserId && (isDraftOrder || !orderId)) {
             try {
                 // Get the order ID from the created order - use the selected user's ID
                 const createdOrder = await prisma.order.findFirst({
@@ -287,8 +326,11 @@ export const createPaymentService = async (userId, paymentData) => {
                         // Don't fail the payment if inventory reduction fails
                         // The quantities can be reduced manually later
                     }
+                } else {
+                    console.error('❌ Could not find created order for delivery items creation');
                 }
             } catch (deliveryError) {
+                console.error('❌ Failed to create delivery items:', deliveryError);
                 // Don't fail the payment if delivery items creation fails
                 // The delivery items can be created manually later
             }
@@ -328,28 +370,80 @@ export const createPaymentService = async (userId, paymentData) => {
 // Get payment by ID
 export const getPaymentByIdService = async (userId, paymentId) => {
     try {
-        const payment = await prisma.payment.findFirst({
-            where: {
-                id: paymentId,
-                userId: userId
-            },
-            include: {
-                user: {
+        // First, get the current user to check their role
+        const currentUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { 
+                id: true, 
+                userRoles: {
                     select: {
-                        id: true
+                        name: true
                     }
-                },
-                order: {
-                    select: {
-                        id: true,
-                        orderDate: true,
-                        totalPrice: true,
-                        status: true
-                    }
-                },
-                paymentReceipts: true
+                }
             }
         });
+
+        if (!currentUser) {
+            throw new AppError('User not found', 404);
+        }
+
+        // Check if user is a seller
+        const isSeller = currentUser.userRoles && currentUser.userRoles.some(role => role.name === 'SELLER');
+        
+        let payment;
+        
+        if (isSeller) {
+            // For sellers, find payment where the payment's user was created by this seller
+            payment = await prisma.payment.findFirst({
+                where: {
+                    id: paymentId,
+                    user: {
+                        createdBy: userId // Payment belongs to a user created by this seller
+                    }
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            createdBy: true
+                        }
+                    },
+                    order: {
+                        select: {
+                            id: true,
+                            orderDate: true,
+                            totalPrice: true,
+                            status: true
+                        }
+                    },
+                    paymentReceipts: true
+                }
+            });
+        } else {
+            // For regular users, find payment that belongs to them
+            payment = await prisma.payment.findFirst({
+                where: {
+                    id: paymentId,
+                    userId: userId
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true
+                        }
+                    },
+                    order: {
+                        select: {
+                            id: true,
+                            orderDate: true,
+                            totalPrice: true,
+                            status: true
+                        }
+                    },
+                    paymentReceipts: true
+                }
+            });
+        }
 
         if (!payment) {
             throw new AppError('Payment not found', 404);
@@ -538,5 +632,91 @@ export const deletePaymentService = async (userId, paymentId) => {
         }
         console.error('Delete payment error:', error);
         throw new AppError('Failed to delete payment', 500);
+    }
+};
+
+// Upload payment receipt later
+export const uploadReceiptService = async (userId, paymentId, receiptData) => {
+    try {
+        const { receipt, receiptType, externalReceiptUrl, orderAmount } = receiptData;
+
+        // First, get the current user to check their role
+        const currentUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { 
+                id: true, 
+                userRoles: {
+                    select: {
+                        name: true
+                    }
+                }
+            }
+        });
+
+        if (!currentUser) {
+            throw new AppError('User not found', 404);
+        }
+
+        // Check if user is a seller
+        const isSeller = currentUser.userRoles && currentUser.userRoles.some(role => role.name === 'SELLER');
+        
+        let payment;
+        
+        if (isSeller) {
+            // For sellers, find payment where the payment's user was created by this seller
+            payment = await prisma.payment.findFirst({
+                where: {
+                    id: paymentId,
+                    user: {
+                        createdBy: userId // Payment belongs to a user created by this seller
+                    }
+                }
+            });
+        } else {
+            // For regular users, find payment that belongs to them
+            payment = await prisma.payment.findFirst({
+                where: {
+                    id: paymentId,
+                    userId: userId
+                }
+            });
+        }
+
+        if (!payment) {
+            throw new AppError('Payment not found or not accessible', 404);
+        }
+
+        // Multer has already saved the file, so we just need to use the file path
+        const receiptUrl = receipt ? `/payment-receipts/${receipt.filename}` : null;
+        
+        // Update payment with receipt information
+        const updatedPayment = await prisma.payment.update({
+            where: { id: paymentId },
+            data: {
+                receiptUrl: receiptUrl,
+                externalReceiptUrl: externalReceiptUrl || null, // Store external receipt URL
+                uploadedReceiptType: receiptType,
+                paymentStatus: 'Confirmed', // Update status to confirmed when receipt is uploaded
+                paymentDate: new Date(),
+                ...(orderAmount && { orderAmount: orderAmount }) // Add order amount if provided
+            },
+            include: {
+                paymentReceipts: {
+                    select: {
+                        id: true,
+                        receiptImageUrl: true,
+                        receipt: true
+                    }
+                }
+            }
+        });
+
+        return updatedPayment;
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+        console.error('Upload receipt error:', error);
+        throw new AppError('Failed to upload payment receipt', 500);
     }
 }; 

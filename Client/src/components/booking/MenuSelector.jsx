@@ -106,6 +106,79 @@ const MenuSelector = ({
     }
   };
 
+  // Helper function to get auto-selection info
+  const getAutoSelectionInfo = (menuItem) => {
+    const itemName = menuItem.name?.toLowerCase() || '';
+    
+    // Monthly menu - 30 days
+    if (itemName.includes('monthly') || itemName.includes('month')) {
+      return {
+        text: 'Auto-selects 30 days',
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100',
+        borderColor: 'border-blue-200',
+        icon: '📅'
+      };
+    }
+    
+    // Full week menu - 7 days
+    if (itemName.includes('full week')) {
+      return {
+        text: 'Auto-selects 7 days',
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-100',
+        borderColor: 'border-indigo-200',
+        icon: '📅'
+      };
+    }
+    
+    // Weekly menu - 7 days
+    if (itemName.includes('weekly') || itemName.includes('week')) {
+      return {
+        text: 'Auto-selects 7 days',
+        color: 'text-green-600',
+        bgColor: 'bg-green-100',
+        borderColor: 'border-green-200',
+        icon: '📆'
+      };
+    }
+    
+    // Week-day plan - 5 days
+    if (itemName.includes('week-day') || itemName.includes('weekday')) {
+      return {
+        text: 'Auto-selects 5 weekdays',
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+        borderColor: 'border-purple-200',
+        icon: '🗓️'
+      };
+    }
+    
+    // General weekday menu - 5 days (Monday to Friday)
+    if (itemName.includes('monday') || itemName.includes('tuesday') || itemName.includes('wednesday') || itemName.includes('thursday') || itemName.includes('friday')) {
+      return {
+        text: 'Auto-selects 5 weekdays',
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+        borderColor: 'border-purple-200',
+        icon: '🗓️'
+      };
+    }
+    
+    // Daily rates - no auto-selection
+    if (itemName.includes('daily rates') || itemName.includes('daily rate')) {
+      return {
+        text: 'Manual date selection',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-100',
+        borderColor: 'border-gray-200',
+        icon: '✋'
+      };
+    }
+    
+    return null;
+  };
+
 
 
   return (
@@ -215,7 +288,7 @@ const MenuSelector = ({
           {menusError && (
             <div className="text-center py-8 sm:py-12">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                <svg className="w-6 h-6 sm:w-8 sm:w-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 sm:w-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
               </div>
@@ -276,44 +349,53 @@ const MenuSelector = ({
               <div className="block lg:hidden">
                 {/* Mobile horizontal scroll container */}
                 <div className="overflow-x-auto scrollbar-hide pb-4">
-                  <div className="flex gap-4 min-w-max pl-4 pr-4">
+                  <div className="flex gap-3 min-w-max pl-4 pr-4">
                     {getFilteredMenus().map((menuItem) => {
                       const stockStatus = getStockStatus(menuItem);
                       const showOutOfStockLabel = shouldShowOutOfStockLabel(menuItem);
                       const completelyOutOfStock = isCompletelyOutOfStock(menuItem);
+                      const autoSelectionInfo = getAutoSelectionInfo(menuItem);
                       
                       return (
                         <div 
                           key={menuItem.id}
-                          className={`group relative overflow-hidden transition-all duration-500 hover:shadow-2xl rounded-xl w-72 flex-shrink-0 ${
+                          className={`group relative overflow-hidden transition-all duration-500 hover:shadow-lg rounded-lg w-56 flex-shrink-0 ${
                             selectedMenu?.id === menuItem.id 
-                              ? 'border-2 border-blue-500 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-xl' 
+                              ? 'border-2 border-blue-500 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-lg' 
                               : showOutOfStockLabel
                               ? 'border-2 border-red-300 bg-white'
-                              : 'border-2 border-gray-200 hover:border-blue-300'
+                              : 'border border-gray-200 hover:border-blue-300'
                           }`}
                           onClick={() => onMenuSelection(menuItem)}
                         >
                           {/* Gradient overlay on hover */}
                           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                           
-                          <div className="relative p-4">
+                          <div className="relative p-3">
                             {/* Stock Status Badge - Moved below the header */}
                             {stockStatus && (
-                              <div className={`mb-3 px-2 py-1 rounded-full text-xs font-semibold ${stockStatus.bgColor} ${stockStatus.color} ${stockStatus.borderColor} border inline-block`}>
+                              <div className={`mb-2 px-2 py-1 rounded-full text-xs font-semibold ${stockStatus.bgColor} ${stockStatus.color} ${stockStatus.borderColor} border inline-block`}>
                                 {stockStatus.text}
                               </div>
                             )}
                             
+                            {/* Auto-Selection Info Badge */}
+                            {autoSelectionInfo && (
+                              <div className={`mb-2 px-2 py-1 rounded-full text-xs font-semibold ${autoSelectionInfo.bgColor} ${autoSelectionInfo.color} ${autoSelectionInfo.borderColor} border inline-block`}>
+                                <span className="mr-1">{autoSelectionInfo.icon}</span>
+                                {autoSelectionInfo.text}
+                              </div>
+                            )}
+                            
                             {/* 1. Menu Item Name and Price */}
-                            <div className="mb-3">
-                              <h4 className="font-bold text-base text-gray-800 break-words leading-tight">{menuItem.name}</h4>
+                            <div className="mb-2">
+                              <h4 className="font-bold text-sm text-gray-800 break-words leading-tight">{menuItem.name}</h4>
                               {menuItem.price > 0 && (
                                 <p className="text-sm font-semibold text-green-600 mt-1">
                                   ₹{menuItem.price}
                                 </p>
                               )}
-                              <div className="flex items-center gap-2 mt-2">
+                              <div className="flex items-center gap-2 mt-1">
                                 <span className={`inline-block w-2 h-2 rounded-full ${
                                   isWeekdayMenu(menuItem) ? 'bg-blue-500' : 
                                   (menuItem.name?.toLowerCase().includes('weekend') || menuItem.name?.toLowerCase().includes('saturday') || menuItem.name?.toLowerCase().includes('sunday')) ? 'bg-purple-500' : 'bg-green-500'
@@ -328,63 +410,39 @@ const MenuSelector = ({
                                 </span>
                               </div>
                               {/* Show parent menu name */}
-                              <p className="text-xs text-gray-500 mt-2 break-words">
+                              <p className="text-xs text-gray-500 mt-1 break-words">
                                 From: {menuItem.menuName}
                               </p>
                             </div>
                             
                             {/* 3. Menu Category Names */}
-                            <div className="mb-3">
-                              <h5 className="text-xs font-semibold text-gray-700 mb-2">Categories:</h5>
-                              <div className="flex flex-wrap gap-1">
-                                {menuItem.categories && menuItem.categories.length > 0 ? (
-                                  menuItem.categories.slice(0, 2).map((category) => (
-                                    <span key={category.id} className="bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 text-xs font-medium px-2 py-1 rounded-full border border-purple-200">
+                            <div className="mb-2">
+                              {menuItem.categories && menuItem.categories.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {menuItem.categories.slice(0, 2).map((category) => (
+                                    <span 
+                                      key={category.id} 
+                                      className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md border border-gray-200"
+                                    >
                                       {category.name}
                                     </span>
-                                  ))
-                                ) : (
-                                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                    No categories
-                                  </span>
-                                )}
-                                {menuItem.categories && menuItem.categories.length > 2 && (
-                                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                    +{menuItem.categories.length - 2} more
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* 4. Meal Types Included */}
-                            <div className="mb-3">
-                              <h5 className="text-xs font-semibold text-gray-700 mb-2">Meal Types:</h5>
-                              <div className="flex flex-wrap gap-1">
-                                {menuItem.hasBreakfast && (
-                                  <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs font-medium px-2 py-1 rounded-full border border-green-200">
-                                    🍳
-                                  </span>
-                                )}
-                                {menuItem.hasLunch && (
-                                  <span className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-700 text-xs font-medium px-2 py-1 rounded-full border border-yellow-200">
-                                    🍽️
-                                  </span>
-                                )}
-                                {menuItem.hasDinner && (
-                                  <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs font-medium px-2 py-1 rounded-full border border-pink-200">
-                                    🌙
-                                  </span>
-                                )}
-                              </div>   
+                                  ))}
+                                  {menuItem.categories.length > 2 && (
+                                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md border border-gray-200">
+                                      +{menuItem.categories.length - 2} more
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             {/* Selection indicator */}
-                            <div className={`absolute bottom-3 right-3 transition-all duration-300 ${
+                            <div className={`absolute bottom-2 right-2 transition-all duration-300 ${
                               selectedMenu?.id === menuItem.id 
                                 ? 'opacity-100' 
                                 : 'opacity-0 group-hover:opacity-100'
                             }`}>
-                              <div className="bg-blue-500 text-white rounded-full p-1.5 shadow-lg">
+                              <div className="bg-blue-500 text-white rounded-full p-1 shadow-lg">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
@@ -393,14 +451,14 @@ const MenuSelector = ({
 
                             {/* Completely Out of Stock Warning */}
                             {completelyOutOfStock && (
-                              <div className="absolute inset-0 bg-red-50/80 flex items-center justify-center rounded-xl">
+                              <div className="absolute inset-0 bg-red-50/80 flex items-center justify-center rounded-lg">
                                 <div className="text-center">
                                   <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
                                     <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                     </svg>
                                   </div>
-                                  <p className="text-red-600 text-xs font-semibold">Cannot Purchase</p>
+                                  <p className="text-red-600 text-sm font-semibold">Cannot Purchase</p>
                                   <p className="text-red-500 text-xs">Zero stock available</p>
                                 </div>
                               </div>
@@ -415,40 +473,49 @@ const MenuSelector = ({
 
               {/* Desktop: Grid layout */}
               <div className="hidden lg:block">
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-4">
                 {getFilteredMenus().map((menuItem) => {
                   const stockStatus = getStockStatus(menuItem);
                   const showOutOfStockLabel = shouldShowOutOfStockLabel(menuItem);
                   const completelyOutOfStock = isCompletelyOutOfStock(menuItem);
+                  const autoSelectionInfo = getAutoSelectionInfo(menuItem);
                   
                   return (
                     <div 
                       key={menuItem.id}
-                      className={`group relative overflow-hidden transition-all duration-500 hover:shadow-2xl rounded-3xl ${
+                      className={`group relative overflow-hidden transition-all duration-500 hover:shadow-lg rounded-xl ${
                         selectedMenu?.id === menuItem.id 
-                          ? 'border-2 border-blue-500 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-xl' 
+                          ? 'border-2 border-blue-500 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-lg' 
                           : showOutOfStockLabel
                           ? 'border-2 border-red-300 bg-white'
-                          : 'border-2 border-gray-200 hover:border-blue-300'
+                          : 'border border-gray-200 hover:border-blue-300'
                       }`}
                       onClick={() => onMenuSelection(menuItem)}
                     >
                       {/* Gradient overlay on hover */}
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       
-                      <div className="relative p-6">
+                      <div className="relative p-4">
                         {/* Stock Status Badge - Moved below the header */}
                         {stockStatus && (
-                          <div className={`mb-4 px-3 py-1.5 rounded-full text-sm font-semibold ${stockStatus.bgColor} ${stockStatus.color} ${stockStatus.borderColor} border inline-block`}>
+                          <div className={`mb-3 px-2 py-1 rounded-full text-xs font-semibold ${stockStatus.bgColor} ${stockStatus.color} ${stockStatus.borderColor} border inline-block`}>
                             {stockStatus.text}
                           </div>
                         )}
                         
+                        {/* Auto-Selection Info Badge */}
+                        {autoSelectionInfo && (
+                          <div className={`mb-3 px-2 py-1 rounded-full text-xs font-semibold ${autoSelectionInfo.bgColor} ${autoSelectionInfo.color} ${autoSelectionInfo.borderColor} border inline-block`}>
+                            <span className="mr-1">{autoSelectionInfo.icon}</span>
+                            {autoSelectionInfo.text}
+                          </div>
+                        )}
+                        
                         {/* 1. Menu Item Name and Price */}
-                        <div className="mb-4">
-                          <h4 className="font-bold text-xl text-gray-800 break-words">{menuItem.name}</h4>
+                        <div className="mb-3">
+                          <h4 className="font-bold text-base text-gray-800 break-words">{menuItem.name}</h4>
                           {menuItem.price > 0 && (
-                            <p className="text-lg font-semibold text-green-600 mt-1">
+                            <p className="text-base font-semibold text-green-600 mt-1">
                               ₹{menuItem.price}
                             </p>
                           )}
@@ -473,53 +540,34 @@ const MenuSelector = ({
                         </div>
                         
                         {/* 3. Menu Category Names */}
-                        <div className="mb-4">
-                          <h5 className="text-sm font-semibold text-gray-700 mb-2">Categories:</h5>
-                          <div className="flex flex-wrap gap-2">
-                            {menuItem.categories && menuItem.categories.length > 0 ? (
-                              menuItem.categories.map((category) => (
-                                <span key={category.id} className="bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-full border border-purple-200">
+                        <div className="mb-3">
+                          {menuItem.categories && menuItem.categories.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {menuItem.categories.slice(0, 3).map((category) => (
+                                <span 
+                                  key={category.id} 
+                                  className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md border border-gray-200"
+                                >
                                   {category.name}
                                 </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
-                                No categories
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* 4. Meal Types Included */}
-                        <div className="mb-4">
-                          <h5 className="text-sm font-semibold text-gray-700 mb-2">Meal Types Included:</h5>
-                          <div className="flex flex-wrap gap-2">
-                            {menuItem.hasBreakfast && (
-                              <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs font-medium px-3 py-1.5 rounded-full border border-green-200">
-                                🍳 Breakfast
-                              </span>
-                            )}
-                            {menuItem.hasLunch && (
-                              <span className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-700 text-xs font-medium px-3 py-1.5 rounded-full border border-yellow-200">
-                                🍽️ Lunch
-                              </span>
-                            )}
-                            {menuItem.hasDinner && (
-                              <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs font-medium px-3 py-1.5 rounded-full border border-pink-200">
-                                🌙 Dinner
-                              </span>
-                            )}
-                          </div>   
+                              ))}
+                              {menuItem.categories.length > 3 && (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md border border-gray-200">
+                                  +{menuItem.categories.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Selection indicator */}
-                        <div className={`absolute bottom-4 right-4 transition-all duration-300 ${
+                        <div className={`absolute bottom-3 right-3 transition-all duration-300 ${
                           selectedMenu?.id === menuItem.id 
                             ? 'opacity-100' 
                             : 'opacity-0 group-hover:opacity-100'
                         }`}>
-                          <div className="bg-blue-500 text-white rounded-full p-2 shadow-lg">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="bg-blue-500 text-white rounded-full p-1.5 shadow-lg">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
@@ -527,14 +575,14 @@ const MenuSelector = ({
 
                         {/* Completely Out of Stock Warning */}
                         {completelyOutOfStock && (
-                          <div className="absolute inset-0 bg-red-50/80 flex items-center justify-center rounded-3xl">
+                          <div className="absolute inset-0 bg-red-50/80 flex items-center justify-center rounded-xl">
                             <div className="text-center">
-                              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                 </svg>
                               </div>
-                              <p className="text-red-600 text-lg font-semibold">Cannot Purchase</p>
+                              <p className="text-red-600 text-base font-semibold">Cannot Purchase</p>
                               <p className="text-red-500 text-sm">Zero stock available</p>
                             </div>
                           </div>
@@ -549,7 +597,7 @@ const MenuSelector = ({
               {!menusLoading && !menusError && getFilteredMenus().length === 0 && (
                 <div className="text-center py-8 sm:py-12">
                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                    <svg className="w-6 h-6 sm:w-8 sm:w-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 sm:w-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>

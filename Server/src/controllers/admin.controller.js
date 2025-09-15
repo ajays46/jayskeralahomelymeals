@@ -587,13 +587,37 @@ export const deleteOrder = async (req, res, next) => {
 // Admin User Management
 export const createAdminUser = async (req, res, next) => {
     try {
-        const { email, phone, password, role, companyId } = req.body;
+        const { email, phone, password, role, roles, companyId, contact } = req.body;
         // Get the admin ID from the authenticated user's JWT token
         const adminId = req.user.userId;
         
         // Validate required fields
-        if (!email || !phone || !password || !role || !companyId) {
-            throw new AppError('All fields are required: email, phone, password, role, companyId', 400);
+        if (!email || !phone || !password || !companyId) {
+            throw new AppError('All fields are required: email, phone, password, companyId', 400);
+        }
+
+        // Determine roles to assign
+        let rolesToAssign = [];
+        if (roles && Array.isArray(roles) && roles.length > 0) {
+            // Multiple roles provided
+            rolesToAssign = roles;
+        } else if (role) {
+            // Single role provided (backward compatibility)
+            rolesToAssign = [role];
+        } else {
+            throw new AppError('At least one role is required', 400);
+        }
+
+        // Validate roles
+        const validRoles = ['ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER'];
+        const invalidRoles = rolesToAssign.filter(r => !validRoles.includes(r));
+        if (invalidRoles.length > 0) {
+            throw new AppError(`Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${validRoles.join(', ')}`, 400);
+        }
+
+        // Validate contact information if provided
+        if (contact && (!contact.firstName || !contact.lastName)) {
+            throw new AppError('Contact information requires both firstName and lastName', 400);
         }
 
         // Check if company exists
@@ -648,23 +672,57 @@ export const createAdminUser = async (req, res, next) => {
                 }
             });
 
-            // 3. Create UserRole
-            const userRole = await tx.userRole.create({
-                data: {
-                    userId: user.id,
-                    name: role
+            // 3. Create UserRoles (multiple roles support)
+            const userRoles = [];
+            for (const roleName of rolesToAssign) {
+                const userRole = await tx.userRole.create({
+                    data: {
+                        userId: user.id,
+                        name: roleName
+                    }
+                });
+                userRoles.push(userRole);
+            }
+
+            // 4. Create Contact record if contact information is provided
+            let contactRecord = null;
+            if (contact && contact.firstName && contact.lastName) {
+                contactRecord = await tx.contact.create({
+                    data: {
+                        userId: user.id,
+                        firstName: contact.firstName,
+                        lastName: contact.lastName
+                    }
+                });
+
+                // 5. Create PhoneNumber records if provided
+                if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+                    for (const phoneData of contact.phoneNumbers) {
+                        await tx.phoneNumber.create({
+                            data: {
+                                contactId: contactRecord.id,
+                                type: phoneData.type || 'PRIMARY',
+                                number: phoneData.number
+                            }
+                        });
+                    }
                 }
-            });
+            }
 
             return {
                 id: user.id,
                 email: auth.email,
                 phone: auth.phoneNumber,
-                role: userRole.name,
+                roles: userRoles.map(ur => ur.name),
+                primaryRole: userRoles[0]?.name, // First role as primary for backward compatibility
                 company: company.name,
                 companyId: company.id,
                 status: user.status,
-                createdAt: user.createdAt
+                createdAt: user.createdAt,
+                contact: contactRecord ? {
+                    firstName: contactRecord.firstName,
+                    lastName: contactRecord.lastName
+                } : null
             };
         });
 
@@ -686,7 +744,12 @@ export const getAdminUsers = async (req, res, next) => {
             include: {
                 auth: true,
                 userRoles: true,
-                company: true
+                company: true,
+                contacts: {
+                    include: {
+                        phoneNumbers: true
+                    }
+                }
             },
             orderBy: {
                 createdAt: 'desc'
@@ -709,12 +772,18 @@ export const getAdminUsers = async (req, res, next) => {
                 name: user.auth?.email?.split('@')[0] || 'Unknown User', // Use email prefix as name
                 email: user.auth?.email || 'No Email',
                 phone: user.auth?.phoneNumber || 'No Phone',
-                role: user.userRoles[0]?.name || 'USER',
+                roles: user.userRoles.map(ur => ur.name), // All roles
+                primaryRole: user.userRoles[0]?.name || 'USER', // First role as primary for backward compatibility
                 company: user.company?.name || 'No Company',
                 companyId: user.companyId,
                 status: user.status,
                 createdAt: user.createdAt,
-                createdBy: user.createdBy
+                createdBy: user.createdBy,
+                contact: user.contacts && user.contacts.length > 0 ? {
+                    firstName: user.contacts[0].firstName,
+                    lastName: user.contacts[0].lastName,
+                    phoneNumbers: user.contacts[0].phoneNumbers
+                } : null
             }));
 
         res.status(200).json({
@@ -744,7 +813,12 @@ export const getSellersWithOrders = async (req, res, next) => {
             include: {
                 auth: true,
                 userRoles: true,
-                company: true
+                company: true,
+                contacts: {
+                    include: {
+                        phoneNumbers: true
+                    }
+                }
             },
             orderBy: {
                 createdAt: 'desc'
@@ -793,12 +867,17 @@ export const getSellersWithOrders = async (req, res, next) => {
                                     where: {
                                         userId: { in: userIds }
                                     },
-                                    include: {
-                                        user: {
-                                            include: {
-                                                auth: true
+                                                                    include: {
+                                    user: {
+                                        include: {
+                                            auth: true,
+                                            contacts: {
+                                                include: {
+                                                    phoneNumbers: true
+                                                }
                                             }
-                                        },
+                                        }
+                                    },
                                         deliveryItems: {
                                             include: {
                                                 menuItem: {
@@ -813,6 +892,11 @@ export const getSellersWithOrders = async (req, res, next) => {
                                                     }
                                                 },
                                                 deliveryAddress: true
+                                            }
+                                        },
+                                        payments: {
+                                            include: {
+                                                paymentReceipts: true
                                             }
                                         }
                                     },
@@ -838,7 +922,12 @@ export const getSellersWithOrders = async (req, res, next) => {
                                 include: {
                                     user: {
                                         include: {
-                                            auth: true
+                                            auth: true,
+                                            contacts: {
+                                                include: {
+                                                    phoneNumbers: true
+                                                }
+                                            }
                                         }
                                     },
                                     deliveryItems: {
@@ -867,7 +956,8 @@ export const getSellersWithOrders = async (req, res, next) => {
                             
                             return {
                                 id: order.id,
-                                customerName: order.user?.auth?.email?.split('@')[0] || 'User',
+                                customerName: order.user?.contacts?.[0]?.firstName || order.user?.auth?.email?.split('@')[0] || 'User',
+                                customerPhone: order.user?.contacts?.[0]?.phoneNumbers?.[0]?.number || order.user?.auth?.phoneNumber || 'No phone',
                                 customerEmail: order.user?.auth?.email || 'No email',
                                 totalPrice: order.totalPrice || 0,
                                 status: order.status || 'PENDING',
@@ -889,7 +979,14 @@ export const getSellersWithOrders = async (req, res, next) => {
                                         status: item.status,
                                         address: item.deliveryAddress
                                     };
-                                }) || []
+                                }) || [],
+                                paymentReceipts: order.payments?.flatMap(payment => 
+                                    payment.paymentReceipts?.map(receipt => ({
+                                        id: receipt.id,
+                                        imageUrl: receipt.receiptImageUrl,
+                                        receiptUrl: payment.receiptUrl
+                                    })) || []
+                                ) || []
                             };
                         });
 
@@ -1005,7 +1102,7 @@ export const proxyRoutePlanning = async (req, res, next) => {
 
         
         // Call the external route planning API
-        const response = await fetch('http://13.203.227.119:5001/trigger', {
+        const response = await fetch(`${process.env.AI_ROUTE_API}/trigger`, {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer mysecretkey123',
@@ -1062,7 +1159,7 @@ export const proxyExecutiveCount = async (req, res, next) => {
         }
         
         // Send executive count to EC2 instance (one-way POST, no response needed)
-        await fetch('http://13.203.227.119:5001/executive-count', {
+        await fetch(`${process.env.AI_ROUTE_API}/executive-count`, {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer mysecretkey123',
@@ -1100,12 +1197,73 @@ export const proxyExecutiveCount = async (req, res, next) => {
     }
 };
 
+// Poll for results from external API
+const pollForResults = async (requestId, maxAttempts = 30, intervalMs = 2000) => {
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            
+            const statusResponse = await fetch(`${process.env.AI_ROUTE_API}/status/${requestId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer mysecretkey123',
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!statusResponse.ok) {
+                if (attempt === maxAttempts) {
+                    throw new Error(`Status check failed after ${maxAttempts} attempts`);
+                }
+                await new Promise(resolve => setTimeout(resolve, intervalMs));
+                continue;
+            }
+            
+            const statusData = await statusResponse.json();
+            
+            // Check if processing is complete
+            if (statusData.status === 'completed' || statusData.status === 'success') {
+                return statusData;
+            }
+            
+            // Check if processing failed
+            if (statusData.status === 'failed' || statusData.status === 'error') {
+                throw new Error(`Processing failed: ${statusData.message || 'Unknown error'}`);
+            }
+            
+            // Still processing, wait and try again
+            if (statusData.status === 'processing' || statusData.status === 'running') {
+                if (attempt === maxAttempts) {
+                    throw new Error(`Processing timeout after ${maxAttempts} attempts`);
+                }
+                await new Promise(resolve => setTimeout(resolve, intervalMs));
+                continue;
+            }
+            
+            // Unknown status
+            if (attempt === maxAttempts) {
+                throw new Error(`Unknown status after ${maxAttempts} attempts: ${statusData.status}`);
+            }
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+            
+        } catch (error) {
+            console.error(`Polling attempt ${attempt} failed:`, error.message);
+            if (attempt === maxAttempts) {
+                throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+    }
+    
+    throw new Error(`Polling timeout after ${maxAttempts} attempts`);
+};
+
 // Proxy run script endpoint for program execution
 export const proxyRunScript = async (req, res, next) => {
     try {
 
         
-        const { executiveCount, timestamp, source, userAgent, dashboardVersion } = req.body;
+        const { executiveCount, timestamp, source, userAgent, dashboardVersion, session, executive } = req.body;
         
         if (!executiveCount || executiveCount <= 0) {
             return res.status(400).json({
@@ -1114,18 +1272,22 @@ export const proxyRunScript = async (req, res, next) => {
             });
         }
 
+        // Prepare the request body with all required fields
+        const requestBody = {
+            num_drivers: executiveCount,
+            session: session ,
+            executive: executive ,
+        };
         
         
         // Call the external run-script API
-        const response = await fetch('http://13.203.227.119:5001/run-script', {
+        const response = await fetch(`${process.env.AI_ROUTE_API}/run-script`, {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer mysecretkey123',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                num_drivers: executiveCount
-            })
+            body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) {
@@ -1134,18 +1296,39 @@ export const proxyRunScript = async (req, res, next) => {
         
         const data = await response.json();
         
-        res.status(200).json({
-            success: true,
-            message: 'Program executed successfully',
-            timestamp: new Date().toISOString(),
-            data: {
-                status: 'completed',
-                requestId: `ps-${Date.now()}`,
-                numDrivers: executiveCount,
-                externalResponse: data,
-                executionTime: new Date().toISOString()
-            }
-        });
+        // Check if the program is running in background and needs polling
+        if (data.status === 'processing' && data.requestId) {
+            
+            // Start polling for results
+            const finalResult = await pollForResults(data.requestId);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Program executed successfully',
+                timestamp: new Date().toISOString(),
+                data: {
+                    status: 'completed',
+                    requestId: data.requestId,
+                    numDrivers: executiveCount,
+                    externalResponse: finalResult,
+                    executionTime: new Date().toISOString()
+                }
+            });
+        } else {
+            // Immediate response (not processing)
+            res.status(200).json({
+                success: true,
+                message: 'Program executed successfully',
+                timestamp: new Date().toISOString(),
+                data: {
+                    status: 'completed',
+                    requestId: `ps-${Date.now()}`,
+                    numDrivers: executiveCount,
+                    externalResponse: data,
+                    executionTime: new Date().toISOString()
+                }
+            });
+        }
         
     } catch (error) {
         console.error('Error in program execution proxy:', error);
@@ -1170,7 +1353,7 @@ export const proxySendRoutes = async (req, res, next) => {
         }
         
         // Call the external send_routes API
-        const response = await fetch('http://13.203.227.119:5001/send_routes', {
+        const response = await fetch(`${process.env.AI_ROUTE_API}/send_routes`, {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer mysecretkey123',
@@ -1268,8 +1451,8 @@ export const proxyFileContent = async (req, res, next) => {
 // Proxy session data endpoint
 export const proxySessionData = async (req, res, next) => {
     try {
-        // Call the external session_data API
-        const response = await fetch('http://13.203.227.119:5001/session_data', {
+        // Call the external delivery_data API with specific parameters
+        const response = await fetch(`${process.env.AI_ROUTE_API}/delivery_data`, {
             method: 'GET',
             headers: {
                 'Authorization': 'Bearer mysecretkey123',
@@ -1285,21 +1468,22 @@ export const proxySessionData = async (req, res, next) => {
         
         res.status(200).json({
             success: true,
-            message: 'Session data fetched successfully',
+            message: 'Delivery data fetched successfully',
             timestamp: new Date().toISOString(),
             data: {
                 status: 'completed',
                 requestId: `sd-${Date.now()}`,
                 externalResponse: data,
-                executionTime: new Date().toISOString()
+                executionTime: new Date().toISOString(),
+                endpoint: 'delivery_data'
             }
         });
         
     } catch (error) {
-        console.error('Error in session data proxy:', error);
+        console.error('Error in delivery data proxy:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch session data',
+            message: 'Failed to fetch delivery data',
             error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }
@@ -1437,7 +1621,386 @@ export const getProductQuantitiesForMenus = async (req, res, next) => {
     }
 };
 
+// Add additional roles to existing user
+export const addUserRoles = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const { roles } = req.body;
 
+        if (!roles || !Array.isArray(roles) || roles.length === 0) {
+            throw new AppError('Roles array is required', 400);
+        }
 
+        // Validate roles
+        const validRoles = ['ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER'];
+        const invalidRoles = roles.filter(r => !validRoles.includes(r));
+        if (invalidRoles.length > 0) {
+            throw new AppError(`Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${validRoles.join(', ')}`, 400);
+        }
+
+        // Check if user exists
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { userRoles: true }
+        });
+
+        if (!user) {
+            throw new AppError('User not found', 404);
+        }
+
+        // Get existing role names
+        const existingRoles = user.userRoles.map(ur => ur.name);
+        
+        // Filter out roles that already exist
+        const newRoles = roles.filter(role => !existingRoles.includes(role));
+
+        if (newRoles.length === 0) {
+            return res.status(200).json({
+                status: 'success',
+                message: 'All specified roles already exist for this user',
+                data: {
+                    userId: user.id,
+                    existingRoles: existingRoles,
+                    newRoles: []
+                }
+            });
+        }
+
+        // Create new roles using createMany
+        await prisma.userRole.createMany({
+            data: newRoles.map(roleName => ({
+                userId: user.id,
+                name: roleName
+            }))
+        });
+
+        // Get updated user with all roles
+        const updatedUser = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { 
+                userRoles: true,
+                auth: true,
+                company: true
+            }
+        });
+
+        res.status(200).json({
+            status: 'success',
+            message: `Successfully added ${newRoles.length} new role(s) to user`,
+            data: {
+                userId: user.id,
+                email: updatedUser.auth?.email,
+                allRoles: updatedUser.userRoles.map(ur => ur.name),
+                addedRoles: newRoles,
+                existingRoles: existingRoles
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Remove roles from user
+export const removeUserRoles = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const { roles } = req.body;
+
+        if (!roles || !Array.isArray(roles) || roles.length === 0) {
+            throw new AppError('Roles array is required', 400);
+        }
+
+        // Check if user exists
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { userRoles: true }
+        });
+
+        if (!user) {
+            throw new AppError('User not found', 404);
+        }
+
+        // Get existing role names
+        const existingRoles = user.userRoles.map(ur => ur.name);
+        
+        // Filter roles that actually exist
+        const rolesToRemove = roles.filter(role => existingRoles.includes(role));
+
+        if (rolesToRemove.length === 0) {
+            return res.status(200).json({
+                status: 'success',
+                message: 'None of the specified roles exist for this user',
+                data: {
+                    userId: user.id,
+                    existingRoles: existingRoles,
+                    removedRoles: []
+                }
+            });
+        }
+
+        // Remove roles
+        await prisma.userRole.deleteMany({
+            where: {
+                userId: user.id,
+                name: { in: rolesToRemove }
+            }
+        });
+
+        // Get updated user with remaining roles
+        const updatedUser = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { 
+                userRoles: true,
+                auth: true,
+                company: true
+            }
+        });
+
+        res.status(200).json({
+            status: 'success',
+            message: `Successfully removed ${rolesToRemove.length} role(s) from user`,
+            data: {
+                userId: user.id,
+                email: updatedUser.auth?.email,
+                remainingRoles: updatedUser.userRoles.map(ur => ur.name),
+                removedRoles: rolesToRemove,
+                previousRoles: existingRoles
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Fetch active executives from external API
+export const getActiveExecutives = async (req, res, next) => {
+    try {
+        const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer mysecretkey123'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        res.status(200).json({
+            success: true,
+            data: {
+                executives: data, // Wrap the array in an executives property
+                total: data.length,
+                timestamp: new Date().toISOString()
+            },
+            message: `Successfully fetched ${data.length} active executives`
+        });
+    } catch (error) {
+        console.error('Error fetching active executives:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch active executives from external API',
+            error: error.message
+        });
+    }
+};
+
+// Update executive status via external API
+export const updateExecutiveStatus = async (req, res, next) => {
+    try {
+        const { updates } = req.body;
+        
+        if (!updates || !Array.isArray(updates) || updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Updates array is required and must not be empty'
+            });
+        }
+
+        // Validate each update
+        for (const update of updates) {
+            if (!update.user_id || !update.status) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Each update must include user_id and status'
+                });
+            }
+            
+            if (!['ACTIVE', 'INACTIVE'].includes(update.status)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Status must be either ACTIVE or INACTIVE'
+                });
+            }
+        }
+
+        // Send all updates to external API in a single call
+        try {
+            const requestBody = {
+                updates: updates, // Send all updates as an array
+                date: new Date().toISOString().split('T')[0], // Today's date
+                action: 'bulk_status_update'
+            };
+            
+            const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer mysecretkey123',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`External API responded with status: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            
+            // All updates succeeded
+            const results = updates.map(update => ({
+                user_id: update.user_id,
+                status: update.status,
+                success: true,
+                response: data
+            }));
+
+            return res.status(200).json({
+                success: true,
+                message: `Successfully updated ${updates.length} executive statuses`,
+                data: {
+                    results,
+                    errors: [],
+                    summary: {
+                        total: updates.length,
+                        successful: updates.length,
+                        failed: 0
+                    },
+                    timestamp: new Date().toISOString(),
+                    externalResponse: data
+                }
+            });
+
+        } catch (error) {
+            // Fallback: Try individual updates
+            const results = [];
+            const errors = [];
+            
+            for (const update of updates) {
+                try {
+                    const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer mysecretkey123',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            user_id: update.user_id,
+                            date: update.date,
+                            status: update.status
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`External API responded with status: ${response.status} - ${errorText}`);
+                    }
+
+                    const data = await response.json();
+                    results.push({
+                        user_id: update.user_id,
+                        status: update.status,
+                        success: true,
+                        response: data
+                    });
+                } catch (individualError) {
+                    errors.push({
+                        user_id: update.user_id,
+                        status: update.status,
+                        success: false,
+                        error: individualError.message
+                    });
+                }
+            }
+
+            const successCount = results.length;
+            const errorCount = errors.length;
+
+            return res.status(200).json({
+                success: errorCount === 0,
+                message: `Updated ${successCount} executives successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+                data: {
+                    results,
+                    errors,
+                    summary: {
+                        total: updates.length,
+                        successful: successCount,
+                        failed: errorCount
+                    },
+                    timestamp: new Date().toISOString()
+                }
+            });
+        }
+
+    } catch (error) {
+        console.error('Error updating executive status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update executive status',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Save all routes using request ID
+export const saveAllRoutes = async (req, res, next) => {
+    try {
+        const { requestId } = req.body;
+
+        if (!requestId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Request ID is required'
+            });
+        }
+
+        // Call external API to save routes
+        const response = await fetch(`${process.env.AI_ROUTE_API}/save-all-routes`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer mysecretkey123',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                requestId: requestId
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        res.json({
+            success: true,
+            message: 'Routes saved successfully',
+            data: data
+        });
+
+    } catch (error) {
+        console.error('Error saving routes:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to save routes',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
 
 

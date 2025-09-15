@@ -3,14 +3,14 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder, createAdminUser, getAdminUsers, getOrphanedUsers, cleanupOrphanedUsers, getSellersWithOrders, getDeliveryExecutives, proxyRoutePlanning, proxyExecutiveCount, proxyRunScript, proxySendRoutes, proxyFileContent, proxySessionData, getProductQuantitiesForMenus} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder, createAdminUser, getAdminUsers, addUserRoles, removeUserRoles, getOrphanedUsers, cleanupOrphanedUsers, getSellersWithOrders, getDeliveryExecutives, proxyRoutePlanning, proxyExecutiveCount, proxyRunScript, proxySendRoutes, proxyFileContent, proxySessionData, getProductQuantitiesForMenus, getActiveExecutives, updateExecutiveStatus, saveAllRoutes} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
 // Example of a route that requires admin role
 router.get('/dashboard',
     authenticateToken,
-    checkRole('admin', 'seller'),
+    checkRole('admin'),
     adminLogin
 );
 
@@ -222,17 +222,30 @@ router.delete('/orders/:orderId',
 // Admin User Management routes
 router.post('/users/create',
     authenticateToken,
-    // checkRole('admin'), // Temporarily disabled for testing
+    checkRole('ADMIN'),
     createAdminUser
 );
 
 router.get('/users/list',
     authenticateToken,
-    // checkRole('admin'), // Temporarily disabled for testing
+    checkRole('ADMIN'),
     getAdminUsers
 );
 
-// Utility routes for debugging orphaned users
+// User role management routes
+router.post('/users/:userId/roles',
+    authenticateToken,
+    checkRole('ADMIN'),
+    addUserRoles
+);
+
+router.delete('/users/:userId/roles',
+    authenticateToken,
+    checkRole('ADMIN'),
+    removeUserRoles
+);
+
+// Utility routes for orphaned users
 router.get('/users/orphaned',
     // authenticateToken,
     // checkRole('admin'),
@@ -305,6 +318,27 @@ router.get('/product-quantities-for-menus',
     // authenticateToken,
     // checkRole('admin'),
     getProductQuantitiesForMenus
+);
+
+// Active executives route
+router.get('/active-executives',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    getActiveExecutives
+);
+
+// Update executive status route
+router.post('/update-executive-status',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    updateExecutiveStatus
+);
+
+// Save all routes route
+router.post('/save-all-routes',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    saveAllRoutes
 );
 
 export default router; 

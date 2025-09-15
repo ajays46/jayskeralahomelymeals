@@ -4,32 +4,35 @@ import {
     getPaymentByIdService,
     getUserPaymentsService,
     updatePaymentStatusService,
-    deletePaymentService
+    deletePaymentService,
+    uploadReceiptService
 } from '../services/payment.service.js';
 
 // Create a new payment
 export const createPayment = async (req, res, next) => {
     try {
         const userId = req.user.userId;
-        const { orderId, paymentMethod, paymentAmount, receiptType, orderData } = req.body;
+        const { orderId, paymentMethod, paymentAmount, receiptType, orderData, externalReceiptUrl } = req.body;
         const receipt = req.file;
 
-        if (!receipt) { throw new AppError('Payment receipt is required', 400); }
+        // Receipt is now optional - no validation required
 
         const paymentData = {
             orderId,
             paymentMethod,
             paymentAmount: parseInt(paymentAmount),
-            receipt,
+            receipt, // Can be null/undefined
             receiptType,
-            orderData // Include orderData for delivery items creation
+            orderData, // Include orderData for delivery items creation
+            externalReceiptUrl // Include external receipt URL
         };
+        
 
         const payment = await createPaymentService(userId, paymentData);
 
         res.status(201).json({
             success: true,
-            message: 'Payment created successfully',
+            message: receipt ? 'Payment created successfully' : 'Order created successfully. Payment receipt can be uploaded later.',
             data: { payment: payment }
         });
     } catch (error) {
@@ -120,6 +123,43 @@ export const deletePayment = async (req, res, next) => {
             success: true,
             message: result.message,
             data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Upload payment receipt later
+export const uploadPaymentReceipt = async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+        const { paymentId } = req.params;
+        const { externalReceiptUrl, orderAmount } = req.body;
+        const receipt = req.file;
+
+        // Log the received order amount for debugging
+
+        if (!receipt && !externalReceiptUrl) {
+            throw new AppError('Payment receipt is required', 400);
+        }
+
+
+        // Use mimetype if type is not available
+        const fileType = receipt?.type || receipt?.mimetype || 'application/octet-stream';
+
+        const paymentData = {
+            receipt,
+            receiptType: fileType.startsWith('image/') ? 'Image' : 'PDF',
+            externalReceiptUrl,
+            orderAmount: orderAmount ? parseInt(orderAmount) : null
+        };
+
+        const payment = await uploadReceiptService(userId, paymentId, paymentData);
+
+        res.status(200).json({
+            success: true,
+            message: 'Payment receipt uploaded successfully',
+            data: { payment: payment }
         });
     } catch (error) {
         next(error);

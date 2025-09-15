@@ -9,7 +9,9 @@ import {
   createUserAddressController,
   getUserOrdersController,
   cancelDeliveryItemController,
-  deleteUserController
+  cancelOrderController,
+  deleteUserController,
+  updateCustomerController
 } from '../controllers/seller.controller.js';
 
 const router = express.Router();
@@ -27,6 +29,8 @@ router.get('/users', getSellerUsers);
 router.get('/users/:userId/addresses', getUserAddressesController);
 router.post('/users/:userId/addresses', createUserAddressController);
 router.get('/users/:userId/orders', getUserOrdersController);
+router.put('/users/:userId', updateCustomerController);
+router.put('/orders/:orderId/cancel', cancelOrderController);
 router.put('/delivery-items/:deliveryItemId/cancel', cancelDeliveryItemController);
 router.delete('/users/:userId', deleteUserController);
 

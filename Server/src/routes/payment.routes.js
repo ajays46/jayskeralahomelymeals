@@ -4,7 +4,8 @@ import {
     getPaymentById,
     getUserPayments,
     updatePaymentStatus,
-    deletePayment
+    deletePayment,
+    uploadPaymentReceipt
 } from '../controllers/payment.controller.js';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { upload } from '../utils/multer.js';
@@ -28,5 +29,8 @@ router.put('/:paymentId/status', updatePaymentStatus);
 
 // Delete payment
 router.delete('/:paymentId', deletePayment);
+
+// Upload payment receipt later
+router.post('/:paymentId/receipt', upload.single('receipt'), uploadPaymentReceipt);
 
 export default router; 

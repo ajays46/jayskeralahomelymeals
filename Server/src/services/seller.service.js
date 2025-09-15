@@ -3,7 +3,7 @@ import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
 
 // Create contact with minimal user account (for sellers)
-export const createContactOnly = async ({ firstName, lastName, phoneNumber, sellerId }) => {
+export const createContactOnly = async ({ firstName, lastName, phoneNumber, address, sellerId }) => {
   try {
     // Check if phone number already exists in contacts
     const existingContact = await prisma.contact.findFirst({
@@ -42,6 +42,7 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, sell
           email: uniqueEmail,
           password: 'NO_PASSWORD_NEEDED', // Placeholder password
           apiKey: `contact_${timestamp}`,
+          phoneNumber: phoneNumber, // Add phone number to auth record
           status: 'ACTIVE'
         }
       });
@@ -74,6 +75,21 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, sell
         }
       });
 
+      // 5. Create address if provided
+      let addressRecord;
+      if (address && (address.street || address.housename || address.city || address.pincode)) {
+        addressRecord = await tx.address.create({
+          data: {
+            userId: user.id,
+            street: address.street || '',
+            housename: address.housename || 'Default House', // Required field in schema
+            city: address.city || '',
+            pincode: address.pincode ? parseInt(address.pincode) : 0, // Convert to integer as per schema
+            addressType: 'HOME'
+          }
+        });
+      }
+
               return {
           user: {
             id: user.id,
@@ -91,6 +107,13 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, sell
             type: phone.type,
             number: phone.number
           },
+          address: addressRecord ? {
+            id: addressRecord.id,
+            street: addressRecord.street,
+            housename: addressRecord.housename,
+            city: addressRecord.city,
+            pincode: addressRecord.pincode
+          } : null,
           company: {
             id: seller.companyId
           }
@@ -135,6 +158,30 @@ export const getUsersBySeller = async (sellerId) => {
             orderDate: true,
             totalPrice: true,
             status: true,
+            createdAt: true,
+            payments: {
+              select: {
+                id: true,
+                paymentStatus: true,
+                receiptUrl: true,
+                paymentMethod: true,
+                paymentAmount: true,
+                paymentDate: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        addresses: {
+          select: {
+            id: true,
+            street: true,
+            city: true,
+            pincode: true,
+            housename: true,
+            addressType: true,
             createdAt: true
           },
           orderBy: {
@@ -206,11 +253,14 @@ export const getUserOrders = async (userId, sellerId) => {
       },
       include: {
         payments: {
-          select: {
-            id: true,
-            paymentMethod: true,
-            paymentStatus: true,
-            paymentDate: true
+          include: {
+            paymentReceipts: {
+              select: {
+                id: true,
+                receiptImageUrl: true,
+                receipt: true
+              }
+            }
           }
         },
         deliveryItems: {
@@ -354,6 +404,29 @@ export const cancelDeliveryItem = async (deliveryItemId, sellerId) => {
       }
     });
 
+    // Check if all delivery items in this order are now cancelled
+    // If so, automatically cancel the entire order
+    const allDeliveryItems = await prisma.deliveryItem.findMany({
+      where: {
+        orderId: deliveryItem.orderId
+      }
+    });
+
+    const allCancelled = allDeliveryItems.every(item => item.status === 'Cancelled');
+    
+    if (allCancelled) {
+      // Update order status to cancelled
+      await prisma.order.update({
+        where: {
+          id: deliveryItem.orderId
+        },
+        data: {
+          status: 'Cancelled',
+          updatedAt: new Date()
+        }
+      });
+    }
+
     // Note: We do NOT restore product quantities for individual delivery item cancellation
     // Product quantities are only restored when the entire order is cancelled
 
@@ -461,5 +534,124 @@ export const deleteUser = async (userId, sellerId) => {
     return { success: true, message: 'User and all associated data deleted successfully' };
   } catch (error) {
     throw new AppError('Failed to delete user: ' + error.message, 500);
+  }
+};
+
+// Update customer information (for sellers)
+export const updateCustomer = async (userId, sellerId, updateData) => {
+  try {
+    
+    // First verify that this user was created by the seller
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        createdBy: sellerId
+      },
+      include: {
+        contacts: {
+          include: {
+            phoneNumbers: true
+          }
+        },
+        addresses: true,
+        auth: true
+      }
+    });
+
+    if (!user) {
+      throw new AppError('User not found or not accessible by this seller', 404);
+    }
+    
+
+    // Use a transaction to ensure all updates are done together
+    const result = await prisma.$transaction(async (tx) => {
+      // Update contact information
+      if (updateData.contact) {
+        const contact = user.contacts[0];
+        if (contact) {
+          // Update contact details
+          await tx.contact.update({
+            where: { id: contact.id },
+            data: {
+              firstName: updateData.contact.firstName,
+              lastName: updateData.contact.lastName
+            }
+          });
+
+          // Update phone number if provided
+          if (updateData.contact.phoneNumbers && updateData.contact.phoneNumbers[0]) {
+            const phoneNumber = contact.phoneNumbers[0];
+            if (phoneNumber) {
+              await tx.phoneNumber.update({
+                where: { id: phoneNumber.id },
+                data: {
+                  number: updateData.contact.phoneNumbers[0].number
+                }
+              });
+            }
+          }
+        }
+      }
+
+      // Update auth information (email)
+      if (updateData.auth && updateData.auth.email) {
+        await tx.auth.update({
+          where: { id: user.auth.id },
+          data: {
+            email: updateData.auth.email
+          }
+        });
+      }
+
+      // Update address information
+      if (updateData.address) {
+        const address = user.addresses[0];
+        if (address) {
+          // Update existing address
+          await tx.address.update({
+            where: { id: address.id },
+            data: {
+              street: updateData.address.street,
+              housename: updateData.address.housename,
+              city: updateData.address.city,
+              pincode: parseInt(updateData.address.pincode) || 0,
+
+            }
+          });
+        } else {
+          // Create new address if none exists
+          await tx.address.create({
+            data: {
+              userId: userId,
+              street: updateData.address.street,
+              housename: updateData.address.housename,
+              city: updateData.address.city,
+              pincode: parseInt(updateData.address.pincode) || 0,
+
+            }
+          });
+        }
+      }
+
+      // Return updated user data
+      const updatedUser = await tx.user.findUnique({
+        where: { id: userId },
+        include: {
+          contacts: {
+            include: {
+              phoneNumbers: true
+            }
+          },
+          addresses: true,
+          auth: true
+        }
+      });
+
+      return updatedUser;
+    });
+
+    return result;
+  } catch (error) {
+    throw new AppError('Failed to update customer: ' + error.message, 500);
   }
 };

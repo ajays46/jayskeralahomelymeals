@@ -1,28 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-
+import { 
+  showSuccessToast, 
+  showErrorToast, 
+  showWarningToast 
+} from '../utils/toastConfig.jsx';
 import { 
   MdArrowBack,
   MdSave,
   MdCancel,
   MdPerson,
   MdPhone,
+  MdEmail,
   MdLocationOn,
-  MdAdd,
-  MdEdit
+  MdCalendarToday,
+  MdShoppingCart,
+  MdAttachMoney
 } from 'react-icons/md';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 
-const CreateUserPage = () => {
+const EditCustomerPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, roles } = useAuthStore();
-  const { createContact, updateCustomer } = useSeller();
+  const { updateCustomer } = useSeller();
   
-  // Check if we're in edit mode
-  const editCustomer = location.state?.editUser;
-  const isEditMode = !!editCustomer;
+  // Get customer data from navigation state
+  const customer = location.state?.editUser;
   
   // State management
   const [formData, setFormData] = useState({
@@ -33,7 +38,6 @@ const CreateUserPage = () => {
     
     // Address
     street: '',
-    housename: '',
     city: '',
     pincode: ''
   });
@@ -41,11 +45,11 @@ const CreateUserPage = () => {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Initialize form data when in edit mode
+  // Initialize form data when customer data is available
   useEffect(() => {
-    if (isEditMode && editCustomer) {
-      const contact = editCustomer.contacts?.[0];
-      const address = editCustomer.addresses?.[0];
+    if (customer) {
+      const contact = customer.contacts?.[0];
+      const address = customer.addresses?.[0];
       
       setFormData({
         firstName: contact?.firstName || '',
@@ -53,12 +57,11 @@ const CreateUserPage = () => {
         phoneNumber: contact?.phoneNumbers?.[0]?.number || '',
         
         street: address?.street || '',
-        housename: address?.housename || '',
         city: address?.city || '',
-        pincode: address?.pincode || ''
+        pincode: address?.pincode ? String(address.pincode) : ''
       });
     }
-  }, [isEditMode, editCustomer]);
+  }, [customer]);
 
   // Validation
   const validateForm = () => {
@@ -72,15 +75,19 @@ const CreateUserPage = () => {
       newErrors.lastName = 'Last name is required';
     }
     
+    
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Phone number is required';
     } else if (!/^\d{10}$/.test(formData.phoneNumber.replace(/\D/g, ''))) {
       newErrors.phoneNumber = 'Phone number must be 10 digits';
     }
     
-    // Validate pincode if provided
-    if (formData.pincode.trim() && !/^\d{6}$/.test(formData.pincode.trim())) {
-      newErrors.pincode = 'Pincode must be 6 digits';
+    if (!formData.city || !String(formData.city).trim()) {
+      newErrors.city = 'City is required';
+    }
+    
+    if (!formData.pincode || !String(formData.pincode).trim()) {
+      newErrors.pincode = 'Pincode is required';
     }
     
     setErrors(newErrors);
@@ -109,75 +116,41 @@ const CreateUserPage = () => {
     e.preventDefault();
     
     if (!validateForm()) {
+      showWarningToast('Please fix the errors before saving');
       return;
     }
     
     setSaving(true);
     
     try {
-      if (isEditMode) {
-        // Edit mode - update existing customer
-        const updateData = {
-          contact: {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            phoneNumbers: [{
-              number: formData.phoneNumber.replace(/\D/g, '')
-            }]
-          },
-          address: {
-            street: formData.street,
-            housename: formData.housename,
-            city: formData.city,
-            pincode: formData.pincode
-          }
-        };
-        
-        const result = await updateCustomer(editCustomer.id, updateData);
-        
-        if (result.success) {
-          // Navigate back to customers list
-          navigate('/jkhm/seller/customers');
-        }
-      } else {
-        // Create mode - create new customer
-        const createData = {
+      // Prepare the data for the backend
+      const updateData = {
+        contact: {
           firstName: formData.firstName,
           lastName: formData.lastName,
-          phoneNumber: formData.phoneNumber.replace(/\D/g, '')
-        };
-        
-        // Only add address if any address field is filled
-        if (formData.street.trim() || formData.housename.trim() || formData.city.trim() || formData.pincode.trim()) {
-          createData.address = {
-            street: formData.street,
-            housename: formData.housename,
-            city: formData.city,
-            pincode: formData.pincode
-          };
+          phoneNumbers: [{
+            number: formData.phoneNumber.replace(/\D/g, '')
+          }]
+        },
+        address: {
+          street: formData.street,
+          city: formData.city,
+          pincode: formData.pincode
         }
-        
-        // Use the hook to create the customer
-        const result = await createContact(createData);
-        
-        if (result.success) {
-          // Navigate to BookingWizardPage with the newly created customer pre-selected and go to menu selection
-          navigate('/jkhm/place-order', { 
-            state: { 
-              selectedUser: result.data,
-              fromCreateUser: true,
-              initialTab: 'menu' // This will set the initial tab to menu selection
-            } 
-          });
-        }
+      };
+      
+      // Use the hook to update the customer
+      const result = await updateCustomer(customer.id, updateData);
+      
+      if (result.success) {
+        showSuccessToast('Customer updated successfully!');
+        navigate('/jkhm/seller/customers');
+      } else {
+        showErrorToast(result.message || 'Failed to update customer');
       }
     } catch (error) {
-      console.error('Error in form submission:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
+      console.error('Error updating customer:', error);
+      showErrorToast(error.message || 'Failed to update customer. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -188,6 +161,8 @@ const CreateUserPage = () => {
     navigate('/jkhm/seller/customers');
   };
 
+
+
   // Check if user has access
   if (!user || !roles?.includes('SELLER')) {
     return (
@@ -195,7 +170,7 @@ const CreateUserPage = () => {
         <div className="text-center">
           <MdPerson className="text-6xl text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
-          <p className="text-gray-600 mb-4">You don't have permission to create customers.</p>
+          <p className="text-gray-600 mb-4">You don't have permission to edit customers.</p>
           <button
             onClick={() => navigate('/jkhm')}
             className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
@@ -207,8 +182,27 @@ const CreateUserPage = () => {
     );
   }
 
+  // Check if customer data is available
+  if (!customer) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <MdPerson className="text-6xl text-gray-300 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Customer Not Found</h2>
+          <p className="text-gray-600 mb-4">No customer data available for editing.</p>
+          <button
+            onClick={() => navigate('/jkhm/seller/customers')}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Back to Customers
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -222,14 +216,9 @@ const CreateUserPage = () => {
                 <MdArrowBack className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {isEditMode ? 'Edit Customer' : 'Create New Customer'}
-                </h1>
+                <h1 className="text-2xl font-bold text-gray-900">Edit Customer</h1>
                 <p className="text-sm text-gray-600">
-                  {isEditMode 
-                    ? `Edit ${editCustomer?.contacts?.[0]?.firstName} ${editCustomer?.contacts?.[0]?.lastName}'s information`
-                    : 'Add a new customer and start booking'
-                  }
+                  {customer.contacts?.[0]?.firstName} {customer.contacts?.[0]?.lastName}
                 </p>
               </div>
             </div>
@@ -243,22 +232,18 @@ const CreateUserPage = () => {
                 <MdCancel className="w-4 h-4 inline mr-2" />
                 Cancel
               </button>
-              
               <button
-                type="button"
                 onClick={handleSubmit}
                 disabled={saving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                type='submit'
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {saving ? (
                   <div className="animate-spin rounded-full w-4 h-4 border-2 border-white border-t-transparent"></div>
                 ) : (
-                  isEditMode ? <MdEdit className="w-4 h-4" /> : <MdAdd className="w-4 h-4" />
+                  <MdSave className="w-4 h-4" />
                 )}
-                {saving 
-                  ? (isEditMode ? 'Saving...' : 'Creating...') 
-                  : (isEditMode ? 'Save Changes' : 'Create & Book')
-                }
+                {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -269,17 +254,17 @@ const CreateUserPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Left Column - Form */}
-          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
-            
-            {/* Basic Information Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MdPerson className="w-5 h-5 text-blue-600" />
-                Basic Information
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {/* Left Column - Basic Information */}
+           <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
+             
+             {/* Basic Information Card */}
+             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                 <MdPerson className="w-5 h-5 text-blue-600" />
+                 Basic Information
+               </h2>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number *
@@ -361,37 +346,28 @@ const CreateUserPage = () => {
                   />
                 </div>
                 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    House Name
-                  </label>
-                  <input
-                    type="text"
-                    name="housename"
-                    value={formData.housename}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter house name"
-                  />
-                </div>
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City
+                    City *
                   </label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.city ? 'border-red-300' : 'border-gray-300'
+                    }`}
                     placeholder="Enter city"
                   />
+                  {errors.city && (
+                    <p className="text-red-500 text-xs mt-1">{errors.city}</p>
+                  )}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pincode
+                    Pincode *
                   </label>
                   <input
                     type="text"
@@ -407,65 +383,61 @@ const CreateUserPage = () => {
                     <p className="text-red-500 text-xs mt-1">{errors.pincode}</p>
                   )}
                 </div>
+                
+
               </div>
             </div>
             
 
           </form>
 
-          {/* Right Column - Information */}
+          {/* Right Column - Customer Summary */}
           <div className="space-y-6">
             
-            {/* Information Card */}
+            {/* Customer Summary Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <MdPerson className="w-5 h-5 text-blue-600" />
-                Information
+                Customer Summary
               </h2>
               
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                    <MdAdd className="w-8 h-8" />
+                    {customer.contacts?.[0]?.firstName?.charAt(0) || 'C'}
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">
-                      {isEditMode ? 'Edit Customer' : 'New Customer'}
+                      {customer.contacts?.[0]?.firstName} {customer.contacts?.[0]?.lastName}
                     </h3>
-                    <p className="text-sm text-gray-600">
-                      {isEditMode 
-                        ? 'Updating customer information'
-                        : 'Creating a new customer and starting booking'
-                      }
-                    </p>
+                    <p className="text-sm text-gray-600">ID: {customer.id?.slice(-6)}</p>
                   </div>
                 </div>
                 
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MdPerson className="w-4 h-4" />
-                    <span>Fill in all required fields marked with *</span>
+                    <MdCalendarToday className="w-4 h-4" />
+                    <span>Joined: {new Date(customer.createdAt).toLocaleDateString()}</span>
                   </div>
                   
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MdPhone className="w-4 h-4" />
-                    <span>Phone number for contact purposes</span>
-                  </div>
+                  {customer.orders && customer.orders.length > 0 && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MdShoppingCart className="w-4 h-4" />
+                      <span>{customer.orders.length} orders</span>
+                    </div>
+                  )}
                   
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MdLocationOn className="w-4 h-4" />
-                    <span>Address fields are optional</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm text-blue-600">
-                    {isEditMode ? <MdEdit className="w-4 h-4" /> : <MdAdd className="w-4 h-4" />}
-                    <span>
-                      {isEditMode 
-                        ? 'Changes will be saved to the customer profile'
-                        : 'After creation, you\'ll be taken to booking wizard'
-                      }
-                    </span>
-                  </div>
+                  {customer.orders && customer.orders.length > 0 && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MdAttachMoney className="w-4 h-4" />
+                      <span className="text-green-600 font-medium">
+                        {new Intl.NumberFormat('en-IN', {
+                          style: 'currency',
+                          currency: 'INR'
+                        }).format(customer.orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0))}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -476,11 +448,29 @@ const CreateUserPage = () => {
               
               <div className="space-y-3">
                 <button
-                  onClick={() => navigate('/jkhm/customers')}
+                  onClick={() => navigate('/jkhm/place-order', { 
+                    state: { 
+                      selectedUser: {
+                        id: customer.id,
+                        firstName: customer.contacts?.[0]?.firstName,
+                        lastName: customer.contacts?.[0]?.lastName,
+                        phone: customer.contacts?.[0]?.phoneNumbers?.[0]?.number,
+                        email: customer.auth?.email
+                      }
+                    } 
+                  })}
+                  className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <MdShoppingCart className="w-4 h-4" />
+                  Book Now
+                </button>
+                
+                <button
+                  onClick={() => navigate('/jkhm/seller/customers')}
                   className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
                 >
                   <MdArrowBack className="w-4 h-4" />
-                  Back to Customers
+                  Back to List
                 </button>
               </div>
             </div>
@@ -491,4 +481,4 @@ const CreateUserPage = () => {
   );
 };
 
-export default CreateUserPage;
+export default EditCustomerPage;

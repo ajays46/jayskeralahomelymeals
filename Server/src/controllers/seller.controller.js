@@ -1,9 +1,10 @@
-import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressForUser, getUserOrders, cancelDeliveryItem, deleteUser } from '../services/seller.service.js';
+import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressForUser, getUserOrders, cancelDeliveryItem, deleteUser, updateCustomer } from '../services/seller.service.js';
+import { cancelOrderService } from '../services/order.service.js';
 
 // Create contact only (for sellers)
 export const createContactController = async (req, res, next) => {
   try {
-    const { firstName, lastName, phoneNumber } = req.body;
+    const { firstName, lastName, phoneNumber, address } = req.body;
     const sellerId = req.user.userId; // Get seller ID from JWT token
     
     // Validate required fields
@@ -18,6 +19,7 @@ export const createContactController = async (req, res, next) => {
       firstName, 
       lastName, 
       phoneNumber, 
+      address, // Pass the address data
       sellerId // Pass the seller ID to track who created this user
     });
     
@@ -156,6 +158,31 @@ export const cancelDeliveryItemController = async (req, res, next) => {
   }
 };
 
+// Cancel order for a specific user created by the seller
+export const cancelOrderController = async (req, res, next) => {
+  try {
+    const sellerId = req.user.userId; // Get seller ID from JWT token
+    const { orderId } = req.params; // Get order ID from URL params
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order ID is required'
+      });
+    }
+
+    const result = await cancelOrderService(orderId, sellerId, ['SELLER']);
+
+    res.status(200).json({
+      success: true,
+      message: 'Order cancelled successfully',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Delete user for a specific user created by the seller
 export const deleteUserController = async (req, res, next) => {
   try {
@@ -174,6 +201,32 @@ export const deleteUserController = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'User deleted successfully',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update customer information (for sellers)
+export const updateCustomerController = async (req, res, next) => {
+  try {
+    const sellerId = req.user.userId; // Get seller ID from JWT token
+    const { userId } = req.params; // Get user ID from URL params
+    const updateData = req.body; // Get update data from request body
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+    
+    const result = await updateCustomer(userId, sellerId, updateData);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Customer updated successfully',
       data: result
     });
   } catch (error) {

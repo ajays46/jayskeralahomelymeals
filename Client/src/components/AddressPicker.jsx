@@ -32,7 +32,8 @@ const AddressPicker = ({
   mealType = "general", // breakfast, lunch, dinner, or general
   addresses = null, // Optional: override default addresses (for seller-selected users)
   onAddressCreate = null, // Optional: callback for creating addresses for seller-selected users
-  selectedUserId = null // Optional: ID of the user for whom we're managing addresses
+  selectedUserId = null, // Optional: ID of the user for whom we're managing addresses
+  disabled = false // Optional: disable the input
 }) => {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState('');
@@ -506,9 +507,10 @@ const AddressPicker = ({
             value={value}
             onChange={() => {}} // Read-only
             placeholder={placeholder}
-            className={`w-full pl-8 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs sm:text-sm lg:text-base cursor-pointer ${className}`}
-            onClick={() => setShowDropdown(!showDropdown)}
+            className={`w-full pl-8 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs sm:text-sm lg:text-base ${disabled ? 'cursor-not-allowed bg-gray-100 opacity-60' : 'cursor-pointer'} ${className}`}
+            onClick={() => !disabled && setShowDropdown(!showDropdown)}
             readOnly
+            disabled={disabled}
           />
           
           {/* Location Icon */}

@@ -129,7 +129,7 @@ const MenuItemsTablePage = () => {
 
   const handleEdit = useCallback((menuItemId) => {
     if (!menuItemId) return;
-    navigate(`/admin/menu-items/${menuItemId}`);
+    navigate(`/jkhm/admin/menu-items/${menuItemId}`);
   }, [navigate]);
 
   const handleDelete = useCallback((menuItemId, menuItemName) => {

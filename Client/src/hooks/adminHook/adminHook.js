@@ -453,7 +453,6 @@ export const useUserRoles = () => {
         queryKey: ['userRoles'],
         queryFn: async () => {
             // For now, return the system-defined roles
-            // TODO: Replace with actual API call when backend endpoint is created
             // Example: const response = await api.get('/admin/user-roles');
             // return response.data;
             return {

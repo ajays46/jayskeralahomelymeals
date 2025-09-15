@@ -125,7 +125,30 @@ export const getOrderByIdService = async (orderId) => {
       throw new Error('Order not found');
     }
 
-    return order;
+    // Parse orderTimes to extract selectedDates
+    let selectedDates = [];
+    if (order.orderTimes) {
+      try {
+        const orderTimes = JSON.parse(order.orderTimes);
+        // Extract unique dates from delivery items
+        const dates = new Set();
+        order.deliveryItems.forEach(item => {
+          if (item.deliveryDate) {
+            dates.add(item.deliveryDate);
+          }
+        });
+        selectedDates = Array.from(dates).sort();
+      } catch (parseError) {
+        console.warn('Failed to parse orderTimes:', parseError);
+      }
+    }
+
+    // Add selectedDates and other useful fields to the order object
+    return {
+      ...order,
+      selectedDates: selectedDates,
+      menuName: order.deliveryItems?.[0]?.menuItem?.menu?.name || 'Unknown Menu'
+    };
   } catch (error) {
     throw new Error(`Failed to get order: ${error.message}`);
   }

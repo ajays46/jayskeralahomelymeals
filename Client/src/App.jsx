@@ -15,8 +15,6 @@ import ProfilePage from './pages/ProfilePage';
 import ResetPassword from './components/ResetPassword';
 import CompanyCreatePage from './pages/admin/CompanyCreatePage';
 import MenuPage from './pages/MenuPage';
-import BookingPage from './pages/BookingPage';
-import PaymentPage from './pages/PaymentPage';
 import AddProductPage from './pages/admin/AddProductPage';
 import ProductsPage from './pages/admin/ProductsPage';
 import AddMenuPage from './pages/admin/AddMenuPage';
@@ -26,6 +24,12 @@ import UsersPage from './pages/admin/UsersPage';
 
 import CreateUserPage from './pages/CreateUserPage';
 import DeliveryItemsPage from './pages/DeliveryItemsPage';
+import CustomersListPage from './pages/CustomersListPage';
+import EditCustomerPage from './pages/EditCustomerPage';
+import CustomerOrdersPage from './pages/CustomerOrdersPage';
+import BookingWizardPage from './pages/BookingWizardPage';
+import PaymentWizardPage from './pages/PaymentWizardPage';
+import UploadReceiptPage from './pages/UploadReceiptPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,9 +53,8 @@ const App = () => {
           <Route path="/jkhm" element={<HomePage />} />
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
           <Route path="/jkhm/menu" element={<MenuPage />} />
-          <Route path="/jkhm/bookings" element={<BookingPage />} />
-          <Route path="/jkhm/payment" element={<PaymentPage />} />
-          <Route path="/jkhm/payment/:orderId" element={<PaymentPage />} />
+          <Route path="/jkhm/place-order" element={<BookingWizardPage />} />
+          <Route path="/jkhm/process-payment" element={<PaymentWizardPage />} />
 
           {/* ✅ Protected Route */}
           <Route element={<ProtectedRoute />}>
@@ -69,11 +72,15 @@ const App = () => {
     
     
             <Route path='/jkhm/seller' element={<SellerPage />}></Route>
+            <Route path='/jkhm/seller/customers' element={<CustomersListPage />}></Route>
+            <Route path='/jkhm/customer-orders' element={<CustomerOrdersPage />}></Route>
+            <Route path='/jkhm/edit-customer' element={<EditCustomerPage />}></Route>
             <Route path='/jkhm/delivery-items/:orderId' element={<DeliveryItemsPage />}></Route>
             <Route path='/jkhm/delivery-manager' element={<DeliveryManagerPage />}></Route>
             <Route path='/jkhm/delivery-executive' element={<DeliveryExecutivePage />}></Route>
             <Route path='/jkhm/profile' element={<ProfilePage />}></Route>
             <Route path='/jkhm/create-user' element={<CreateUserPage />}></Route>
+            <Route path='/jkhm/upload-receipt/:paymentId' element={<UploadReceiptPage />}></Route>
           </Route>
 
           {/* Add more protected routes here */}

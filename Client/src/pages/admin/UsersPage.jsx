@@ -8,7 +8,7 @@ import { useCompanyList, useUserRoles, useAdminUsers, useCreateAdminUser } from 
  * UsersPage - Simple admin user management page
  * 
  * Features:
- * - Create new users with specific roles
+ * - Create new users with specific roles and contact information
  * - View created users in a simple list
  * 
  * Backend Integration:
@@ -43,7 +43,11 @@ const UsersPage = () => {
     password: '',
     confirmPassword: '',
     role: '',
-    companyId: ''
+    roles: [], // Multiple roles support
+    companyId: '',
+    // Contact information
+    firstName: '',
+    lastName: ''
   });
 
   const [createUserErrors, setCreateUserErrors] = useState({});
@@ -58,6 +62,26 @@ const UsersPage = () => {
     // Clear error when user starts typing
     if (createUserErrors[name]) {
       setCreateUserErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  }, [createUserErrors]);
+
+  // Handle role checkbox changes
+  const handleRoleChange = useCallback((roleValue) => {
+    setCreateUserForm(prev => {
+      const currentRoles = prev.roles || [];
+      const newRoles = currentRoles.includes(roleValue)
+        ? currentRoles.filter(role => role !== roleValue)
+        : [...currentRoles, roleValue];
+      
+      return {
+        ...prev,
+        roles: newRoles
+      };
+    });
+    
+    // Clear role error when user selects roles
+    if (createUserErrors.roles) {
+      setCreateUserErrors(prev => ({ ...prev, roles: '' }));
     }
   }, [createUserErrors]);
 
@@ -88,13 +112,25 @@ const UsersPage = () => {
       errors.confirmPassword = 'Passwords do not match';
     }
 
-    if (!createUserForm.role) {
-      errors.role = 'Please select a role';
+    // Validate roles - either single role or multiple roles
+    if (!createUserForm.role && (!createUserForm.roles || createUserForm.roles.length === 0)) {
+      errors.roles = 'Please select at least one role';
     }
 
     if (!createUserForm.companyId) {
       errors.companyId = 'Please select a company';
     }
+
+    // Contact validation
+    if (!createUserForm.firstName.trim()) {
+      errors.firstName = 'First name is required';
+    }
+
+    if (!createUserForm.lastName.trim()) {
+      errors.lastName = 'Last name is required';
+    }
+
+
 
     setCreateUserErrors(errors);
     return Object.keys(errors).length === 0;
@@ -112,8 +148,23 @@ const UsersPage = () => {
       email: createUserForm.email,
       phone: createUserForm.phone,
       password: createUserForm.password,
-      role: createUserForm.role,
-      companyId: createUserForm.companyId
+      companyId: createUserForm.companyId,
+      // Send multiple roles if available, otherwise single role
+      ...(createUserForm.roles && createUserForm.roles.length > 0 
+        ? { roles: createUserForm.roles }
+        : { role: createUserForm.role }
+      ),
+      // Contact information
+      contact: {
+        firstName: createUserForm.firstName,
+        lastName: createUserForm.lastName,
+        phoneNumbers: [
+          {
+            type: 'PRIMARY',
+            number: createUserForm.phone
+          }
+        ]
+      }
     };
 
     // Call the API to create user
@@ -126,7 +177,10 @@ const UsersPage = () => {
       password: '',
       confirmPassword: '',
       role: '',
-      companyId: ''
+      roles: [],
+      companyId: '',
+      firstName: '',
+      lastName: ''
     });
     setCreateUserErrors({});
     
@@ -144,7 +198,10 @@ const UsersPage = () => {
         password: '',
         confirmPassword: '',
         role: '',
-        companyId: ''
+        roles: [],
+        companyId: '',
+        firstName: '',
+        lastName: ''
       });
       setCreateUserErrors({});
     }
@@ -205,8 +262,13 @@ const UsersPage = () => {
               </h2>
               
               <form onSubmit={handleCreateUser} className="space-y-6">
-                {/* Contact Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Basic Information */}
+                <div className="border-b border-gray-600 pb-6">
+                  <h3 className="text-md font-semibold text-white mb-4 flex items-center gap-2">
+                    <FiMail size={18} />
+                    Basic Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Email Address *
@@ -286,33 +348,45 @@ const UsersPage = () => {
                     )}
             </div>
           </div>
+                </div>
 
                 {/* Role and Company */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border-t border-gray-600 pt-6 mt-6">
+                  <h3 className="text-md font-semibold text-white mb-4 flex items-center gap-2">
+                    <FiHome size={18} />
+                    Role & Company Assignment
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Role *
+                      User Roles * (Select one or more)
                     </label>
-              <select
-                      name="role"
-                      value={createUserForm.role}
-                      onChange={handleCreateUserInputChange}
-                      disabled={loadingRoles}
-                      className={`w-full px-3 py-2 bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white ${
-                        createUserErrors.role ? 'border-red-500' : 'border-gray-600'
-                      } ${loadingRoles ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <option value="">
-                        {loadingRoles ? 'Loading roles...' : 'Select a role'}
-                      </option>
+                    <div className="space-y-2">
                       {availableRoles.map(role => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                ))}
-              </select>
-                    {createUserErrors.role && (
-                      <p className="text-red-400 text-sm mt-1">{createUserErrors.role}</p>
+                        <label key={role.value} className="flex items-center space-x-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            value={role.value}
+                            checked={createUserForm.roles?.includes(role.value) || false}
+                            onChange={() => handleRoleChange(role.value)}
+                            disabled={loadingRoles}
+                            className={`w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 ${
+                              loadingRoles ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          />
+                          <span className="text-sm text-gray-300">{role.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {createUserErrors.roles && (
+                      <p className="text-red-400 text-sm mt-1">{createUserErrors.roles}</p>
+                    )}
+                    {createUserForm.roles && createUserForm.roles.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs text-gray-400">
+                          Selected: {createUserForm.roles.join(', ')}
+                        </p>
+                      </div>
                     )}
                   </div>
 
@@ -343,6 +417,56 @@ const UsersPage = () => {
                     )}
             </div>
           </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="border-t border-gray-600 pt-6 mt-6">
+                  <h3 className="text-md font-semibold text-white mb-4 flex items-center gap-2">
+                    <FiUser size={18} />
+                    Contact Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={createUserForm.firstName}
+                        onChange={handleCreateUserInputChange}
+                        className={`w-full px-3 py-2 bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white ${
+                          createUserErrors.firstName ? 'border-red-500' : 'border-gray-600'
+                        }`}
+                        placeholder="Enter first name"
+                      />
+                      {createUserErrors.firstName && (
+                        <p className="text-red-400 text-sm mt-1">{createUserErrors.firstName}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={createUserForm.lastName}
+                        onChange={handleCreateUserInputChange}
+                        className={`w-full px-3 py-2 bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white ${
+                          createUserErrors.lastName ? 'border-red-500' : 'border-gray-600'
+                        }`}
+                        placeholder="Enter last name"
+                      />
+                      {createUserErrors.lastName && (
+                        <p className="text-red-400 text-sm mt-1">{createUserErrors.lastName}</p>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+                
 
                 {/* Form Actions */}
                 <div className="flex gap-3 pt-4">
@@ -442,12 +566,21 @@ const UsersPage = () => {
                             <div className="flex-shrink-0 h-10 w-10">
                               <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
                                 <span className="text-sm font-medium text-white">
-                                  {user.name.split(' ').map(n => n[0]).join('')}
+                                  {user.contact?.firstName && user.contact?.lastName 
+                                    ? `${user.contact.firstName[0]}${user.contact.lastName[0]}`
+                                    : user.name?.split(' ').map(n => n[0]).join('') || 'U'
+                                  }
                                 </span>
                               </div>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-white">{user.name}</div>
+                              <div className="text-sm font-medium text-white">
+                                {user.contact?.firstName && user.contact?.lastName 
+                                  ? `${user.contact.firstName} ${user.contact.lastName}`
+                                  : user.name || 'Unknown User'
+                                }
+                              </div>
+
                             </div>
                           </div>
                         </td>
@@ -461,12 +594,26 @@ const UsersPage = () => {
                               <FiPhone className="text-gray-400" size={14} />
                               {user.phone}
                             </div>
+
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                            {user.role}
-                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {user.roles && user.roles.length > 0 ? (
+                              user.roles.map((role, index) => (
+                                <span 
+                                  key={index}
+                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
+                                >
+                                  {role}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                                {user.primaryRole || 'USER'}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-300">{user.company}</div>

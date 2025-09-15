@@ -290,6 +290,7 @@ model Payment {
   paymentAmount       Int              @map("payment_amount")
   paymentDate         DateTime?        @map("payment_date")
   receiptUrl          String?          @map("receipt_url") @db.VarChar(500)
+  externalReceiptUrl  String?          @map("external_receipt_url") @db.VarChar(500)
   uploadedReceiptType ReceiptType?     @map("uploaded_receipt_type")
   createdAt           DateTime         @default(now()) @map("created_at")
   updatedAt           DateTime         @updatedAt @map("updated_at")

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MdCalendarToday, MdClose, MdInfo, MdExpandMore, MdExpandLess } from 'react-icons/md';
+import { MdCalendarToday, MdClose, MdInfo, MdExpandMore, MdExpandLess, MdCheck, MdCancel, MdSkipNext } from 'react-icons/md';
 
 const MealSkipSelector = ({
   selectedDates,
@@ -27,9 +27,9 @@ const MealSkipSelector = ({
   }, []);
 
   const mealTypes = [
-    { key: 'breakfast', label: '🍳 Breakfast', color: 'green' },
-    { key: 'lunch', label: '🍽️ Lunch', color: 'yellow' },
-    { key: 'dinner', label: '🌙 Dinner', color: 'pink' }
+    { key: 'breakfast', label: '🍳 Breakfast', color: 'green', icon: '🌅' },
+    { key: 'lunch', label: '🍽️ Lunch', color: 'yellow', icon: '☀️' },
+    { key: 'dinner', label: '🌙 Dinner', color: 'pink', icon: '🌙' }
   ];
 
   const getMealTypeColor = (mealType) => {
@@ -97,34 +97,34 @@ const MealSkipSelector = ({
   }
 
   return (
-    <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl sm:rounded-3xl shadow-xl border border-orange-100 mb-4 sm:mb-6 overflow-hidden">
-      {/* Header - Always Visible */}
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-4">
+      {/* Compact Header */}
       <div 
-        className="p-4 sm:p-6 lg:p-8 cursor-pointer transition-all duration-300 hover:bg-orange-50"
+        className="p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-              <MdCalendarToday className="text-white text-lg sm:text-xl" />
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="w-6 h-6 bg-orange-500 rounded-md flex items-center justify-center flex-shrink-0">
+              <MdCalendarToday className="text-white text-sm" />
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="font-bold text-gray-800 text-base sm:text-lg lg:text-xl">Meal Skip Selection</h4>
-              <p className="text-gray-600 text-xs sm:text-sm hidden sm:block">Choose which meals to skip on specific dates</p>
+              <h4 className="font-semibold text-gray-800 text-sm">Meal Skip Options</h4>
+              <p className="text-gray-500 text-xs">Configure which meals to skip</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {getTotalSkippedMeals() > 0 && (
-              <div className="bg-orange-100 text-orange-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold">
-                {getTotalSkippedMeals()} meals skipped
+              <div className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-medium">
+                {getTotalSkippedMeals()} skipped
               </div>
             )}
-            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-white rounded-full flex items-center justify-center shadow-md">
+            <div className="w-5 h-5 bg-gray-100 rounded flex items-center justify-center">
               {isExpanded ? (
-                <MdExpandLess className="text-orange-600 text-lg sm:text-xl" />
+                <MdExpandLess className="text-gray-600 text-sm" />
               ) : (
-                <MdExpandMore className="text-orange-600 text-lg sm:text-xl" />
+                <MdExpandMore className="text-gray-600 text-sm" />
               )}
             </div>
           </div>
@@ -133,65 +133,65 @@ const MealSkipSelector = ({
 
       {/* Collapsible Content */}
       {isExpanded && (
-        <div className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 border-t border-orange-100">
-                                                                 <div className={`space-y-3 sm:space-y-4 overflow-y-auto scrollbar-hide ${isMobile ? 'max-h-80' : 'max-h-96'}`}>
-          {selectedDates.map((date, index) => {
-            const isExpanded = expandedDate === index;
-            const skippedCount = getSkippedMealsCount(date);
-            const availableMeals = getAvailableMealsForDate(date);
-            const isValidDate = isDateValidForMenu(date);
+        <div className="px-3 py-3 border-t border-gray-200">
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {selectedDates.map((date, index) => {
+              const isExpanded = expandedDate === index;
+              const skippedCount = getSkippedMealsCount(date);
+              const availableMeals = getAvailableMealsForDate(date);
+              const isValidDate = isDateValidForMenu(date);
 
-            return (
-              <div
-                key={index}
-                className={`border-2 rounded-xl transition-all duration-300 ${
-                  skippedCount > 0
-                    ? 'border-orange-300 bg-orange-50'
-                    : 'border-gray-200 bg-white'
-                }`}
-              >
-              {/* Date Header */}
-              <div
-                className="p-3 sm:p-4 cursor-pointer flex items-center justify-between"
-                onClick={() => setExpandedDate(isExpanded ? null : index)}
-              >
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                  <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-bold flex-shrink-0 ${
-                    isValidDate ? 'bg-blue-500' : 'bg-red-500'
-                  }`}>
-                    {date.getDate()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-gray-800 text-sm sm:text-base">
-                      {formatDateForDisplay(date)}
+              return (
+                <div
+                  key={index}
+                  className={`border rounded-lg transition-all duration-200 ${
+                    skippedCount > 0
+                      ? 'border-orange-200 bg-orange-50'
+                      : 'border-gray-200 bg-white'
+                  }`}
+                >
+                {/* Compact Date Header */}
+                <div
+                  className="p-2 cursor-pointer flex items-center justify-between"
+                  onClick={() => setExpandedDate(isExpanded ? null : index)}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${
+                      isValidDate ? 'bg-blue-500' : 'bg-red-500'
+                    }`}>
+                      {date.getDate()}
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-600">
-                      {availableMeals.length} meals available
-                      {!isValidDate && (
-                        <span className="text-red-600 ml-1 sm:ml-2">⚠️ Invalid for this menu</span>
-                      )}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-gray-800 text-xs">
+                        {formatDateForDisplay(date)}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {availableMeals.length} meals
+                        {!isValidDate && (
+                          <span className="text-red-600 ml-1">⚠️ Invalid</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {skippedCount > 0 && (
+                      <div className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs">
+                        {skippedCount}
+                      </div>
+                    )}
+                    <div className={`w-4 h-4 rounded flex items-center justify-center transition-transform ${
+                      isExpanded ? 'rotate-180' : ''
+                    }`}>
+                      <MdCalendarToday className="text-gray-400 text-xs" />
                     </div>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                  {skippedCount > 0 && (
-                    <div className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-semibold">
-                      {skippedCount} skipped
-                    </div>
-                  )}
-                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center transition-transform ${
-                    isExpanded ? 'rotate-180' : ''
-                  }`}>
-                    <MdCalendarToday className="text-gray-500 text-sm sm:text-lg" />
-                  </div>
-                </div>
-              </div>
 
-              {/* Expanded Meal Selection */}
+              {/* Compact Meal Selection */}
               {isExpanded && (
-                <div className="border-t border-gray-200 p-3 sm:p-4 bg-white rounded-b-xl">
-                  <div className="space-y-2 sm:space-y-3">
+                <div className="border-t border-gray-200 p-2 bg-gray-50 rounded-b-lg">
+                  <div className="space-y-1">
                     {availableMeals.map((mealType) => {
                       const isSkipped = isMealSkipped(date, mealType.key);
                       const colorClass = getMealTypeColor(mealType.key);
@@ -199,36 +199,36 @@ const MealSkipSelector = ({
                       return (
                         <div
                           key={mealType.key}
-                          className={`flex items-center justify-between p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 ${
+                          className={`flex items-center justify-between p-2 rounded-md border transition-all duration-200 ${
                             isSkipped
                               ? `border-${colorClass}-300 bg-${colorClass}-50`
-                              : 'border-gray-200 bg-gray-50 hover:bg-white'
+                              : 'border-gray-200 bg-white hover:bg-gray-50'
                           }`}
                         >
-                          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                              isSkipped ? `bg-${colorClass}-500` : 'bg-gray-300'
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${
+                              isSkipped ? `bg-${colorClass}-500` : 'bg-gray-400'
                             }`}>
-                              <span className="text-white text-xs sm:text-sm">
-                                {mealType.label.split(' ')[0]}
+                              <span className="text-white text-xs">
+                                {isSkipped ? '❌' : mealType.icon}
                               </span>
                             </div>
-                            <span className={`font-medium text-sm sm:text-base ${
+                            <span className={`font-medium text-xs ${
                               isSkipped ? `text-${colorClass}-700` : 'text-gray-700'
                             }`}>
-                              {mealType.label}
+                              {mealType.label.split(' ')[1]}
                             </span>
                           </div>
                           
                           <button
                             onClick={() => handleSkipMeal(date, mealType.key, !isSkipped)}
-                            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 flex-shrink-0 ${
+                            className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
                               isSkipped
                                 ? `bg-${colorClass}-500 text-white hover:bg-${colorClass}-600`
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                : 'bg-red-500 text-white hover:bg-red-600'
                             }`}
                           >
-                            {isSkipped ? 'Unskip' : 'Skip'}
+                            {isSkipped ? 'Restore' : 'Skip'}
                           </button>
                         </div>
                       );
@@ -236,10 +236,10 @@ const MealSkipSelector = ({
                   </div>
                   
                   {!isValidDate && (
-                    <div className="mt-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-red-700 text-xs sm:text-sm">
-                        <MdInfo className="text-red-500 flex-shrink-0" />
-                        <span>This date is not valid for the selected menu type</span>
+                    <div className="mt-2 p-1.5 bg-red-50 border border-red-200 rounded text-xs">
+                      <div className="flex items-center gap-1 text-red-600">
+                        <MdInfo className="text-red-500 text-xs" />
+                        <span>Invalid for this menu</span>
                       </div>
                     </div>
                   )}
@@ -250,17 +250,12 @@ const MealSkipSelector = ({
         })}
           </div>
 
-          {/* Summary */}
+          {/* Compact Summary */}
           {getTotalSkippedMeals() > 0 && (
-            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
-              <h5 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
-                <MdInfo className="text-orange-600 flex-shrink-0" />
-                Skip Summary
-              </h5>
-              <div className="text-xs sm:text-sm text-orange-700">
-                You have skipped <span className="font-bold">{getTotalSkippedMeals()}</span> meals across{' '}
-                <span className="font-bold">{Object.keys(skipMeals).length}</span> dates.
-                Your order will be adjusted accordingly.
+            <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs">
+              <div className="text-orange-700">
+                <span className="font-medium">{getTotalSkippedMeals()}</span> meals skipped across{' '}
+                <span className="font-medium">{Object.keys(skipMeals).length}</span> dates
               </div>
             </div>
           )}

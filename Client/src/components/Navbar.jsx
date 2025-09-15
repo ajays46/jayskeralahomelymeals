@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   MdRestaurant, MdRestaurantMenu, MdHelp,
-  MdContactPhone, MdPerson, MdShoppingCart, MdSearch,
+  MdPerson, MdShoppingCart, MdSearch,
   MdAdminPanelSettings, MdDashboard, MdLogout, MdStore, MdCalendarToday,
   MdClose, MdMenu, MdLocalShipping
 } from 'react-icons/md';
@@ -96,8 +96,8 @@ const Navbar = ({ onSignInClick }) => {
             <a href="/jkhm/menu" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> Menu
             </a>
-            <a href="/jkhm/bookings" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
-              <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> Bookings
+            <a href="/jkhm/place-order" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+              <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> Place Order
             </a>
             <a href="/help" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdHelp className="text-xl group-hover:scale-110 transition-transform duration-300" /> Help
@@ -149,8 +149,8 @@ const Navbar = ({ onSignInClick }) => {
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Seller Panel</div>
-                          <a href="/jkhm/seller" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
-                            <MdStore className="text-xl" /> Seller Dashboard
+                          <a href="/jkhm/seller/customers" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
+                            <MdStore className="text-xl" /> Customers List
                           </a>
                         </>
                       )}
@@ -330,13 +330,13 @@ const Navbar = ({ onSignInClick }) => {
                   </motion.a>
                   */}
                   <motion.a 
-                    href="/jkhm/bookings" 
+                    href="/jkhm/place-order" 
                     className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200"
                     whileHover={{ y: -1, scale: 1.01 }}
                     onClick={() => setMenuOpen(false)}
                   >
                     <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
-                    <span className="font-medium text-xs text-center">Bookings</span>
+                    <span className="font-medium text-xs text-center">Place Order</span>
                   </motion.a>
                 </div>
               </div>

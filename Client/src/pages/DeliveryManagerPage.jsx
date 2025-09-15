@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin, FiTrendingDown, FiClock, FiCheckCircle, FiBarChart2, FiActivity, FiPieChart, FiTarget, FiShield, FiPackage, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin, FiTrendingDown, FiClock, FiCheckCircle, FiBarChart2, FiActivity, FiPieChart, FiTarget, FiShield, FiPackage, FiX, FiDownload, FiEye, FiEyeOff, FiMessageCircle } from 'react-icons/fi';
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney } from 'react-icons/md';
 import { Modal, message } from 'antd';
 import axiosInstance from '../api/axios';
+import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes } from '../hooks/deliverymanager';
 
 const DeliveryManagerPage = () => {
   const [sellers, setSellers] = useState([]);
@@ -19,6 +20,19 @@ const DeliveryManagerPage = () => {
   const [showSellerDetails, setShowSellerDetails] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState(null);
   const [activeTab, setActiveTab] = useState('sellers'); // 'sellers' or 'orders'
+  const [routeTableTab, setRouteTableTab] = useState('breakfast'); // For route planning table tabs
+  const [routeTableFilters, setRouteTableFilters] = useState({
+    deliveryName: '',
+    executive: '',
+    location: '',
+    packages: '',
+    distance: '',
+    time: ''
+  });
+  const [showExecutiveAssignModal, setShowExecutiveAssignModal] = useState(false);
+  const [assignedExecutiveCount, setAssignedExecutiveCount] = useState(2);
+  const [showRunProgramButton, setShowRunProgramButton] = useState(false);
+  const [showWhatsAppButton, setShowWhatsAppButton] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState(null); // For expanding order details
   const [deliveryItems, setDeliveryItems] = useState({}); // Store delivery items for each order
   const [loadingItems, setLoadingItems] = useState({}); // Loading state for delivery items
@@ -37,6 +51,32 @@ const DeliveryManagerPage = () => {
   const [deliveryExecutives, setDeliveryExecutives] = useState([]);
   const [loadingExecutives, setLoadingExecutives] = useState(false);
   const [executivesError, setExecutivesError] = useState(false);
+  
+  // React Query hook for active executives
+  const {
+    data: activeExecutivesData,
+    isLoading: loadingActiveExecutives,
+    error: activeExecutivesError,
+    refetch: refetchActiveExecutives,
+    isFetching: isRefetchingActiveExecutives
+  } = useActiveExecutives({
+    enabled: false, // Don't fetch automatically, only when button is clicked
+    onSuccess: (data) => {
+      message.success(data.message || `Fetched ${data.data?.executives?.length || data.data?.data?.length || 0} active executives`);
+    },
+    onError: (error) => {
+      message.error(error.message || 'Failed to fetch active executives');
+    }
+  });
+  
+  // React Query hook for updating executive status
+  const updateExecutiveStatusMutation = useUpdateMultipleExecutiveStatus();
+  
+  // React Query hook for saving routes
+  const saveRoutesMutation = useSaveRoutes();
+  
+  // Extract executives from the data
+  const activeExecutives = activeExecutivesData?.data?.executives || activeExecutivesData?.data?.data || [];
   const navigate = useNavigate(); 
   const [cancellingItems, setCancellingItems] = useState(new Set());
   const [showCancelItemModal, setShowCancelItemModal] = useState(false);
@@ -48,14 +88,25 @@ const DeliveryManagerPage = () => {
   const [selectedExecutives, setSelectedExecutives] = useState(new Set()); // Store selected executives for route planning
   const [programExecutionResults, setProgramExecutionResults] = useState(null); // Store program execution results
   const [sessionData, setSessionData] = useState(null); // Store session data
+  const [showActiveExecutivesTable, setShowActiveExecutivesTable] = useState(false); // Show/hide active executives table
+  const [executivesStatus, setExecutivesStatus] = useState({}); // Track status changes for executives
   const [loadingSessionData, setLoadingSessionData] = useState(false); // Loading state for session data
   const [programRunTimestamp, setProgramRunTimestamp] = useState(null); // Force refresh timestamp
+  const [currentRequestId, setCurrentRequestId] = useState(null); // Store current request ID for saving routes
+  const [deliveryDataFilters, setDeliveryDataFilters] = useState({
+    search: '',
+    session: '',
+    status: '',
+    startDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
+    endDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]  // Tomorrow
+  });
+  const [filteredDeliveryData, setFilteredDeliveryData] = useState([]);
 
   useEffect(() => {
     fetchSellersData();
     fetchDeliveryExecutives();
-    
-
+    // Auto-fetch delivery data when component mounts
+    handleFetchSessionData();
   }, []);
 
 
@@ -65,6 +116,52 @@ const DeliveryManagerPage = () => {
       // Update delivery items when they change
     }
   }, [deliveryItems]);
+
+  // Filter delivery data whenever filters or session data changes
+  useEffect(() => {
+    if (sessionData?.data?.externalResponse?.data) {
+      const filtered = sessionData.data.externalResponse.data.filter(item => {
+        // Search filter (location, customer name, order ID)
+        const searchMatch = !deliveryDataFilters.search || 
+          item.street?.toLowerCase().includes(deliveryDataFilters.search.toLowerCase()) ||
+          item.first_name?.toLowerCase().includes(deliveryDataFilters.search.toLowerCase()) ||
+          item.last_name?.toLowerCase().includes(deliveryDataFilters.search.toLowerCase()) ||
+          item.order_id?.toLowerCase().includes(deliveryDataFilters.search.toLowerCase()) ||
+          item.menu_item_id?.toLowerCase().includes(deliveryDataFilters.search.toLowerCase());
+
+        // Session filter
+        const sessionMatch = !deliveryDataFilters.session || 
+          item.session === deliveryDataFilters.session;
+
+        // Status filter
+        const statusMatch = !deliveryDataFilters.status || 
+          item.status === deliveryDataFilters.status;
+
+        // Date range filter
+        let dateMatch = true;
+        if (deliveryDataFilters.startDate || deliveryDataFilters.endDate) {
+          const deliveryDate = new Date(item.delivery_date);
+          const startDate = deliveryDataFilters.startDate ? new Date(deliveryDataFilters.startDate) : null;
+          const endDate = deliveryDataFilters.endDate ? new Date(deliveryDataFilters.endDate) : null;
+          
+          if (startDate && endDate) {
+            // Both dates selected - check if delivery date is within range
+            dateMatch = deliveryDate >= startDate && deliveryDate <= endDate;
+          } else if (startDate) {
+            // Only start date - check if delivery date is on or after start date
+            dateMatch = deliveryDate >= startDate;
+          } else if (endDate) {
+            // Only end date - check if delivery date is on or before end date
+            dateMatch = deliveryDate <= endDate;
+          }
+        }
+
+        return searchMatch && sessionMatch && statusMatch && dateMatch;
+      });
+      
+      setFilteredDeliveryData(filtered);
+    }
+  }, [sessionData, deliveryDataFilters]);
 
   // Auto-load text file previews when route planning results are available
   useEffect(() => {
@@ -90,7 +187,6 @@ const DeliveryManagerPage = () => {
       });
     }
   }, [programExecutionResults, programRunTimestamp]); // ← Add timestamp dependency
-
 
 
   const fetchDeliveryItems = async (orderId) => {
@@ -529,6 +625,27 @@ const DeliveryManagerPage = () => {
     }
   };
 
+  // Function to save routes
+  const handleSaveRoutes = async () => {
+    try {
+      if (!currentRequestId) {
+        message.warning('No request ID available. Please run the program first.');
+        return;
+      }
+
+      message.loading('💾 Saving routes...', 0);
+      
+      await saveRoutesMutation.mutateAsync({ requestId: currentRequestId });
+      
+      message.destroy(); // Clear loading message
+      message.success('Routes saved successfully!');
+    } catch (error) {
+      message.destroy(); // Clear loading message
+      console.error('Error saving routes:', error);
+      message.error('Failed to save routes');
+    }
+  };
+
   // New function to run program with selected executives
   const handleRunProgram = async () => {
     try {
@@ -571,9 +688,10 @@ const DeliveryManagerPage = () => {
         timestamp: new Date().toISOString(),
         source: 'delivery-manager-dashboard',
         userAgent: navigator.userAgent,
-        dashboardVersion: '1.0.0'
+        dashboardVersion: '1.0.0',
       });
-
+      
+      
       message.destroy(); // Clear loading message
 
       if (response.data.success) {
@@ -582,6 +700,17 @@ const DeliveryManagerPage = () => {
         // Store the program execution results for display
         setProgramExecutionResults(response.data);
         
+        // Store the request ID for saving routes later
+        if (response.data.data?.requestId) {
+          setCurrentRequestId(response.data.data.requestId);
+        } else {
+        }
+        
+        // Show WhatsApp button immediately after successful execution
+        setShowWhatsAppButton(true);
+        
+        // Extract execution results from external response
+      
         // Show success modal
         Modal.success({
           title: '🚀 Program Execution Success!',
@@ -597,12 +726,13 @@ const DeliveryManagerPage = () => {
                 </p>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h5 className="font-medium text-blue-800 mb-2">Execution Details</h5>
+                <h5 className="font-medium text-blue-800 mb-2">Execution Results</h5>
                 <div className="text-sm text-blue-700 space-y-1">
-                  <div>• <strong>Status:</strong> {response.data.data?.status || 'Completed'}</div>
-                  <div>• <strong>Request ID:</strong> {response.data.data?.requestId || 'N/A'}</div>
+                  <div>• <strong>Breakfast Routes:</strong> {breakfastResults.length} routes</div>
+                  <div>• <strong>Lunch Routes:</strong> {lunchResults.length} routes</div>
+                  <div>• <strong>Dinner Routes:</strong> {dinnerResults.length} routes</div>
+                  <div>• <strong>Excel Files Generated:</strong> {excelFiles.length} files</div>
                   <div>• <strong>Executives Used:</strong> {executiveCount}</div>
-                  <div>• <strong>Execution Time:</strong> {response.data.data?.executionTime || 'N/A'}</div>
                 </div>
               </div>
               <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
@@ -620,10 +750,7 @@ const DeliveryManagerPage = () => {
           okText: 'Got it!',
           cancelText: 'Close',
           width: 500,
-          centered: true,
-          onOk: () => {
-            // Program execution completed
-          }
+          centered: true
         });
       } else {
         message.error('❌ Failed to execute program');
@@ -822,7 +949,7 @@ const DeliveryManagerPage = () => {
                 <div className="text-xs text-blue-700 space-y-1">
                   <div>• <strong>Executive Count:</strong> {executiveCount}</div>
                   <div>• <strong>Data Type:</strong> Count only (no personal details)</div>
-                  <div>• <strong>Destination:</strong> EC2 instance at 13.203.227.119:5001</div>
+                  <div>• <strong>Destination:</strong> AI Route API Server</div>
                 </div>
               </div>
               <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
@@ -984,6 +1111,55 @@ const DeliveryManagerPage = () => {
     }
   };
 
+  // Function to trigger active executives fetch
+  const handleFetchActiveExecutives = () => {
+    refetchActiveExecutives();
+  };
+
+  // Function to toggle executive status
+  const handleToggleExecutiveStatus = (executiveId, currentStatus) => {
+    const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setExecutivesStatus(prev => ({
+      ...prev,
+      [executiveId]: newStatus
+    }));
+    
+    // Show success message
+    message.success(`Executive status changed to ${newStatus}`);
+  };
+
+  // Function to save status changes
+  const handleSaveStatusChanges = async () => {
+    try {
+      const changesCount = Object.keys(executivesStatus).length;
+      
+      if (changesCount === 0) {
+        message.warning('No changes to save');
+        return;
+      }
+
+      // Prepare updates array for the API - send ALL executives with their current status
+      const updates = activeExecutives.map(executive => ({
+        user_id: executive.user_id,
+        status: executivesStatus[executive.user_id] || executive.status, // Use changed status or original
+        date: new Date().toISOString().split('T')[0] // Today's date
+      }));
+
+      // Use React Query mutation to save changes
+      await updateExecutiveStatusMutation.mutateAsync(updates);
+      
+      // Refetch the active executives to get the updated data
+      await refetchActiveExecutives();
+      
+      // Clear the changes after successful save
+      setExecutivesStatus({});
+      
+    } catch (error) {
+      message.error('Failed to save status changes');
+      console.error('Error saving status changes:', error);
+    }
+  };
+
   const handleWhatsAppMessage = (phoneNumber, executiveName) => {
     if (!phoneNumber || phoneNumber === 'No phone') {
       message.error('No phone number available for this executive');
@@ -1012,10 +1188,40 @@ const DeliveryManagerPage = () => {
     message.info('Redirecting to user creation page. Please select DELIVERY_EXECUTIVE role.');
   };
 
-  const handleConfirmationOK = () => {
+  const handleConfirmationOK = async () => {
     // Handle confirmation modal OK action
-    if (confirmationModal.itemId) {
-      // Handle the specific action based on modal type
+    if (confirmationModal.itemId === 'logout') {
+      try {
+        // Call logout API endpoint if it exists
+        try {
+          await axiosInstance.post('/auth/logout');
+        } catch (error) {
+        }
+        
+        // Clear all authentication data
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Clear any cookies if they exist
+        document.cookie.split(";").forEach(function(c) { 
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        });
+        
+        // Clear axios default headers
+        delete axiosInstance.defaults.headers.common['Authorization'];
+        
+        // Show success message
+        message.success('Logged out successfully');
+        
+        // Navigate to home page
+        navigate('/jkhm');
+        
+        // Force page reload to clear any remaining state
+        window.location.reload();
+      } catch (error) {
+        console.error('Logout error:', error);
+        message.error('Logout failed. Please try again.');
+      }
     }
     setConfirmationModal({ visible: false, itemId: null, title: '', content: '' });
   };
@@ -1170,6 +1376,100 @@ const DeliveryManagerPage = () => {
       month: 'short',
       year: 'numeric'
     });
+  };
+
+  // Generate TXT report
+  const generateTxtReport = () => {
+    let reportContent = 'JAYSKERALAHM - DELIVERY ORDERS REPORT\n';
+    reportContent += '==========================================\n\n';
+    reportContent += `Generated on: ${new Date().toLocaleString('en-IN')}\n`;
+    reportContent += `Total Sellers: ${stats.totalSellers}\n`;
+    reportContent += `Total Orders: ${stats.totalOrders}\n`;
+    reportContent += `Total Revenue: ${formatCurrency(stats.totalRevenue)}\n\n`;
+
+    sellers.forEach((seller, index) => {
+      reportContent += `${index + 1}. SELLER: ${seller.name || seller.email}\n`;
+      reportContent += `   Email: ${seller.email}\n`;
+      reportContent += `   Phone: ${seller.phone || 'No phone'}\n`;
+      reportContent += `   Company: ${seller.company || 'No company'}\n`;
+      reportContent += `   Status: ${seller.status}\n`;
+      reportContent += `   Orders: ${seller.orderCount || 0}\n`;
+      reportContent += `   Revenue: ${formatCurrency(seller.totalRevenue || 0)}\n\n`;
+
+      if (seller.recentOrders && seller.recentOrders.length > 0) {
+        reportContent += '   ORDERS:\n';
+        seller.recentOrders.forEach((order, orderIndex) => {
+          reportContent += `   ${orderIndex + 1}. Order #${order.id.slice(-8)}\n`;
+          reportContent += `      Customer: ${order.customerName || 'User'}\n`;
+          reportContent += `      Phone: ${order.customerPhone || 'No phone'}\n`;
+          reportContent += `      Email: ${order.customerEmail || 'No email'}\n`;
+          reportContent += `      Amount: ${formatCurrency(order.totalPrice)}\n`;
+          reportContent += `      Status: ${order.status}\n`;
+          reportContent += `      Date: ${formatDate(order.createdAt)}\n\n`;
+        });
+      }
+      reportContent += '----------------------------------------\n\n';
+    });
+
+    return reportContent;
+  };
+
+  // Generate Excel report (CSV format)
+  const generateExcelReport = () => {
+    let csvContent = 'Seller Name,Email,Phone,Company,Status,Order Count,Revenue,Customer Name,Customer Phone,Customer Email,Order ID,Order Amount,Order Status,Order Date\n';
+
+    sellers.forEach((seller) => {
+      if (seller.recentOrders && seller.recentOrders.length > 0) {
+        seller.recentOrders.forEach((order) => {
+          csvContent += `"${seller.name || seller.email}","${seller.email}","${seller.phone || 'No phone'}","${seller.company || 'No company'}","${seller.status}",${seller.orderCount || 0},"${formatCurrency(seller.totalRevenue || 0)}","${order.customerName || 'User'}","${order.customerPhone || 'No phone'}","${order.customerEmail || 'No email'}","${order.id.slice(-8)}","${formatCurrency(order.totalPrice)}","${order.status}","${formatDate(order.createdAt)}"\n`;
+        });
+      } else {
+        // Seller with no orders
+        csvContent += `"${seller.name || seller.email}","${seller.email}","${seller.phone || 'No phone'}","${seller.company || 'No company'}","${seller.status}",${seller.orderCount || 0},"${formatCurrency(seller.totalRevenue || 0)}","","","","","","",""\n`;
+      }
+    });
+
+    return csvContent;
+  };
+
+  // Download TXT report
+  const downloadTxtReport = () => {
+    try {
+      const reportContent = generateTxtReport();
+      const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `delivery-orders-report-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      message.success('TXT report downloaded successfully!');
+    } catch (error) {
+      message.error('Failed to download TXT report');
+      console.error('Error generating TXT report:', error);
+    }
+  };
+
+  // Download Excel report (CSV)
+  const downloadExcelReport = () => {
+    try {
+      const csvContent = generateExcelReport();
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `delivery-orders-report-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      message.success('Excel report (CSV) downloaded successfully!');
+    } catch (error) {
+      message.error('Failed to download Excel report');
+      console.error('Error generating Excel report:', error);
+    }
   };
 
   const getDeliveryItemStatusColor = (status) => {
@@ -1368,9 +1668,8 @@ const DeliveryManagerPage = () => {
                 </div>
               </div>
               <div className="text-sm text-gray-400">
-          {/* Removed descriptive text */}
+                {/* Removed logout button from navbar */}
               </div>
-        {/* Removed Download Report and View Analytics buttons */}
             </div>
 
       {/* Main Content with proper spacing for navbar */}
@@ -1388,10 +1687,10 @@ const DeliveryManagerPage = () => {
         </div>
 
         {/* Sidebar */}
-        <div className={`fixed left-0 top-24 w-64 h-screen bg-gray-800 border-r border-gray-700 z-30 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        <div className={`fixed left-0 top-24 w-64 h-[calc(100vh-6rem)] bg-gray-800 border-r border-gray-700 z-30 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
-          <div className="p-4">
+          <div className="p-4 h-full flex flex-col justify-between">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-white px-2">Navigation</h2>
               <button
@@ -1403,7 +1702,7 @@ const DeliveryManagerPage = () => {
                 </svg>
               </button>
             </div>
-            <nav className="space-y-2">
+            <nav className="space-y-2 flex-1">
               <button
                 onClick={() => {
                   setActiveTab('sellers');
@@ -1461,6 +1760,27 @@ const DeliveryManagerPage = () => {
                 <span>Route & Management</span>
               </button>
             </nav>
+
+            {/* Logout Button at Bottom */}
+            <div className="pt-4 border-t border-gray-700">
+              <button
+                onClick={() => {
+                  setConfirmationModal({
+                    visible: true,
+                    itemId: 'logout',
+                    title: 'Confirm Logout',
+                    content: 'Are you sure you want to logout? This will end your current session.'
+                  });
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors bg-red-600 hover:bg-red-700 text-white font-medium"
+                title="Logout"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1654,6 +1974,7 @@ const DeliveryManagerPage = () => {
 
           {activeTab === 'orders' && (
             <>
+
               {/* Seller Orders for Users Section */}
               <div className="space-y-6">
                 {sellers.map((seller) => (
@@ -1698,7 +2019,7 @@ const DeliveryManagerPage = () => {
                                 Order ID
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                User (Customer)
+                                Customer (Name & Phone)
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                                 Order Date
@@ -1708,6 +2029,9 @@ const DeliveryManagerPage = () => {
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                                 Status
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                Payment Receipt
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                                 Actions
@@ -1729,22 +2053,22 @@ const DeliveryManagerPage = () => {
                                       <span className="font-mono">#{order.id.slice(-8)}</span>
                                     </div>
                                   </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                      <div className="flex-shrink-0 h-8 w-8">
-                                        <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center">
-                                          <MdPerson className="text-white text-sm" />
-                                        </div>
-                                      </div>
-                                      <div className="ml-3">
-                                        <div className="text-sm font-medium text-white">
-                                          {order.customerName || 'User'}
-                                        </div>
-                                        <div className="text-sm text-gray-400">
-                                          {order.customerEmail || 'No email'}
-                                        </div>
-                                      </div>
-                                    </div>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-8 w-8">
+                            <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center">
+                              <MdPerson className="text-white text-sm" />
+                            </div>
+                          </div>
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-white">
+                              {order.customerName || 'User'}
+                            </div>
+                            <div className="text-sm text-gray-400">
+                              📱 {order.customerPhone || order.customerEmail || 'No contact info'}
+                            </div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                                     {formatDate(order.createdAt)}
@@ -1768,6 +2092,30 @@ const DeliveryManagerPage = () => {
                                     }`}>
                                       {order.status || 'UNKNOWN'}
                                     </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                        {/* Payment Receipt Column */}
+                        {order.paymentReceipts && order.paymentReceipts.length > 0 ? (
+                          <div className="flex flex-col gap-2">
+                            {order.paymentReceipts.map((receipt, index) => (
+                              <div key={receipt.id} className="flex items-center gap-2">
+                                <a
+                                  href={`${import.meta.env.VITE_DEV_API_URL}${receipt.imageUrl || receipt.receiptUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors flex items-center gap-1"
+                                >
+                                  <span>📄</span>
+                                  View Receipt
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-gray-500 text-xs">
+                            No Receipt
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                                     <div className="flex items-center gap-2">
@@ -1813,7 +2161,7 @@ const DeliveryManagerPage = () => {
                                 {/* Expanded Order Details */}
                                 {expandedOrder === order.id && (
                                   <tr className="bg-gray-700 border-t border-gray-600">
-                                    <td colSpan="6" className="px-6 py-4">
+                                    <td colSpan="7" className="px-6 py-4">
                                       <div className="bg-gray-700 rounded-lg p-4">
                                         <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                                           <FiShoppingBag className="text-blue-400" />
@@ -2064,6 +2412,53 @@ const DeliveryManagerPage = () => {
           {/* Analytics Tab Content */}
           {activeTab === 'analytics' && (
             <>
+              {/* Download Reports Section */}
+              <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <FiDownload className="text-blue-400" />
+                    Download Reports
+                  </h3>
+                  <div className="text-sm text-gray-400">
+                    Get detailed reports of all orders and sellers
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap gap-4">
+                  <button
+                    onClick={downloadTxtReport}
+                    className="flex items-center gap-3 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    <FiDownload className="text-lg" />
+                    <div className="text-left">
+                      <div className="font-semibold">Download TXT Report</div>
+                      <div className="text-xs text-blue-200">Human-readable format</div>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={downloadExcelReport}
+                    className="flex items-center gap-3 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    <FiDownload className="text-lg" />
+                    <div className="text-left">
+                      <div className="font-semibold">Download Excel Report</div>
+                      <div className="text-xs text-green-200">CSV format for spreadsheets</div>
+                    </div>
+                  </button>
+                </div>
+                
+                <div className="mt-4 p-3 bg-gray-700 rounded-lg border border-gray-600">
+                  <h4 className="text-sm font-medium text-white mb-2">Report Contents:</h4>
+                  <div className="text-xs text-gray-300 space-y-1">
+                    <div>• Seller information (name, email, phone, company, status)</div>
+                    <div>• Order details (customer name, phone, email, amount, status, date)</div>
+                    <div>• Revenue summaries and order counts</div>
+                    <div>• Generated on: {new Date().toLocaleString('en-IN')}</div>
+                  </div>
+                </div>
+              </div>
+
               {/* Analytics Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
@@ -2355,7 +2750,7 @@ const DeliveryManagerPage = () => {
                     <div className="flex items-center justify-between mb-6">
                       <h4 className="text-lg font-medium text-white flex items-center gap-2">
                         <FiBarChart2 className="text-blue-400" />
-                        Session Data Monitor
+                        Delivery Data Monitor
                       </h4>
                       <div className="flex items-center gap-2">
                         {sessionData && (
@@ -2370,29 +2765,7 @@ const DeliveryManagerPage = () => {
                       </div>
                     </div>
                     
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                      <button
-                        onClick={handleFetchSessionData}
-                        disabled={loadingSessionData}
-                        className={`w-full sm:w-auto px-8 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3 ${
-                          loadingSessionData
-                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white'
-                        }`}
-                      >
-                        {loadingSessionData ? (
-                          <>
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                            <span>Fetching...</span>
-                          </>
-                        ) : (
-                          <>
-                            <FiBarChart2 className="text-lg" />
-                            <span>📊 Fetch Session Data</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
+
 
                     {/* Session Data Display */}
                     {sessionData && (
@@ -2403,296 +2776,253 @@ const DeliveryManagerPage = () => {
                         
 
 
-                        {/* Enhanced Delivery Data Summary Cards */}
+
+
+                        {/* New Comprehensive Delivery Data Table */}
                         {sessionData.data?.externalResponse?.data && (
-                          <div className="mb-8 bg-gray-700 p-6 rounded-lg border border-gray-600">
-                            <h6 className="font-medium text-white mb-6 text-center text-lg">📊 Delivery Summary Dashboard</h6>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                              {/* Morning Summary Card */}
-                              <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300">
-                                <div className="text-4xl mb-3">🌅</div>
-                                <div className="text-lg font-semibold text-white mb-2">Morning Delivery</div>
-                                <div className="text-3xl font-bold text-blue-400 mb-2">
-                                  {sessionData.data.externalResponse.data.totals?.morning || 0}
+                          <div className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden shadow-lg">
+                            <div className="px-4 py-3 border-b border-gray-600 bg-gradient-to-r from-indigo-600 to-indigo-700">
+                              <h6 className="text-base font-semibold text-white flex items-center gap-2">
+                                <FiBarChart2 className="text-indigo-300" />
+                                Complete Delivery Data Table
+                                <span className="text-xs text-indigo-200 font-normal ml-2">
+                                  ({filteredDeliveryData.length} of {sessionData.data.externalResponse.count || 0} delivery items)
+                                </span>
+                              </h6>
+                            </div>
+                            
+                            {/* Search and Filter Controls */}
+                            <div className="p-4 bg-gray-600 border-b border-gray-500">
+                              <div className="flex flex-col gap-4">
+                                {/* Search Row */}
+                                <div className="flex-1">
+                                  <input
+                                    type="text"
+                                    placeholder="Search by customer name, address, or order ID..."
+                                    value={deliveryDataFilters.search}
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    onChange={(e) => {
+                                      setDeliveryDataFilters(prev => ({
+                                        ...prev,
+                                        search: e.target.value
+                                      }));
+                                    }}
+                                  />
                                 </div>
-                                <div className="text-sm text-blue-300">Total Customers</div>
-                                <div className="mt-3 text-xs text-blue-200">
-                                  {sessionData.data.externalResponse.data.morning?.length || 0} Locations
-                                </div>
-                              </div>
-                              
-                              {/* Lunch Summary Card */}
-                              <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300">
-                                <div className="text-4xl mb-3">🍽️</div>
-                                <div className="text-lg font-semibold text-white mb-2">Lunch Delivery</div>
-                                <div className="text-3xl font-bold text-green-400 mb-2">
-                                  {sessionData.data.externalResponse.data.totals?.lunch || 0}
-                                </div>
-                                <div className="text-sm text-green-300">Total Customers</div>
-                                <div className="mt-3 text-xs text-green-200">
-                                  {sessionData.data.externalResponse.data.lunch?.length || 0} Locations
-                                </div>
-                              </div>
-                              
-                              {/* Dinner Summary Card */}
-                              <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-xl p-6 text-center transform hover:scale-105 transition-all duration-300">
-                                <div className="text-4xl mb-3">🌙</div>
-                                <div className="text-lg font-semibold text-white mb-2">Dinner Delivery</div>
-                                <div className="text-3xl font-bold text-purple-400 mb-2">
-                                  {sessionData.data.externalResponse.data.totals?.dinner || 0}
-                                </div>
-                                <div className="text-sm text-purple-300">Total Customers</div>
-                                <div className="mt-3 text-xs text-purple-200">
-                                  {sessionData.data.externalResponse.data.dinner?.length || 0} Locations
+                                
+                                {/* Filters Row */}
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                  {/* Date Filters */}
+                                  <div className="flex gap-2">
+                                    <div className="flex flex-col">
+                                      <label className="text-xs text-gray-300 mb-1">From Date</label>
+                                      <input
+                                        type="date"
+                                        value={deliveryDataFilters.startDate}
+                                        className="px-3 py-2 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        onChange={(e) => {
+                                          setDeliveryDataFilters(prev => ({
+                                            ...prev,
+                                            startDate: e.target.value
+                                          }));
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <label className="text-xs text-gray-300 mb-1">To Date</label>
+                                      <input
+                                        type="date"
+                                        value={deliveryDataFilters.endDate}
+                                        className="px-3 py-2 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        onChange={(e) => {
+                                          setDeliveryDataFilters(prev => ({
+                                            ...prev,
+                                            endDate: e.target.value
+                                          }));
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Dropdown Filters */}
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setDeliveryDataFilters({
+                                          search: '',
+                                          session: '',
+                                          status: '',
+                                          startDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
+                                          endDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]  // Tomorrow
+                                        });
+                                      }}
+                                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+                                    >
+                                      <FiX className="w-4 h-4" />
+                                      Reset to Tomorrow
+                                    </button>
+                                    <select 
+                                      value={deliveryDataFilters.session}
+                                      className="px-3 py-1 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                      onChange={(e) => {
+                                        setDeliveryDataFilters(prev => ({
+                                          ...prev,
+                                          session: e.target.value
+                                        }));
+                                      }}
+                                    >
+                                      <option value="">All Sessions</option>
+                                      <option value="Breakfast">Breakfast</option>
+                                      <option value="Lunch">Lunch</option>
+                                      <option value="Dinner">Dinner</option>
+                                    </select>
+                                    <select 
+                                      value={deliveryDataFilters.status}
+                                      className="px-3 py-1 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                      onChange={(e) => {
+                                        setDeliveryDataFilters(prev => ({
+                                          ...prev,
+                                          status: e.target.value
+                                        }));
+                                      }}
+                                    >
+                                      <option value="">All Statuses</option>
+                                      <option value="Pending">Pending</option>
+                                      <option value="In Progress">In Progress</option>
+                                      <option value="Delivered">Delivered</option>
+                                      <option value="Cancelled">Cancelled</option>
+                                    </select>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                             
-                            {/* Grand Total */}
-                            <div className="mt-6 pt-6 border-t border-gray-600">
-                              <div className="text-center">
-                                <div className="text-2xl font-bold text-white mb-2">
-                                  🎯 Total Delivery Operations
-                                </div>
-                                <div className="text-4xl font-bold text-yellow-400">
-                                  {(sessionData.data.externalResponse.data.totals?.morning || 0) + 
-                                   (sessionData.data.externalResponse.data.totals?.lunch || 0) + 
-                                   (sessionData.data.externalResponse.data.totals?.dinner || 0)} Customers
-                                </div>
-                                <div className="text-sm text-gray-300 mt-2">
-                                  Across {(sessionData.data.externalResponse.data.morning?.length || 0) + 
-                                         (sessionData.data.externalResponse.data.lunch?.length || 0) + 
-                                         (sessionData.data.externalResponse.data.dinner?.length || 0)} Unique Locations
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Enhanced Delivery Data Tables by Time Slot */}
-                        {sessionData.data?.externalResponse?.data && (
-                          <div className="space-y-8">
-                            {/* Morning Delivery Table */}
-                            {sessionData.data.externalResponse.data.morning && (
-                              <div className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden shadow-lg">
-                                                                <div className="px-4 py-3 border-b border-gray-600 bg-gradient-to-r from-blue-600 to-blue-700">
-                                  <h6 className="text-base font-semibold text-white flex items-center gap-2">
-                                    🌅 Morning Delivery Schedule
-                                    <span className="text-xs text-blue-200 font-normal ml-2">
-                                      ({sessionData.data.externalResponse.data.totals?.morning || 0} customers • {sessionData.data.externalResponse.data.morning?.length || 0} locations)
-                                    </span>
-                                  </h6>
-                                </div>
-                                <div className="max-h-96 overflow-y-auto">
-                                  <table className="w-full">
-                                    <thead className="bg-gray-600 sticky top-0 z-10">
-                                      <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                          📍 Location
-                                        </th>
-                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                          👥 Customer Count
-                                        </th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                          🗺️ Delivery Areas
-                                        </th>
+                            <div className="max-h-96 overflow-y-auto">
+                              <table className="w-full">
+                                <thead className="bg-gray-600 sticky top-0 z-10">
+                                  <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                      👤 Customer
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                      📅 Delivery Date
+                                    </th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                      🍽️ Session
+                                    </th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                      📦 Quantity
+                                    </th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                      📍 Address
+                                    </th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                      📊 Status
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                      🆔 Order ID
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-gray-700 divide-y divide-gray-600">
+                                  {filteredDeliveryData.map((item, index) => (
+                                    <tr key={index} className="hover:bg-gray-600 transition-colors">
+                                      {/* Customer Name */}
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                          <div className="flex-shrink-0 h-8 w-8">
+                                            <div className={`h-8 w-8 rounded-full flex items-center justify-center shadow-lg ${
+                                              item.session === 'Breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
+                                              item.session === 'Lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                                              'bg-gradient-to-br from-purple-400 to-purple-600'
+                                            }`}>
+                                              <span className="text-white text-xs font-bold">
+                                                {item.first_name?.charAt(0)?.toUpperCase() || 'U'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <div className="ml-3">
+                                            <div className="text-sm font-medium text-white">
+                                              {item.first_name || 'Unknown'} {item.last_name || ''}
+                                            </div>
+                                            <div className="text-xs text-gray-400">
+                                              {item.whatsapp_number || 'No WhatsApp'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      
+                                      {/* Delivery Date */}
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="text-sm text-white">
+                                          {new Date(item.delivery_date).toLocaleDateString('en-US', {
+                                            weekday: 'short',
+                                            year: 'numeric',
+                                            month: 'short',
+                                            day: 'numeric'
+                                          })}
+                                        </div>
+                                      </td>
+                                      
+                                      {/* Session */}
+                                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                          item.session === 'Breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                                          item.session === 'Lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                          'bg-purple-100 text-purple-800 border border-purple-200'
+                                        }`}>
+                                          {item.session || 'Unknown'}
+                                        </span>
+                                      </td>
+                                      
+                                      {/* Quantity */}
+                                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                          {item.quantity || 0}
+                                        </span>
+                                      </td>
+                                      
+                                      {/* Address */}
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="max-w-xs">
+                                          <div className="text-sm text-white truncate" title={item.street}>
+                                            {item.street || 'No address'}
+                                          </div>
+                                          {item.geo_location && (
+                                            <div className="text-xs text-gray-400 mt-1">
+                                              📍 {item.geo_location}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+                                      
+                                      {/* Status */}
+                                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                          item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                                          item.status === 'Delivered' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                          item.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                          item.status === 'Cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                          'bg-gray-100 text-gray-800 border border-gray-200'
+                                        }`}>
+                                          {item.status || 'Unknown'}
+                                        </span>
+                                      </td>
+                                      
+                                      {/* Order ID */}
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="text-xs text-gray-400 font-mono">
+                                          {item.order_id ? item.order_id.substring(0, 8) + '...' : 'No ID'}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          {item.menu_item_id ? item.menu_item_id.substring(0, 8) + '...' : 'No Menu ID'}
+                                        </div>
+                                      </td>
                                     </tr>
-                                  </thead>
-                                    <tbody className="bg-gray-700 divide-y divide-gray-600">
-                                                                            {sessionData.data.externalResponse.data.morning.map((item, index) => (
-                                        <tr key={index} className="hover:bg-gray-600 transition-colors">
-                                          <td className="px-4 py-3 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                              <div className="flex-shrink-0 h-8 w-8">
-                                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg">
-                                                  <FiMapPin className="text-white text-sm" />
-                                                </div>
-                                              </div>
-                                              <div className="ml-3">
-                                                <div className="text-base font-bold text-white">
-                                                  {item.locations[0] || 'Unknown'}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-center">
-                                            <div className="flex flex-col items-center">
-                                              <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                                                {item.customer_count}
-                                              </span>
-                                              <div className="text-xs text-gray-400 mt-1">
-                                                customers
-                                            </div>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap">
-                                            <div className="flex flex-wrap gap-1">
-                                              {item.locations.map((location, locIndex) => (
-                                                <span key={locIndex} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                                  locIndex === 0 
-                                                    ? 'bg-blue-600 text-white border border-blue-500' 
-                                                    : 'bg-gray-600 text-gray-300 border border-gray-500'
-                                                }`}>
-                                                  {location}
-                                            </span>
-                                              ))}
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Lunch Delivery Table */}
-                            {sessionData.data.externalResponse.data.lunch && (
-                              <div className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden shadow-lg">
-                                                                <div className="px-4 py-3 border-b border-gray-600 bg-gradient-to-r from-green-600 to-green-700">
-                                  <h6 className="text-base font-semibold text-white flex items-center gap-2">
-                                    🍽️ Lunch Delivery Schedule
-                                    <span className="text-xs text-green-200 font-normal ml-2">
-                                      ({sessionData.data.externalResponse.data.totals?.lunch || 0} customers • {sessionData.data.externalResponse.data.lunch?.length || 0} locations)
-                                    </span>
-                                  </h6>
-                                </div>
-                                <div className="max-h-96 overflow-y-auto">
-                                  <table className="w-full">
-                                    <thead className="bg-gray-600 sticky top-0 z-10">
-                                      <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                          📍 Location
-                                        </th>
-                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                          👥 Customer Count
-                                        </th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                          🗺️ Delivery Areas
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="bg-gray-700 divide-y divide-gray-600">
-                                      {sessionData.data.externalResponse.data.lunch.map((item, index) => (
-                                        <tr key={index} className="hover:bg-gray-600 transition-colors">
-                                          <td className="px-4 py-3 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                              <div className="flex-shrink-0 h-8 w-8">
-                                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg">
-                                                  <FiMapPin className="text-white text-sm" />
-                                                </div>
-                                              </div>
-                                              <div className="ml-3">
-                                                <div className="text-base font-bold text-white">
-                                                  {item.locations[0] || 'Unknown'}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-center">
-                                            <div className="flex flex-col items-center">
-                                              <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-bold bg-green-100 text-green-800 border border-green-200">
-                                                {item.customer_count}
-                                              </span>
-                                              <div className="text-xs text-gray-400 mt-1">
-                                                customers
-                                              </div>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap">
-                                            <div className="flex flex-wrap gap-1">
-                                              {item.locations.map((location, locIndex) => (
-                                                <span key={locIndex} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                                  locIndex === 0 
-                                                    ? 'bg-green-600 text-white border border-green-500' 
-                                                    : 'bg-gray-600 text-gray-300 border border-gray-500'
-                                                }`}>
-                                                  {location}
-                                                </span>
-                                              ))}
-                                            </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                              </div>
-                            )}
-
-                            {/* Dinner Delivery Table */}
-                            {sessionData.data.externalResponse.data.dinner && (
-                              <div className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden shadow-lg">
-                                                                <div className="px-4 py-3 border-b border-gray-600 bg-gradient-to-r from-purple-600 to-purple-700">
-                                  <h6 className="text-base font-semibold text-white flex items-center gap-2">
-                                    🌙 Dinner Delivery Schedule
-                                    <span className="text-xs text-purple-200 font-normal ml-2">
-                                      ({sessionData.data.externalResponse.data.totals?.dinner || 0} customers • {sessionData.data.externalResponse.data.dinner?.length || 0} locations)
-                                    </span>
-                                  </h6>
-                          </div>
-                                <div className="max-h-96 overflow-y-auto">
-                                  <table className="w-full">
-                                    <thead className="bg-gray-600 sticky top-0 z-10">
-                                      <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                          📍 Location
-                                        </th>
-                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                          👥 Customer Count
-                                        </th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                          🗺️ Delivery Areas
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="bg-gray-700 divide-y divide-gray-600">
-                                                                            {sessionData.data.externalResponse.data.dinner.map((item, index) => (
-                                        <tr key={index} className="hover:bg-gray-600 transition-colors">
-                                          <td className="px-4 py-3 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                              <div className="flex-shrink-0 h-8 w-8">
-                                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg">
-                                                  <FiMapPin className="text-white text-sm" />
-                                                </div>
-                                              </div>
-                                              <div className="ml-3">
-                                                <div className="text-base font-bold text-white">
-                                                  {item.locations[0] || 'Unknown'}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap text-center">
-                                            <div className="flex flex-col items-center">
-                                              <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                                                {item.customer_count}
-                                              </span>
-                                              <div className="text-xs text-gray-400 mt-1">
-                                                customers
-                                              </div>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3 whitespace-nowrap">
-                                            <div className="flex flex-wrap gap-1">
-                                              {item.locations.map((location, locIndex) => (
-                                                <span key={locIndex} className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                                  locIndex === 0 
-                                                    ? 'bg-purple-600 text-white border border-purple-500' 
-                                                    : 'bg-gray-600 text-gray-300 border border-gray-500'
-                                                }`}>
-                                                  {location}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )}
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
                         )}
 
@@ -2703,7 +3033,160 @@ const DeliveryManagerPage = () => {
                 </div>
 
                 {/* Route Planning Component */}
+                {/* Active Executives Management */}
                 <div className="mt-6">
+                  <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
+                    <div className="flex items-center justify-between mb-6">
+                      <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                        <FiUsers className="text-blue-400" />
+                        👥 Active Executives Management
+                      </h4>
+                      <div className="p-2 bg-blue-500/20 rounded-full">
+                        <FiUsers className="text-blue-400 text-lg" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-center justify-center gap-4">
+                      <button
+                        onClick={handleFetchActiveExecutives}
+                        disabled={loadingActiveExecutives || isRefetchingActiveExecutives}
+                        className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:from-gray-500 disabled:to-gray-600 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3 disabled:transform-none"
+                      >
+                        {loadingActiveExecutives || isRefetchingActiveExecutives ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                            Fetching Active Executives...
+                          </>
+                        ) : (
+                          <>
+                            <FiUsers className="text-lg" />
+                            👥 Fetch Active Executives
+                          </>
+                        )}
+                      </button>
+                      
+                      {activeExecutives.length > 0 && (
+                        <div className="text-center space-y-3">
+                          <p className="text-green-400 text-sm font-medium">
+                            ✅ {activeExecutives.length} active executives loaded
+                          </p>
+                          <button
+                            onClick={() => setShowActiveExecutivesTable(!showActiveExecutivesTable)}
+                            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+                          >
+                            {showActiveExecutivesTable ? (
+                              <>
+                                <FiEyeOff className="w-4 h-4" />
+                                Hide Table
+                              </>
+                            ) : (
+                              <>
+                                <FiEye className="w-4 h-4" />
+                                Show Table
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Executives Table */}
+                {showActiveExecutivesTable && activeExecutives.length > 0 && (
+                  <div className="mt-6">
+                    <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                          <FiUsers className="text-blue-400" />
+                          Active Executives ({activeExecutives.length})
+                        </h4>
+                        <div className="flex items-center gap-3">
+                          {Object.keys(executivesStatus).length > 0 && (
+                            <button
+                              onClick={handleSaveStatusChanges}
+                              disabled={updateExecutiveStatusMutation.isPending}
+                              className={`px-4 py-2 text-white text-sm rounded-lg transition-colors flex items-center gap-2 ${
+                                updateExecutiveStatusMutation.isPending
+                                  ? 'bg-gray-500 cursor-not-allowed'
+                                  : 'bg-green-600 hover:bg-green-700'
+                              }`}
+                            >
+                              <FiCheckCircle className="w-4 h-4" />
+                              {updateExecutiveStatusMutation.isPending ? 'Saving...' : `Save Changes (${Object.keys(executivesStatus).length})`}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setShowActiveExecutivesTable(false)}
+                            className="text-gray-400 hover:text-white transition-colors"
+                          >
+                            <FiX className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="sticky top-0 bg-gray-700 z-10">
+                            <tr className="border-b border-gray-600">
+                              <th className="text-left py-3 px-4 text-gray-300 font-medium">No.</th>
+                              <th className="text-left py-3 px-4 text-gray-300 font-medium">Name</th>
+                              <th className="text-left py-3 px-4 text-gray-300 font-medium">Status</th>
+                              <th className="text-left py-3 px-4 text-gray-300 font-medium">WhatsApp</th>
+                              <th className="text-left py-3 px-4 text-gray-300 font-medium">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activeExecutives.map((executive, index) => (
+                              <tr key={executive.user_id || index} className="border-b border-gray-600 hover:bg-gray-600/50 transition-colors">
+                                <td className="py-3 px-4 text-gray-400 font-medium text-center">
+                                  {index + 1}
+                                </td>
+                                <td className="py-3 px-4 text-white font-medium">
+                                  {executive.exec_name}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    (executivesStatus[executive.user_id] || executive.status) === 'ACTIVE' 
+                                      ? 'bg-green-600 text-white' 
+                                      : 'bg-gray-600 text-gray-300'
+                                  }`}>
+                                    {executivesStatus[executive.user_id] || executive.status}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-gray-300">
+                                  <a 
+                                    href={`https://wa.me/${executive.whatsapp_number.replace('+', '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+                                  >
+                                    <FiMessageCircle className="w-4 h-4" />
+                                    {executive.whatsapp_number}
+                                  </a>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <button
+                                    onClick={() => handleToggleExecutiveStatus(executive.user_id, executivesStatus[executive.user_id] || executive.status)}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                      (executivesStatus[executive.user_id] || executive.status) === 'ACTIVE'
+                                        ? 'bg-red-600 text-white hover:bg-red-700'
+                                        : 'bg-green-600 text-white hover:bg-green-700'
+                                    }`}
+                                  >
+                                    {(executivesStatus[executive.user_id] || executive.status) === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* <div className="mt-6">
                   <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
                     <div className="flex items-center justify-between mb-6">
                       <h4 className="text-lg font-medium text-white flex items-center gap-2">
@@ -2723,7 +3206,7 @@ const DeliveryManagerPage = () => {
                       </div>
                     </div>
                     
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <div className="flex flex-col items-center justify-center gap-4">
                       <button
                         onClick={() => handleRunRoutePlanning()}
                         className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
@@ -2733,7 +3216,8 @@ const DeliveryManagerPage = () => {
                       </button>
                     </div>
                   </div>
-                </div>
+                </div> */}
+
 
                 {/* Delivery Executive Information - Always Visible */}
                 <div className="mt-6 bg-gray-800 rounded-lg border border-gray-700 p-6">
@@ -2742,95 +3226,59 @@ const DeliveryManagerPage = () => {
                     🚚 Delivery Executive Information
                   </h4>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div className="bg-gray-700 p-4 rounded-lg border border-gray-600 text-center">
-                      <div className="text-2xl font-bold text-blue-400">
-                        {deliveryExecutives.length}
-                      </div>
-                      <div className="text-sm text-gray-300">Total Executives</div>
-                    </div>
-                    <div className="bg-gray-700 p-4 rounded-lg border border-gray-600 text-center">
-                      <div className="text-2xl font-bold text-green-400">
-                        {deliveryExecutives.filter(e => e.currentStatus === 'Available').length}
-                      </div>
-                      <div className="text-sm text-gray-300">Available Now</div>
-                    </div>
-                  </div>
 
-                  {/* Simple Count Input and Send */}
+                  {/* Assign Executives Button */}
                   <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
                     <h5 className="text-md font-medium text-white mb-4">📋 Assign Executives for Route Planning:</h5>
                     
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm text-gray-300">How many executives do you need?</label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={selectedExecutives.size > 0 ? Array.from(selectedExecutives)[0] : ''}
-                          onChange={(e) => {
-                            const count = parseInt(e.target.value) || 0;
-                            if (count > 0) {
-                              setSelectedExecutives(new Set([count])); // Store just the count number
-                            } else {
-                              setSelectedExecutives(new Set());
-                            }
-                          }}
-                          className="w-20 px-3 py-2 bg-gray-600 text-white border border-gray-500 rounded text-center"
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                    
-                    {selectedExecutives.size > 0 && (
-                      <div className="p-3 bg-green-600/20 border border-green-600/30 rounded">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-green-300">
-                            ✅ {Array.from(selectedExecutives)[0]} executive(s) will be assigned for route planning
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    
+                    <button
+                      onClick={() => setShowExecutiveAssignModal(true)}
+                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
+                    >
+                      <span className="text-xl">👥</span>
+                      <span>Assign Executives for Route Planning</span>
+                    </button>
                   </div>
 
-                  {/* Combined Run Program Button */}
-                  {selectedExecutives.size > 0 && (
+                  {/* Run Program Button - Shows after executive assignment */}
+                  {showRunProgramButton && assignedExecutiveCount > 0 && (
                     <div className="mt-6 bg-gray-700 p-4 rounded-lg border border-gray-600">
-                      <h5 className="text-md font-medium text-white mb-4">⚡ Run Program with Selected Executives:</h5>
+                      <h5 className="text-md font-medium text-white mb-4">⚡ Run Program with Assigned Executives:</h5>
                       
                       <button
                         onClick={handleRunProgram}
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
                       >
                         <span className="text-xl">🚀</span>
-                        <span>Run Program With {Array.from(selectedExecutives)[0]} Executives</span>
+                        <span>Run Program With {assignedExecutiveCount} Executives</span>
                       </button>
                       
                       <div className="mt-3 text-xs text-gray-400 text-center">
-                        This will send the executive count to the API and run the program with {Array.from(selectedExecutives)[0]} executive(s).
+                        This will send the executive count to the API and run the program with {assignedExecutiveCount} executive(s).
                       </div>
                     </div>
                   )}
 
-                  {/* Send WhatsApp Button */}
-                  {selectedExecutives.size > 0 && (
+                  {/* Send WhatsApp Button - Shows after program execution */}
+                  {showWhatsAppButton && (
                     <div className="mt-6 bg-gray-700 p-4 rounded-lg border border-gray-600">
-                      <h5 className="text-md font-medium text-white mb-4">📱 Send WhatsApp Message to Selected Executives:</h5>
+                      <h5 className="text-md font-medium text-white mb-4">📱 Send WhatsApp to Executives:</h5>
                       
                       <button
                         onClick={handleSendWhatsApp}
-                        className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
                       >
                         <span className="text-xl">📱</span>
-                        <span>Send WhatsApp to {Array.from(selectedExecutives)[0]} Executive(s)</span>
+                        <span>Send WhatsApp to {assignedExecutiveCount} Executives</span>
                       </button>
                       
                       <div className="mt-3 text-xs text-gray-400 text-center">
-                        Note: This will send a POST request to the external API endpoint with Authorization header. The external service will handle WhatsApp messaging.
+                        Send delivery instructions and route information to all assigned executives via WhatsApp.
                       </div>
                     </div>
                   )}
+
+
                 </div>
               </div>
 
@@ -3129,32 +3577,344 @@ const DeliveryManagerPage = () => {
                   </h4>
 
                   {/* Execution Summary */}
-                  <div className="mb-6 bg-gray-700 p-4 rounded-lg border border-gray-600">
-                    <h5 className="font-medium text-white mb-3">📊 Execution Summary:</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div className="text-center p-3 bg-gray-600 rounded border border-gray-500">
-                        <div className="text-2xl mb-2">👥</div>
-                        <div className="font-medium text-white">Drivers Used</div>
-                        <div className="text-gray-300">
+                  <div className="mb-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
+                    <h5 className="text-sm font-medium text-white mb-2">📊 Execution Summary:</h5>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
+                        <div className="text-lg mb-1">👥</div>
+                        <div className="font-medium text-white text-xs">Drivers</div>
+                        <div className="text-gray-300 text-xs">
                           {programExecutionResults.data?.numDrivers || 0}
                         </div>
                       </div>
-                      <div className="text-center p-3 bg-gray-600 rounded border border-gray-500">
-                        <div className="text-2xl mb-2">✅</div>
-                        <div className="font-medium text-white">Status</div>
-                        <div className="text-gray-300">
+                      <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
+                        <div className="text-lg mb-1">✅</div>
+                        <div className="font-medium text-white text-xs">Status</div>
+                        <div className="text-gray-300 text-xs">
                           {programExecutionResults.data?.status || 'Completed'}
-                        </div>
-                      </div>
-                      <div className="text-center p-3 bg-gray-600 rounded border border-gray-500">
-                        <div className="text-2xl mb-2">🆔</div>
-                        <div className="font-medium text-white">Request ID</div>
-                        <div className="text-gray-300">
-                          {programExecutionResults.data?.requestId || 'N/A'}
                         </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* Route Execution Results */}
+                  {programExecutionResults.data?.externalResponse?.executionResult && (
+                    <div className="mb-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
+                      <h5 className="text-sm font-medium text-white mb-2">🗺️ Route Execution Results:</h5>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-gray-600 p-2 rounded-lg text-center">
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <span className="text-orange-400 text-sm">🌅</span>
+                            <span className="font-medium text-white text-xs">Breakfast</span>
+                          </div>
+                          <div className="text-lg font-bold text-orange-400">
+                            {programExecutionResults.data.externalResponse.executionResult.breakfast?.length || 0}
+                          </div>
+                          <div className="text-xs text-gray-300">Routes</div>
+                        </div>
+                        <div className="bg-gray-600 p-2 rounded-lg text-center">
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <span className="text-yellow-400 text-sm">☀️</span>
+                            <span className="font-medium text-white text-xs">Lunch</span>
+                          </div>
+                          <div className="text-lg font-bold text-yellow-400">
+                            {programExecutionResults.data.externalResponse.executionResult.lunch?.length || 0}
+                          </div>
+                          <div className="text-xs text-gray-300">Routes</div>
+                        </div>
+                        <div className="bg-gray-600 p-2 rounded-lg text-center">
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <span className="text-blue-400 text-sm">🌙</span>
+                            <span className="font-medium text-white text-xs">Dinner</span>
+                          </div>
+                          <div className="text-lg font-bold text-blue-400">
+                            {programExecutionResults.data.externalResponse.executionResult.dinner?.length || 0}
+                          </div>
+                          <div className="text-xs text-gray-300">Routes</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Route Planning Data Table */}
+                  {programExecutionResults.data?.externalResponse?.result && (
+                    <div className="mb-4 bg-white p-4 rounded-lg border border-gray-200 shadow-lg">
+                      <h5 className="font-semibold text-gray-800 mb-3 text-base">📋 Route Planning Details</h5>
+                      
+                      {/* Date Display */}
+                      {programExecutionResults.data.externalResponse.result[routeTableTab] && 
+                       programExecutionResults.data.externalResponse.result[routeTableTab].length > 0 && (
+                        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                          <div className="flex items-center gap-2">
+                            <span className="text-blue-600">📅</span>
+                            <span className="text-sm font-medium text-blue-800">
+                              Delivery Date: {programExecutionResults.data.externalResponse.result[routeTableTab][0]?.Date || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Tabs for different meal types */}
+                      <div className="mb-3">
+                        <div className="flex items-center gap-3">
+                          <label className="text-sm font-medium text-gray-700">Meal Type:</label>
+                          <select
+                            value={routeTableTab}
+                            onChange={(e) => setRouteTableTab(e.target.value)}
+                            className="px-3 py-1.5 text-sm text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                          >
+                            {['breakfast', 'lunch', 'dinner'].map((mealType) => {
+                              const data = programExecutionResults.data.externalResponse.result[mealType];
+                              if (!data || data.length === 0) return null;
+                              
+                              return (
+                                <option key={mealType} value={mealType}>
+                                  {mealType.charAt(0).toUpperCase() + mealType.slice(1)} ({data.length})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Filter Section */}
+                      {programExecutionResults.data.externalResponse.result[routeTableTab] && (
+                        <div className="mb-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          <h6 className="text-xs font-semibold text-gray-700 mb-2">🔍 Filter Routes</h6>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Delivery Name</label>
+                              <input
+                                type="text"
+                                placeholder="Search by name..."
+                                value={routeTableFilters.deliveryName}
+                                onChange={(e) => setRouteTableFilters(prev => ({ ...prev, deliveryName: e.target.value }))}
+                                className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Executive</label>
+                              <input
+                                type="text"
+                                placeholder="Search by executive..."
+                                value={routeTableFilters.executive}
+                                onChange={(e) => setRouteTableFilters(prev => ({ ...prev, executive: e.target.value }))}
+                                className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
+                              <input
+                                type="text"
+                                placeholder="Search by location..."
+                                value={routeTableFilters.location}
+                                onChange={(e) => setRouteTableFilters(prev => ({ ...prev, location: e.target.value }))}
+                                className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Packages</label>
+                              <input
+                                type="text"
+                                placeholder="Filter by packages..."
+                                value={routeTableFilters.packages}
+                                onChange={(e) => setRouteTableFilters(prev => ({ ...prev, packages: e.target.value }))}
+                                className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Distance (km)</label>
+                              <input
+                                type="text"
+                                placeholder="Filter by distance..."
+                                value={routeTableFilters.distance}
+                                onChange={(e) => setRouteTableFilters(prev => ({ ...prev, distance: e.target.value }))}
+                                className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Time (min)</label>
+                              <input
+                                type="text"
+                                placeholder="Filter by time..."
+                                value={routeTableFilters.time}
+                                onChange={(e) => setRouteTableFilters(prev => ({ ...prev, time: e.target.value }))}
+                                className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center mt-3">
+                            <button
+                              onClick={() => setRouteTableFilters({
+                                deliveryName: '',
+                                executive: '',
+                                location: '',
+                                packages: '',
+                                distance: '',
+                                time: ''
+                              })}
+                              className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                            >
+                              Clear All Filters
+                            </button>
+                            <div className="text-xs text-gray-500">
+                              {(() => {
+                                const filteredData = programExecutionResults.data.externalResponse.result[routeTableTab].filter(item => {
+                                  const deliveryNameMatch = !routeTableFilters.deliveryName || 
+                                    (item.Delivery_Name && item.Delivery_Name.toLowerCase().includes(routeTableFilters.deliveryName.toLowerCase()));
+                                  const executiveMatch = !routeTableFilters.executive || 
+                                    (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
+                                  const locationMatch = !routeTableFilters.location || 
+                                    (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
+                                  const packagesMatch = !routeTableFilters.packages || 
+                                    (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
+                                  const distanceMatch = !routeTableFilters.distance || 
+                                    (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
+                                  const timeMatch = !routeTableFilters.time || 
+                                    (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
+                                  
+                                  return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
+                                });
+                                return `Showing ${filteredData.length} of ${programExecutionResults.data.externalResponse.result[routeTableTab].length} routes`;
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Table for selected meal type */}
+                      {programExecutionResults.data.externalResponse.result[routeTableTab] && (
+                        <div className="bg-white rounded-lg border border-gray-200">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-gray-50">
+                                <tr className="border-b border-gray-200">
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Stop #</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Delivery Name</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Executive</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Location</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Packages</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Distance (km)</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Time (min)</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Map Link</th>
+                                </tr>
+                              </thead>
+                            </table>
+                          </div>
+                          <div className="max-h-96 overflow-y-auto">
+                            <table className="w-full text-sm">
+                              <tbody className="divide-y divide-gray-200">
+                                {(() => {
+                                  const filteredData = programExecutionResults.data.externalResponse.result[routeTableTab].filter(item => {
+                                    const deliveryNameMatch = !routeTableFilters.deliveryName || 
+                                      (item.Delivery_Name && item.Delivery_Name.toLowerCase().includes(routeTableFilters.deliveryName.toLowerCase()));
+                                    const executiveMatch = !routeTableFilters.executive || 
+                                      (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
+                                    const locationMatch = !routeTableFilters.location || 
+                                      (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
+                                    const packagesMatch = !routeTableFilters.packages || 
+                                      (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
+                                    const distanceMatch = !routeTableFilters.distance || 
+                                      (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
+                                    const timeMatch = !routeTableFilters.time || 
+                                      (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
+                                    
+                                    return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
+                                  });
+                                  
+                                  return filteredData.map((item, index) => (
+                                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                    <td className="py-3 px-4 text-gray-900 font-medium">
+                                      {item.Stop_No || '-'}
+                                    </td>
+                                    <td className="py-3 px-4 text-gray-900 font-semibold">
+                                      {item.Delivery_Name || '-'}
+                                    </td>
+                                    <td className="py-3 px-4">
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        item.Executive === 'Unassigned' || !item.Executive
+                                          ? 'bg-red-100 text-red-800'
+                                          : 'bg-green-100 text-green-800'
+                                      }`}>
+                                        {item.Executive || 'Unassigned'}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-4 max-w-xs text-gray-700" title={item.Location}>
+                                      <div className="truncate">{item.Location || '-'}</div>
+                                    </td>
+                                    <td className="py-3 px-4 text-center text-gray-900 font-medium">
+                                      {item.Packages || '-'}
+                                    </td>
+                                    <td className="py-3 px-4 text-center text-gray-700">
+                                      {item.Distance_From_Prev_Stop_km ? `${item.Distance_From_Prev_Stop_km} km` : '-'}
+                                    </td>
+                                    <td className="py-3 px-4 text-center text-gray-700">
+                                      {item.Leg_Time_min ? `${item.Leg_Time_min} min` : '-'}
+                                    </td>
+                                    <td className="py-3 px-4">
+                                      {item.Map_Link ? (
+                                        <a
+                                          href={item.Map_Link}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:text-blue-800 underline font-medium"
+                                        >
+                                          View Route
+                                        </a>
+                                      ) : (
+                                        <span className="text-gray-400">-</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                  ));
+                                })()}
+                              </tbody>
+                            </table>
+                          </div>
+                          {(() => {
+                            const filteredData = programExecutionResults.data.externalResponse.result[routeTableTab].filter(item => {
+                              const deliveryNameMatch = !routeTableFilters.deliveryName || 
+                                (item.Delivery_Name && item.Delivery_Name.toLowerCase().includes(routeTableFilters.deliveryName.toLowerCase()));
+                              const executiveMatch = !routeTableFilters.executive || 
+                                (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
+                              const locationMatch = !routeTableFilters.location || 
+                                (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
+                              const packagesMatch = !routeTableFilters.packages || 
+                                (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
+                              const distanceMatch = !routeTableFilters.distance || 
+                                (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
+                              const timeMatch = !routeTableFilters.time || 
+                                (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
+                              
+                              return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
+                            });
+                            
+                            return filteredData.length > 6 && (
+                              <div className="bg-gray-50 px-4 py-2 text-center text-sm text-gray-600 border-t border-gray-200">
+                                Showing {Math.min(6, filteredData.length)} of {filteredData.length} filtered routes. Scroll to see more.
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Excel Files Generated */}
+                  {programExecutionResults.data?.externalResponse?.excel_files && 
+                   programExecutionResults.data.externalResponse.excel_files.length > 0 && (
+                    <div className="mb-6 bg-gray-700 p-4 rounded-lg border border-gray-600">
+                      <h5 className="font-medium text-white mb-3">📊 Excel Files Generated:</h5>
+                      <div className="space-y-2">
+                        {programExecutionResults.data.externalResponse.excel_files.map((file, index) => (
+                          <div key={index} className="flex items-center gap-2 text-sm text-gray-300">
+                            <span className="text-green-400">📄</span>
+                            <span className="font-mono">{file}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Generated Files (if any) */}
                   {programExecutionResults.data?.externalResponse?.data?.files && (
@@ -3404,24 +4164,45 @@ const DeliveryManagerPage = () => {
                     </div>
                   )}
 
-                  {/* Execution Details */}
-                  <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
-                    <h5 className="font-medium text-white mb-3">⚙️ Execution Details:</h5>
-                    <div className="space-y-2 text-sm text-gray-300">
-                      <div className="flex justify-between">
-                        <span>Execution Time:</span>
-                        <span>{programExecutionResults.data?.executionTime ? new Date(programExecutionResults.data.executionTime).toLocaleString() : 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Timestamp:</span>
-                        <span>{programExecutionResults.data?.timestamp ? new Date(programExecutionResults.data.timestamp).toLocaleString() : 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Message:</span>
-                        <span>{programExecutionResults.message || 'N/A'}</span>
+                  {/* Save Routes Button */}
+                  {currentRequestId && (
+                    <div className="mt-6 pt-4 border-t border-gray-600">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                            <FiDownload className="text-white text-xl" />
+                          </div>
+                          <div>
+                            <h5 className="text-white font-medium text-lg">
+                              💾 Save Routes
+                            </h5>
+                            <p className="text-gray-400 text-sm">
+                              Save the generated routes to the external system
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={handleSaveRoutes}
+                          disabled={saveRoutesMutation.isPending}
+                          className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                        >
+                          {saveRoutesMutation.isPending ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <FiDownload className="w-5 h-5" />
+                              Save Routes
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
-                  </div>
+                  )}
+
                 </div>
               )}
             </>
@@ -3507,7 +4288,9 @@ const DeliveryManagerPage = () => {
                           <div>
                           <span className="text-white text-sm">Order #{order.id.slice(-8)}</span>
                             {order.customerName && (
-                              <div className="text-blue-300 text-xs">For: {order.customerName}</div>
+                              <div className="text-blue-300 text-xs">
+                                For: {order.customerName} 📱 {order.customerPhone || order.customerEmail || 'No contact info'}
+                              </div>
                             )}
                           </div>
                           <span className="text-green-400 text-sm">{formatCurrency(order.totalPrice)}</span>
@@ -3597,12 +4380,74 @@ const DeliveryManagerPage = () => {
         open={confirmationModal.visible}
         onOk={handleConfirmationOK}
         onCancel={handleConfirmationCancel}
-        okText="Yes, Cancel"
-        cancelText="No, Keep"
-        okType="danger"
+        okText={confirmationModal.itemId === 'logout' ? 'Yes, Logout' : 'Yes, Cancel'}
+        cancelText={confirmationModal.itemId === 'logout' ? 'Cancel' : 'No, Keep'}
+        okType={confirmationModal.itemId === 'logout' ? 'danger' : 'danger'}
+        width={400}
+        centered
       >
-        <p>{confirmationModal.content}</p>
+        <div className="py-4">
+          <p className="text-gray-700">{confirmationModal.content}</p>
+          {confirmationModal.itemId === 'logout' && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2 text-red-700">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span className="text-sm font-medium">This action cannot be undone.</span>
+              </div>
+            </div>
+          )}
+        </div>
       </Modal>
+
+      {/* Executive Assignment Modal */}
+      <Modal
+        title="Assign Executives for Route Planning"
+        open={showExecutiveAssignModal}
+        onOk={() => {
+          if (assignedExecutiveCount > 0) {
+            setShowExecutiveAssignModal(false);
+            setShowRunProgramButton(true);
+            setSelectedExecutives(new Set([assignedExecutiveCount]));
+          }
+        }}
+        onCancel={() => setShowExecutiveAssignModal(false)}
+        okText="Assign Executives"
+        cancelText="Cancel"
+        okButtonProps={{ disabled: assignedExecutiveCount <= 0 }}
+        width={500}
+      >
+        <div className="py-4">
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              How many executives do you need for route planning?
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={assignedExecutiveCount}
+              onChange={(e) => setAssignedExecutiveCount(parseInt(e.target.value) || 0)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter number of executives"
+            />
+          </div>
+          
+          
+          {assignedExecutiveCount > 0 && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+              <div className="flex items-center gap-2">
+                <span className="text-green-600">✅</span>
+                <span className="text-sm text-green-700">
+                  {assignedExecutiveCount} executive{assignedExecutiveCount !== 1 ? 's' : ''} will be assigned for route planning
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
     </div>
   );
 };

@@ -13,7 +13,7 @@ export const getDashboardRoute = (roles) => {
 
   // Check for seller role
   if (roles.some(role => role.toUpperCase() === 'SELLER')) {
-    return '/jkhm/seller';
+    return '/jkhm/seller/customers';
   }
 
   // Check for delivery manager role

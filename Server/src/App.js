@@ -12,7 +12,9 @@ import deliveryItemRoutes from './routes/deliveryItem.routes.js';
 import deliveryManagerRoutes from './routes/deliveryManager.routes.js';
 import deliveryExecutiveRoutes from './routes/deliveryExecutive.routes.js';
 import deliveryDetailsRoutes from './routes/deliveryDetails.routes.js';
+import externalUploadRoutes from './routes/externalUpload.routes.js';
 import path from 'path';
+import fs from 'fs';
 import './models/index.js'; // Import models to ensure associations are loaded
 import prisma from './config/prisma.js';
 
@@ -22,7 +24,6 @@ const app = express();
 
 // Serve static files with proper fallback handling
 app.use('/uploads', (req, res, next) => {
-  const fs = require('fs');
   const serverFilePath = path.join(process.cwd(), 'src/services/uploads', req.path);
   const clientFilePath = path.join(process.cwd(), '../Client/public', req.path);
   
@@ -46,7 +47,6 @@ app.use('/uploads', (req, res, next) => {
 
 // Serve payment receipt files from payment-receipts directory
 app.use('/payment-receipts', (req, res, next) => {
-  const fs = require('fs');
   const filePath = path.join(process.cwd(), 'src/services/payment-receipts', req.path);
   
   // Check if file exists
@@ -65,7 +65,6 @@ app.use('/payment-receipts', (req, res, next) => {
 
 // Serve delivery detail images
 app.use('/delivery-images', (req, res, next) => {
-  const fs = require('fs');
   const filePath = path.join(process.cwd(), 'uploads/delivery-details', req.path);
   
   // Check if file exists
@@ -122,6 +121,7 @@ app.use('/api', deliveryItemRoutes);
 app.use('/api/delivery-managers', deliveryManagerRoutes);
 app.use('/api/delivery-executives', deliveryExecutiveRoutes);
 app.use('/api/delivery-details', deliveryDetailsRoutes);
+app.use('/api/external', externalUploadRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

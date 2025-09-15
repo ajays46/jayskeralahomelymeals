@@ -8,7 +8,6 @@ import {
   MdShoppingCart, 
   MdCalendarToday,
   MdLocationOn,
-  MdSearch,
   MdFilterAlt,
   MdCancel,
   MdCheckCircle,
@@ -32,7 +31,7 @@ const DeliveryItemsPage = () => {
   const [order, setOrder] = useState(orderData || null);
   const [loading, setLoading] = useState(!orderData);
   const [deliveryItemsFilter, setDeliveryItemsFilter] = useState('all');
-  const [deliveryItemsSearch, setDeliveryItemsSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
   const [cancellingItems, setCancellingItems] = useState(new Set());
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [itemToCancel, setItemToCancel] = useState(null);
@@ -70,14 +69,29 @@ const DeliveryItemsPage = () => {
       const response = await axiosInstance.put(`/seller/delivery-items/${deliveryItemId}/cancel`);
       if (response.data.success) {
         showSuccessToast('Delivery item cancelled successfully');
-        // Refresh the order data
-        if (orderId) {
-          fetchOrderData();
-        }
+        
+        // Update the local state immediately instead of refetching
+        setOrder(prevOrder => {
+          if (!prevOrder) return prevOrder;
+          
+          return {
+            ...prevOrder,
+            deliveryItems: prevOrder.deliveryItems?.map(item => 
+              item.id === deliveryItemId 
+                ? { ...item, status: 'Cancelled' }
+                : item
+            ) || []
+          };
+        });
+        
+        // Close the modal
+        setShowCancelModal(false);
+        setItemToCancel(null);
       } else {
         showErrorToast(response.data.message || 'Failed to cancel delivery item');
       }
     } catch (error) {
+      console.error('Error cancelling delivery item:', error);
       showErrorToast('Failed to cancel delivery item');
     } finally {
       setCancellingItems(prev => {
@@ -85,8 +99,6 @@ const DeliveryItemsPage = () => {
         newSet.delete(deliveryItemId);
         return newSet;
       });
-      setShowCancelModal(false);
-      setItemToCancel(null);
     }
   };
 
@@ -222,15 +234,41 @@ const DeliveryItemsPage = () => {
       filtered = filtered.filter(item => item.status === deliveryItemsFilter);
     }
     
-    // Apply search filter
-    if (deliveryItemsSearch) {
-      filtered = filtered.filter(item => 
-        item.menuItem?.name?.toLowerCase().includes(deliveryItemsSearch.toLowerCase()) ||
-        item.status?.toLowerCase().includes(deliveryItemsSearch.toLowerCase())
-      );
+    // Apply date filter
+    if (dateFilter !== 'all') {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const nextWeek = new Date(today);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const thisWeek = new Date(today);
+      thisWeek.setDate(thisWeek.getDate() + 6);
+      
+      filtered = filtered.filter(item => {
+        const deliveryDate = new Date(item.deliveryDate);
+        
+        switch (dateFilter) {
+          case 'today':
+            return deliveryDate.toDateString() === today.toDateString();
+          case 'tomorrow':
+            return deliveryDate.toDateString() === tomorrow.toDateString();
+          case 'thisWeek':
+            return deliveryDate >= today && deliveryDate <= thisWeek;
+          case 'nextWeek':
+            return deliveryDate > thisWeek && deliveryDate <= nextWeek;
+          default:
+            return true;
+        }
+      });
     }
     
     return filtered;
+  };
+
+  // Get active delivery items (non-cancelled)
+  const getActiveDeliveryItems = () => {
+    if (!order?.deliveryItems) return [];
+    return order.deliveryItems.filter(item => item.status !== 'Cancelled');
   };
 
   if (loading) {
@@ -422,58 +460,84 @@ const DeliveryItemsPage = () => {
           </div>
         )}
 
-        {/* Filters Section */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-            <div className="flex-1 min-w-0">
+        {/* Filters Section - Always Visible */}
+        <div className="bg-blue-50 rounded-xl shadow-lg border-2 border-blue-200 p-6 mb-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+              <MdFilterAlt className="w-5 h-5" />
+              Filter Delivery Items
+            </h3>
+            <p className="text-sm text-blue-700">Filter items by status and delivery date</p>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            {/* Status Filter */}
+            <div>
+              <label className="block text-sm font-medium text-blue-800 mb-2">Status Filter</label>
               <div className="relative">
-                <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search items by name or status..."
-                  value={deliveryItemsSearch}
-                  onChange={(e) => setDeliveryItemsSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                <MdFilterAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400 w-5 h-5" />
+                <select
+                  value={deliveryItemsFilter}
+                  onChange={(e) => setDeliveryItemsFilter(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 text-sm border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium"
+                >
+                  <option value="all">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="In_Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-              <select
-                value={deliveryItemsFilter}
-                onChange={(e) => setDeliveryItemsFilter(e.target.value)}
-                className="px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-              >
-                <option value="all">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="In_Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-              <button
-                onClick={() => {
-                  setDeliveryItemsFilter('all');
-                  setDeliveryItemsSearch('');
-                }}
-                className="px-4 py-3 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 border border-gray-300"
-              >
-                <MdFilterAlt className="w-4 h-4" />
-                Clear Filters
-              </button>
+            
+            {/* Date Filter */}
+            <div>
+              <label className="block text-sm font-medium text-blue-800 mb-2">Date Filter</label>
+              <div className="relative">
+                <MdCalendarToday className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400 w-5 h-5" />
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 text-sm border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium"
+                >
+                  <option value="all">All Dates</option>
+                  <option value="today">Today</option>
+                  <option value="tomorrow">Tomorrow</option>
+                  <option value="thisWeek">This Week</option>
+                  <option value="nextWeek">Next Week</option>
+                </select>
+              </div>
             </div>
           </div>
           
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <button
+              onClick={() => {
+                setDeliveryItemsFilter('all');
+                setDateFilter('all');
+              }}
+              className="px-4 py-3 text-sm text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center gap-2 border border-blue-300 font-medium"
+            >
+              <MdFilterAlt className="w-4 h-4" />
+              Clear All Filters
+            </button>
+          </div>
+          
           {/* Active Filters Display */}
-          {(deliveryItemsFilter !== 'all' || deliveryItemsSearch) && (
+          {(deliveryItemsFilter !== 'all' || dateFilter !== 'all') && (
             <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-gray-600 font-medium">Active filters:</span>
+              <span className="text-blue-700 font-medium">Active filters:</span>
               {deliveryItemsFilter !== 'all' && (
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full border border-blue-200">
+                <span className="px-3 py-1 bg-blue-200 text-blue-800 rounded-full border border-blue-300 font-medium">
                   Status: {deliveryItemsFilter}
                 </span>
               )}
-              {deliveryItemsSearch && (
-                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full border border-purple-200">
-                  Search: "{deliveryItemsSearch}"
+              {dateFilter !== 'all' && (
+                <span className="px-3 py-1 bg-green-200 text-green-800 rounded-full border border-green-300 font-medium">
+                  Date: {dateFilter === 'today' ? 'Today' : 
+                         dateFilter === 'tomorrow' ? 'Tomorrow' : 
+                         dateFilter === 'thisWeek' ? 'This Week' : 
+                         dateFilter === 'nextWeek' ? 'Next Week' : dateFilter}
                 </span>
               )}
             </div>
@@ -483,28 +547,68 @@ const DeliveryItemsPage = () => {
         {/* Delivery Items List */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Delivery Items</h2>
-            <p className="text-gray-600 mt-1">
-              Showing {getFilteredDeliveryItems().length} of {order.deliveryItems?.length || 0} items
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Delivery Items</h2>
+                <p className="text-gray-600 mt-1">
+                  Showing {getFilteredDeliveryItems().length} of {order.deliveryItems?.length || 0} items
+                  {order.deliveryItems && order.deliveryItems.length > 0 && (
+                    <span className="ml-2 text-sm">
+                      ({getActiveDeliveryItems().length} active, {order.deliveryItems.filter(item => item.status === 'Cancelled').length} cancelled)
+                    </span>
+                  )}
+                </p>
+              </div>
+              {order.deliveryItems && getActiveDeliveryItems().length === 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium border border-orange-200">
+                    ⚠️ All Items Cancelled
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="p-6">
             {getFilteredDeliveryItems().length === 0 ? (
               <div className="text-center py-12">
-                <MdSearch className="text-5xl text-gray-300 mx-auto mb-4" />
+                <MdFilterAlt className="text-5xl text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 font-medium text-lg">No delivery items found</p>
                 <p className="text-gray-400 text-sm mt-1">
-                  {deliveryItemsSearch || deliveryItemsFilter !== 'all' 
-                    ? 'Try adjusting your filters or search terms' 
-                    : 'This order has no delivery items'
+                  {deliveryItemsFilter !== 'all' 
+                    ? 'Try adjusting your filters' 
+                    : order.deliveryItems && order.deliveryItems.length > 0
+                      ? getActiveDeliveryItems().length === 0
+                        ? 'All delivery items have been cancelled'
+                        : 'No items match your current filters'
+                      : 'This order has no delivery items'
                   }
                 </p>
+                {order.deliveryItems && order.deliveryItems.length > 0 && getActiveDeliveryItems().length === 0 && (
+                  <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                    <button
+                      onClick={() => setDeliveryItemsFilter('all')}
+                      className="px-4 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      Show All Items (Including Cancelled)
+                    </button>
+                    <button
+                      onClick={() => navigate(-1)}
+                      className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Go Back to Orders
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
                 {getFilteredDeliveryItems().map((item, index) => (
-                  <div key={index} className="bg-gray-50 rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                  <div key={index} className={`rounded-xl border p-6 shadow-sm hover:shadow-md transition-shadow ${
+                    item.status === 'Cancelled' 
+                      ? 'bg-red-50 border-red-200' 
+                      : 'bg-gray-50 border-gray-200'
+                  }`}>
                     <div className="space-y-4">
                       {/* Item Header with Status and Name */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -514,12 +618,16 @@ const DeliveryItemsPage = () => {
                             {item.status}
                           </span>
                           <div className="flex flex-col">
-                            <span className="text-lg font-semibold text-gray-900">
+                            <span className={`text-lg font-semibold ${
+                              item.status === 'Cancelled' ? 'text-red-700 line-through' : 'text-gray-900'
+                            }`}>
                               {item.quantity > 1 ? `${item.quantity}x ` : ''}
                               {item.menuItem?.name || `Item ${index + 1}`}
                             </span>
                             {item.menuItem?.menu?.name && (
-                              <span className="text-sm text-blue-600 font-medium">
+                              <span className={`text-sm font-medium ${
+                                item.status === 'Cancelled' ? 'text-red-500' : 'text-blue-600'
+                              }`}>
                                 📋 {item.menuItem.menu.name}
                               </span>
                             )}
@@ -528,7 +636,11 @@ const DeliveryItemsPage = () => {
                         
                         {/* Cancel Button */}
                         <div className="flex-shrink-0">
-                          {canCancelDeliveryItem(item.status) ? (
+                          {item.status === 'Cancelled' ? (
+                            <div className="text-sm text-red-600 px-6 py-3 bg-red-50 rounded-lg border border-red-200 font-medium">
+                              ❌ Cancelled
+                            </div>
+                          ) : canCancelDeliveryItem(item.status) ? (
                             <button
                               onClick={() => handleCancelClick(item)}
                               disabled={cancellingItems.has(item.id)}

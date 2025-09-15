@@ -457,38 +457,52 @@ const SellerPage = () => {
     }
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <div className="min-h-screen bg-gray-50">
         <Navbar />
         
-        {/* Header */}
-        <div className="bg-white shadow-lg border-b border-gray-100 mt-16 sm:mt-20 lg:mt-24">
+        {/* Professional Business Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 mt-16 sm:mt-20 lg:mt-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 sm:py-6 gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-6 sm:py-8 gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Seller Dashboard</h1>
-                <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your customers and track their orders</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center">
+                    <MdDashboard className="text-2xl text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Sales Dashboard</h1>
+                    <p className="text-base sm:text-lg text-gray-600 mt-1">Customer Management & Order Analytics</p>
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <button
                   onClick={() => getSellerUsers()}
-                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
                 >
                   <MdRefresh className="w-4 h-4" />
-                  <span className="hidden sm:inline">Refresh</span>
+                  <span className="hidden sm:inline">Refresh Data</span>
                 </button>
                 <button
-                  onClick={() => navigate('/jkhm/bookings')}
-                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors"
+                  onClick={() => navigate('/jkhm/place-order')}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
                 >
                   <MdAdd className="w-4 h-4" />
                   <span className="hidden sm:inline">New Booking</span>
                 </button>
                 <button
+                  onClick={() => navigate('/jkhm/seller/customers')}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm"
+                >
+                  <MdPeople className="w-4 h-4" />
+                  <span className="hidden sm:inline">View All Customers</span>
+                </button>
+                <button
                   onClick={() => navigate('/jkhm/create-user')}
-                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-sm"
                 >
                   <MdPerson className="w-4 h-4" />
-                  <span className="hidden sm:inline">Create User</span>
+                  <span className="hidden sm:inline">Add Customer</span>
                 </button>
               </div>
             </div>
@@ -496,228 +510,86 @@ const SellerPage = () => {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
+          {/* Business Metrics Dashboard */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Customers</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.totalUsers}</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Customers</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalUsers}</p>
+                  <p className="text-sm text-gray-500 mt-1">Active customer base</p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                  <MdPeople className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <MdPeople className="w-7 h-7 text-white" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Orders</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.totalOrders}</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Orders</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalOrders}</p>
+                  <p className="text-sm text-gray-500 mt-1">All time orders</p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                  <MdShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <MdShoppingCart className="w-7 h-7 text-white" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Revenue</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{formatPrice(stats.totalRevenue)}</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Revenue</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{formatPrice(stats.totalRevenue)}</p>
+                  <p className="text-sm text-gray-500 mt-1">Gross revenue</p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                  <MdAttachMoney className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <MdAttachMoney className="w-7 h-7 text-white" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Active Orders</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.activeOrders}</p>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Active Orders</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stats.activeOrders}</p>
+                  <p className="text-sm text-gray-500 mt-1">In progress</p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                  <MdTrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <MdTrendingUp className="w-7 h-7 text-white" />
                 </div>
               </div>
             </div>
           </div>
 
+
+
+
+
           {/* Main Content */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
-            {/* Left Column - Users List */}
+            {/* Left Column - Orders Table Section */}
             <div className="xl:col-span-2">
-              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-4 sm:p-6 text-white">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <MdPeople className="text-xl sm:text-2xl" />
-                      <h2 className="text-lg sm:text-xl font-bold">Customer Management</h2>
-                    </div>
-                    <span className="text-xs sm:text-sm bg-white/20 px-2 sm:px-3 py-1 rounded-full self-start sm:self-auto">
-                      {filteredUsers.length} customers
-                    </span>
-                  </div>
-                </div>
-
-                {/* Filters and Search */}
-                <div className="p-4 sm:p-6 border-b border-gray-100">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex-1">
-                      <div className="relative">
-                        <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                        <input
-                          type="text"
-                          placeholder="Search customers..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 sm:py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <select
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                        className="px-3 sm:px-4 py-2 sm:py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="all">All Customers</option>
-                        <option value="with-orders">With Orders</option>
-                        <option value="without-orders">Without Orders</option>
-                      </select>
-                      
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 sm:px-4 py-2 sm:py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="recent">Most Recent</option>
-                        <option value="name">Name A-Z</option>
-                        <option value="orders">Most Orders</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Users List */}
-                <div className="max-h-80 sm:max-h-96 overflow-y-auto">
-                  {sellerUsersLoading ? (
-                    <div className="p-6 sm:p-8 text-center">
-                      <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                      <p className="text-sm sm:text-base text-gray-500">Loading customers...</p>
-                    </div>
-                  ) : sortedUsers.length === 0 ? (
-                    <div className="p-6 sm:p-8 text-center">
-                      <MdPeople className="text-3xl sm:text-4xl text-gray-300 mx-auto mb-4" />
-                      <p className="text-sm sm:text-base text-gray-500">No customers found</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-100">
-                      {sortedUsers.map((user) => (
-                        <div
-                          key={user.id}
-                          className={`p-4 hover:bg-gray-50 transition-colors ${
-                            selectedUser?.id === user.id ? 'bg-blue-50 border-r-4 border-blue-500' : ''
-                          }`}
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-                            <div className="flex items-center gap-3 sm:gap-4">
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-base">
-                                {user.contacts?.[0]?.firstName?.charAt(0) || 'U'}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-                                  {user.contacts?.[0]?.firstName} {user.contacts?.[0]?.lastName}
-                                </h3>
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mt-1">
-                                  <span className="flex items-center gap-1">
-                                    <MdPhone className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    <span className="truncate">{user.contacts?.[0]?.phoneNumbers?.[0]?.number || 'No phone'}</span>
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <MdShoppingCart className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    {user.orders?.length || 0} orders
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                              <div className="text-right text-xs sm:text-sm">
-                                <p className="text-gray-500">
-                                  ID: {user.id.slice(-6)}
-                                </p>
-                                {user.orders && user.orders.length > 0 && (
-                                  <p className="font-medium text-green-600">
-                                    ₹{user.orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0)}
-                                  </p>
-                                )}
-                              </div>
-                              
-                              {/* Show Orders Button */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUserSelect(user);
-                                }}
-                                className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
-                                  selectedUser?.id === user.id 
-                                    ? 'bg-blue-600 text-white' 
-                                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                }`}
-                              >
-                                <MdShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
-                                Show Orders
-                              </button>
-
-                              {/* Delete User Button */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteUser(user);
-                                }}
-                                disabled={deletingUsers.has(user.id)}
-                                className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
-                                  deletingUsers.has(user.id)
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-red-100 text-red-700 hover:bg-red-200'
-                                }`}
-                              >
-                                {deletingUsers.has(user.id) ? (
-                                  <div className="animate-spin rounded-full h-3 w-3 border-b border-red-600 mx-auto"></div>
-                                ) : (
-                                  <>
-                                    <MdDelete className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
-                                    Delete
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Orders Table Section - Now below Customer Management */}
               {selectedUser && userOrders.length > 0 && (
                 <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden mt-6">
-                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-4 text-white">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <MdShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-                        <h3 className="text-sm sm:text-base font-bold">Orders for {selectedUser.contacts?.[0]?.firstName} {selectedUser.contacts?.[0]?.lastName} ({getFilteredOrders().length} of {userOrders.length})</h3>
+                  <div className="bg-gradient-to-r from-slate-700 to-slate-600 p-6 text-white">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                          <MdShoppingCart className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold">Order Management</h3>
+                          <p className="text-slate-200 text-sm">
+                            {selectedUser.contacts?.[0]?.firstName} {selectedUser.contacts?.[0]?.lastName} • {getFilteredOrders().length} of {userOrders.length} orders
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-xs bg-white/20 px-2 py-1 rounded-full self-start sm:self-auto">
-                        Total: {formatPrice(userOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0))}
+                      <div className="text-sm bg-white/20 px-4 py-2 rounded-lg font-medium">
+                        Total Value: {formatPrice(userOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0))}
                       </div>
                     </div>
                   </div>
@@ -831,19 +703,22 @@ const SellerPage = () => {
                     <table className="w-full table-fixed">
                       <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                             Order Details
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
-                            Payment & Status
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                            Order Status & Payment
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                             View Items
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                            Payment Receipts
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                             Address
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                             Actions
                           </th>
                         </tr>
@@ -851,7 +726,7 @@ const SellerPage = () => {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {getFilteredOrders().length === 0 ? (
                           <tr>
-                            <td colSpan="5" className="px-4 py-8 text-center">
+                            <td colSpan="6" className="px-4 py-8 text-center">
                               <div className="flex flex-col items-center gap-3">
                                 <MdSearch className="text-4xl text-gray-300" />
                                 <div>
@@ -904,30 +779,38 @@ const SellerPage = () => {
                                 </div>
                               </td>
                               
-                              {/* Payment & Status Column */}
+                              {/* Order Status & Payment Column */}
                               <td className="px-4 py-4 align-top">
                                 <div className="space-y-3">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-                                      {getStatusIcon(order.status)}
-                                      <span className="hidden sm:inline">{order.status}</span>
-                                    </span>
-                                    {canCancelOrder(order.status) && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                        <MdCancel className="w-3 h-3" />
-                                        Cancellable
+                                  {/* Order Status Section */}
+                                  <div className="space-y-2">
+                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                      Order Status:
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
+                                        {getStatusIcon(order.status)}
+                                        <span className="hidden sm:inline">{order.status}</span>
                                       </span>
-                                    )}
+
+                                    </div>
                                   </div>
+                                  {/* Payment Section */}
                                   {order.payments && order.payments.length > 0 && (
                                     <div className="space-y-2">
-                                      <div className="text-sm text-gray-600">
-                                        <span className="font-medium">Payment:</span> {order.payments[0].paymentMethod}
+                                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                        Payment Details:
                                       </div>
-                                      <div className="text-sm">
-                                        <span className={`font-medium ${order.payments[0].paymentStatus === 'Confirmed' ? 'text-green-600' : 'text-orange-600'}`}>
-                                          {order.payments[0].paymentStatus}
-                                        </span>
+                                      <div className="space-y-1">
+                                        <div className="text-sm text-gray-600">
+                                          <span className="font-medium">Method:</span> {order.payments[0].paymentMethod}
+                                        </div>
+                                        <div className="text-sm">
+                                          <span className="font-medium">Status: </span>
+                                          <span className={`font-medium ${order.payments[0].paymentStatus === 'Confirmed' ? 'text-green-600' : 'text-orange-600'}`}>
+                                            {order.payments[0].paymentStatus}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
                                   )}
@@ -938,7 +821,11 @@ const SellerPage = () => {
                                <td className="px-4 py-4 align-middle">
                                  <div className="flex items-center justify-center">
                                    <button
-                                     onClick={() => navigate(`/jkhm/delivery-items/${order.id}`, { state: { orderData: order } })}
+                                     onClick={() => {
+                                       // Scroll to top before navigation
+                                       window.scrollTo(0, 0);
+                                       navigate(`/jkhm/delivery-items/${order.id}`, { state: { orderData: order } });
+                                     }}
                                      className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 whitespace-nowrap"
                                    >
                                      <MdVisibility className="w-4 h-4" />
@@ -946,6 +833,88 @@ const SellerPage = () => {
                                    </button>
                                  </div>
                                </td>
+                               
+                                                               {/* Payment Receipts Column */}
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-400">
+                                  {order.payments && order.payments.length > 0 && (
+                                    <div className="flex flex-col gap-2">
+                                      {order.payments.map((payment, paymentIndex) => {
+                                        // Get all receipts for this payment, avoiding duplicates
+                                        const receipts = [];
+                                        
+                                        // Check if we have detailed receipt records first (preferred)
+                                        if (payment.paymentReceipts && payment.paymentReceipts.length > 0) {
+                                          payment.paymentReceipts.forEach((receipt, index) => {
+                                            receipts.push({
+                                              id: receipt.id,
+                                              type: 'detailed',
+                                              url: receipt.receiptImageUrl || receipt.receipt,
+                                              imageUrl: receipt.receiptImageUrl || receipt.receipt
+                                            });
+                                          });
+                                        }
+                                        // Only add direct receipt URL if no detailed records exist (to avoid duplicates)
+                                        else if (payment.receiptUrl) {
+                                          receipts.push({
+                                            id: `direct-${payment.id}`,
+                                            type: 'direct',
+                                            url: payment.receiptUrl,
+                                            imageUrl: payment.receiptUrl
+                                          });
+                                        }
+                                        
+                                        if (receipts.length === 0) return null;
+                                        
+                                        return (
+                                          <div key={payment.id} className="space-y-2">
+                                            {/* Show payment method and status */}
+                                            <div className="text-xs text-gray-600">
+                                              {payment.paymentMethod} - {payment.paymentStatus}
+                                            </div>
+                                            
+                                            {/* Show receipts (now without duplicates) */}
+                                            {receipts.map((receipt) => (
+                                              <div key={receipt.id} className="flex items-center gap-2">
+                                                <img 
+                                                  src={`${import.meta.env.VITE_DEV_API_URL}${receipt.imageUrl}`}
+                                                  alt="Payment Receipt"
+                                                  className="w-16 h-16 object-cover rounded border"
+                                                  onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.nextSibling.style.display = 'flex';
+                                                  }}
+                                                />
+                                                <a
+                                                  href={`http://localhost:5000${receipt.url}`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors flex items-center gap-1"
+                                                >
+                                                  <span>📄</span>
+                                                  View
+                                                </a>
+                                                <div className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded hidden">
+                                                  Receipt
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Show message if no payments or receipts */}
+                                  {(!order.payments || order.payments.length === 0 || 
+                                    !order.payments.some(payment => 
+                                      payment.receiptUrl || 
+                                      (payment.paymentReceipts && payment.paymentReceipts.length > 0)
+                                    )) && (
+                                    <div className="text-gray-500 text-xs">
+                                      No Receipt Uploaded
+                                    </div>
+                                  )}
+                                </td>
                               
                               {/* Address Column */}
                               <td className="px-4 py-4 align-top">
@@ -1003,7 +972,7 @@ const SellerPage = () => {
                                       }`}
                                     >
                                       {cancellingOrders.has(order.id) ? (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center justify-center gap-2">
                                           <div className="animate-spin rounded-full h-3 w-3 border-b border-red-600"></div>
                                           Cancelling...
                                         </div>
@@ -1027,90 +996,10 @@ const SellerPage = () => {
               )}
             </div>
 
-            {/* Right Column - User Details & Quick Actions */}
+            {/* Right Column - Quick Actions */}
             <div className="xl:col-span-1">
               <div className="sticky top-8 space-y-6">
-                {/* Selected User Info */}
-                {selectedUser && (
-                  <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-4 sm:p-6 text-white">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-full flex items-center justify-center">
-                          <MdPeople className="w-5 h-5 sm:w-6 sm:h-6" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-base sm:text-lg font-bold truncate">
-                            {selectedUser.contacts?.[0]?.firstName} {selectedUser.contacts?.[0]?.lastName}
-                          </h3>
-                          <p className="text-green-100 text-xs sm:text-sm">Customer Details</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 sm:p-6 space-y-4">
-                      <div className="flex items-center gap-3 text-sm">
-                        <MdPhone className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        <span className="text-gray-700 truncate">
-                          {selectedUser.contacts?.[0]?.phoneNumbers?.[0]?.number || 'No phone'}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 text-sm">
-                        <MdEmail className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        <span className="text-gray-700 truncate">
-                          {selectedUser.auth?.email || 'No email'}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 text-sm">
-                        <MdShoppingCart className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        <span className="text-gray-700">
-                          {userOrders.length} orders
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 text-sm">
-                        <MdAttachMoney className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        <span className="text-gray-700 font-medium">
-                          Total: {formatPrice(userOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0))}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Quick Actions */}
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => navigate('/jkhm/bookings')}
-                      className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
-                    >
-                      <MdAdd className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span className="hidden sm:inline">Create New Booking</span>
-                      <span className="sm:hidden">New Booking</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => getSellerUsers()}
-                      className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors"
-                    >
-                      <MdRefresh className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span className="hidden sm:inline">Refresh Data</span>
-                      <span className="sm:hidden">Refresh</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => navigate('/jkhm/profile')}
-                      className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
-                    >
-                      <MdDashboard className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span className="hidden sm:inline">View Profile</span>
-                      <span className="sm:hidden">Profile</span>
-                    </button>
-                  </div>
-                </div>
+                {/* Empty space for future content */}
               </div>
             </div>
           </div>
@@ -1119,56 +1008,60 @@ const SellerPage = () => {
 
 
 
-        {/* Delete User Confirmation Modal */}
+        {/* Business Confirmation Modal */}
         {showDeleteModal && userToDelete && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-md w-full p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                  <MdWarning className="w-6 h-6 text-red-600" />
+            <div className="bg-white rounded-xl max-w-lg w-full p-8 shadow-2xl">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <MdWarning className="w-7 h-7 text-red-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Delete User</h3>
+                  <h3 className="text-xl font-bold text-gray-900">Remove Customer</h3>
                   <p className="text-sm text-gray-600">This action cannot be undone</p>
                 </div>
               </div>
               
-              <div className="mb-6">
-                <p className="text-gray-700">
-                  Are you sure you want to delete{' '}
-                  <span className="font-semibold">
-                    {userToDelete.contacts?.[0]?.firstName} {userToDelete.contacts?.[0]?.lastName}
-                  </span>
-                  ?
-                </p>
-                <p className="text-sm text-red-600 mt-2">
-                  This will permanently remove the user and all their associated data including orders, addresses, and contact information.
-                </p>
+              <div className="mb-8">
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <p className="text-gray-700 font-medium">
+                    Are you sure you want to remove{' '}
+                    <span className="text-gray-900 font-bold">
+                      {userToDelete.contacts?.[0]?.firstName} {userToDelete.contacts?.[0]?.lastName}
+                    </span>
+                    {' '}from your customer database?
+                  </p>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-sm text-red-700">
+                    <strong>Warning:</strong> This will permanently remove the customer and all associated data including order history, addresses, and contact information.
+                  </p>
+                </div>
               </div>
               
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={cancelDeleteUser}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-6 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all duration-200"
                 >
-                  Cancel
+                  Keep Customer
                 </button>
                 <button
                   onClick={confirmDeleteUser}
                   disabled={deletingUsers.has(userToDelete.id)}
-                  className={`flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                  className={`flex-1 px-6 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 ${
                     deletingUsers.has(userToDelete.id)
                       ? 'bg-red-400 cursor-not-allowed'
-                      : 'bg-red-600 hover:bg-red-700'
+                      : 'bg-red-600 hover:bg-red-700 shadow-sm'
                   }`}
                 >
                   {deletingUsers.has(userToDelete.id) ? (
                     <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Deleting...
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Removing...
                     </div>
                   ) : (
-                    'Delete User'
+                    'Remove Customer'
                   )}
                 </button>
               </div>
@@ -1176,30 +1069,46 @@ const SellerPage = () => {
           </div>
         )}
 
-        {/* Cancel Order Confirmation Modal */}
+        {/* Business Order Cancellation Modal */}
         {showCancelOrderModal && orderToCancel && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <MdWarning className="w-6 h-6 text-orange-600" />
+            <div className="bg-white rounded-xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto shadow-2xl">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                  <MdWarning className="w-7 h-7 text-orange-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Cancel Order</h3>
+                  <h3 className="text-xl font-bold text-gray-900">Cancel Business Order</h3>
                   <p className="text-sm text-gray-600">This action cannot be undone</p>
                 </div>
               </div>
               
-              <div className="mb-6 space-y-4">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium">Order ID:</span> #{orderToCancel.id.slice(-6)}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium">Order Amount:</span> {formatPrice(orderToCancel.totalPrice)}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Status:</span> {orderToCancel.status}
+              <div className="mb-8 space-y-4">
+                <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">Order Details</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Order ID</p>
+                      <p className="text-sm font-medium text-gray-900">#{orderToCancel.id.slice(-6)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Order Amount</p>
+                      <p className="text-sm font-medium text-gray-900">{formatPrice(orderToCancel.totalPrice)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Current Status</p>
+                      <p className="text-sm font-medium text-gray-900">{orderToCancel.status}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Action</p>
+                      <p className="text-sm font-medium text-gray-900">Cancel & Restore Stock</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <p className="text-sm text-orange-700">
+                    <strong>Business Impact:</strong> Cancelling this order will restore inventory quantities and update your order analytics. This action is recommended only for genuine business needs.
                   </p>
                 </div>
               </div>
@@ -1207,26 +1116,26 @@ const SellerPage = () => {
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={closeCancelOrderModal}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-6 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all duration-200"
                 >
-                  Keep Order
+                  Maintain Order
                 </button>
                 <button
                   onClick={() => cancelOrder(orderToCancel.id)}
                   disabled={cancellingOrders.has(orderToCancel.id)}
-                  className={`flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                  className={`flex-1 px-6 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 ${
                     cancellingOrders.has(orderToCancel.id)
                       ? 'bg-orange-400 cursor-not-allowed'
-                      : 'bg-orange-600 hover:bg-orange-700'
+                      : 'bg-orange-600 hover:bg-orange-700 shadow-sm'
                   }`}
                 >
                   {cancellingOrders.has(orderToCancel.id) ? (
                     <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Cancelling...
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Processing...
                     </div>
                   ) : (
-                    'Cancel Order & Restore Quantities'
+                    'Cancel Order & Restore Inventory'
                   )}
                 </button>
               </div>
