@@ -24,22 +24,22 @@ model Auth {
 }
 
 model User {
-  id              String           @id @default(uuid()) @db.VarChar(36)
-  authId          String           @unique @map("auth_id") @db.VarChar(36)
-  status          UserStatus       @default(ACTIVE)
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at")
-  createdBy       String?          @map("created_by") @db.VarChar(36)
-  companyId       String?          @map("company_id") @db.VarChar(36)
-  auth            Auth?            @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  company         Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  userRoles       UserRole[]
-  addresses       Address[]
-  deliveryItems   DeliveryItem[]
-  contacts        Contact[]
-  payments        Payment[]
-  paymentReceipts PaymentReceipt[]
-  orders          Order[]
+  id                String             @id @default(uuid()) @db.VarChar(36)
+  authId            String             @unique @map("auth_id") @db.VarChar(36)
+  status            UserStatus         @default(ACTIVE)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at")
+  createdBy         String?            @map("created_by") @db.VarChar(36)
+  companyId         String?            @map("company_id") @db.VarChar(36)
+  auth              Auth?              @relation(fields: [authId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  company           Company?           @relation(fields: [companyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  userRoles         UserRole[]
+  addresses         Address[]
+  deliveryItems     DeliveryItem[]
+  contacts          Contact[]
+  payments          Payment[]
+  paymentReceipts   PaymentReceipt[]
+  orders            Order[]
   deliveryExecutive DeliveryExecutive?
 
   @@map("users")
@@ -316,14 +316,14 @@ model PaymentReceipt {
 }
 
 model delivery_executive_profile {
-  user_id             String    @id @db.VarChar(36)
-  license_number      String?   @db.VarChar(50)
-  license_expiry_date DateTime? @db.Date
-  joined_date         DateTime? @db.Date
-  rating              Float?    @db.Float
+  user_id             String                   @id @db.VarChar(36)
+  license_number      String?                  @db.VarChar(50)
+  license_expiry_date DateTime?                @db.Date
+  joined_date         DateTime?                @db.Date
+  rating              Float?                   @db.Float
   total_routes        Int?
   status              DeliveryExecutiveStatus? @default(ACTIVE)
-  created_at          DateTime? @default(now()) @db.Timestamp(0)
+  created_at          DateTime?                @default(now()) @db.Timestamp(0)
 
   @@ignore
 }
@@ -456,18 +456,15 @@ model customer_subscriptions {
   @@ignore
 }
 
-
-
 model DeliveryExecutive {
   id        String   @id @default(uuid()) @db.VarChar(36)
-  userId    String   @unique @map("user_id") @db.VarChar(36)  // Link to User table
-  imageUrl  String?  @map("image_url") @db.VarChar(500)       // Store image URL/path
-  location  String?  @db.Text                                  // Store location JSON data
-  latitude  Float?   @db.Float                                 // Store latitude
-  longitude Float?   @db.Float                                 // Store longitude
+  userId    String   @unique @map("user_id") @db.VarChar(36)
+  imageUrl  String?  @map("image_url") @db.VarChar(500)
+  location  String?  @db.Text
+  latitude  Float?   @db.Float
+  longitude Float?   @db.Float
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("delivery_executives")
@@ -587,5 +584,3 @@ enum DeliveryExecutiveStatus {
   ACTIVE
   INACTIVE
 }
-
-
