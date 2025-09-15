@@ -1353,7 +1353,7 @@ export const proxySendRoutes = async (req, res, next) => {
         }
         
         // Call the external send_routes API
-        const response = await fetch(`${process.env.AI_ROUTE_API}/send_routes`, {
+        const response = await fetch(`${process.env.AI_ROUTE_API}/send-reports`, {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer mysecretkey123',

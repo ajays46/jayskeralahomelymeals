@@ -5,6 +5,7 @@ import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney } from 'react-icons/m
 import { Modal, message } from 'antd';
 import axiosInstance from '../api/axios';
 import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes } from '../hooks/deliverymanager';
+import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 const DeliveryManagerPage = () => {
   const [sellers, setSellers] = useState([]);
@@ -63,6 +64,10 @@ const DeliveryManagerPage = () => {
     enabled: false, // Don't fetch automatically, only when button is clicked
     onSuccess: (data) => {
       message.success(data.message || `Fetched ${data.data?.executives?.length || data.data?.data?.length || 0} active executives`);
+      // Automatically show the table when executives are fetched
+      if (data.data?.executives?.length > 0 || data.data?.data?.length > 0) {
+        setShowActiveExecutivesTable(true);
+      }
     },
     onError: (error) => {
       message.error(error.message || 'Failed to fetch active executives');
@@ -76,7 +81,8 @@ const DeliveryManagerPage = () => {
   const saveRoutesMutation = useSaveRoutes();
   
   // Extract executives from the data
-  const activeExecutives = activeExecutivesData?.data?.executives || activeExecutivesData?.data?.data || [];
+  const activeExecutives = activeExecutivesData?.data?.executives || activeExecutivesData?.data?.data || [];  
+  console.log("activeExecutives", activeExecutives);
   const navigate = useNavigate(); 
   const [cancellingItems, setCancellingItems] = useState(new Set());
   const [showCancelItemModal, setShowCancelItemModal] = useState(false);
@@ -566,6 +572,9 @@ const DeliveryManagerPage = () => {
       if (response.data.success) {
         message.success(`✅ WhatsApp messages sent successfully for ${executiveCount} executive(s)!`);
         
+        // Show toast popup
+        showSuccessToast(`📱 WhatsApp messages sent successfully for ${executiveCount} executive(s)!`);
+        
         // Show success modal
         Modal.success({
           title: '📱 WhatsApp Messages Sent!',
@@ -606,7 +615,9 @@ const DeliveryManagerPage = () => {
           centered: true
         });
       } else {
-        message.error('❌ Failed to send WhatsApp messages');
+        const errorMsg = '❌ Failed to send WhatsApp messages';
+        message.error(errorMsg);
+        showErrorToast(errorMsg);
       }
       
     } catch (error) {
@@ -614,13 +625,19 @@ const DeliveryManagerPage = () => {
       
       if (error.response) {
         // Server responded with error status
-        message.error(`❌ WhatsApp messaging failed: ${error.response.data?.message || error.response.statusText}`);
+        const errorMsg = `❌ WhatsApp messaging failed: ${error.response.data?.message || error.response.statusText}`;
+        message.error(errorMsg);
+        showErrorToast(errorMsg);
       } else if (error.request) {
         // Network error
-        message.error('❌ Network error: Could not connect to WhatsApp messaging service');
+        const errorMsg = '❌ Network error: Could not connect to WhatsApp messaging service';
+        message.error(errorMsg);
+        showErrorToast(errorMsg);
       } else {
         // Other error
-        message.error(`❌ WhatsApp messaging error: ${error.message}`);
+        const errorMsg = `❌ WhatsApp messaging error: ${error.message}`;
+        message.error(errorMsg);
+        showErrorToast(errorMsg);
       }
     }
   };
@@ -1113,7 +1130,11 @@ const DeliveryManagerPage = () => {
 
   // Function to trigger active executives fetch
   const handleFetchActiveExecutives = () => {
-    refetchActiveExecutives();
+    refetchActiveExecutives().then((result) => {
+      if (result.data?.data?.executives?.length > 0 || result.data?.data?.data?.length > 0) {
+        setShowActiveExecutivesTable(true);
+      }
+    });
   };
 
   // Function to toggle executive status
@@ -3071,7 +3092,11 @@ const DeliveryManagerPage = () => {
                             ✅ {activeExecutives.length} active executives loaded
                           </p>
                           <button
-                            onClick={() => setShowActiveExecutivesTable(!showActiveExecutivesTable)}
+                            onClick={() => {
+                              console.log('Show table clicked, current state:', showActiveExecutivesTable);
+                              console.log('Active executives data:', activeExecutives);
+                              setShowActiveExecutivesTable(!showActiveExecutivesTable);
+                            }}
                             className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
                           >
                             {showActiveExecutivesTable ? (
@@ -3092,8 +3117,9 @@ const DeliveryManagerPage = () => {
                   </div>
                 </div>
 
+
                 {/* Active Executives Table */}
-                {showActiveExecutivesTable && activeExecutives.length > 0 && (
+                {showActiveExecutivesTable && activeExecutives && activeExecutives.length > 0 && (
                   <div className="mt-6">
                     <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
                       <div className="flex items-center justify-between mb-4">
@@ -3137,48 +3163,86 @@ const DeliveryManagerPage = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {activeExecutives.map((executive, index) => (
-                              <tr key={executive.user_id || index} className="border-b border-gray-600 hover:bg-gray-600/50 transition-colors">
-                                <td className="py-3 px-4 text-gray-400 font-medium text-center">
-                                  {index + 1}
-                                </td>
-                                <td className="py-3 px-4 text-white font-medium">
-                                  {executive.exec_name}
-                                </td>
-                                <td className="py-3 px-4">
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    (executivesStatus[executive.user_id] || executive.status) === 'ACTIVE' 
-                                      ? 'bg-green-600 text-white' 
-                                      : 'bg-gray-600 text-gray-300'
-                                  }`}>
-                                    {executivesStatus[executive.user_id] || executive.status}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-4 text-gray-300">
-                                  <a 
-                                    href={`https://wa.me/${executive.whatsapp_number.replace('+', '')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
-                                  >
-                                    <FiMessageCircle className="w-4 h-4" />
-                                    {executive.whatsapp_number}
-                                  </a>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <button
-                                    onClick={() => handleToggleExecutiveStatus(executive.user_id, executivesStatus[executive.user_id] || executive.status)}
-                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                                      (executivesStatus[executive.user_id] || executive.status) === 'ACTIVE'
-                                        ? 'bg-red-600 text-white hover:bg-red-700'
-                                        : 'bg-green-600 text-white hover:bg-green-700'
-                                    }`}
-                                  >
-                                    {(executivesStatus[executive.user_id] || executive.status) === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                            {(() => {
+                              try {
+                                console.log('Rendering table with executives:', activeExecutives.length);
+                                
+                                // Test row to ensure table is rendering
+                                if (activeExecutives.length === 0) {
+                                  return (
+                                    <tr>
+                                      <td colSpan="5" className="py-8 text-center text-gray-400">
+                                        No executives found
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+                                
+                                return activeExecutives.map((executive, index) => {
+                                  // Add error handling for each executive
+                                  if (!executive) return null;
+                                  
+                                  // Debug logging
+                                  console.log(`Rendering executive ${index + 1}:`, executive);
+                                  
+                                  return (
+                                    <tr key={executive.user_id || executive.id || index} className="border-b border-gray-600 hover:bg-gray-600/50 transition-colors">
+                                      <td className="py-3 px-4 text-gray-300 font-bold text-center bg-gray-600/30">
+                                        {index + 1 || 'N/A'}
+                                      </td>
+                                      <td className="py-3 px-4 text-white font-medium">
+                                        {executive.exec_name || executive.name || 'N/A'}
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                          (executivesStatus[executive.user_id] || executive.status) === 'ACTIVE' 
+                                            ? 'bg-green-600 text-white' 
+                                            : 'bg-gray-600 text-gray-300'
+                                        }`}>
+                                          {executivesStatus[executive.user_id] || executive.status || 'UNKNOWN'}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-4 text-gray-300">
+                                        {executive.whatsapp_number ? (
+                                          <a 
+                                            href={`https://wa.me/${executive.whatsapp_number.replace('+', '')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+                                          >
+                                            <FiMessageCircle className="w-4 h-4" />
+                                            {executive.whatsapp_number}
+                                          </a>
+                                        ) : (
+                                          <span className="text-gray-500">No WhatsApp</span>
+                                        )}
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <button
+                                          onClick={() => handleToggleExecutiveStatus(executive.user_id || executive.id, executivesStatus[executive.user_id] || executive.status)}
+                                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                            (executivesStatus[executive.user_id] || executive.status) === 'ACTIVE'
+                                              ? 'bg-red-600 text-white hover:bg-red-700'
+                                              : 'bg-green-600 text-white hover:bg-green-700'
+                                          }`}
+                                        >
+                                          {(executivesStatus[executive.user_id] || executive.status) === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                });
+                              } catch (error) {
+                                console.error('Error rendering executives table:', error);
+                                return (
+                                  <tr>
+                                    <td colSpan="5" className="py-8 text-center text-red-400">
+                                      Error rendering table: {error.message}
+                                    </td>
+                                  </tr>
+                                );
+                              }
+                            })()}
                           </tbody>
                         </table>
                       </div>
@@ -3784,25 +3848,21 @@ const DeliveryManagerPage = () => {
 
                       {/* Table for selected meal type */}
                       {programExecutionResults.data.externalResponse.result[routeTableTab] && (
-                        <div className="bg-white rounded-lg border border-gray-200">
-                          <div className="overflow-x-auto">
+                        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                          <div className="overflow-x-auto max-h-96">
                             <table className="w-full text-sm">
-                              <thead className="bg-gray-50">
+                              <thead className="bg-gray-50 sticky top-0 z-10">
                                 <tr className="border-b border-gray-200">
-                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Stop #</th>
-                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Delivery Name</th>
-                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Executive</th>
-                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Location</th>
-                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Packages</th>
-                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Distance (km)</th>
-                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Time (min)</th>
-                                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Map Link</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">Stop #</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">Delivery Name</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">Executive</th>
+                                  <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">Location</th>
+                                  <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">Packages</th>
+                                  <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">Distance (km)</th>
+                                  <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">Time (min)</th>
+                                  <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">Map Link</th>
                                 </tr>
                               </thead>
-                            </table>
-                          </div>
-                          <div className="max-h-96 overflow-y-auto">
-                            <table className="w-full text-sm">
                               <tbody className="divide-y divide-gray-200">
                                 {(() => {
                                   const filteredData = programExecutionResults.data.externalResponse.result[routeTableTab].filter(item => {
@@ -3823,78 +3883,129 @@ const DeliveryManagerPage = () => {
                                   });
                                   
                                   return filteredData.map((item, index) => (
-                                  <tr key={index} className="hover:bg-gray-50 transition-colors">
-                                    <td className="py-3 px-4 text-gray-900 font-medium">
-                                      {item.Stop_No || '-'}
-                                    </td>
-                                    <td className="py-3 px-4 text-gray-900 font-semibold">
-                                      {item.Delivery_Name || '-'}
-                                    </td>
-                                    <td className="py-3 px-4">
-                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        item.Executive === 'Unassigned' || !item.Executive
-                                          ? 'bg-red-100 text-red-800'
-                                          : 'bg-green-100 text-green-800'
-                                      }`}>
-                                        {item.Executive || 'Unassigned'}
-                                      </span>
-                                    </td>
-                                    <td className="py-3 px-4 max-w-xs text-gray-700" title={item.Location}>
-                                      <div className="truncate">{item.Location || '-'}</div>
-                                    </td>
-                                    <td className="py-3 px-4 text-center text-gray-900 font-medium">
-                                      {item.Packages || '-'}
-                                    </td>
-                                    <td className="py-3 px-4 text-center text-gray-700">
-                                      {item.Distance_From_Prev_Stop_km ? `${item.Distance_From_Prev_Stop_km} km` : '-'}
-                                    </td>
-                                    <td className="py-3 px-4 text-center text-gray-700">
-                                      {item.Leg_Time_min ? `${item.Leg_Time_min} min` : '-'}
-                                    </td>
-                                    <td className="py-3 px-4">
-                                      {item.Map_Link ? (
-                                        <a
-                                          href={item.Map_Link}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-blue-600 hover:text-blue-800 underline font-medium"
-                                        >
-                                          View Route
-                                        </a>
-                                      ) : (
-                                        <span className="text-gray-400">-</span>
-                                      )}
-                                    </td>
-                                  </tr>
+                                    <tr key={index} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
+                                      <td className="py-3 px-4 text-gray-900 font-medium text-sm">
+                                        <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                                          {item.Stop_No || '-'}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-4 text-gray-900 font-semibold text-sm">
+                                        <div className="max-w-xs truncate" title={item.Delivery_Name}>
+                                          {item.Delivery_Name || '-'}
+                                        </div>
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                          item.Executive === 'Unassigned' || !item.Executive
+                                            ? 'bg-red-100 text-red-800'
+                                            : 'bg-green-100 text-green-800'
+                                        }`}>
+                                          {item.Executive || 'Unassigned'}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-4 text-gray-700 text-sm">
+                                        <div className="max-w-xs truncate" title={item.Location}>
+                                          {item.Location || '-'}
+                                        </div>
+                                      </td>
+                                      <td className="py-3 px-4 text-center text-gray-900 font-semibold text-sm">
+                                        <span className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 text-orange-800 rounded-full text-xs font-bold">
+                                          {item.Packages || '-'}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-4 text-center text-gray-700 text-sm">
+                                        {item.Distance_From_Prev_Stop_km ? (
+                                          <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-medium">
+                                            {item.Distance_From_Prev_Stop_km} km
+                                          </span>
+                                        ) : '-'}
+                                      </td>
+                                      <td className="py-3 px-4 text-center text-gray-700 text-sm">
+                                        {item.Leg_Time_min ? (
+                                          <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-medium">
+                                            {item.Leg_Time_min} min
+                                          </span>
+                                        ) : '-'}
+                                      </td>
+                                      <td className="py-3 px-4 text-center">
+                                        {item.Map_Link ? (
+                                          <a
+                                            href={item.Map_Link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700 transition-colors"
+                                          >
+                                            <FiMapPin className="w-3 h-3 mr-1" />
+                                            View Route
+                                          </a>
+                                        ) : (
+                                          <span className="text-gray-400 text-sm">-</span>
+                                        )}
+                                      </td>
+                                    </tr>
                                   ));
                                 })()}
                               </tbody>
                             </table>
                           </div>
-                          {(() => {
-                            const filteredData = programExecutionResults.data.externalResponse.result[routeTableTab].filter(item => {
-                              const deliveryNameMatch = !routeTableFilters.deliveryName || 
-                                (item.Delivery_Name && item.Delivery_Name.toLowerCase().includes(routeTableFilters.deliveryName.toLowerCase()));
-                              const executiveMatch = !routeTableFilters.executive || 
-                                (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
-                              const locationMatch = !routeTableFilters.location || 
-                                (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
-                              const packagesMatch = !routeTableFilters.packages || 
-                                (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
-                              const distanceMatch = !routeTableFilters.distance || 
-                                (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
-                              const timeMatch = !routeTableFilters.time || 
-                                (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
-                              
-                              return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
-                            });
-                            
-                            return filteredData.length > 6 && (
-                              <div className="bg-gray-50 px-4 py-2 text-center text-sm text-gray-600 border-t border-gray-200">
-                                Showing {Math.min(6, filteredData.length)} of {filteredData.length} filtered routes. Scroll to see more.
+                          {/* Table Footer with Summary */}
+                          <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 rounded-b-lg">
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                              <div className="flex items-center space-x-4">
+                                <span className="font-medium">
+                                  {(() => {
+                                    const filteredData = programExecutionResults.data.externalResponse.result[routeTableTab].filter(item => {
+                                      const deliveryNameMatch = !routeTableFilters.deliveryName || 
+                                        (item.Delivery_Name && item.Delivery_Name.toLowerCase().includes(routeTableFilters.deliveryName.toLowerCase()));
+                                      const executiveMatch = !routeTableFilters.executive || 
+                                        (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
+                                      const locationMatch = !routeTableFilters.location || 
+                                        (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
+                                      const packagesMatch = !routeTableFilters.packages || 
+                                        (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
+                                      const distanceMatch = !routeTableFilters.distance || 
+                                        (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
+                                      const timeMatch = !routeTableFilters.time || 
+                                        (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
+                                      
+                                      return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
+                                    });
+                                    return `Showing ${filteredData.length} of ${programExecutionResults.data.externalResponse.result[routeTableTab].length} routes`;
+                                  })()}
+                                </span>
+                                <span className="text-gray-400">•</span>
+                                <span>
+                                  {(() => {
+                                    const filteredData = programExecutionResults.data.externalResponse.result[routeTableTab].filter(item => {
+                                      const deliveryNameMatch = !routeTableFilters.deliveryName || 
+                                        (item.Delivery_Name && item.Delivery_Name.toLowerCase().includes(routeTableFilters.deliveryName.toLowerCase()));
+                                      const executiveMatch = !routeTableFilters.executive || 
+                                        (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
+                                      const locationMatch = !routeTableFilters.location || 
+                                        (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
+                                      const packagesMatch = !routeTableFilters.packages || 
+                                        (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
+                                      const distanceMatch = !routeTableFilters.distance || 
+                                        (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
+                                      const timeMatch = !routeTableFilters.time || 
+                                        (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
+                                      
+                                      return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
+                                    });
+                                    
+                                    const totalPackages = filteredData.reduce((sum, item) => sum + (parseInt(item.Packages) || 0), 0);
+                                    const totalDistance = filteredData.reduce((sum, item) => sum + (parseFloat(item.Distance_From_Prev_Stop_km) || 0), 0);
+                                    const totalTime = filteredData.reduce((sum, item) => sum + (parseInt(item.Leg_Time_min) || 0), 0);
+                                    
+                                    return `Total: ${totalPackages} packages • ${totalDistance.toFixed(1)} km • ${totalTime} min`;
+                                  })()}
+                                </span>
                               </div>
-                            );
-                          })()}
+                              <div className="text-xs text-gray-500">
+                                Last updated: {new Date().toLocaleTimeString()}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
