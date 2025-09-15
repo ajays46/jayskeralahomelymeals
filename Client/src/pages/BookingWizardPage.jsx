@@ -140,6 +140,7 @@ const BookingWizardPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
   const [dietaryPreference, setDietaryPreference] = useState('veg');
+  const [menuCategory, setMenuCategory] = useState('popular');
   const [expandedSections, setExpandedSections] = useState({
     menus: true,
     dateSelection: false
@@ -274,7 +275,7 @@ const BookingWizardPage = () => {
     }
     
     // Week-day plan - 5 days (exact match)
-    if (itemName.includes('week-day') || itemName.includes('weekday')) {
+    if (itemName.includes('week-day') || itemName.includes('weekday') || itemName.includes('week day')) {
       return 5;
     }
     
@@ -350,38 +351,50 @@ const BookingWizardPage = () => {
     if (!menus || menus.length === 0) {
       return [];
     }
-    
-    if (dietaryPreference === 'all') {
-      return menus;
-    }
 
-    const filteredMenus = menus.filter(menuItem => {
-      if (menuItem.categories && menuItem.categories.length > 0) {
-        const categoryNames = menuItem.categories.map(cat => cat.name.toLowerCase());
+    let filteredMenus = menus;
+
+    // Filter by dietary preference
+    filteredMenus = filteredMenus.filter(menuItem => {
+        if (menuItem.categories && menuItem.categories.length > 0) {
+          const categoryNames = menuItem.categories.map(cat => cat.name.toLowerCase());
+          
+          if (dietaryPreference === 'veg') {
+            const isVeg = categoryNames.some(name => name.includes('veg') && !name.includes('non'));
+            return isVeg;
+          } else if (dietaryPreference === 'non-veg') {
+            const isNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
+            return isNonVeg;
+          }
+        }
         
+        // If no categories or categories don't match, be more lenient
         if (dietaryPreference === 'veg') {
-          const isVeg = categoryNames.some(name => name.includes('veg') && !name.includes('non'));
+          const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
+          const hasNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
+          const isVeg = !hasNonVeg;
           return isVeg;
         } else if (dietaryPreference === 'non-veg') {
-          const isNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
-          return isNonVeg;
+          const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
+          const hasNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
+          return hasNonVeg;
         }
-      }
-      
-      // If no categories or categories don't match, be more lenient
-      if (dietaryPreference === 'veg') {
-        const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
-        const hasNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
-        const isVeg = !hasNonVeg;
-        return isVeg;
-      } else if (dietaryPreference === 'non-veg') {
-        const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
-        const hasNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
-        return hasNonVeg;
-      }
-      
-      return true;
-    });
+        
+        return true;
+      });
+
+    // Filter by menu category (Popular, Premium, etc.)
+    filteredMenus = filteredMenus.filter(menuItem => {
+        const menuName = menuItem.name?.toLowerCase() || '';
+        
+        if (menuCategory === 'popular') {
+          return menuName.includes('popular') || menuName.includes('basic') || menuName.includes('standard');
+        } else if (menuCategory === 'premium') {
+          return menuName.includes('premium') || menuName.includes('deluxe') || menuName.includes('luxury');
+        }
+        
+        return true;
+      });
     
     if (filteredMenus.length === 0 && menus.length > 0) {
       return menus;
@@ -633,11 +646,14 @@ const BookingWizardPage = () => {
 
   const handleDateSelection = (date) => {
     const autoSelectionDays = getAutoSelectionDays(selectedMenu);
+    
+    // If a menu with auto-selection is selected, always auto-select from the clicked date
     if (selectedMenu && autoSelectionDays > 0) {
       handleAutoDateSelection(date, autoSelectionDays);
       return;
     }
 
+    // For menus without auto-selection, toggle individual dates
     setSelectedDates(prev => {
       const dateStr = date.toDateString();
       const exists = prev.find(d => d.toDateString() === dateStr);
@@ -651,31 +667,65 @@ const BookingWizardPage = () => {
 
   const handleAutoDateSelection = (startDate, days) => {
     const selectedDates = [];
-    const menuName = selectedMenu?.name?.toLowerCase() || '';
     
-    // Helper function to get next Monday
+    // Helper function to get next Monday from a given date (never today)
     const getNextMonday = (date) => {
       const nextMonday = new Date(date);
       const dayOfWeek = nextMonday.getDay();
-      const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek; // Sunday = 0, Monday = 1
-      nextMonday.setDate(nextMonday.getDate() + daysUntilMonday);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // If it's already Monday (1), check if it's today
+      if (dayOfWeek === 1) {
+        nextMonday.setHours(0, 0, 0, 0);
+        if (nextMonday.getTime() <= today.getTime()) {
+          // This Monday is today or past, go to next Monday
+          nextMonday.setDate(nextMonday.getDate() + 7);
+        }
+      } else if (dayOfWeek === 0) {
+        // Sunday - go to next Monday
+        nextMonday.setDate(nextMonday.getDate() + 1);
+      } else if (dayOfWeek > 1) {
+        // Tuesday-Saturday - go back to this Monday
+        nextMonday.setDate(nextMonday.getDate() - (dayOfWeek - 1));
+        nextMonday.setHours(0, 0, 0, 0);
+        if (nextMonday.getTime() <= today.getTime()) {
+          // This Monday is today or past, go to next Monday
+          nextMonday.setDate(nextMonday.getDate() + 7);
+        }
+      }
+      
       return nextMonday;
     };
     
-    // Use the days parameter to determine the selection logic
+    // Helper function to check if a date is a weekday (Monday-Friday)
+    const isWeekday = (date) => {
+      const day = date.getDay();
+      return day >= 1 && day <= 5;
+    };
+    
+    // Use the startDate parameter and days to determine the selection logic
     if (days === 30) {
-      // Monthly: Start from tomorrow, select 30 consecutive days
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      // Monthly: Start from the selected date, but never from today
+      let startFromDate = new Date(startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      startFromDate.setHours(0, 0, 0, 0);
+      
+      // If the selected date is today or in the past, start from tomorrow
+      if (startFromDate.getTime() <= today.getTime()) {
+        startFromDate = new Date();
+        startFromDate.setDate(startFromDate.getDate() + 1);
+      }
       
       for (let i = 0; i < 30; i++) {
-        const date = new Date(tomorrow);
-        date.setDate(tomorrow.getDate() + i);
+        const date = new Date(startFromDate);
+        date.setDate(startFromDate.getDate() + i);
         selectedDates.push(date);
       }
     } else if (days === 7) {
-      // Weekly: Start from next Monday, select Monday-Sunday (7 days)
-      const nextMonday = getNextMonday(new Date());
+      // Weekly: Start from next Monday from the clicked date, select Monday to Sunday (7 days)
+      const nextMonday = getNextMonday(startDate);
       
       for (let i = 0; i < 7; i++) {
         const date = new Date(nextMonday);
@@ -683,8 +733,8 @@ const BookingWizardPage = () => {
         selectedDates.push(date);
       }
     } else if (days === 5) {
-      // Weekday: Start from next Monday, select Monday-Friday (5 days)
-      const nextMonday = getNextMonday(new Date());
+      // Weekday: Start from next Monday from the clicked date, select Monday to Friday (5 weekdays)
+      const nextMonday = getNextMonday(startDate);
       
       for (let i = 0; i < 5; i++) {
         const date = new Date(nextMonday);
@@ -713,7 +763,7 @@ const BookingWizardPage = () => {
     const autoSelectionDays = getAutoSelectionDays(menu);
     
     if (autoSelectionDays > 0) {
-      // Start from tomorrow
+      // Start from tomorrow for initial selection
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       handleAutoDateSelection(tomorrow, autoSelectionDays);
@@ -762,7 +812,7 @@ const BookingWizardPage = () => {
       menuMessage = 'Monthly Menu Selected! Click any date to auto-select 30 consecutive days.';
     } else if (menu.name?.toLowerCase().includes('weekly') || menu.name?.toLowerCase().includes('week')) {
       menuMessage = 'Weekly Menu Selected! Click any date to auto-select 7 consecutive days.';
-    } else if (menu.name?.toLowerCase().includes('week-day') || menu.name?.toLowerCase().includes('week day')) {
+    } else if (menu.name?.toLowerCase().includes('WEEK DAY') || menu.name?.toLowerCase().includes('week day')) {
       menuMessage = 'Week-Day Plan Selected! Click any date to auto-select 5 weekdays.';
     } else if (menu.isDailyRateItem) {
       menuMessage = 'Daily Rates Selected! Select individual dates for your meals.';
@@ -909,30 +959,79 @@ const BookingWizardPage = () => {
               <p className="text-gray-600 text-sm">Select the meal plan for your customer</p>
             </div>
             
-            {/* Dietary Preference Filter */}
-            <div className="max-w-md mx-auto">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Dietary Preference</label>
-              <div className="flex gap-2">
-                {['all', 'veg', 'non-veg'].map((pref) => (
-                  <button
-                    key={pref}
-                    onClick={() => setDietaryPreference(pref)}
-                    className={`px-3 py-2 rounded-lg font-medium transition-all text-sm ${
-                      dietaryPreference === pref
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {pref === 'all' ? 'All' : pref === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'}
-                  </button>
-                ))}
+            {/* Category and Dietary Preference Filters */}
+            <div className="max-w-4xl mx-auto space-y-4">
+              {/* Menu Category Tabs */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Menu Category</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['popular', 'premium'].map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => setMenuCategory(category)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                        menuCategory === category
+                          ? 'bg-blue-500 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {category === 'popular' ? 'Popular' : 'Premium'}
+                    </button>
+                  ))}
+                </div>
               </div>
-              
+
+              {/* Dietary Preference Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Dietary Preference</label>
+                <div className="flex gap-2">
+                  {['veg', 'non-veg'].map((pref) => (
+                    <button
+                      key={pref}
+                      onClick={() => setDietaryPreference(pref)}
+                      className={`px-3 py-2 rounded-lg font-medium transition-all text-sm ${
+                        dietaryPreference === pref
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {pref === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Results Counter */}
+            <div className="text-center mb-4">
+              <p className="text-sm text-gray-600">
+                Showing {getFilteredMenus().length} menu{getFilteredMenus().length !== 1 ? 's' : ''} in {menuCategory} category ({dietaryPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'})
+              </p>
             </div>
 
             {/* Menu Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {getFilteredMenus().map((menu) => {
+            {getFilteredMenus().length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MdRestaurant className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No menus found</h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  Try adjusting your filters to see more options
+                </p>
+                <button
+                  onClick={() => {
+                    setMenuCategory('popular');
+                    setDietaryPreference('veg');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  Reset to Default
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {getFilteredMenus().map((menu) => {
                 const productQuantity = getProductQuantity(menu);
                 const isOutOfStock = productQuantity && productQuantity.quantity === 0;
                 
@@ -949,7 +1048,19 @@ const BookingWizardPage = () => {
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-gray-900 text-sm">{menu.name}</h3>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 text-sm">{menu.name}</h3>
+                        {/* Category Badge */}
+                        {(() => {
+                          const menuName = menu.name?.toLowerCase() || '';
+                          if (menuName.includes('premium') || menuName.includes('deluxe') || menuName.includes('luxury')) {
+                            return <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full mt-1 inline-block">Premium</span>;
+                          } else if (menuName.includes('popular') || menuName.includes('basic') || menuName.includes('standard')) {
+                            return <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full mt-1 inline-block">Popular</span>;
+                          }
+                          return null;
+                        })()}
+                      </div>
                       {isOutOfStock && (
                         <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
                           Out of Stock
@@ -970,7 +1081,8 @@ const BookingWizardPage = () => {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            )}
 
             {menusLoading && (
               <div className="text-center py-6">
@@ -1183,14 +1295,42 @@ const BookingWizardPage = () => {
             
             {/* Date Selection Header */}
             <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <MdSchedule className="w-4 h-4 text-white" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                    <MdSchedule className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                  <h3 className="font-semibold text-blue-900 text-sm">Select Delivery Dates</h3>
-                  <p className="text-xs text-blue-700">Choose your preferred delivery dates</p>
+                    <h3 className="font-semibold text-blue-900 text-sm">Select Delivery Dates</h3>
+                    <p className="text-xs text-blue-700">
+                      {selectedMenu && getAutoSelectionDays(selectedMenu) > 0 
+                        ? (() => {
+                            const days = getAutoSelectionDays(selectedMenu);
+                            const menuName = selectedMenu.name?.toLowerCase() || '';
+                            if (days === 30) {
+                              return 'Click any date to auto-select 30 consecutive days from that date';
+                            } else if (days === 7) {
+                              return 'Click any date to auto-select next Monday to Sunday (7 days)';
+                            } else if (days === 5) {
+                              return 'Click any date to auto-select next Monday to Friday (5 weekdays)';
+                            }
+                            return `Click any date to auto-select ${days} days from that date`;
+                          })()
+                        : 'Choose your preferred delivery dates'
+                      }
+                    </p>
+                  </div>
                 </div>
+                {selectedDates.length > 0 && (
+                  <button
+                    onClick={() => setSelectedDates([])}
+                    className="flex items-center gap-1 px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                    title="Clear all selected dates"
+                  >
+                    <MdClear className="w-3 h-3" />
+                    Clear Dates
+                  </button>
+                )}
               </div>
             </div>
             
