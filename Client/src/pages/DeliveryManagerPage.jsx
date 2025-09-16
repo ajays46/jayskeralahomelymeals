@@ -43,6 +43,17 @@ const DeliveryManagerPage = () => {
     dateRange: 'all',
     timeSlot: 'all'
   });
+  
+  // Orders tab specific filters
+  const [orderFilters, setOrderFilters] = useState({
+    status: 'all',
+    dateRange: 'all',
+    seller: 'all',
+    amountRange: 'all',
+    search: '',
+    paymentStatus: 'all'
+  });
+  const [showOrderFilters, setShowOrderFilters] = useState(false);
   const [confirmationModal, setConfirmationModal] = useState({
     visible: false,
     itemId: null,
@@ -1382,6 +1393,94 @@ const DeliveryManagerPage = () => {
     });
   };
 
+  // Filter orders based on selected filters
+  const getFilteredOrders = (seller) => {
+    if (!seller.recentOrders || seller.recentOrders.length === 0) return [];
+    
+    return seller.recentOrders.filter(order => {
+      // Status filter
+      if (orderFilters.status !== 'all' && order.status !== orderFilters.status) {
+        return false;
+      }
+      
+      // Date range filter
+      if (orderFilters.dateRange !== 'all') {
+        const orderDate = new Date(order.createdAt);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const lastWeek = new Date(today);
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        const lastMonth = new Date(today);
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        
+        switch (orderFilters.dateRange) {
+          case 'today':
+            if (orderDate.toDateString() !== today.toDateString()) return false;
+            break;
+          case 'yesterday':
+            if (orderDate.toDateString() !== yesterday.toDateString()) return false;
+            break;
+          case 'lastWeek':
+            if (orderDate < lastWeek || orderDate > today) return false;
+            break;
+          case 'lastMonth':
+            if (orderDate < lastMonth || orderDate > today) return false;
+            break;
+        }
+      }
+      
+      // Seller filter
+      if (orderFilters.seller !== 'all' && seller.id !== orderFilters.seller) {
+        return false;
+      }
+      
+      // Amount range filter
+      if (orderFilters.amountRange !== 'all') {
+        const amount = order.totalPrice || 0;
+        switch (orderFilters.amountRange) {
+          case '0-500':
+            if (amount < 0 || amount > 500) return false;
+            break;
+          case '500-1000':
+            if (amount < 500 || amount > 1000) return false;
+            break;
+          case '1000-2000':
+            if (amount < 1000 || amount > 2000) return false;
+            break;
+          case '2000+':
+            if (amount < 2000) return false;
+            break;
+        }
+      }
+      
+      // Search filter
+      if (orderFilters.search) {
+        const searchTerm = orderFilters.search.toLowerCase();
+        const searchableText = [
+          order.id,
+          order.customerName,
+          order.customerPhone,
+          order.customerEmail,
+          order.status,
+          seller.name,
+          seller.email
+        ].join(' ').toLowerCase();
+        
+        if (!searchableText.includes(searchTerm)) return false;
+      }
+      
+      // Payment status filter
+      if (orderFilters.paymentStatus !== 'all') {
+        const hasReceipt = order.paymentReceipt && order.paymentReceipt.length > 0;
+        if (orderFilters.paymentStatus === 'paid' && !hasReceipt) return false;
+        if (orderFilters.paymentStatus === 'unpaid' && hasReceipt) return false;
+      }
+      
+      return true;
+    });
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -1995,10 +2094,186 @@ const DeliveryManagerPage = () => {
 
           {activeTab === 'orders' && (
             <>
+              {/* Orders Filter Toggle */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-white">Orders Management</h2>
+                <button
+                  onClick={() => setShowOrderFilters(!showOrderFilters)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  <FiBarChart2 className="w-4 h-4" />
+                  {showOrderFilters ? 'Hide Filters' : 'Show Filters'}
+                </button>
+              </div>
+
+              {/* Orders Filter Section */}
+              {showOrderFilters && (
+                <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white">Filter Orders</h3>
+                    <button
+                      onClick={() => setOrderFilters({
+                        status: 'all',
+                        dateRange: 'all',
+                        seller: 'all',
+                        amountRange: 'all',
+                        search: '',
+                        paymentStatus: 'all'
+                      })}
+                      className="px-3 py-1 text-sm text-gray-400 hover:text-white transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                  {/* Search Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Search</label>
+                    <input
+                      type="text"
+                      placeholder="Order ID, Customer, Phone..."
+                      value={orderFilters.search}
+                      onChange={(e) => setOrderFilters(prev => ({ ...prev, search: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  {/* Status Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                    <select
+                      value={orderFilters.status}
+                      onChange={(e) => setOrderFilters(prev => ({ ...prev, status: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Confirmed">Confirmed</option>
+                      <option value="Payment_Confirmed">Payment Confirmed</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  
+                  {/* Date Range Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Date Range</label>
+                    <select
+                      value={orderFilters.dateRange}
+                      onChange={(e) => setOrderFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">All Time</option>
+                      <option value="today">Today</option>
+                      <option value="yesterday">Yesterday</option>
+                      <option value="lastWeek">Last 7 Days</option>
+                      <option value="lastMonth">Last 30 Days</option>
+                    </select>
+                  </div>
+                  
+                  {/* Seller Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Seller</label>
+                    <select
+                      value={orderFilters.seller}
+                      onChange={(e) => setOrderFilters(prev => ({ ...prev, seller: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">All Sellers</option>
+                      {sellers.map(seller => (
+                        <option key={seller.id} value={seller.id}>
+                          {seller.name || seller.email || 'Unknown Seller'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Amount Range Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Amount Range</label>
+                    <select
+                      value={orderFilters.amountRange}
+                      onChange={(e) => setOrderFilters(prev => ({ ...prev, amountRange: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">All Amounts</option>
+                      <option value="0-500">₹0 - ₹500</option>
+                      <option value="500-1000">₹500 - ₹1,000</option>
+                      <option value="1000-2000">₹1,000 - ₹2,000</option>
+                      <option value="2000+">₹2,000+</option>
+                    </select>
+                  </div>
+                  
+                  {/* Payment Status Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Payment Status</label>
+                    <select
+                      value={orderFilters.paymentStatus}
+                      onChange={(e) => setOrderFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">All Payments</option>
+                      <option value="paid">Paid (Has Receipt)</option>
+                      <option value="unpaid">Unpaid (No Receipt)</option>
+                    </select>
+                  </div>
+                </div>
+                </div>
+              )}
+
+              {/* Orders Summary */}
+              {(() => {
+                const totalFilteredOrders = sellers.reduce((total, seller) => {
+                  return total + getFilteredOrders(seller).length;
+                }, 0);
+                
+                const totalOrders = sellers.reduce((total, seller) => {
+                  return total + (seller.recentOrders ? seller.recentOrders.length : 0);
+                }, 0);
+                
+                return (
+                  <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="text-sm text-gray-300">
+                          Showing <span className="text-white font-semibold">{totalFilteredOrders}</span> of <span className="text-white font-semibold">{totalOrders}</span> orders
+                        </div>
+                        {Object.values(orderFilters).some(filter => filter !== 'all' && filter !== '') && (
+                          <div className="text-xs text-blue-400">
+                            Filters applied
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {totalFilteredOrders > 0 && (
+                          <span>
+                            Total Value: {formatCurrency(
+                              sellers.reduce((total, seller) => {
+                                return total + getFilteredOrders(seller).reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+                              }, 0)
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Seller Orders for Users Section */}
               <div className="space-y-6">
-                {sellers.map((seller) => (
+                {sellers.map((seller) => {
+                  const filteredOrders = getFilteredOrders(seller);
+                  const hasOrders = seller.recentOrders && seller.recentOrders.length > 0;
+                  const hasFilteredOrders = filteredOrders.length > 0;
+                  
+                  // Only show seller if they have orders OR if no filters are applied
+                  const shouldShowSeller = hasOrders && (hasFilteredOrders || !Object.values(orderFilters).some(filter => filter !== 'all' && filter !== ''));
+                  
+                  if (!shouldShowSeller) return null;
+                  
+                  return (
                   <div key={seller.id} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-700 bg-gray-750">
                       <div className="flex items-center justify-between">
@@ -2011,11 +2286,21 @@ const DeliveryManagerPage = () => {
                               {seller.name || seller.email || 'Unknown Seller'}
                             </h3>
                             <p className="text-gray-400 text-sm">
-                              {seller.orderCount || 0} orders • {formatCurrency(
-                                seller.recentOrders && seller.recentOrders.length > 0
-                                  ? seller.recentOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0)
-                                  : 0
-                              )}
+                              {(() => {
+                                const filteredOrders = getFilteredOrders(seller);
+                                const totalOrders = seller.recentOrders ? seller.recentOrders.length : 0;
+                                const filteredCount = filteredOrders.length;
+                                const filteredTotal = filteredOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+                                
+                                return (
+                                  <>
+                                    {filteredCount} of {totalOrders} orders • {formatCurrency(filteredTotal)}
+                                    {Object.values(orderFilters).some(filter => filter !== 'all' && filter !== '') && (
+                                      <span className="text-blue-400 ml-2">(filtered)</span>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </p>
                           </div>
                         </div>
@@ -2031,36 +2316,38 @@ const DeliveryManagerPage = () => {
                       </div>
                     </div>
                     
-                    {seller.recentOrders && seller.recentOrders.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-gray-700">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                Order ID
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                Customer (Name & Phone)
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                Order Date
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                Amount
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                Status
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                Payment Receipt
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-gray-800 divide-y divide-gray-700">
-                            {seller.recentOrders.map((order) => (
+                    {(() => {
+                      const filteredOrders = getFilteredOrders(seller);
+                      return filteredOrders && filteredOrders.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-700">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                  Order ID
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                  Customer (Name & Phone)
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                  Order Date
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                  Amount
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                  Status
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                  Payment Receipt
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                  Actions
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-gray-800 divide-y divide-gray-700">
+                              {filteredOrders.map((order) => (
                               <React.Fragment key={order.id}>
                                 <tr className="hover:bg-gray-700 transition-colors">
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
@@ -2405,19 +2692,26 @@ const DeliveryManagerPage = () => {
                                   </tr>
                                 )}
                               </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <FiShoppingBag className="mx-auto h-12 w-12 text-gray-400" />
-                        <h3 className="mt-2 text-sm font-medium text-gray-400">No orders found</h3>
-                        <p className="mt-1 text-sm text-gray-500">This seller hasn't placed any orders for users yet.</p>
-                      </div>
-                    )}
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <FiShoppingBag className="mx-auto h-12 w-12 text-gray-400" />
+                          <h3 className="mt-2 text-sm font-medium text-gray-400">No orders found</h3>
+                          <p className="mt-1 text-sm text-gray-500">
+                            {Object.values(orderFilters).some(filter => filter !== 'all' && filter !== '') 
+                              ? 'No orders match the selected filters.' 
+                              : 'This seller hasn\'t placed any orders for users yet.'
+                            }
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
-                ))}
+                  );
+                })}
 
             {sellers.length === 0 && (
               <div className="text-center py-12">
