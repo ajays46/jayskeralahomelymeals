@@ -40,6 +40,8 @@ const CreateUserPage = () => {
   
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Initialize form data when in edit mode
   useEffect(() => {
@@ -102,6 +104,16 @@ const CreateUserPage = () => {
         [name]: ''
       }));
     }
+    
+    // Clear API error when user starts typing
+    if (apiError) {
+      setApiError('');
+    }
+    
+    // Clear success message when user starts typing
+    if (successMessage) {
+      setSuccessMessage('');
+    }
   };
 
   // Handle form submission
@@ -113,6 +125,8 @@ const CreateUserPage = () => {
     }
     
     setSaving(true);
+    setApiError(''); // Clear any previous API errors
+    setSuccessMessage(''); // Clear any previous success messages
     
     try {
       if (isEditMode) {
@@ -136,8 +150,11 @@ const CreateUserPage = () => {
         const result = await updateCustomer(editCustomer.id, updateData);
         
         if (result.success) {
-          // Navigate back to customers list
-          navigate('/jkhm/seller/customers');
+          setSuccessMessage('Customer updated successfully!');
+          // Navigate back to customers list after a short delay
+          setTimeout(() => {
+            navigate('/jkhm/seller/customers');
+          }, 1500);
         }
       } else {
         // Create mode - create new customer
@@ -161,14 +178,17 @@ const CreateUserPage = () => {
         const result = await createContact(createData);
         
         if (result.success) {
+          setSuccessMessage('Customer created successfully! Redirecting to booking...');
           // Navigate to BookingWizardPage with the newly created customer pre-selected and go to menu selection
-          navigate('/jkhm/place-order', { 
-            state: { 
-              selectedUser: result.data,
-              fromCreateUser: true,
-              initialTab: 'menu' // This will set the initial tab to menu selection
-            } 
-          });
+          setTimeout(() => {
+            navigate('/jkhm/place-order', { 
+              state: { 
+                selectedUser: result.data,
+                fromCreateUser: true,
+                initialTab: 'menu' // This will set the initial tab to menu selection
+              } 
+            });
+          }, 1500);
         }
       }
     } catch (error) {
@@ -178,6 +198,24 @@ const CreateUserPage = () => {
         response: error.response?.data,
         status: error.response?.status
       });
+      
+      // Handle different types of errors
+      if (error.response?.data?.message) {
+        const errorMessage = error.response.data.message;
+        setApiError(errorMessage);
+        
+        // If it's a phone number duplicate error, also set field-specific error
+        if (errorMessage.toLowerCase().includes('phone number') && errorMessage.toLowerCase().includes('already registered')) {
+          setErrors(prev => ({
+            ...prev,
+            phoneNumber: 'This phone number is already registered'
+          }));
+        }
+      } else if (error.message) {
+        setApiError(error.message);
+      } else {
+        setApiError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setSaving(false);
     }
@@ -248,7 +286,7 @@ const CreateUserPage = () => {
                 type="button"
                 onClick={handleSubmit}
                 disabled={saving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
               >
                 {saving ? (
                   <div className="animate-spin rounded-full w-4 h-4 border-2 border-white border-t-transparent"></div>
@@ -267,6 +305,38 @@ const CreateUserPage = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+
+        {/* Success Message Display */}
+        {successMessage && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-green-800">
+                  Success
+                </h3>
+                <div className="mt-2 text-sm text-green-700">
+                  <p>{successMessage}</p>
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setSuccessMessage('')}
+                    className="bg-green-50 px-2 py-1.5 rounded-md text-sm font-medium text-green-800 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Left Column - Form */}
@@ -290,12 +360,15 @@ const CreateUserPage = () => {
                     value={formData.phoneNumber}
                     onChange={handleInputChange}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.phoneNumber ? 'border-red-300' : 'border-gray-300'
+                      errors.phoneNumber || (apiError && apiError.toLowerCase().includes('phone number')) ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter phone number"
                   />
                   {errors.phoneNumber && (
                     <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>
+                  )}
+                  {apiError && apiError.toLowerCase().includes('phone number') && !errors.phoneNumber && (
+                    <p className="text-red-500 text-xs mt-1">{apiError}</p>
                   )}
                 </div>
                 
@@ -462,7 +535,7 @@ const CreateUserPage = () => {
                     <span>
                       {isEditMode 
                         ? 'Changes will be saved to the customer profile'
-                        : 'After creation, you\'ll be taken to booking wizard'
+                        : 'Customer will be created and ready for booking'
                       }
                     </span>
                   </div>
