@@ -69,9 +69,15 @@ const CustomersListPage = () => {
       // Refresh customer data to reflect the uploaded receipt
       getSellerUsers();
       
-      // Show success message
-      if (location.state?.message) {
+      // Show success message only once
+      if (location.state?.message && !successMessageShown.current) {
         showSuccessToast(location.state.message);
+        successMessageShown.current = true;
+        
+        // Reset the flag after 5 seconds to allow future success messages
+        setTimeout(() => {
+          successMessageShown.current = false;
+        }, 5000);
       }
       
       // Clear the state to prevent unnecessary refreshes

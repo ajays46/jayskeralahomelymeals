@@ -19,7 +19,8 @@ import {
   MdWarning,
   MdCheckCircleOutline,
   MdDashboard,
-  MdClear
+  MdClear,
+  MdInfo
 } from 'react-icons/md';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import { useMenusForBooking, useProductQuantitiesForMenus } from '../hooks/adminHook/adminHook';
@@ -571,11 +572,40 @@ const BookingWizardPage = () => {
     }
   };
 
+  // Helper function to detect single meal type from menu name
+  const getSingleMealType = (menu) => {
+    if (!menu || !menu.name) return null;
+    const menuName = menu.name.toLowerCase();
+    
+    if (menuName.includes('breakfast')) return 'breakfast';
+    if (menuName.includes('lunch')) return 'lunch';
+    if (menuName.includes('dinner')) return 'dinner';
+    
+    return null;
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 1: return isSeller ? selectedUser : true; // For sellers, need to select user; for others, can proceed
       case 2: return selectedMenu;
-      case 3: return deliveryLocations.full || deliveryLocations.breakfast || deliveryLocations.lunch || deliveryLocations.dinner;
+      case 3: 
+        // Check if this is a single meal item
+        const singleMealType = getSingleMealType(selectedMenu);
+        if (singleMealType) {
+          // For single meal items, require only that specific meal address
+          return !!deliveryLocations[singleMealType];
+        }
+        
+        // For daily flexible rates, require individual meal addresses
+        if (selectedMenu && selectedMenu.isDailyRateItem) {
+          const hasRequiredAddresses = true;
+          if (selectedMenu.hasBreakfast && !deliveryLocations.breakfast) return false;
+          if (selectedMenu.hasLunch && !deliveryLocations.lunch) return false;
+          if (selectedMenu.hasDinner && !deliveryLocations.dinner) return false;
+          return hasRequiredAddresses;
+        }
+        // For other menu types, check if user has provided either primary address or meal-specific addresses
+        return deliveryLocations.full || deliveryLocations.breakfast || deliveryLocations.lunch || deliveryLocations.dinner;
       case 4: return selectedDates.length > 0; // Allow proceeding if dates are selected
       default: return false;
     }
@@ -1153,10 +1183,46 @@ const BookingWizardPage = () => {
               {/* Meal-Specific Addresses */}
               {selectedMenu && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2">Optional Meal-Specific Addresses</h4>
+                  {(() => {
+                    const singleMealType = getSingleMealType(selectedMenu);
+                    
+                    if (singleMealType) {
+                      // For single meal items, show only that meal's address
+                      return (
+                        <>
+                          <h4 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2">
+                            Required Delivery Address
+                          </h4>
+                        </>
+                      );
+                    } else {
+                      // For other menu types, show all meal addresses
+                      return (
+                        <>
+                          <h4 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2">
+                            {selectedMenu.isDailyRateItem ? 'Required Meal-Specific Addresses' : 'Optional Meal-Specific Addresses'}
+                          </h4>
+                          {selectedMenu.isDailyRateItem && (
+                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2">
+                                <MdWarning className="w-4 h-4 text-orange-600" />
+                                <p className="text-sm text-orange-800">
+                                  For Daily Flexible Rates, each meal type requires its own delivery address.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    }
+                  })()}
                    
                   {/* Breakfast Address */}
-                  {selectedMenu.hasBreakfast && (
+                  {(() => {
+                    const singleMealType = getSingleMealType(selectedMenu);
+                    const shouldShowBreakfast = (selectedMenu.hasBreakfast && (!singleMealType || singleMealType === 'breakfast')) || singleMealType === 'breakfast';
+                    return shouldShowBreakfast;
+                  })() && (
                     <div className="bg-green-50 rounded-lg p-3 border border-green-200">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -1164,8 +1230,16 @@ const BookingWizardPage = () => {
                             <MdSchedule className="w-3 h-3 text-white" />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-900">Breakfast Delivery Address</label>
-                          <p className="text-xs text-gray-600">Leave empty to use primary address</p>
+                          <label className="block text-sm font-semibold text-gray-900">
+                            Breakfast Delivery Address
+                            {selectedMenu.isDailyRateItem && <span className="text-red-500 ml-1">*</span>}
+                          </label>
+                          <p className="text-xs text-gray-600">
+                            {selectedMenu.isDailyRateItem 
+                              ? 'Required for Daily Flexible Rates' 
+                              : 'Leave empty to use primary address'
+                            }
+                          </p>
                         </div>
                         </div>
                         {(deliveryLocations.breakfast || deliveryLocationNames.breakfast) && (
@@ -1186,7 +1260,7 @@ const BookingWizardPage = () => {
                           const displayName = e.target.displayName || getAddressDisplayName(addressId);
                           handleDeliveryLocationChange('breakfast', addressId, displayName);
                         }}
-                        placeholder="Select breakfast address (optional)"
+                        placeholder={selectedMenu.isDailyRateItem ? "Select breakfast address (required)" : "Select breakfast address (optional)"}
                         className="w-full px-3 py-2 border border-green-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-sm"
                         mealType="breakfast"
                         addresses={selectedUserAddresses}
@@ -1198,7 +1272,11 @@ const BookingWizardPage = () => {
                   )}
 
                   {/* Lunch Address */}
-                  {selectedMenu.hasLunch && (
+                  {(() => {
+                    const singleMealType = getSingleMealType(selectedMenu);
+                    const shouldShowLunch = (selectedMenu.hasLunch && (!singleMealType || singleMealType === 'lunch')) || singleMealType === 'lunch';
+                    return shouldShowLunch;
+                  })() && (
                     <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -1206,8 +1284,16 @@ const BookingWizardPage = () => {
                             <MdSchedule className="w-3 h-3 text-white" />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-900">Lunch Delivery Address</label>
-                          <p className="text-xs text-gray-600">Leave empty to use primary address</p>
+                          <label className="block text-sm font-semibold text-gray-900">
+                            Lunch Delivery Address
+                            {selectedMenu.isDailyRateItem && <span className="text-red-500 ml-1">*</span>}
+                          </label>
+                          <p className="text-xs text-gray-600">
+                            {selectedMenu.isDailyRateItem 
+                              ? 'Required for Daily Flexible Rates' 
+                              : 'Leave empty to use primary address'
+                            }
+                          </p>
                         </div>
                         </div>
                         {(deliveryLocations.lunch || deliveryLocationNames.lunch) && (
@@ -1228,7 +1314,7 @@ const BookingWizardPage = () => {
                           const displayName = e.target.displayName || getAddressDisplayName(addressId);
                           handleDeliveryLocationChange('lunch', addressId, displayName);
                         }}
-                        placeholder="Select lunch address (optional)"
+                        placeholder={selectedMenu.isDailyRateItem ? "Select lunch address (required)" : "Select lunch address (optional)"}
                         className="w-full px-3 py-2 border border-yellow-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 bg-white text-sm"
                         mealType="lunch"
                         addresses={selectedUserAddresses}
@@ -1240,7 +1326,11 @@ const BookingWizardPage = () => {
                   )}
 
                   {/* Dinner Address */}
-                  {selectedMenu.hasDinner && (
+                  {(() => {
+                    const singleMealType = getSingleMealType(selectedMenu);
+                    const shouldShowDinner = (selectedMenu.hasDinner && (!singleMealType || singleMealType === 'dinner')) || singleMealType === 'dinner';
+                    return shouldShowDinner;
+                  })() && (
                     <div className="bg-red-50 rounded-lg p-3 border border-red-200">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -1248,8 +1338,16 @@ const BookingWizardPage = () => {
                             <MdSchedule className="w-3 h-3 text-white" />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-900">Dinner Delivery Address</label>
-                          <p className="text-xs text-gray-600">Leave empty to use primary address</p>
+                          <label className="block text-sm font-semibold text-gray-900">
+                            Dinner Delivery Address
+                            {selectedMenu.isDailyRateItem && <span className="text-red-500 ml-1">*</span>}
+                          </label>
+                          <p className="text-xs text-gray-600">
+                            {selectedMenu.isDailyRateItem 
+                              ? 'Required for Daily Flexible Rates' 
+                              : 'Leave empty to use primary address'
+                            }
+                          </p>
                         </div>
                         </div>
                         {(deliveryLocations.dinner || deliveryLocationNames.dinner) && (
@@ -1270,7 +1368,7 @@ const BookingWizardPage = () => {
                           const displayName = e.target.displayName || getAddressDisplayName(addressId);
                           handleDeliveryLocationChange('dinner', addressId, displayName);
                         }}
-                        placeholder="Select dinner address (optional)"
+                        placeholder={selectedMenu.isDailyRateItem ? "Select dinner address (required)" : "Select dinner address (optional)"}
                         className="w-full px-3 py-2 border border-red-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white text-sm"
                         mealType="dinner"
                         addresses={selectedUserAddresses}
@@ -1495,19 +1593,65 @@ const BookingWizardPage = () => {
         return;
       }
 
-      // Check if user has provided either primary address or meal-specific addresses
-      const hasPrimaryAddress = deliveryLocations.full;
-      const hasMealAddresses = deliveryLocations.breakfast || deliveryLocations.lunch || deliveryLocations.dinner;
+      // Check address requirements based on menu type
+      const singleMealType = getSingleMealType(selectedMenu);
       
-      if (!hasPrimaryAddress && !hasMealAddresses) {
-        showErrorToast('Please select at least one delivery address (primary or meal-specific)');
-        return;
+      if (singleMealType) {
+        // For single meal items, require only that specific meal address
+        if (!deliveryLocations[singleMealType]) {
+          const mealName = singleMealType.charAt(0).toUpperCase() + singleMealType.slice(1);
+          showErrorToast(`Please select a delivery address for ${mealName}`);
+          return;
+        }
+      } else if (selectedMenu.isDailyRateItem) {
+        // For daily flexible rates, require individual meal addresses
+        const requiredMealAddresses = [];
+        if (selectedMenu.hasBreakfast && !deliveryLocations.breakfast) {
+          requiredMealAddresses.push('Breakfast');
+        }
+        if (selectedMenu.hasLunch && !deliveryLocations.lunch) {
+          requiredMealAddresses.push('Lunch');
+        }
+        if (selectedMenu.hasDinner && !deliveryLocations.dinner) {
+          requiredMealAddresses.push('Dinner');
+        }
+        
+        if (requiredMealAddresses.length > 0) {
+          showErrorToast(`Please select delivery addresses for: ${requiredMealAddresses.join(', ')}`);
+          return;
+        }
+      } else {
+        // For other menu types, check if user has provided either primary address or meal-specific addresses
+        const hasPrimaryAddress = deliveryLocations.full;
+        const hasMealAddresses = deliveryLocations.breakfast || deliveryLocations.lunch || deliveryLocations.dinner;
+        
+        if (!hasPrimaryAddress && !hasMealAddresses) {
+          showErrorToast('Please select at least one delivery address (primary or meal-specific)');
+          return;
+        }
       }
 
       const orderItems = [];
       
       // Create order items based on menu type
-      if (selectedMenu.isComprehensiveMenu) {
+      // Priority: Single meal items first, then comprehensive, then daily rate, then regular
+      if (singleMealType) {
+        // For single meal items, create order item for that specific meal
+        if (selectedMenu.menuItem) {
+          orderItems.push({
+            menuItemId: selectedMenu.menuItem.id,
+            quantity: selectedDates.length,
+            mealType: singleMealType
+          });
+        } else if (selectedMenu.id) {
+          // Fallback: use the menu itself as the menu item
+          orderItems.push({
+            menuItemId: selectedMenu.id,
+            quantity: selectedDates.length,
+            mealType: singleMealType
+          });
+        }
+      } else if (selectedMenu.isComprehensiveMenu) {
         if (selectedMenu.mealTypes.breakfast && selectedMenu.mealTypes.breakfast.length > 0) {
           selectedMenu.mealTypes.breakfast.forEach(item => {
             orderItems.push({
@@ -1588,22 +1732,37 @@ const BookingWizardPage = () => {
 
       // Create order times
       const orderTimes = [];
-      if (selectedMenu.hasBreakfast) orderTimes.push('Breakfast');
-      if (selectedMenu.hasLunch) orderTimes.push('Lunch');
-      if (selectedMenu.hasDinner) orderTimes.push('Dinner');
+      if (singleMealType) {
+        // For single meal items, only add that specific meal time
+        orderTimes.push(singleMealType.charAt(0).toUpperCase() + singleMealType.slice(1));
+      } else {
+        // For other menu types, add all available meal times
+        if (selectedMenu.hasBreakfast) orderTimes.push('Breakfast');
+        if (selectedMenu.hasLunch) orderTimes.push('Lunch');
+        if (selectedMenu.hasDinner) orderTimes.push('Dinner');
+      }
 
       // Use primary address if available, otherwise use the first meal-specific address
-      const primaryAddressId = deliveryLocations.full || 
-        deliveryLocations.breakfast || 
-        deliveryLocations.lunch || 
-        deliveryLocations.dinner;
+      let primaryAddressId;
+      if (singleMealType) {
+        // For single meal items, use the specific meal address
+        primaryAddressId = deliveryLocations[singleMealType];
+      } else {
+        // For other menu types, use primary or first meal-specific address
+        primaryAddressId = deliveryLocations.full || 
+          deliveryLocations.breakfast || 
+          deliveryLocations.lunch || 
+          deliveryLocations.dinner;
+      }
       
       const orderData = {
         orderDate: selectedDates.length > 0 ? selectedDates[0].toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         orderTimes: orderTimes,
         orderItems: orderItems,
         deliveryAddressId: primaryAddressId,
-        deliveryLocations: {
+        deliveryLocations: singleMealType ? {
+          [singleMealType]: deliveryLocations[singleMealType] || null,
+        } : {
           breakfast: deliveryLocations.breakfast || null,
           lunch: deliveryLocations.lunch || null,
           dinner: deliveryLocations.dinner || null,
@@ -1896,7 +2055,9 @@ const BookingWizardPage = () => {
                  
                  {(deliveryLocations.full || deliveryLocations.breakfast || deliveryLocations.lunch || deliveryLocations.dinner) && (
                    <div className="mb-4 p-3 bg-purple-50 rounded-lg">
-                     <div className="text-sm font-medium text-purple-900 mb-1">Delivery Addresses</div>
+                     <div className="text-sm font-medium text-purple-900 mb-1">
+                       {selectedMenu && selectedMenu.isDailyRateItem ? 'Meal Delivery Addresses' : 'Delivery Addresses'}
+                     </div>
                      {deliveryLocations.full && (
                        <div className="text-purple-700 text-xs mb-1">
                          <span className="font-medium">Primary:</span> {deliveryLocationNames.full || 'Selected'}
@@ -1915,6 +2076,11 @@ const BookingWizardPage = () => {
                      {deliveryLocations.dinner && (
                        <div className="text-purple-700 text-xs">
                          <span className="font-medium">Dinner:</span> {deliveryLocationNames.dinner || 'Selected'}
+                       </div>
+                     )}
+                     {selectedMenu && selectedMenu.isDailyRateItem && (
+                       <div className="text-purple-600 text-xs mt-2 font-medium">
+                         ✓ Individual addresses configured for each meal
                        </div>
                      )}
                    </div>

@@ -824,8 +824,8 @@ const PaymentWizardPage = () => {
       });
       
       if (response.data.success) {
-        showSuccessToast('Payment receipt uploaded successfully!');
         // Navigate back to customer list with success state
+        // Don't show toast here - let CustomersListPage handle it
         navigate('/jkhm/seller/customers', {
           state: {
             showReceiptSuccess: true,
