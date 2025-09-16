@@ -85,6 +85,8 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
             housename: address.housename || 'Default House', // Required field in schema
             city: address.city || '',
             pincode: address.pincode ? parseInt(address.pincode) : 0, // Convert to integer as per schema
+            geoLocation: address.geoLocation || null,
+            googleMapsUrl: address.googleMapsUrl || null,
             addressType: 'HOME'
           }
         });
@@ -329,6 +331,7 @@ export const createAddressForUser = async (userId, sellerId, addressData) => {
         city: addressData.city,
         pincode: addressData.pincode,
         geoLocation: addressData.geoLocation || '',
+        googleMapsUrl: addressData.googleMapsUrl || '',
         addressType: addressData.addressType || 'HOME'
       }
     });
@@ -615,7 +618,9 @@ export const updateCustomer = async (userId, sellerId, updateData) => {
               housename: updateData.address.housename,
               city: updateData.address.city,
               pincode: parseInt(updateData.address.pincode) || 0,
-
+              geoLocation: updateData.address.geoLocation || null,
+              googleMapsUrl: updateData.address.googleMapsUrl || null,
+              addressType: updateData.address.addressType || 'HOME'
             }
           });
         } else {
@@ -627,7 +632,9 @@ export const updateCustomer = async (userId, sellerId, updateData) => {
               housename: updateData.address.housename,
               city: updateData.address.city,
               pincode: parseInt(updateData.address.pincode) || 0,
-
+              geoLocation: updateData.address.geoLocation || null,
+              googleMapsUrl: updateData.address.googleMapsUrl || null,
+              addressType: updateData.address.addressType || 'HOME'
             }
           });
         }

@@ -81,6 +81,7 @@ const AddressPicker = ({
     city: '',
     pincode: '',
     geoLocation: '',
+    googleMapsUrl: '',
     addressType: 'HOME'
   });
 
@@ -196,6 +197,7 @@ const AddressPicker = ({
           city: addressParts.slice(-3, -1).join(', ') || '',
           pincode: addressParts[addressParts.length - 1] || '',
           geoLocation: `${lat},${lng}`,
+          googleMapsUrl: '',
           addressType: 'HOME'
         });
         
@@ -247,6 +249,7 @@ const AddressPicker = ({
       city: address.city,
       pincode: address.pincode.toString(),
       geoLocation: address.geoLocation,
+      googleMapsUrl: address.googleMapsUrl || '',
       addressType: address.addressType
     });
     setSelectedAddress(address);
@@ -282,6 +285,7 @@ const AddressPicker = ({
           city: '',
           pincode: '',
           geoLocation: '',
+          googleMapsUrl: '',
           addressType: 'HOME'
         });
         setShowAddForm(false);
@@ -323,6 +327,7 @@ const AddressPicker = ({
           city: '',
           pincode: '',
           geoLocation: '',
+          googleMapsUrl: '',
           addressType: 'HOME'
         });
         setShowAddForm(false);
@@ -405,6 +410,7 @@ const AddressPicker = ({
           city: addressForm.city,
           pincode: parseInt(addressForm.pincode),
           geoLocation: addressForm.geoLocation || '',
+          googleMapsUrl: addressForm.googleMapsUrl || '',
           addressType: addressForm.addressType
         };
 
@@ -427,6 +433,7 @@ const AddressPicker = ({
                 city: '',
                 pincode: '',
                 geoLocation: '',
+                googleMapsUrl: '',
                 addressType: 'HOME'
               });
             }
@@ -459,6 +466,7 @@ const AddressPicker = ({
         city: addressForm.city,
         pincode: parseInt(addressForm.pincode),
         geoLocation: addressForm.geoLocation || '',
+        googleMapsUrl: addressForm.googleMapsUrl || '',
         addressType: addressForm.addressType
       };
       
@@ -487,6 +495,7 @@ const AddressPicker = ({
         city: '',
         pincode: '',
         geoLocation: '',
+        googleMapsUrl: '',
         addressType: 'HOME'
       });
       
@@ -651,6 +660,24 @@ const AddressPicker = ({
                     </button>
                   </div>
 
+                  {/* Google Maps URL */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Google Maps URL
+                    </label>
+                    <input
+                      type="url"
+                      name="googleMapsUrl"
+                      value={addressForm.googleMapsUrl}
+                      onChange={handleFormChange}
+                      placeholder="e.g., https://maps.app.goo.gl/2NTAhAJVUsvh5sEr6"
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Optional: Paste a Google Maps share URL for precise location
+                    </p>
+                  </div>
+
                   {/* Geolocation (hidden but populated) */}
                   <input
                     type="hidden"
@@ -671,6 +698,7 @@ const AddressPicker = ({
                           city: '',
                           pincode: '',
                           geoLocation: '',
+                          googleMapsUrl: '',
                           addressType: 'HOME'
                         });
                       }}

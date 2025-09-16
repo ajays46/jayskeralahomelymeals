@@ -239,6 +239,8 @@ export const createPaymentService = async (userId, paymentData) => {
                                 housename: parsedOrderData.deliveryAddress.housename || 'Default House',
                                 city: parsedOrderData.deliveryAddress.city || '',
                                 pincode: parseInt(parsedOrderData.deliveryAddress.pincode) || 0,
+                                geoLocation: parsedOrderData.deliveryAddress.geoLocation || '',
+                                googleMapsUrl: parsedOrderData.deliveryAddress.googleMapsUrl || '',
                                 addressType: 'HOME'
                             }
                         );

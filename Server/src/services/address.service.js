@@ -23,7 +23,7 @@ export const getUserAddressesService = async (userId) => {
 // Create a new address
 export const createAddressService = async (userId, addressData) => {
     try {
-        const { street, housename, city, pincode, geoLocation, addressType } = addressData;
+        const { street, housename, city, pincode, geoLocation, googleMapsUrl, addressType } = addressData;
 
         // Validate required fields
         if (!street || !city || !pincode) {
@@ -49,6 +49,7 @@ export const createAddressService = async (userId, addressData) => {
                 city: city,
                 pincode: parseInt(pincode),
                 geoLocation: geoLocation || null,
+                googleMapsUrl: googleMapsUrl || null,
                 addressType: addressType || 'HOME'
             }
         });
@@ -66,7 +67,7 @@ export const createAddressService = async (userId, addressData) => {
 // Update an address
 export const updateAddressService = async (userId, addressId, addressData) => {
     try {
-        const { street, housename, city, pincode, geoLocation, addressType } = addressData;
+        const { street, housename, city, pincode, geoLocation, googleMapsUrl, addressType } = addressData;
 
         // Check if address exists and belongs to user
         const existingAddress = await prisma.address.findFirst({
@@ -106,6 +107,7 @@ export const updateAddressService = async (userId, addressId, addressData) => {
                 city: city,
                 pincode: parseInt(pincode),
                 geoLocation: geoLocation || null,
+                googleMapsUrl: googleMapsUrl || null,
                 addressType: addressType || 'HOME'
             }
         });

@@ -53,6 +53,7 @@ model Address {
   city          String         @db.VarChar(255)
   pincode       Int
   geoLocation   String?        @map("geo_location") @db.VarChar(255)
+  googleMapsUrl String?        @map("google_maps_url") @db.VarChar(500)
   addressType   AddressType    @default(HOME) @map("address_type")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
