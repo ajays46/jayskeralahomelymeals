@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { FaList, FaEdit, FaTrash, FaPlus, FaBuilding, FaTag, FaCoins, FaBoxes, FaCalendar } from 'react-icons/fa';
 import AdminSlide from '../../components/AdminSlide';
+import Pagination from '../../components/Pagination';
 import { useProductList, useDeleteProduct } from '../../hooks/adminHook/adminHook';
 import { useNavigate } from 'react-router-dom';
 import { Button, Popconfirm, message } from 'antd';
@@ -13,6 +14,10 @@ const ProductsPage = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   // Extract products from the response
   const products = productListData?.data || [];
@@ -25,23 +30,47 @@ const ProductsPage = () => {
   )].sort();
 
   // Filter products based on search, status, category, and price
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.company?.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'ALL' || product.status === statusFilter;
-    
-    const matchesCategory = categoryFilter === 'ALL' || 
-      (product.categories && product.categories.length > 0 && 
-       product.categories[0].productCategoryName === categoryFilter);
-    
-    const productPrice = product.prices && product.prices.length > 0 ? product.prices[0].price : 0;
-    const matchesMinPrice = !priceRange.min || productPrice >= parseFloat(priceRange.min);
-    const matchesMaxPrice = !priceRange.max || productPrice <= parseFloat(priceRange.max);
-    
-    return matchesSearch && matchesStatus && matchesCategory && matchesMinPrice && matchesMaxPrice;
-  });
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const matchesSearch = product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.company?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'ALL' || product.status === statusFilter;
+      
+      const matchesCategory = categoryFilter === 'ALL' || 
+        (product.categories && product.categories.length > 0 && 
+         product.categories[0].productCategoryName === categoryFilter);
+      
+      const productPrice = product.prices && product.prices.length > 0 ? product.prices[0].price : 0;
+      const matchesMinPrice = !priceRange.min || productPrice >= parseFloat(priceRange.min);
+      const matchesMaxPrice = !priceRange.max || productPrice <= parseFloat(priceRange.max);
+      
+      return matchesSearch && matchesStatus && matchesCategory && matchesMinPrice && matchesMaxPrice;
+    });
+  }, [products, searchTerm, statusFilter, categoryFilter, priceRange]);
+
+  // Pagination calculations
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const handlePageChange = useCallback((page) => {
+    setCurrentPage(page);
+  }, []);
+
+  const handleItemsPerPageChange = useCallback((newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  }, []);
+
+  // Reset pagination when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, categoryFilter, priceRange]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -204,7 +233,7 @@ const ProductsPage = () => {
               {/* Results Summary */}
               <div className="mt-4 pt-4 border-t border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="text-sm text-gray-400">
-                  Showing {filteredProducts.length} of {products.length} products
+                  Showing {totalItems} of {products.length} products
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -224,7 +253,7 @@ const ProductsPage = () => {
             </div>
 
             {/* Products Grid */}
-            {filteredProducts.length === 0 ? (
+            {totalItems === 0 ? (
               <div className="bg-gray-800 rounded-xl shadow-2xl p-8 text-center">
                 <FaList className="text-gray-600 text-4xl mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-300 mb-2">No products found</h3>
@@ -244,8 +273,9 @@ const ProductsPage = () => {
                 )}
               </div>
             ) : (
+              <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {filteredProducts.map((product) => (
+                {paginatedProducts.map((product) => (
                   <div key={product.id} className="bg-gray-800 rounded-xl shadow-2xl overflow-hidden hover:shadow-3xl transition-shadow">
                     {/* Product Image */}
                     <div className="relative h-48 bg-gray-700">
@@ -369,6 +399,22 @@ const ProductsPage = () => {
                   </div>
                 ))}
               </div>
+              
+              {/* Pagination */}
+              {totalItems > 0 && (
+                <div className="mt-6">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={handlePageChange}
+                    onItemsPerPageChange={handleItemsPerPageChange}
+                    showItemsPerPage={false} // Hide items per page for grid layout
+                  />
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>

@@ -7,6 +7,7 @@ import {
   getSellerProfile,
   getUserAddressesController,
   createUserAddressController,
+  deleteUserAddressController,
   getUserOrdersController,
   cancelDeliveryItemController,
   cancelOrderController,
@@ -28,6 +29,7 @@ router.post('/create-contact', createContactController);
 router.get('/users', getSellerUsers);
 router.get('/users/:userId/addresses', getUserAddressesController);
 router.post('/users/:userId/addresses', createUserAddressController);
+router.delete('/users/:userId/addresses/:addressId', deleteUserAddressController);
 router.get('/users/:userId/orders', getUserOrdersController);
 router.put('/users/:userId', updateCustomerController);
 router.put('/orders/:orderId/cancel', cancelOrderController);

@@ -6,8 +6,11 @@ import { Modal, message } from 'antd';
 import axiosInstance from '../api/axios';
 import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes } from '../hooks/deliverymanager';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import useAuthStore from '../stores/Zustand.store';
+import { isSeller } from '../utils/roleUtils';
 
 const DeliveryManagerPage = () => {
+  const { user, roles } = useAuthStore();
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -54,6 +57,9 @@ const DeliveryManagerPage = () => {
     paymentStatus: 'all'
   });
   const [showOrderFilters, setShowOrderFilters] = useState(false);
+  const [showAllOrders, setShowAllOrders] = useState({}); // Track which sellers show all orders
+  const [showOrdersForSeller, setShowOrdersForSeller] = useState({}); // Track which sellers show orders table
+  const [defaultOrderLimit] = useState(5); // Default number of orders to show
   const [confirmationModal, setConfirmationModal] = useState({
     visible: false,
     itemId: null,
@@ -1397,7 +1403,7 @@ const DeliveryManagerPage = () => {
   const getFilteredOrders = (seller) => {
     if (!seller.recentOrders || seller.recentOrders.length === 0) return [];
     
-    return seller.recentOrders.filter(order => {
+    const filteredOrders = seller.recentOrders.filter(order => {
       // Status filter
       if (orderFilters.status !== 'all' && order.status !== orderFilters.status) {
         return false;
@@ -1479,6 +1485,14 @@ const DeliveryManagerPage = () => {
       
       return true;
     });
+
+    // Apply order limit if not showing all orders
+    const showAll = showAllOrders[seller.id] || false;
+    if (!showAll && filteredOrders.length > defaultOrderLimit) {
+      return filteredOrders.slice(0, defaultOrderLimit);
+    }
+    
+    return filteredOrders;
   };
 
   const formatCurrency = (amount) => {
@@ -1613,6 +1627,22 @@ const DeliveryManagerPage = () => {
   const closeSellerDetails = () => {
     setShowSellerDetails(false);
     setSelectedSeller(null);
+  };
+
+  // Toggle showing orders table for a specific seller
+  const toggleShowOrders = (sellerId) => {
+    setShowOrdersForSeller(prev => ({
+      ...prev,
+      [sellerId]: !prev[sellerId]
+    }));
+  };
+
+  // Toggle showing all orders for a specific seller
+  const toggleShowAllOrders = (sellerId) => {
+    setShowAllOrders(prev => ({
+      ...prev,
+      [sellerId]: !prev[sellerId]
+    }));
   };
 
   const renderDeliveryItems = (order) => {
@@ -1759,7 +1789,7 @@ const DeliveryManagerPage = () => {
           <p className="text-gray-400 mb-4">{error}</p>
           <button
             onClick={fetchSellersData}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 sm:py-2 rounded-lg transition-colors text-sm sm:text-base min-h-[44px] sm:min-h-0"
           >
             Try Again
           </button>
@@ -1771,43 +1801,60 @@ const DeliveryManagerPage = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Navbar */}
-      <div className="fixed top-0 left-0 w-full h-20 lg:h-24 bg-gray-800 border-b border-gray-700 z-40 flex items-center px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => navigate('/jkhm')}
-                  className="text-gray-400 hover:text-white transition-colors"
-                  aria-label="Go back to home"
-                >
-                  <FiArrowLeft size={20} />
-                </button>
-                <div className="flex items-center gap-3">
-                  <MdLocalShipping className="text-2xl text-blue-500" />
-            <h1 className="text-xl font-bold">
-              {activeTab === 'sellers' ? 'Sellers Management' : activeTab === 'orders' ? 'Orders Management' : 'Analytics Dashboard'} Dashboard
+      <div className="fixed top-0 left-0 right-0 h-16 sm:h-20 lg:h-24 bg-gray-800 border-b border-gray-700 z-40 flex items-center justify-between px-3 sm:px-4 lg:px-8 overflow-hidden">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 max-w-[calc(100%-2rem)]">
+          <button
+            onClick={() => navigate('/jkhm')}
+            className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+            aria-label="Go back to home"
+          >
+            <FiArrowLeft size={18} className="sm:w-5 sm:h-5" />
+          </button>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <MdLocalShipping className="text-xl sm:text-2xl text-blue-500 flex-shrink-0" />
+            <h1 className="text-sm sm:text-lg lg:text-xl font-bold truncate max-w-[200px] sm:max-w-[300px] lg:max-w-[400px]">
+              {activeTab === 'sellers' ? 'Sellers' : activeTab === 'orders' ? 'Orders' : 'Analytics'} Dashboard
             </h1>
-                </div>
-              </div>
-              <div className="text-sm text-gray-400">
-                {/* Removed logout button from navbar */}
-              </div>
-            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+          {isSeller(roles) && (
+            <button
+              onClick={() => navigate('/jkhm/seller/customers')}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
+              title="Go to Customers List"
+            >
+              <MdStore className="w-4 h-4" />
+              <span className="hidden sm:inline">Customers</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Main Content with proper spacing for navbar */}
-      <div className="pt-24"> {/* Add top padding to account for fixed navbar height (h-20 lg:h-24) */}
+      <div className="pt-16 sm:pt-20 lg:pt-24"> {/* Add top padding to account for fixed navbar height */}
         {/* Mobile Sidebar Toggle */}
-        <div className="lg:hidden fixed top-28 left-4 z-50">
+        <div className="lg:hidden fixed top-20 sm:top-24 left-3 z-50">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="bg-gray-800 text-white p-2 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors"
+            className="bg-gray-800 text-white p-2 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors shadow-lg"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         </div>
 
+        {/* Mobile Overlay */}
+        {sidebarOpen && (
+          <div 
+            className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-20"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <div className={`fixed left-0 top-24 w-64 h-[calc(100vh-6rem)] bg-gray-800 border-r border-gray-700 z-30 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        <div className={`fixed left-0 top-16 sm:top-20 lg:top-24 w-64 h-[calc(100vh-4rem)] sm:h-[calc(100vh-5rem)] lg:h-[calc(100vh-6rem)] bg-gray-800 border-r border-gray-700 z-30 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
           <div className="p-4 h-full flex flex-col justify-between">
@@ -1905,7 +1952,7 @@ const DeliveryManagerPage = () => {
         </div>
 
         {/* Dashboard Content */}
-        <div className="lg:ml-64 px-4 lg:px-6 py-6">
+        <div className="lg:ml-64 px-3 sm:px-4 lg:px-6 py-4 sm:py-6 overflow-x-hidden max-w-full">
           {/* Mobile Backdrop */}
           {sidebarOpen && (
             <div 
@@ -1915,51 +1962,51 @@ const DeliveryManagerPage = () => {
           )}
           {/* Stats Cards - Only visible in Analytics tab */}
           {activeTab === 'analytics' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium">Total Sellers</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalSellers}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-gray-400 text-xs sm:text-sm font-medium">Total Sellers</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{stats.totalSellers}</p>
                 </div>
-                <div className="p-3 bg-blue-500/20 rounded-full">
-                  <MdStore className="text-2xl text-blue-500" />
+                <div className="p-2 sm:p-3 bg-blue-500/20 rounded-full flex-shrink-0">
+                  <MdStore className="text-xl sm:text-2xl text-blue-500" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
               <div className="flex items-center justify-between">
-                <div>
-                    <p className="text-gray-400 text-sm font-medium">Orders Placed</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalOrders}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-gray-400 text-xs sm:text-sm font-medium">Orders Placed</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{stats.totalOrders}</p>
                 </div>
-                <div className="p-3 bg-green-500/20 rounded-full">
-                  <FiShoppingBag className="text-2xl text-green-500" />
+                <div className="p-2 sm:p-3 bg-green-500/20 rounded-full flex-shrink-0">
+                  <FiShoppingBag className="text-xl sm:text-2xl text-green-500" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
               <div className="flex items-center justify-between">
-                <div>
-                    <p className="text-gray-400 text-sm font-medium">Total Order Value</p>
-                  <p className="text-2xl font-bold text-white">{formatCurrency(stats.totalRevenue)}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-gray-400 text-xs sm:text-sm font-medium">Total Order Value</p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-white truncate">{formatCurrency(stats.totalRevenue)}</p>
                 </div>
-                <div className="p-3 bg-yellow-500/20 rounded-full">
-                  <MdAttachMoney className="text-2xl text-yellow-500" />
+                <div className="p-2 sm:p-3 bg-yellow-500/20 rounded-full flex-shrink-0">
+                  <MdAttachMoney className="text-xl sm:text-2xl text-yellow-500" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium">Active Sellers</p>
-                  <p className="text-2xl font-bold text-white">{stats.activeSellers}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-gray-400 text-xs sm:text-sm font-medium">Active Sellers</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{stats.activeSellers}</p>
                 </div>
-                <div className="p-3 bg-green-500/20 rounded-full">
-                  <FiTrendingUp className="text-2xl text-green-500" />
+                <div className="p-2 sm:p-3 bg-green-500/20 rounded-full flex-shrink-0">
+                  <FiTrendingUp className="text-xl sm:text-2xl text-green-500" />
                 </div>
               </div>
             </div>
@@ -1970,26 +2017,26 @@ const DeliveryManagerPage = () => {
           {activeTab === 'sellers' && (
             <>
           {/* Sellers Table */}
-              <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden mb-8">
-            <div className="px-6 py-4 border-b border-gray-700">
-                  <h2 className="text-lg font-semibold text-white">Sellers & Their Orders for Users</h2>
-                  <p className="text-gray-400 text-sm">View sellers and the orders they're placing for users</p>
+              <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden mb-6 sm:mb-8">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
+                  <h2 className="text-base sm:text-lg font-semibold text-white">Sellers & Their Orders for Users</h2>
+                  <p className="text-gray-400 text-xs sm:text-sm">View sellers and the orders they're placing for users</p>
             </div>
             
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto max-w-full">
+              <table className="w-full min-w-[400px]">
                 <thead className="bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[200px]">
                       Seller
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[100px]">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">
                           Orders Placed
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">
                           Total Value
                     </th>
                   </tr>
@@ -2001,24 +2048,24 @@ const DeliveryManagerPage = () => {
                       className="hover:bg-gray-700 transition-colors cursor-pointer"
                       onClick={() => handleSellerClick(seller)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                              <MdStore className="text-white text-lg" />
+                          <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-500 flex items-center justify-center">
+                              <MdStore className="text-white text-sm sm:text-lg" />
                             </div>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-white">
+                          <div className="ml-2 sm:ml-4 min-w-0 flex-1">
+                            <div className="text-xs sm:text-sm font-medium text-white truncate">
                               {seller.name || seller.email || 'Unknown Seller'}
                             </div>
-                            <div className="text-sm text-gray-400">
+                            <div className="text-xs sm:text-sm text-gray-400 truncate">
                               {seller.email}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           seller.status === 'ACTIVE' 
                             ? 'bg-green-100 text-green-800' 
@@ -2027,10 +2074,10 @@ const DeliveryManagerPage = () => {
                           {seller.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-white">
                         {seller.orderCount || 0}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-white">
                             {formatCurrency(
                               seller.recentOrders && seller.recentOrders.length > 0
                                 ? seller.recentOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0)
@@ -2043,30 +2090,30 @@ const DeliveryManagerPage = () => {
                     {/* Summary Row */}
                     <tfoot className="bg-gray-700">
                       <tr className="font-semibold">
-                        <td className="px-6 py-4 text-sm text-white">
+                        <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-white">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8">
-                              <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-                                <MdStore className="text-white text-sm" />
+                            <div className="flex-shrink-0 h-6 w-6 sm:h-8 sm:w-8">
+                              <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-blue-600 flex items-center justify-center">
+                                <MdStore className="text-white text-xs sm:text-sm" />
                               </div>
                             </div>
-                            <div className="ml-3">
-                              <div className="text-sm font-semibold text-white">Total Summary</div>
+                            <div className="ml-2 sm:ml-3 min-w-0 flex-1">
+                              <div className="text-xs sm:text-sm font-semibold text-white">Total Summary</div>
                               <div className="text-xs text-blue-200">All Sellers Combined</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-white">
+                        <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-white">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             stats.activeSellers > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}>
                             {stats.activeSellers} Active
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-white font-bold">
+                        <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-white font-bold">
                           {stats.totalOrders}
                         </td>
-                        <td className="px-6 py-4 text-sm text-green-400 font-bold">
+                        <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-green-400 font-bold">
                           {formatCurrency(
                             sellers.reduce((total, seller) => {
                               const sellerTotal = seller.recentOrders && seller.recentOrders.length > 0
@@ -2082,10 +2129,10 @@ const DeliveryManagerPage = () => {
                 </div>
 
                 {sellers.length === 0 && (
-                  <div className="text-center py-12">
-                    <MdStore className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="text-center py-8 sm:py-12 px-4">
+                    <MdStore className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                     <h3 className="mt-2 text-sm font-medium text-gray-400">No sellers found</h3>
-                    <p className="mt-1 text-sm text-gray-500">Get started by adding some sellers to your platform.</p>
+                    <p className="mt-1 text-xs sm:text-sm text-gray-500">Get started by adding some sellers to your platform.</p>
                   </div>
                 )}
               </div>
@@ -2095,22 +2142,23 @@ const DeliveryManagerPage = () => {
           {activeTab === 'orders' && (
             <>
               {/* Orders Filter Toggle */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-white">Orders Management</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                <h2 className="text-lg sm:text-xl font-semibold text-white">Orders Management</h2>
                 <button
                   onClick={() => setShowOrderFilters(!showOrderFilters)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
                 >
                   <FiBarChart2 className="w-4 h-4" />
-                  {showOrderFilters ? 'Hide Filters' : 'Show Filters'}
+                  <span className="hidden sm:inline">{showOrderFilters ? 'Hide Filters' : 'Show Filters'}</span>
+                  <span className="sm:hidden">{showOrderFilters ? 'Hide' : 'Filters'}</span>
                 </button>
               </div>
 
               {/* Orders Filter Section */}
               {showOrderFilters && (
-                <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">Filter Orders</h3>
+                <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6 mb-4 sm:mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                    <h3 className="text-base sm:text-lg font-semibold text-white">Filter Orders</h3>
                     <button
                       onClick={() => setOrderFilters({
                         status: 'all',
@@ -2120,32 +2168,32 @@ const DeliveryManagerPage = () => {
                         search: '',
                         paymentStatus: 'all'
                       })}
-                      className="px-3 py-1 text-sm text-gray-400 hover:text-white transition-colors"
+                      className="px-3 py-1 text-xs sm:text-sm text-gray-400 hover:text-white transition-colors self-start sm:self-auto"
                     >
                       Clear All
                     </button>
                   </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
                   {/* Search Filter */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Search</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">Search</label>
                     <input
                       type="text"
                       placeholder="Order ID, Customer, Phone..."
                       value={orderFilters.search}
                       onChange={(e) => setOrderFilters(prev => ({ ...prev, search: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-2 sm:px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     />
                   </div>
                   
                   {/* Status Filter */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">Status</label>
                     <select
                       value={orderFilters.status}
                       onChange={(e) => setOrderFilters(prev => ({ ...prev, status: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-2 sm:px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     >
                       <option value="all">All Status</option>
                       <option value="Pending">Pending</option>
@@ -2158,11 +2206,11 @@ const DeliveryManagerPage = () => {
                   
                   {/* Date Range Filter */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Date Range</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">Date Range</label>
                     <select
                       value={orderFilters.dateRange}
                       onChange={(e) => setOrderFilters(prev => ({ ...prev, dateRange: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-2 sm:px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     >
                       <option value="all">All Time</option>
                       <option value="today">Today</option>
@@ -2174,11 +2222,11 @@ const DeliveryManagerPage = () => {
                   
                   {/* Seller Filter */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Seller</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">Seller</label>
                     <select
                       value={orderFilters.seller}
                       onChange={(e) => setOrderFilters(prev => ({ ...prev, seller: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-2 sm:px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     >
                       <option value="all">All Sellers</option>
                       {sellers.map(seller => (
@@ -2191,11 +2239,11 @@ const DeliveryManagerPage = () => {
                   
                   {/* Amount Range Filter */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Amount Range</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">Amount Range</label>
                     <select
                       value={orderFilters.amountRange}
                       onChange={(e) => setOrderFilters(prev => ({ ...prev, amountRange: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-2 sm:px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     >
                       <option value="all">All Amounts</option>
                       <option value="0-500">₹0 - ₹500</option>
@@ -2207,11 +2255,11 @@ const DeliveryManagerPage = () => {
                   
                   {/* Payment Status Filter */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Payment Status</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">Payment Status</label>
                     <select
                       value={orderFilters.paymentStatus}
                       onChange={(e) => setOrderFilters(prev => ({ ...prev, paymentStatus: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-2 sm:px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     >
                       <option value="all">All Payments</option>
                       <option value="paid">Paid (Has Receipt)</option>
@@ -2317,31 +2365,167 @@ const DeliveryManagerPage = () => {
                     </div>
                     
                     {(() => {
+                      const showOrders = showOrdersForSeller[seller.id] || false;
                       const filteredOrders = getFilteredOrders(seller);
+                      const totalFilteredOrders = seller.recentOrders ? seller.recentOrders.filter(order => {
+                        // Apply the same filtering logic as getFilteredOrders but without the limit
+                        if (orderFilters.status !== 'all' && order.status !== orderFilters.status) return false;
+                        if (orderFilters.dateRange !== 'all') {
+                          const orderDate = new Date(order.createdAt);
+                          const today = new Date();
+                          const yesterday = new Date(today);
+                          yesterday.setDate(yesterday.getDate() - 1);
+                          const lastWeek = new Date(today);
+                          lastWeek.setDate(lastWeek.getDate() - 7);
+                          const lastMonth = new Date(today);
+                          lastMonth.setMonth(lastMonth.getMonth() - 1);
+                          
+                          switch (orderFilters.dateRange) {
+                            case 'today':
+                              if (orderDate.toDateString() !== today.toDateString()) return false;
+                              break;
+                            case 'yesterday':
+                              if (orderDate.toDateString() !== yesterday.toDateString()) return false;
+                              break;
+                            case 'lastWeek':
+                              if (orderDate < lastWeek || orderDate > today) return false;
+                              break;
+                            case 'lastMonth':
+                              if (orderDate < lastMonth || orderDate > today) return false;
+                              break;
+                          }
+                        }
+                        if (orderFilters.seller !== 'all' && seller.id !== orderFilters.seller) return false;
+                        if (orderFilters.amountRange !== 'all') {
+                          const amount = order.totalPrice || 0;
+                          switch (orderFilters.amountRange) {
+                            case '0-500':
+                              if (amount < 0 || amount > 500) return false;
+                              break;
+                            case '500-1000':
+                              if (amount < 500 || amount > 1000) return false;
+                              break;
+                            case '1000-2000':
+                              if (amount < 1000 || amount > 2000) return false;
+                              break;
+                            case '2000+':
+                              if (amount < 2000) return false;
+                              break;
+                          }
+                        }
+                        if (orderFilters.search) {
+                          const searchTerm = orderFilters.search.toLowerCase();
+                          const searchableText = [
+                            order.id,
+                            order.customerName,
+                            order.customerPhone,
+                            order.customerEmail,
+                            order.status,
+                            seller.name,
+                            seller.email
+                          ].join(' ').toLowerCase();
+                          if (!searchableText.includes(searchTerm)) return false;
+                        }
+                        if (orderFilters.paymentStatus !== 'all') {
+                          const hasReceipt = order.paymentReceipt && order.paymentReceipt.length > 0;
+                          if (orderFilters.paymentStatus === 'paid' && !hasReceipt) return false;
+                          if (orderFilters.paymentStatus === 'unpaid' && hasReceipt) return false;
+                        }
+                        return true;
+                      }).length : 0;
+                      const showAll = showAllOrders[seller.id] || false;
+                      const hasMoreOrders = totalFilteredOrders > defaultOrderLimit;
+                      
+                      // If orders table is not shown, display a compact button to show orders
+                      if (!showOrders) {
+                        return (
+                          <div className="text-center py-3">
+                            <div className="flex items-center justify-center gap-3">
+                              <FiShoppingBag className="h-5 w-5 text-gray-400" />
+                              <span className="text-sm text-gray-400">
+                                {totalFilteredOrders > 0 
+                                  ? `${totalFilteredOrders} orders` 
+                                  : 'No orders'
+                                }
+                              </span>
+                              <button
+                                onClick={() => toggleShowOrders(seller.id)}
+                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors flex items-center gap-1"
+                              >
+                                <FiEye className="w-3 h-3" />
+                                Show
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
                       return filteredOrders && filteredOrders.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
+                        <div>
+                          {/* Orders Table Controls */}
+                          <div className="mb-3 flex justify-between items-center">
+                            <div className="text-xs text-gray-400">
+                              {hasMoreOrders ? (
+                                <>Showing {filteredOrders.length} of {totalFilteredOrders}</>
+                              ) : (
+                                <>{filteredOrders.length} orders</>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {/* Hide Orders Button */}
+                              <button
+                                onClick={() => toggleShowOrders(seller.id)}
+                                className="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded transition-colors flex items-center gap-1"
+                              >
+                                <FiEyeOff className="w-3 h-3" />
+                                Hide
+                              </button>
+                              
+                              {/* Show All Orders Button */}
+                              {hasMoreOrders && (
+                                <button
+                                  onClick={() => toggleShowAllOrders(seller.id)}
+                                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors flex items-center gap-1"
+                                >
+                                  {showAll ? (
+                                    <>
+                                      <FiEyeOff className="w-3 h-3" />
+                                      Less
+                                    </>
+                                  ) : (
+                                    <>
+                                      <FiEye className="w-3 h-3" />
+                                      All
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="overflow-x-auto max-w-full">
+                          <table className="w-full min-w-[600px] sm:min-w-[700px] lg:min-w-[800px]">
                             <thead className="bg-gray-700">
                               <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-32">
                                   Order ID
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                  Customer (Name & Phone)
+                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-48">
+                                  Customer
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                  Order Date
+                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-28">
+                                  Date
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">
                                   Amount
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-32">
                                   Status
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                  Payment Receipt
+                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-32">
+                                  Receipt
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-32">
                                   Actions
                                 </th>
                               </tr>
@@ -2350,126 +2534,126 @@ const DeliveryManagerPage = () => {
                               {filteredOrders.map((order) => (
                               <React.Fragment key={order.id}>
                                 <tr className="hover:bg-gray-700 transition-colors">
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                                  <td className="px-3 py-4 text-sm text-white">
                                     <div className="flex items-center gap-2">
                                       <button
                                         onClick={() => handleOrderExpand(order.id)}
-                                        className="text-blue-400 hover:text-blue-300 transition-colors"
+                                        className="text-blue-400 hover:text-blue-300 transition-colors flex-shrink-0"
                                       >
                                         {expandedOrder === order.id ? '▼' : '▶'}
                                       </button>
-                                      <span className="font-mono">#{order.id.slice(-8)}</span>
+                                      <span className="font-mono text-xs truncate">#{order.id.slice(-8)}</span>
                                     </div>
                                   </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-8 w-8">
-                            <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center">
-                              <MdPerson className="text-white text-sm" />
+                                  <td className="px-3 py-4">
+                        <div className="flex items-center min-w-0">
+                          <div className="flex-shrink-0 h-6 w-6">
+                            <div className="h-6 w-6 rounded-full bg-green-500 flex items-center justify-center">
+                              <MdPerson className="text-white text-xs" />
                             </div>
                           </div>
-                          <div className="ml-3">
-                            <div className="text-sm font-medium text-white">
+                          <div className="ml-2 min-w-0 flex-1">
+                            <div className="text-xs font-medium text-white truncate">
                               {order.customerName || 'User'}
                             </div>
-                            <div className="text-sm text-gray-400">
-                              📱 {order.customerPhone || order.customerEmail || 'No contact info'}
+                            <div className="text-xs text-gray-400 truncate">
+                              📱 {order.customerPhone || order.customerEmail || 'No contact'}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                                    {formatDate(order.createdAt)}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-400 font-medium">
-                                    {formatCurrency(order.totalPrice)}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                      order.status === 'Delivered' 
-                                        ? 'bg-green-100 text-green-800'
-                                        : order.status === 'Pending'
-                                        ? 'bg-yellow-100 text-yellow-800'
-                                        : order.status === 'Cancelled'
-                                        ? 'bg-red-100 text-red-800'
-                                        : order.status === 'Payment_Confirmed'
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : order.status === 'Confirmed'
-                                        ? 'bg-purple-100 text-purple-800'
-                                        : 'bg-gray-100 text-gray-800'
-                                    }`}>
-                                      {order.status || 'UNKNOWN'}
-                                    </span>
+                      <td className="px-3 py-4 text-xs text-gray-400">
+                        {formatDate(order.createdAt)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                      <td className="px-3 py-4 text-xs text-green-400 font-medium">
+                        {formatCurrency(order.totalPrice)}
+                      </td>
+                      <td className="px-3 py-4">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          order.status === 'Delivered' 
+                            ? 'bg-green-100 text-green-800'
+                            : order.status === 'Pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : order.status === 'Cancelled'
+                            ? 'bg-red-100 text-red-800'
+                            : order.status === 'Payment_Confirmed'
+                            ? 'bg-blue-100 text-blue-800'
+                            : order.status === 'Confirmed'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {order.status || 'UNKNOWN'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 text-xs text-gray-400">
                         {/* Payment Receipt Column */}
                         {order.paymentReceipts && order.paymentReceipts.length > 0 ? (
-                          <div className="flex flex-col gap-2">
-                            {order.paymentReceipts.map((receipt, index) => (
-                              <div key={receipt.id} className="flex items-center gap-2">
-                                <a
-                                  href={`${import.meta.env.VITE_DEV_API_URL}${receipt.imageUrl || receipt.receiptUrl}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors flex items-center gap-1"
-                                >
-                                  <span>📄</span>
-                                  View Receipt
-                                </a>
-                              </div>
+                          <div className="flex flex-col gap-1">
+                            {order.paymentReceipts.slice(0, 1).map((receipt, index) => (
+                              <a
+                                key={receipt.id}
+                                href={`${import.meta.env.VITE_DEV_API_URL}${receipt.imageUrl || receipt.receiptUrl}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors flex items-center gap-1"
+                              >
+                                <span>📄</span>
+                                View
+                              </a>
                             ))}
+                            {order.paymentReceipts.length > 1 && (
+                              <span className="text-xs text-gray-400">+{order.paymentReceipts.length - 1} more</span>
+                            )}
                           </div>
                         ) : (
-                          <div className="text-gray-500 text-xs">
-                            No Receipt
-                          </div>
+                          <span className="text-gray-500 text-xs">No Receipt</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                                    <div className="flex items-center gap-2">
-                                      {/* Cancel Order Button - Show for orders that can be cancelled */}
-                                      {(order.status === 'Pending' || order.status === 'Payment_Confirmed' || order.status === 'Confirmed') && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (window.confirm(`Are you sure you want to cancel order #${order.id.slice(-8)}?\n\nThis will cancel the entire order and all its delivery items.`)) {
-                                              cancelOrder(order.id);
-                                            }
-                                          }}
-                                          disabled={cancellingOrder === order.id}
-                                          className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                                            cancellingOrder === order.id
-                                              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                              : 'bg-red-600 hover:bg-red-700 text-white'
-                                          }`}
-                                          title="Cancel Entire Order"
-                                        >
-                                          {cancellingOrder === order.id ? (
-                                            <div className="flex items-center gap-1">
-                                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                                              Cancelling...
-                                            </div>
-                                          ) : (
-                                            'Cancel Order'
-                                          )}
-                                        </button>
-                                      )}
-                                      
-                                      {/* View Details Button */}
-                                      <button
-                                        onClick={() => handleOrderExpand(order.id)}
-                                        className="text-blue-400 hover:text-blue-300 transition-colors text-xs"
-                                      >
-                                        {expandedOrder === order.id ? 'Hide Details' : 'View Details'}
-                                      </button>
-                                    </div>
+                      <td className="px-3 py-4 text-xs text-gray-400">
+                        <div className="flex flex-col gap-1">
+                          {/* Cancel Order Button - Show for orders that can be cancelled */}
+                          {(order.status === 'Pending' || order.status === 'Payment_Confirmed' || order.status === 'Confirmed') && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Are you sure you want to cancel order #${order.id.slice(-8)}?\n\nThis will cancel the entire order and all its delivery items.`)) {
+                                  cancelOrder(order.id);
+                                }
+                              }}
+                              disabled={cancellingOrder === order.id}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                cancellingOrder === order.id
+                                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                  : 'bg-red-600 hover:bg-red-700 text-white'
+                              }`}
+                              title="Cancel Entire Order"
+                            >
+                              {cancellingOrder === order.id ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="animate-spin rounded-full h-2 w-2 border-b-2 border-white"></div>
+                                  Cancel...
+                                </div>
+                              ) : (
+                                'Cancel'
+                              )}
+                            </button>
+                          )}
+                          
+                          {/* View Details Button */}
+                          <button
+                            onClick={() => handleOrderExpand(order.id)}
+                            className="text-blue-400 hover:text-blue-300 transition-colors text-xs"
+                          >
+                            {expandedOrder === order.id ? 'Hide' : 'Details'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                                 
                                 {/* Expanded Order Details */}
                                 {expandedOrder === order.id && (
                                   <tr className="bg-gray-700 border-t border-gray-600">
-                                    <td colSpan="7" className="px-6 py-4">
+                                    <td colSpan="7" className="px-3 py-4">
                                       <div className="bg-gray-700 rounded-lg p-4">
                                         <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                                           <FiShoppingBag className="text-blue-400" />
@@ -2695,12 +2879,13 @@ const DeliveryManagerPage = () => {
                               ))}
                             </tbody>
                           </table>
+                          </div>
                         </div>
                       ) : (
-                        <div className="text-center py-12">
-                          <FiShoppingBag className="mx-auto h-12 w-12 text-gray-400" />
+                        <div className="text-center py-8 sm:py-12 px-4">
+                          <FiShoppingBag className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                           <h3 className="mt-2 text-sm font-medium text-gray-400">No orders found</h3>
-                          <p className="mt-1 text-sm text-gray-500">
+                          <p className="mt-1 text-xs sm:text-sm text-gray-500">
                             {Object.values(orderFilters).some(filter => filter !== 'all' && filter !== '') 
                               ? 'No orders match the selected filters.' 
                               : 'This seller hasn\'t placed any orders for users yet.'
@@ -2714,10 +2899,10 @@ const DeliveryManagerPage = () => {
                 })}
 
             {sellers.length === 0 && (
-              <div className="text-center py-12">
-                    <FiShoppingBag className="mx-auto h-12 w-12 text-gray-400" />
+              <div className="text-center py-8 sm:py-12 px-4">
+                    <FiShoppingBag className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-400">No sellers found</h3>
-                    <p className="mt-1 text-sm text-gray-500">Orders will appear here once sellers start placing orders for users.</p>
+                    <p className="mt-1 text-xs sm:text-sm text-gray-500">Orders will appear here once sellers start placing orders for users.</p>
               </div>
             )}
           </div>
@@ -2928,8 +3113,8 @@ const DeliveryManagerPage = () => {
                   <MdStore className="text-gray-400 text-xl" />
                 </div>
                 
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="overflow-x-auto max-w-full">
+                  <table className="w-full min-w-[300px]">
                     <thead className="bg-gray-700">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">

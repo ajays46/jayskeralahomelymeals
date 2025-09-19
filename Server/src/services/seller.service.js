@@ -307,6 +307,50 @@ export const getUserOrders = async (userId, sellerId) => {
   }
 };
 
+// Delete address for a specific user created by a seller
+export const deleteAddressForUser = async (userId, addressId, sellerId) => {
+  try {
+    // First verify that this user was created by the seller
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        createdBy: sellerId
+      }
+    });
+
+    if (!user) {
+      throw new AppError('User not found or not created by this seller', 404);
+    }
+
+    // Check if address exists and belongs to the user
+    const address = await prisma.address.findFirst({
+      where: {
+        id: addressId,
+        userId: userId
+      }
+    });
+
+    if (!address) {
+      throw new AppError('Address not found', 404);
+    }
+
+    // Delete the address
+    await prisma.address.delete({
+      where: {
+        id: addressId
+      }
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Delete address for user service error:', error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to delete address for user', 500);
+  }
+};
+
 // Create address for a specific user created by a seller
 export const createAddressForUser = async (userId, sellerId, addressData) => {
   try {
@@ -330,8 +374,8 @@ export const createAddressForUser = async (userId, sellerId, addressData) => {
         housename: addressData.housename || '',
         city: addressData.city,
         pincode: addressData.pincode,
-        geoLocation: addressData.geoLocation || '',
-        googleMapsUrl: addressData.googleMapsUrl || '',
+        geoLocation: addressData.geoLocation && addressData.geoLocation.trim() !== '' ? addressData.geoLocation : null,
+        googleMapsUrl: addressData.googleMapsUrl && addressData.googleMapsUrl.trim() !== '' ? addressData.googleMapsUrl : null,
         addressType: addressData.addressType || 'HOME'
       }
     });

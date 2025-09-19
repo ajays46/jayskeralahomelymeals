@@ -40,6 +40,8 @@ import useAuthStore from '../stores/Zustand.store';
 import AddressPicker from '../components/AddressPicker';
 import AdminOrderBlockedModal from '../components/AdminOrderBlockedModal';
 import OrderSuccessPopup from '../components/OrderSuccessPopup';
+import Pagination from '../components/Pagination';
+import { SkeletonTable, SkeletonCard } from '../components/Skeleton';
 import { 
   DateSelector, 
   MenuSelector, 
@@ -180,6 +182,10 @@ const BookingWizardPage = () => {
   // Seller user selection state
   const [selectedUserAddresses, setSelectedUserAddresses] = useState([]);
   const [isLoadingUserAddresses, setIsLoadingUserAddresses] = useState(false);
+  
+  // Menu pagination state
+  const [menuCurrentPage, setMenuCurrentPage] = useState(1);
+  const [menuItemsPerPage, setMenuItemsPerPage] = useState(6);
 
 
   // Hooks
@@ -405,6 +411,43 @@ const BookingWizardPage = () => {
     return filteredMenus;
   };
 
+  // Get paginated menu items
+  const getPaginatedMenus = () => {
+    const filteredMenus = getFilteredMenus();
+    const startIndex = (menuCurrentPage - 1) * menuItemsPerPage;
+    const endIndex = startIndex + menuItemsPerPage;
+    return filteredMenus.slice(startIndex, endIndex);
+  };
+
+  // Menu pagination calculations
+  const filteredMenus = getFilteredMenus();
+  const menuTotalItems = filteredMenus.length;
+  const menuTotalPages = Math.ceil(menuTotalItems / menuItemsPerPage);
+
+  // Menu pagination handlers
+  const handleMenuPageChange = (page) => {
+    setMenuCurrentPage(page);
+  };
+
+  const handleMenuItemsPerPageChange = (newItemsPerPage) => {
+    setMenuItemsPerPage(newItemsPerPage);
+    setMenuCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  // Reset menu pagination when filters change
+  React.useEffect(() => {
+    setMenuCurrentPage(1);
+  }, [dietaryPreference, menuCategory]);
+
+  // Adjust items per page based on screen size
+  React.useEffect(() => {
+    if (isMobile) {
+      setMenuItemsPerPage(4); // Show fewer items on mobile
+    } else {
+      setMenuItemsPerPage(6); // Show more items on desktop
+    }
+  }, [isMobile]);
+
   // Screen size detection
   useEffect(() => {
     const checkScreenSize = () => {
@@ -508,7 +551,6 @@ const BookingWizardPage = () => {
         navigate(location.pathname, { replace: true });
         }
       } catch (error) {
-        console.error('Error processing selected user from navigation:', error);
         // Clear the navigation state on error
         navigate(location.pathname, { replace: true });
       }
@@ -553,7 +595,6 @@ const BookingWizardPage = () => {
         // Clear the navigation state to prevent re-loading on refresh
         navigate(location.pathname, { replace: true });
       } catch (error) {
-        console.error('Error loading draft order:', error);
         showErrorToast('Failed to load draft order. Please try again.');
         navigate(location.pathname, { replace: true });
       }
@@ -884,11 +925,9 @@ const BookingWizardPage = () => {
       if (response.data.success) {
         setSelectedUserAddresses(response.data.data || []);
       } else {
-        console.error('Failed to fetch addresses:', response.data.message);
         setSelectedUserAddresses([]);
       }
     } catch (error) {
-      console.error('Error fetching user addresses:', error);
       setSelectedUserAddresses([]);
     } finally {
       setIsLoadingUserAddresses(false);
@@ -911,7 +950,26 @@ const BookingWizardPage = () => {
         throw new Error(response.data.message || 'Failed to create address');
       }
     } catch (error) {
-      console.error('Error creating address for user:', error);
+      throw error;
+    }
+  };
+
+  // Function to delete address for the selected user
+  const deleteAddressForUser = async (addressId) => {
+    if (!selectedUser?.id) {
+      throw new Error('No user selected');
+    }
+    
+    try {
+      const response = await axiosInstance.delete(`/seller/users/${selectedUser.id}/addresses/${addressId}`);
+      
+      if (response.data.success) {
+        await fetchUserAddresses(selectedUser.id);
+        return true;
+      } else {
+        throw new Error(response.data.message || 'Failed to delete address');
+      }
+    } catch (error) {
       throw error;
     }
   };
@@ -921,14 +979,14 @@ const BookingWizardPage = () => {
       case 1:
         return (
           <div className="space-y-4">
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Select Customer</h2>
-              <p className="text-gray-600 text-sm">Choose the customer for this order</p>
+            <div className="text-center mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Select Customer</h2>
+              <p className="text-gray-600 text-xs sm:text-sm">Choose the customer for this order</p>
             </div>
             
             {isSeller ? (
               <div className="max-w-md mx-auto">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Customer Account</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Customer Account</label>
                 <select
                   value={selectedUser?.id || ''}
                   onChange={(e) => {
@@ -940,7 +998,7 @@ const BookingWizardPage = () => {
                       setSelectedUserAddresses([]);
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-h-[44px] sm:min-h-0"
                   disabled={sellerUsersLoading}
                 >
                   <option value="">Select a customer...</option>
@@ -952,18 +1010,18 @@ const BookingWizardPage = () => {
                 </select>
 
                 {selectedUser && (
-                  <div className="mt-3 bg-blue-50 rounded-lg p-3 border border-blue-200">
+                  <div className="mt-3 bg-blue-50 rounded-lg p-2 sm:p-3 border border-blue-200">
                     <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                        <MdPerson className="text-white text-lg" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <MdPerson className="text-white text-sm sm:text-lg" />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-blue-900 text-sm">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-blue-900 text-xs sm:text-sm truncate">
                           {selectedUser.contacts?.[0]?.firstName}
                         </h3>
-                        <p className="text-blue-700 text-sm">{selectedUser.contacts?.[0]?.phoneNumbers?.[0]?.number}</p>
+                        <p className="text-blue-700 text-xs sm:text-sm truncate">{selectedUser.contacts?.[0]?.phoneNumbers?.[0]?.number}</p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <div className={`px-2 py-1 rounded-full text-xs font-semibold ${selectedUserAddresses.length > 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                           {selectedUserAddresses.length} address{selectedUserAddresses.length !== 1 ? 'es' : ''}
                         </div>
@@ -973,10 +1031,10 @@ const BookingWizardPage = () => {
                 )}
               </div>
             ) : (
-              <div className="max-w-md mx-auto bg-gray-50 rounded-lg p-4 text-center">
-                <MdPerson className="text-3xl text-gray-400 mx-auto mb-3" />
-                <h3 className="text-base font-semibold text-gray-700 mb-2">Personal Order</h3>
-                <p className="text-gray-600 text-sm">You're placing an order for yourself</p>
+              <div className="max-w-md mx-auto bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
+                <MdPerson className="text-2xl sm:text-3xl text-gray-400 mx-auto mb-2 sm:mb-3" />
+                <h3 className="text-sm sm:text-base font-semibold text-gray-700 mb-2">Personal Order</h3>
+                <p className="text-gray-600 text-xs sm:text-sm">You're placing an order for yourself</p>
               </div>
             )}
           </div>
@@ -985,22 +1043,22 @@ const BookingWizardPage = () => {
       case 2:
         return (
           <div className="space-y-4">
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Choose Menu Package</h2>
-              <p className="text-gray-600 text-sm">Select the meal plan for your customer</p>
+            <div className="text-center mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Choose Menu Package</h2>
+              <p className="text-gray-600 text-xs sm:text-sm">Select the meal plan for your customer</p>
             </div>
             
             {/* Category and Dietary Preference Filters */}
             <div className="max-w-4xl mx-auto space-y-4">
               {/* Menu Category Tabs */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Menu Category</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Menu Category</label>
                 <div className="flex gap-2 flex-wrap">
                   {['popular', 'premium'].map((category) => (
                     <button
                       key={category}
                       onClick={() => setMenuCategory(category)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                      className={`px-3 sm:px-4 py-2 sm:py-2 rounded-lg font-medium transition-all text-xs sm:text-sm min-h-[44px] sm:min-h-0 ${
                         menuCategory === category
                           ? 'bg-blue-500 text-white shadow-md'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1014,13 +1072,13 @@ const BookingWizardPage = () => {
 
               {/* Dietary Preference Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Dietary Preference</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Dietary Preference</label>
                 <div className="flex gap-2">
                   {['veg', 'non-veg'].map((pref) => (
                     <button
                       key={pref}
                       onClick={() => setDietaryPreference(pref)}
-                      className={`px-3 py-2 rounded-lg font-medium transition-all text-sm ${
+                      className={`px-3 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm min-h-[44px] sm:min-h-0 ${
                         dietaryPreference === pref
                           ? 'bg-green-500 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1035,19 +1093,25 @@ const BookingWizardPage = () => {
 
             {/* Results Counter */}
             <div className="text-center mb-4">
-              <p className="text-sm text-gray-600">
-                Showing {getFilteredMenus().length} menu{getFilteredMenus().length !== 1 ? 's' : ''} in {menuCategory} category ({dietaryPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'})
+              <p className="text-xs sm:text-sm text-gray-600">
+                Showing {menuTotalItems} menu{menuTotalItems !== 1 ? 's' : ''} in {menuCategory} category ({dietaryPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'})
               </p>
             </div>
 
             {/* Menu Grid */}
-            {getFilteredMenus().length === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MdRestaurant className="w-8 h-8 text-gray-400" />
+            {menusLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Array.from({ length: menuItemsPerPage }).map((_, index) => (
+                  <SkeletonCard key={index} />
+                ))}
+              </div>
+            ) : menuTotalItems === 0 ? (
+              <div className="text-center py-6 sm:py-8">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <MdRestaurant className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No menus found</h3>
-                <p className="text-gray-600 text-sm mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No menus found</h3>
+                <p className="text-gray-600 text-xs sm:text-sm mb-4">
                   Try adjusting your filters to see more options
                 </p>
                 <button
@@ -1055,14 +1119,15 @@ const BookingWizardPage = () => {
                     setMenuCategory('popular');
                     setDietaryPreference('veg');
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium min-h-[44px] sm:min-h-0"
                 >
                   Reset to Default
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {getFilteredMenus().map((menu) => {
+              <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {getPaginatedMenus().map((menu) => {
                 const productQuantity = getProductQuantity(menu);
                 const isOutOfStock = productQuantity && productQuantity.quantity === 0;
                 
@@ -1070,7 +1135,7 @@ const BookingWizardPage = () => {
                   <div
                     key={menu.id}
                     onClick={() => !isOutOfStock && handleMenuSelection(menu)}
-                    className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    className={`p-2 sm:p-3 border-2 rounded-lg cursor-pointer transition-all min-h-[120px] sm:min-h-0 ${
                       isOutOfStock
                         ? 'border-red-200 bg-red-50 cursor-not-allowed opacity-60'
                         : selectedMenu?.id === menu.id
@@ -1079,8 +1144,8 @@ const BookingWizardPage = () => {
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-sm">{menu.name}</h3>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 text-xs sm:text-sm break-words">{menu.name}</h3>
                         {/* Category Badge */}
                         {(() => {
                           const menuName = menu.name?.toLowerCase() || '';
@@ -1093,14 +1158,14 @@ const BookingWizardPage = () => {
                         })()}
                       </div>
                       {isOutOfStock && (
-                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full flex-shrink-0">
                           Out of Stock
                         </span>
                       )}
                     </div>
-                    <p className="text-green-600 font-bold text-sm">₹{menu.price}</p>
+                    <p className="text-green-600 font-bold text-sm sm:text-base">₹{menu.price}</p>
                     {menu.categories && (
-                      <div className="text-xs text-gray-600 mt-1">
+                      <div className="text-xs text-gray-600 mt-1 break-words">
                         {menu.categories.map(cat => cat.name).join(', ')}
                       </div>
                     )}
@@ -1113,19 +1178,30 @@ const BookingWizardPage = () => {
                 );
               })}
               </div>
+              
+              {/* Menu Pagination */}
+              {menuTotalItems > 0 && (
+                <div className="mt-4">
+                  <Pagination
+                    currentPage={menuCurrentPage}
+                    totalPages={menuTotalPages}
+                    totalItems={menuTotalItems}
+                    itemsPerPage={menuItemsPerPage}
+                    onPageChange={handleMenuPageChange}
+                    onItemsPerPageChange={handleMenuItemsPerPageChange}
+                    showItemsPerPage={false} // Hide items per page for grid layout
+                    className="justify-center"
+                  />
+                </div>
+              )}
+              </>
             )}
 
-            {menusLoading && (
-              <div className="text-center py-6">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500 mx-auto mb-3"></div>
-                <p className="text-gray-600 text-sm">Loading menus...</p>
-              </div>
-            )}
 
             {menusError && (
-              <div className="text-center py-6">
-                <MdWarning className="text-3xl text-red-500 mx-auto mb-3" />
-                <p className="text-red-600 text-sm">Failed to load menus. Please try again.</p>
+              <div className="text-center py-4 sm:py-6">
+                <MdWarning className="text-2xl sm:text-3xl text-red-500 mx-auto mb-2 sm:mb-3" />
+                <p className="text-red-600 text-xs sm:text-sm">Failed to load menus. Please try again.</p>
               </div>
             )}
           </div>
@@ -1134,32 +1210,32 @@ const BookingWizardPage = () => {
       case 3:
         return (
           <div className="space-y-4">
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Delivery Configuration</h2>
-              <p className="text-gray-600 text-sm">Set delivery addresses and preferences</p>
+            <div className="text-center mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Delivery Configuration</h2>
+              <p className="text-gray-600 text-xs sm:text-sm">Set delivery addresses and preferences</p>
             </div>
             
             <div className="space-y-4">
               {/* Primary Address */}
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 bg-blue-600 rounded-md flex items-center justify-center">
-                      <MdLocationOn className="w-3 h-3 text-white" />
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
+                      <MdLocationOn className="w-2 h-2 sm:w-3 sm:h-3 text-white" />
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900">Primary Delivery Address</label>
+                  <div className="min-w-0 flex-1">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-900">Primary Delivery Address</label>
                     <p className="text-xs text-gray-600">Default address for all meal deliveries</p>
                   </div>
                   </div>
                   {(deliveryLocations.full || deliveryLocationNames.full) && (
                     <button
                       onClick={() => clearDeliveryAddress('full')}
-                      className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
                       title="Clear address"
                     >
                       <MdClear className="w-3 h-3" />
-                      Clear
+                      <span className="hidden sm:inline">Clear</span>
                     </button>
                   )}
                 </div>
@@ -1171,10 +1247,11 @@ const BookingWizardPage = () => {
                     handleDeliveryLocationChange('full', addressId, displayName);
                   }}
                   placeholder="Select primary delivery address..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
+                  className="w-full px-3 py-3 sm:py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm min-h-[44px] sm:min-h-0"
                   mealType="full"
                   addresses={selectedUserAddresses}
                   onAddressCreate={createAddressForUser}
+                  onAddressDelete={deleteAddressForUser}
                   selectedUserId={selectedUser?.id}
                   disabled={isModalOpen}
                 />
@@ -1265,6 +1342,7 @@ const BookingWizardPage = () => {
                         mealType="breakfast"
                         addresses={selectedUserAddresses}
                         onAddressCreate={createAddressForUser}
+                        onAddressDelete={deleteAddressForUser}
                         selectedUserId={selectedUser?.id}
                         disabled={isModalOpen}
                       />
@@ -1319,6 +1397,7 @@ const BookingWizardPage = () => {
                         mealType="lunch"
                         addresses={selectedUserAddresses}
                         onAddressCreate={createAddressForUser}
+                        onAddressDelete={deleteAddressForUser}
                         selectedUserId={selectedUser?.id}
                         disabled={isModalOpen}
                       />
@@ -1373,6 +1452,7 @@ const BookingWizardPage = () => {
                         mealType="dinner"
                         addresses={selectedUserAddresses}
                         onAddressCreate={createAddressForUser}
+                        onAddressDelete={deleteAddressForUser}
                         selectedUserId={selectedUser?.id}
                         disabled={isModalOpen}
                       />
@@ -1387,21 +1467,21 @@ const BookingWizardPage = () => {
       case 4:
         return (
           <div className="space-y-4">
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Schedule & Save Order</h2>
-              <p className="text-gray-600 text-sm">Select delivery dates and confirm order</p>
+            <div className="text-center mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Schedule & Save Order</h2>
+              <p className="text-gray-600 text-xs sm:text-sm">Select delivery dates and confirm order</p>
             </div>
             
             {/* Date Selection Header */}
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                    <MdSchedule className="w-4 h-4 text-white" />
+            <div className="bg-blue-50 rounded-lg p-2 sm:p-3 border border-blue-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <MdSchedule className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-blue-900 text-sm">Select Delivery Dates</h3>
-                    <p className="text-xs text-blue-700">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-blue-900 text-xs sm:text-sm">Select Delivery Dates</h3>
+                    <p className="text-xs text-blue-700 break-words">
                       {selectedMenu && getAutoSelectionDays(selectedMenu) > 0 
                         ? (() => {
                             const days = getAutoSelectionDays(selectedMenu);
@@ -1423,11 +1503,12 @@ const BookingWizardPage = () => {
                 {selectedDates.length > 0 && (
                   <button
                     onClick={() => setSelectedDates([])}
-                    className="flex items-center gap-1 px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                    className="flex items-center gap-1 px-2 sm:px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors self-start sm:self-auto min-h-[44px] sm:min-h-0"
                     title="Clear all selected dates"
                   >
                     <MdClear className="w-3 h-3" />
-                    Clear Dates
+                    <span className="hidden sm:inline">Clear Dates</span>
+                    <span className="sm:hidden">Clear</span>
                   </button>
                 )}
               </div>
@@ -1782,7 +1863,6 @@ const BookingWizardPage = () => {
 
       // Ensure userId is always set
       if (!orderData.userId) {
-        console.error('BookingWizardPage - userId is missing from orderData');
         showErrorToast('User ID is missing. Please try logging in again.');
         return;
       }
@@ -1817,8 +1897,6 @@ const BookingWizardPage = () => {
       });
 
     } catch (error) {
-      console.error('Error creating order:', error);
-      
       // Check if it's an admin order blocking error
       if (handleOrderError(error)) {
         return;
@@ -1838,13 +1916,13 @@ const BookingWizardPage = () => {
       <div className="max-w-7xl mx-auto px-3 py-4 pt-8">
         {/* Professional Header */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 mb-4">
-          <div className="px-4 py-3 border-b border-slate-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-semibold text-slate-800">Create Customer Order</h1>
-                <p className="text-slate-600 mt-1 text-sm">Set up a new order for your customer</p>
+          <div className="px-3 sm:px-4 py-3 border-b border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-xl font-semibold text-slate-800">Create Customer Order</h1>
+                <p className="text-slate-600 mt-1 text-xs sm:text-sm">Set up a new order for your customer</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {currentStep >= 3 && (
                   <button
                     onClick={() => {
@@ -1856,26 +1934,29 @@ const BookingWizardPage = () => {
                       setIsModalOpen(true);
                       setShowCancelConfirm(true);
                     }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-2 shadow-sm"
+                    className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
                   >
-                    <MdClear className="w-4 h-4" />
-                    Cancel Order
+                    <MdClear className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Cancel Order</span>
+                    <span className="sm:hidden">Cancel</span>
                   </button>
                 )}
                 <button
                   onClick={() => navigate('/jkhm/seller')}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium flex items-center gap-2 shadow-sm"
+                  className="px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
                 >
-                  <MdDashboard className="w-4 h-4" />
-                  Dashboard
+                  <MdDashboard className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Dashboard</span>
+                  <span className="sm:hidden">Home</span>
                 </button>
                 {isSeller && (
                   <button
                     onClick={() => navigate('/jkhm/seller/customers')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2 shadow-sm"
+                    className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
                   >
-                    <MdPeople className="w-4 h-4" />
-                    Customer List
+                    <MdPeople className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Customer List</span>
+                    <span className="sm:hidden">Customers</span>
                   </button>
                 )}
               </div>
@@ -1883,24 +1964,24 @@ const BookingWizardPage = () => {
           </div>
           
           {/* Professional Step Progress */}
-          <div className="px-4 py-3">
+          <div className="px-3 sm:px-4 py-3">
             <div className="flex items-center justify-between">
               {steps.map((step, index) => (
                 <div key={step.id} className="flex items-center flex-1">
                   <div className="flex items-center">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-200 ${
+                    <div className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 transition-all duration-200 ${
                       currentStep >= step.id
                         ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
                         : 'bg-white border-slate-300 text-slate-400'
                     }`}>
                       {currentStep > step.id ? (
-                        <MdCheckCircle className="text-sm" />
+                        <MdCheckCircle className="text-xs sm:text-sm" />
                       ) : (
-                        <step.icon className="text-sm" />
+                        <step.icon className="text-xs sm:text-sm" />
                       )}
                     </div>
                     
-                    <div className="ml-2 hidden sm:block">
+                    <div className="ml-1 sm:ml-2 hidden md:block">
                       <div className={`text-xs font-medium transition-colors ${
                         currentStep >= step.id ? 'text-slate-800' : 'text-slate-500'
                       }`}>
@@ -1910,112 +1991,129 @@ const BookingWizardPage = () => {
                   </div>
                   
                   {index < steps.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-2 transition-colors ${
+                    <div className={`flex-1 h-0.5 mx-1 sm:mx-2 transition-colors ${
                       currentStep > step.id ? 'bg-blue-600' : 'bg-slate-200'
                     }`} />
                   )}
                 </div>
               ))}
             </div>
+            
+            {/* Mobile Step Title */}
+            <div className="mt-2 md:hidden">
+              <div className={`text-xs font-medium text-center transition-colors ${
+                currentStep >= 1 ? 'text-slate-800' : 'text-slate-500'
+              }`}>
+                {steps[currentStep - 1]?.title}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* Left Column - Wizard Content */}
-          <div className="xl:col-span-3">
+          <div className="lg:col-span-3">
             <div className="bg-white rounded-lg shadow-sm border border-slate-200">
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 {renderStepContent()}
               </div>
               
               {/* Professional Navigation */}
-              <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 rounded-b-lg">
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    onClick={prevStep}
-                    disabled={currentStep === 1}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                      currentStep === 1
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                        : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400'
-                    }`}
-                  >
-                    <MdArrowBack className="mr-1" />
-                    Previous
-                  </button>
-                  
-                  <div className="text-xs text-slate-500 px-3">
-                    Step {currentStep} of {steps.length}
-                  </div>
-                  
-                  {currentStep < steps.length ? (
+              <div className="px-3 sm:px-4 py-3 bg-slate-50 border-t border-slate-200 rounded-b-lg">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
-                      onClick={nextStep}
-                      disabled={!canProceed()}
-                      className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                        !canProceed()
+                      onClick={prevStep}
+                      disabled={currentStep === 1}
+                      className={`flex items-center justify-center px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
+                        currentStep === 1
                           ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                          : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400'
                       }`}
                     >
-                      Next
-                      <MdArrowForward className="ml-1" />
+                      <MdArrowBack className="mr-1 text-sm sm:text-base" />
+                      <span className="hidden sm:inline">Previous</span>
+                      <span className="sm:hidden">Prev</span>
                     </button>
-                  ) : (
-                    <div className="flex gap-2">
-                      {/* Save as Draft Button - Only for sellers */}
-                      {isSeller && (
+                    
+                    <div className="text-xs text-slate-500 px-2 sm:px-3 whitespace-nowrap">
+                      Step {currentStep} of {steps.length}
+                    </div>
+                    
+                    {currentStep < steps.length ? (
+                      <button
+                        onClick={nextStep}
+                        disabled={!canProceed()}
+                        className={`flex items-center justify-center px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
+                          !canProceed()
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                        }`}
+                      >
+                        <span className="hidden sm:inline">Next</span>
+                        <span className="sm:hidden">Next</span>
+                        <MdArrowForward className="ml-1 text-sm sm:text-base" />
+                      </button>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        {/* Save as Draft Button - Only for sellers */}
+                        {isSeller && (
+                          <button
+                            onClick={saveDraftOrder}
+                            disabled={!selectedUser || !selectedMenu || selectedDates.length === 0}
+                            className={`flex items-center justify-center px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
+                              !selectedUser || !selectedMenu || selectedDates.length === 0
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-orange-600 text-white hover:bg-orange-700 shadow-sm'
+                            }`}
+                          >
+                            <MdEdit className="mr-1 text-sm sm:text-base" />
+                            <span className="hidden sm:inline">{isDraftMode ? 'Update Draft' : 'Save as Draft'}</span>
+                            <span className="sm:hidden">{isDraftMode ? 'Update' : 'Draft'}</span>
+                          </button>
+                        )}
+                        
+                        {/* Save Order Button */}
                         <button
-                          onClick={saveDraftOrder}
-                          disabled={!selectedUser || !selectedMenu || selectedDates.length === 0}
-                          className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                            !selectedUser || !selectedMenu || selectedDates.length === 0
+                          onClick={handleSaveOrder}
+                          disabled={!canProceed() || isCreating}
+                          className={`flex items-center justify-center px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
+                            !canProceed() || isCreating
                               ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : 'bg-orange-600 text-white hover:bg-orange-700 shadow-sm'
+                              : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
                           }`}
                         >
-                          <MdEdit className="mr-1" />
-                          {isDraftMode ? 'Update Draft' : 'Save as Draft'}
+                          {isCreating ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-1 sm:mr-2"></div>
+                              <span className="text-xs sm:text-sm">Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="hidden sm:inline">Save Order</span>
+                              <span className="sm:hidden">Save</span>
+                            </>
+                          )}
                         </button>
-                      )}
-                      
-                      {/* Save Order Button */}
-                    <button
-                      onClick={handleSaveOrder}
-                      disabled={!canProceed() || isCreating}
-                        className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                        !canProceed() || isCreating
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
-                      }`}
-                    >
-                      {isCreating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Saving...
-                        </>
-                      ) : (
-                        'Save Order'
-                      )}
-                    </button>
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Right Column - Professional Summary */}
-          <div className="xl:col-span-1">
+          <div className="lg:col-span-1">
             <div className="sticky top-4 space-y-4">
 
               <div className="bg-white rounded-lg shadow-sm border border-slate-200">
                 <div className="px-3 py-2 border-b border-slate-200">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-slate-800">Order Summary</h3>
+                    <h3 className="text-sm sm:text-base font-semibold text-slate-800">Order Summary</h3>
                     {isDraftMode && (
                       <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
-                        Draft Mode
+                        Draft
                       </span>
                     )}
                   </div>
@@ -2023,9 +2121,9 @@ const BookingWizardPage = () => {
                 
                 <div className="p-3 space-y-3">
                   {selectedUser && (
-                   <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                     <div className="text-sm font-medium text-blue-900 mb-1">Customer</div>
-                     <div className="text-blue-700">
+                   <div className="mb-4 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                     <div className="text-xs sm:text-sm font-medium text-blue-900 mb-1">Customer</div>
+                     <div className="text-blue-700 text-sm">
                        {selectedUser.contacts?.[0]?.firstName}
                      </div>
                      <div className="text-blue-600 text-xs mt-1">
@@ -2035,15 +2133,15 @@ const BookingWizardPage = () => {
                  )}
                  
                  {selectedMenu && (
-                   <div className="mb-4 p-3 bg-green-50 rounded-lg">
-                     <div className="text-sm font-medium text-green-900 mb-1">Menu Package</div>
-                     <div className="text-green-700 font-semibold text-sm">{selectedMenu.name}</div>
+                   <div className="mb-4 p-2 sm:p-3 bg-green-50 rounded-lg">
+                     <div className="text-xs sm:text-sm font-medium text-green-900 mb-1">Menu Package</div>
+                     <div className="text-green-700 font-semibold text-xs sm:text-sm break-words">{selectedMenu.name}</div>
                      {selectedMenu.categories && (
                        <div className="text-green-600 text-xs mt-1">
                          {selectedMenu.categories.map(cat => cat.name).join(', ')}
                        </div>
                      )}
-                     <div className="text-green-600 font-bold mt-2">₹{selectedMenu.price}</div>
+                     <div className="text-green-600 font-bold mt-2 text-sm sm:text-base">₹{selectedMenu.price}</div>
                      {selectedMenu.isDailyRateItem && (
                        <div className="text-green-600 text-xs mt-1">Daily Rate Item</div>
                      )}
@@ -2054,27 +2152,27 @@ const BookingWizardPage = () => {
                  )}
                  
                  {(deliveryLocations.full || deliveryLocations.breakfast || deliveryLocations.lunch || deliveryLocations.dinner) && (
-                   <div className="mb-4 p-3 bg-purple-50 rounded-lg">
-                     <div className="text-sm font-medium text-purple-900 mb-1">
+                   <div className="mb-4 p-2 sm:p-3 bg-purple-50 rounded-lg">
+                     <div className="text-xs sm:text-sm font-medium text-purple-900 mb-1">
                        {selectedMenu && selectedMenu.isDailyRateItem ? 'Meal Delivery Addresses' : 'Delivery Addresses'}
                      </div>
                      {deliveryLocations.full && (
-                       <div className="text-purple-700 text-xs mb-1">
+                       <div className="text-purple-700 text-xs mb-1 break-words">
                          <span className="font-medium">Primary:</span> {deliveryLocationNames.full || 'Selected'}
                        </div>
                      )}
                      {deliveryLocations.breakfast && (
-                       <div className="text-purple-700 text-xs mb-1">
+                       <div className="text-purple-700 text-xs mb-1 break-words">
                          <span className="font-medium">Breakfast:</span> {deliveryLocationNames.breakfast || 'Selected'}
                        </div>
                      )}
                      {deliveryLocations.lunch && (
-                       <div className="text-purple-700 text-xs mb-1">
+                       <div className="text-purple-700 text-xs mb-1 break-words">
                          <span className="font-medium">Lunch:</span> {deliveryLocationNames.lunch || 'Selected'}
                        </div>
                      )}
                      {deliveryLocations.dinner && (
-                       <div className="text-purple-700 text-xs">
+                       <div className="text-purple-700 text-xs break-words">
                          <span className="font-medium">Dinner:</span> {deliveryLocationNames.dinner || 'Selected'}
                        </div>
                      )}
@@ -2087,9 +2185,9 @@ const BookingWizardPage = () => {
                  )}
                  
                  {selectedDates.length > 0 && (
-                   <div className="mb-4 p-3 bg-indigo-50 rounded-lg">
-                     <div className="text-sm font-medium text-indigo-900 mb-1">Delivery Schedule</div>
-                     <div className="text-indigo-700 text-sm">
+                   <div className="mb-4 p-2 sm:p-3 bg-indigo-50 rounded-lg">
+                     <div className="text-xs sm:text-sm font-medium text-indigo-900 mb-1">Delivery Schedule</div>
+                     <div className="text-indigo-700 text-xs sm:text-sm">
                        {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''} selected
                      </div>
                      {selectedDates.length > 0 && (
@@ -2120,8 +2218,8 @@ const BookingWizardPage = () => {
                  )}
 
                  {Object.keys(skipMeals).length > 0 && (
-                   <div className="mb-4 p-3 bg-orange-50 rounded-lg">
-                     <div className="text-sm font-medium text-orange-900 mb-1">Skipped Meals</div>
+                   <div className="mb-4 p-2 sm:p-3 bg-orange-50 rounded-lg">
+                     <div className="text-xs sm:text-sm font-medium text-orange-900 mb-1">Skipped Meals</div>
                      <div className="space-y-1">
                        {Object.entries(skipMeals).map(([dateStr, meals]) => {
                          const date = new Date(dateStr);
@@ -2143,19 +2241,19 @@ const BookingWizardPage = () => {
                  )}
                  
                  {selectedMenu && (
-                   <div className="pt-4 border-t border-gray-200">
+                   <div className="pt-3 sm:pt-4 border-t border-gray-200">
                      <div className="space-y-2">
                        <div className="flex justify-between items-center">
-                         <span className="text-sm text-gray-600">Items:</span>
-                         <span className="text-sm font-medium text-gray-900">{getTotalItems()}</span>
+                         <span className="text-xs sm:text-sm text-gray-600">Items:</span>
+                         <span className="text-xs sm:text-sm font-medium text-gray-900">{getTotalItems()}</span>
                        </div>
                        <div className="flex justify-between items-center">
-                         <span className="text-sm text-gray-600">Days:</span>
-                         <span className="text-sm font-medium text-gray-900">{selectedDates.length}</span>
+                         <span className="text-xs sm:text-sm text-gray-600">Days:</span>
+                         <span className="text-xs sm:text-sm font-medium text-gray-900">{selectedDates.length}</span>
                        </div>
                        <div className="flex justify-between items-center">
-                         <span className="text-lg font-semibold text-gray-900">Total:</span>
-                         <span className="text-2xl font-bold text-blue-600">₹{getTotalPrice()}</span>
+                         <span className="text-sm sm:text-lg font-semibold text-gray-900">Total:</span>
+                         <span className="text-lg sm:text-2xl font-bold text-blue-600">₹{getTotalPrice()}</span>
                        </div>
                      </div>
                    </div>
@@ -2170,11 +2268,11 @@ const BookingWizardPage = () => {
       {/* Menu Selection Popup */}
       <Modal
         title={
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-              <MdCheckCircle className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-600 rounded-lg flex items-center justify-center">
+              <MdCheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <span className="text-lg font-semibold text-gray-900">Menu Package Selected</span>
+            <span className="text-base sm:text-lg font-semibold text-gray-900">Menu Package Selected</span>
           </div>
         }
         open={showMenuPopup}
@@ -2183,18 +2281,18 @@ const BookingWizardPage = () => {
           <button
             key="ok"
             onClick={() => setShowMenuPopup(false)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all duration-200 font-medium"
+            className="px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all duration-200 font-medium text-sm sm:text-base min-h-[44px] sm:min-h-0 w-full sm:w-auto"
           >
             Continue
           </button>
         ]}
-        width="90%"
+        width="95%"
         style={{ 
           maxWidth: '400px',
-          top: '10%'
+          top: '5%'
         }}
         styles={{
-          body: { textAlign: 'center', padding: '24px' }
+          body: { textAlign: 'center', padding: '16px 20px' }
         }}
         maskClosable={true}
         closable={true}
@@ -2202,11 +2300,11 @@ const BookingWizardPage = () => {
         wrapClassName="menu-selection-modal"
       >
         <div className="text-center">
-          <div className="mb-4">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <MdCheckCircle className="w-8 h-8 text-green-600" />
+          <div className="mb-3 sm:mb-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <MdCheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
             </div>
-            <p className="text-gray-700 text-base leading-relaxed">{menuPopupMessage}</p>
+            <p className="text-gray-700 text-sm sm:text-base leading-relaxed">{menuPopupMessage}</p>
           </div>
         </div>
       </Modal>
@@ -2248,6 +2346,14 @@ const BookingWizardPage = () => {
         maskClosable={false}
         keyboard={false}
         destroyOnClose={true}
+        width="95%"
+        style={{ 
+          maxWidth: '400px',
+          top: '10%'
+        }}
+        styles={{
+          body: { padding: '16px 20px' }
+        }}
         afterClose={() => {
           setIsModalOpen(false);
           // Prevent any form validation from triggering
@@ -2257,7 +2363,7 @@ const BookingWizardPage = () => {
           }
         }}
       >
-        <p>Are you sure you want to cancel this order? This action cannot be undone and all order data will be lost.</p>
+        <p className="text-sm sm:text-base">Are you sure you want to cancel this order? This action cannot be undone and all order data will be lost.</p>
       </Modal>
     </div>
   );

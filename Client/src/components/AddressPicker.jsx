@@ -32,6 +32,7 @@ const AddressPicker = ({
   mealType = "general", // breakfast, lunch, dinner, or general
   addresses = null, // Optional: override default addresses (for seller-selected users)
   onAddressCreate = null, // Optional: callback for creating addresses for seller-selected users
+  onAddressDelete = null, // Optional: callback for deleting addresses for seller-selected users
   selectedUserId = null, // Optional: ID of the user for whom we're managing addresses
   disabled = false // Optional: disable the input
 }) => {
@@ -63,6 +64,7 @@ const AddressPicker = ({
     createAddress, 
     updateAddress,
     deleteAddress,
+    refetchAddresses,
     clearError,
     isCreating,
     isUpdating,
@@ -73,6 +75,7 @@ const AddressPicker = ({
   const addressesToUse = addresses || userAddresses;
   const isLoadingAddressesForDisplay = addresses ? false : isLoadingAddresses;
   const addressErrorForDisplay = addresses ? null : addressError;
+
 
   // Form state for adding/editing address
   const [addressForm, setAddressForm] = useState({
@@ -341,39 +344,51 @@ const AddressPicker = ({
     }
   };
 
-  // Handle address deletion
-  const handleDeleteAddress = async () => {
-    // If addresses are provided externally (seller-selected user), show message
-    if (addresses) {
-      showInfoToast('Address management is handled by the seller for this user');
-      setDeleteModal({ isOpen: false, addressId: null, addressName: '' });
-      return;
-    }
-    
-    try {
-      const success = await deleteAddress(deleteModal.addressId);
-      if (success) {
-        showSuccessToast('Address deleted successfully!');
-        setDeleteModal({ isOpen: false, addressId: null, addressName: '' });
-      }
-    } catch (error) {
-      console.error('Error deleting address:', error);
-    }
+  // Handle address deletion - opens confirmation modal
+  const handleDeleteAddress = (addressId, addressName) => {
+    // Open confirmation modal (removed the seller-managed address restriction)
+    setDeleteModal({
+      isOpen: true,
+      addressId: addressId,
+      addressName: addressName
+    });
   };
 
   const confirmDelete = async () => {
-    // If addresses are provided externally (seller-selected user), show message
-    if (addresses) {
-      showInfoToast('Address management is handled by the seller for this user');
-      closeDeleteModal();
-      return;
-    }
-    
     try {
-      await deleteAddress(deleteModal.addressId);
+      let success = false;
       
-      // Show success toast
-      showSuccessToast('Address deleted successfully!');
+      if (addresses && onAddressDelete) {
+        // For seller-provided addresses, use the callback
+        success = await onAddressDelete(deleteModal.addressId);
+      } else {
+        // For user addresses, use the hook
+        success = await deleteAddress(deleteModal.addressId);
+      }
+      
+      if (success) {
+        // Show success toast
+        showSuccessToast('Address deleted successfully!');
+        
+        // Clear the selected address if it was the one being deleted
+        if (selectedAddress && selectedAddress.id === deleteModal.addressId) {
+          setSelectedAddress(null);
+          // Clear the form value
+          onChange({ target: { value: '', displayName: '' } });
+        }
+        
+        // Manually refetch addresses to ensure immediate update
+        if (!addresses) {
+          // Only refetch if we're using user addresses (not seller-provided addresses)
+          await refetchAddresses();
+        }
+        
+        // Close modal
+        closeDeleteModal();
+        
+        // Close the dropdown to refresh the view
+        setShowDropdown(false);
+      }
     } catch (error) {
       console.error('Error deleting address:', error);
       

@@ -984,9 +984,9 @@ const PaymentWizardPage = () => {
       case 1:
         return (
           <div className="space-y-4">
-            <div className="text-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Select Payment Method</h2>
-              <p className="text-gray-600 text-sm">Choose your preferred payment method</p>
+            <div className="text-center mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Select Payment Method</h2>
+              <p className="text-gray-600 text-xs sm:text-sm">Choose your preferred payment method</p>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1000,50 +1000,50 @@ const PaymentWizardPage = () => {
                       <div key={method.id}>
                         <button
                           onClick={() => setPaymentMethod(method.id)}
-                          className={`w-full p-3 border-2 rounded-lg transition-all text-left ${
+                          className={`w-full p-2 sm:p-3 border-2 rounded-lg transition-all text-left min-h-[60px] sm:min-h-0 ${
                             paymentMethod === method.id
                               ? 'border-blue-500 bg-blue-50 shadow-sm'
                               : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                               paymentMethod === method.id ? 'bg-blue-600' : 'bg-gray-600'
                             }`}>
-                              <IconComponent className="text-white text-lg" />
+                              <IconComponent className="text-white text-sm sm:text-lg" />
                             </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-slate-800 text-sm">{method.name}</h3>
-                              <p className="text-xs text-slate-600">{method.description}</p>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-slate-800 text-xs sm:text-sm break-words">{method.name}</h3>
+                              <p className="text-xs text-slate-600 break-words">{method.description}</p>
                             </div>
                             {paymentMethod === method.id && (
-                              <MdCheckCircle className="text-blue-600 text-lg" />
+                              <MdCheckCircle className="text-blue-600 text-sm sm:text-lg flex-shrink-0" />
                             )}
                           </div>
                         </button>
                         
                         {/* UPI Payment Details - Show below UPI button */}
                         {method.id === 'UPI' && paymentMethod === 'UPI' && (
-                          <div className="mt-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 shadow-sm">
+                          <div className="mt-3 p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 shadow-sm">
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
-                                <MdPhoneAndroid className="w-4 h-4 text-purple-600" />
+                              <h4 className="font-semibold text-gray-900 text-xs sm:text-sm flex items-center gap-2">
+                                <MdPhoneAndroid className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
                                 UPI Payment Details
                               </h4>
                               <button
                                 onClick={() => setShowUpiId(!showUpiId)}
-                                className="text-gray-600 hover:text-gray-800 transition-colors"
+                                className="text-gray-600 hover:text-gray-800 transition-colors p-1"
                               >
                                 {showUpiId ? <MdVisibilityOff className="w-4 h-4" /> : <MdVisibility className="w-4 h-4" />}
                               </button>
                             </div>
                             
                             {/* Phone Number Section */}
-                            <div className="bg-white rounded-lg p-3 border border-gray-200 mb-3 shadow-sm">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
+                            <div className="bg-white rounded-lg p-2 sm:p-3 border border-gray-200 mb-3 shadow-sm">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex-1 min-w-0">
                                   <div className="text-xs text-gray-600 mb-1">Phone Number:</div>
-                                  <div className="font-semibold text-gray-900 text-base">
+                                  <div className="font-semibold text-gray-900 text-sm sm:text-base break-words">
                                     {upiPhoneNumber}
                                   </div>
                                 </div>
@@ -1056,7 +1056,7 @@ const PaymentWizardPage = () => {
                                       showErrorToast('Failed to copy phone number');
                                     }
                                   }}
-                                  className="px-3 py-1.5 bg-green-100 text-green-800 rounded-md text-xs font-medium hover:bg-green-200 transition-all"
+                                  className="px-2 sm:px-3 py-1.5 bg-green-100 text-green-800 rounded-md text-xs font-medium hover:bg-green-200 transition-all min-h-[44px] sm:min-h-0 flex items-center justify-center"
                                 >
                                   <MdContentCopy className="w-3 h-3 inline mr-1" />
                                   Copy
@@ -1065,17 +1065,17 @@ const PaymentWizardPage = () => {
                             </div>
 
                             {/* UPI ID Section - Optional */}
-                            <div className="bg-white rounded-lg p-3 border border-gray-200 mb-3 shadow-sm">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
+                            <div className="bg-white rounded-lg p-2 sm:p-3 border border-gray-200 mb-3 shadow-sm">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex-1 min-w-0">
                                   <div className="text-xs text-gray-600 mb-1">UPI ID (Optional):</div>
-                                  <div className="font-mono text-base font-semibold text-gray-900">
+                                  <div className="font-mono text-sm sm:text-base font-semibold text-gray-900 break-words">
                                     {showUpiId ? upiId : '••••••••@••••••'}
                                   </div>
                                 </div>
                                 <button
                                   onClick={handleCopyUpiId}
-                                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                                  className={`px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all min-h-[44px] sm:min-h-0 flex items-center justify-center ${
                                     upiIdCopied
                                       ? 'bg-green-100 text-green-800'
                                       : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
@@ -1100,20 +1100,20 @@ const PaymentWizardPage = () => {
                             <div className="text-xs text-gray-600 space-y-2">
                               <div className="font-medium text-gray-800 mb-2">Payment Instructions:</div>
                               <div className="flex items-start gap-2">
-                                <span className="text-purple-600 mt-0.5 font-bold">•</span>
-                                <span>Use any UPI app (Google Pay, PhonePe, Paytm, BHIM)</span>
+                                <span className="text-purple-600 mt-0.5 font-bold flex-shrink-0">•</span>
+                                <span className="break-words">Use any UPI app (Google Pay, PhonePe, Paytm, BHIM)</span>
                               </div>
                               <div className="flex items-start gap-2">
-                                <span className="text-purple-600 mt-0.5 font-bold">•</span>
-                                <span>Enter the exact amount: <span className="font-semibold text-gray-900">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span></span>
+                                <span className="text-purple-600 mt-0.5 font-bold flex-shrink-0">•</span>
+                                <span className="break-words">Enter the exact amount: <span className="font-semibold text-gray-900">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span></span>
                               </div>
                               <div className="flex items-start gap-2">
-                                <span className="text-purple-600 mt-0.5 font-bold">•</span>
-                                <span>Use the phone number above to send payment (UPI ID is optional)</span>
+                                <span className="text-purple-600 mt-0.5 font-bold flex-shrink-0">•</span>
+                                <span className="break-words">Use the phone number above to send payment (UPI ID is optional)</span>
                               </div>
                               <div className="flex items-start gap-2">
-                                <span className="text-purple-600 mt-0.5 font-bold">•</span>
-                                <span>Complete the payment and upload the receipt below</span>
+                                <span className="text-purple-600 mt-0.5 font-bold flex-shrink-0">•</span>
+                                <span className="break-words">Complete the payment and upload the receipt below</span>
                               </div>
                             </div>
                           </div>
@@ -1141,21 +1141,21 @@ const PaymentWizardPage = () => {
                         )}
                       </div>
                       <div className="space-y-2 text-xs">
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Customer Name:</span>
-                          <span className="font-medium text-gray-900">{getCustomerName()}</span>
+                          <span className="font-medium text-gray-900 break-words">{getCustomerName()}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Menu Package:</span>
-                          <span className="font-medium text-gray-900">{orderDetails?.menuName || order?.menuName}</span>
+                          <span className="font-medium text-gray-900 break-words">{orderDetails?.menuName || order?.menuName}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Order Date:</span>
-                          <span className="font-medium text-gray-900">{formatDate(orderDetails?.orderDate || order?.orderDate)}</span>
+                          <span className="font-medium text-gray-900 break-words">{formatDate(orderDetails?.orderDate || order?.orderDate)}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Delivery Days:</span>
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 break-words">
                                                     {`${orderDetails?.selectedDates?.length || order?.selectedDates?.length || 0} day(s)`}
                           </span>
                         </div>
@@ -1164,20 +1164,20 @@ const PaymentWizardPage = () => {
 
                     {/* Payment Summary */}
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 text-sm mb-3">Payment Summary</h4>
+                      <h4 className="font-semibold text-gray-900 text-xs sm:text-sm mb-3">Payment Summary</h4>
                       <div className="space-y-2 text-xs">
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Order Amount:</span>
-                          <span className="font-medium text-gray-900">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span>
+                          <span className="font-medium text-gray-900 break-words">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Delivery Fee:</span>
                           <span className="font-medium text-green-600">Free</span>
                         </div>
                         <div className="border-t border-gray-200 pt-2 mt-2">
-                          <div className="flex justify-between items-center">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                             <span className="text-gray-900 font-semibold">Total Amount:</span>
-                            <span className="text-gray-900 text-base font-bold">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span>
+                            <span className="text-gray-900 text-sm sm:text-base font-bold">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span>
                           </div>
                         </div>
                       </div>
@@ -1186,8 +1186,8 @@ const PaymentWizardPage = () => {
                     {/* Delivery Address */}
                     {(orderDetails?.deliveryAddress || order?.deliveryAddress) && (
                       <div className="bg-white rounded-lg p-3 border border-gray-200">
-                        <h4 className="font-semibold text-gray-900 text-sm mb-2">Delivery Address</h4>
-                        <div className="text-xs text-gray-600">
+                        <h4 className="font-semibold text-gray-900 text-xs sm:text-sm mb-2">Delivery Address</h4>
+                        <div className="text-xs text-gray-600 break-words">
                           {orderDetails?.deliveryAddress?.housename && `${orderDetails.deliveryAddress.housename}, `}
                           {orderDetails?.deliveryAddress?.street || order?.deliveryAddress?.street}
                           <br />
@@ -1208,11 +1208,11 @@ const PaymentWizardPage = () => {
              case 2:
          return (
            <div className="space-y-3">
-             <div className="text-center mb-3">
-               <h2 className="text-lg font-bold text-gray-900 mb-1">
+             <div className="text-center mb-4 sm:mb-6">
+               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
                  {location.state?.goToReceiptUpload ? 'Upload Payment Receipt' : 'Confirm Payment'}
                </h2>
-               <p className="text-gray-600 text-sm">
+               <p className="text-gray-600 text-xs sm:text-sm">
                  {location.state?.goToReceiptUpload 
                    ? 'Upload your payment receipt to complete the order' 
                    : 'Upload proof of your payment and review order details'
@@ -1229,7 +1229,7 @@ const PaymentWizardPage = () => {
                 
                 {/* File Upload Area */}
                 <div 
-                  className={`border-2 border-dashed rounded-lg p-3 text-center transition-all duration-200 ${
+                  className={`border-2 border-dashed rounded-lg p-3 sm:p-4 text-center transition-all duration-200 ${
                     isDragOver 
                       ? 'border-purple-500 bg-purple-50' 
                       : 'border-gray-300 bg-gray-50 hover:border-purple-400 hover:bg-gray-100'
@@ -1247,42 +1247,42 @@ const PaymentWizardPage = () => {
                   />
                   <label htmlFor="receipt-upload" className="cursor-pointer block">
                     <div className="flex flex-col items-center">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 transition-colors ${
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-1 transition-colors ${
                         isDragOver ? 'bg-purple-200' : 'bg-purple-100'
                       }`}>
-                        <MdFileUpload className={`text-xl transition-colors ${
+                        <MdFileUpload className={`text-lg sm:text-xl transition-colors ${
                           isDragOver ? 'text-purple-700' : 'text-purple-600'
                         }`} />
                       </div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                      <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">
                         {location.state?.goToReceiptUpload ? 'Select Payment Receipt' : 'Upload Payment Receipt (Optional)'}
                       </h3>
                       <p className="text-gray-600 mb-1 text-xs">
                         {isDragOver ? 'Drop your file here' : location.state?.goToReceiptUpload ? 'Click here or drag and drop your receipt' : 'Click here or drag and drop your receipt (optional)'}
                       </p>
                       
-                      <div className="bg-white rounded-md p-2 border border-gray-200 max-w-sm">
-                        <div className="flex items-center justify-center gap-2 text-xs text-gray-600 mb-1">
+                      <div className="bg-white rounded-md p-2 border border-gray-200 max-w-sm mx-auto">
+                        <div className="flex items-center justify-center gap-1 sm:gap-2 text-xs text-gray-600 mb-1">
                           <span className="flex items-center gap-1">
                             <span className="text-green-600">📷</span>
-                            JPG
+                            <span className="hidden sm:inline">JPG</span>
                           </span>
                           <span className="flex items-center gap-1">
                             <span className="text-blue-600">🖼️</span>
-                            PNG
+                            <span className="hidden sm:inline">PNG</span>
                           </span>
                           <span className="flex items-center gap-1">
                             <span className="text-red-600">📄</span>
-                            PDF
+                            <span className="hidden sm:inline">PDF</span>
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500">Maximum file size: 5MB</p>
+                        <p className="text-xs text-gray-500">Max: 5MB</p>
                       </div>
                       
                       <div className="mt-1">
                         <button
                           type="button"
-                          className="px-2 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors font-medium text-xs"
+                          className="px-3 py-1.5 sm:px-2 sm:py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors font-medium text-xs min-h-[44px] sm:min-h-0"
                         >
                           Choose File
                         </button>
@@ -1294,12 +1294,12 @@ const PaymentWizardPage = () => {
                 {/* Receipt Preview */}
                 {receiptFile && (
                   <div className="mt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-gray-800 text-sm">Receipt Preview:</h4>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <h4 className="font-semibold text-gray-800 text-xs sm:text-sm">Receipt Preview:</h4>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setShowReceiptModal(true)}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 rounded-lg text-xs hover:bg-blue-200 transition-colors"
+                          className="px-2 py-1.5 sm:py-1 bg-blue-100 text-blue-800 rounded-lg text-xs hover:bg-blue-200 transition-colors min-h-[44px] sm:min-h-0"
                         >
                           <MdVisibility className="w-3 h-3 inline mr-1" />
                           View Full
@@ -1311,7 +1311,7 @@ const PaymentWizardPage = () => {
                             setExternalUploadUrl(null);
                             setExternalUploadError(null);
                           }}
-                          className="px-2 py-1 bg-red-100 text-red-800 rounded-lg text-xs hover:bg-red-200 transition-colors"
+                          className="px-2 py-1.5 sm:py-1 bg-red-100 text-red-800 rounded-lg text-xs hover:bg-red-200 transition-colors min-h-[44px] sm:min-h-0"
                         >
                           <MdDelete className="w-3 h-3 inline mr-1" />
                           Remove
@@ -1320,17 +1320,17 @@ const PaymentWizardPage = () => {
                     </div>
                     
                     {receiptPreview ? (
-                      <div className="bg-white border border-gray-200 rounded-lg p-3">
+                      <div className="bg-white border border-gray-200 rounded-lg p-2 sm:p-3">
                         <img 
                           src={receiptPreview} 
                           alt="Receipt preview" 
-                          className="max-w-full h-48 object-contain mx-auto"
+                          className="max-w-full h-32 sm:h-48 object-contain mx-auto"
                         />
                       </div>
                     ) : (
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-                        <MdReceipt className="text-3xl text-gray-400 mx-auto mb-2" />
-                        <p className="text-gray-600 font-medium text-sm">{receiptFile.name}</p>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-6 text-center">
+                        <MdReceipt className="text-2xl sm:text-3xl text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-600 font-medium text-xs sm:text-sm break-words">{receiptFile.name}</p>
                         <p className="text-xs text-gray-500">
                           {(receiptFile.size / 1024 / 1024).toFixed(2)} MB
                         </p>
@@ -1339,14 +1339,14 @@ const PaymentWizardPage = () => {
                     
                     <div className="mt-3 space-y-2">
                       {/* File selected status */}
-                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
                         <div className="flex items-center gap-2 text-blue-800">
-                          <MdFileUpload className="w-4 h-4" />
-                          <span className="font-medium text-sm">
+                          <MdFileUpload className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="font-medium text-xs sm:text-sm">
                             {location.state?.goToReceiptUpload ? 'Receipt file selected' : 'Receipt file selected (optional)'}
                           </span>
                         </div>
-                        <p className="text-xs text-blue-700 mt-1">
+                        <p className="text-xs text-blue-700 mt-1 break-words">
                           File: {receiptFile.name} ({(receiptFile.size / 1024 / 1024).toFixed(2)} MB)
                         </p>
                         <p className="text-xs text-blue-600 mt-1">
@@ -1362,18 +1362,18 @@ const PaymentWizardPage = () => {
 
                 {/* Payment Method Summary */}
                 {paymentMethod && (
-                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                    <h4 className="font-semibold text-blue-900 text-sm mb-2">Selected Payment Method</h4>
+                  <div className="bg-blue-50 rounded-lg p-2 sm:p-3 border border-blue-200">
+                    <h4 className="font-semibold text-blue-900 text-xs sm:text-sm mb-2">Selected Payment Method</h4>
                     <div className="flex items-center gap-2">
                       {(() => {
                         const method = paymentMethods.find(m => m.id === paymentMethod);
                         const IconComponent = method?.icon;
                         return (
                           <>
-                            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                              <IconComponent className="text-white text-sm" />
+                            <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                              <IconComponent className="text-white text-xs sm:text-sm" />
                             </div>
-                            <span className="text-blue-800 font-medium text-sm">{method?.name}</span>
+                            <span className="text-blue-800 font-medium text-xs sm:text-sm break-words">{method?.name}</span>
                           </>
                         );
                       })()}
@@ -1384,13 +1384,13 @@ const PaymentWizardPage = () => {
 
               {/* Right Column - Order Summary */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-gray-900 text-sm">Order Summary</h3>
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 className="font-semibold text-gray-900 text-xs sm:text-sm">Order Summary</h3>
+                <div className="bg-gray-50 rounded-lg p-2 sm:p-4 border border-gray-200">
                   <div className="space-y-3">
                     {/* Order Information */}
-                    <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-gray-900 text-sm">Order Details</h4>
+                    <div className="bg-white rounded-lg p-2 sm:p-3 border border-gray-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                        <h4 className="font-semibold text-gray-900 text-xs sm:text-sm">Order Details</h4>
                         {(orderDetails || order)?.id && (
                           <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-md font-medium">
                             Order #{orderDetails?.id || order?.id}
@@ -1398,21 +1398,21 @@ const PaymentWizardPage = () => {
                         )}
                       </div>
                       <div className="space-y-2 text-xs">
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Customer Name:</span>
-                          <span className="font-medium text-gray-900">{getCustomerName()}</span>
+                          <span className="font-medium text-gray-900 break-words">{getCustomerName()}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Menu Package:</span>
-                          <span className="font-medium text-gray-900">{orderDetails?.menuName || order?.menuName}</span>
+                          <span className="font-medium text-gray-900 break-words">{orderDetails?.menuName || order?.menuName}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Order Date:</span>
-                          <span className="font-medium text-gray-900">{formatDate(orderDetails?.orderDate || order?.orderDate)}</span>
+                          <span className="font-medium text-gray-900 break-words">{formatDate(orderDetails?.orderDate || order?.orderDate)}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Delivery Days:</span>
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 break-words">
                             {(() => {
                               const currentOrder = orderDetails || order;
                               const dates = currentOrder?.selectedDates || [];
@@ -1420,9 +1420,9 @@ const PaymentWizardPage = () => {
                             })()}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Delivery Period:</span>
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 break-words">
                             {(() => {
                               const currentOrder = orderDetails || order;
                               const dates = currentOrder?.selectedDates || [];
@@ -1435,20 +1435,20 @@ const PaymentWizardPage = () => {
 
                     {/* Payment Summary */}
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 text-sm mb-3">Payment Summary</h4>
+                      <h4 className="font-semibold text-gray-900 text-xs sm:text-sm mb-3">Payment Summary</h4>
                       <div className="space-y-2 text-xs">
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Order Amount:</span>
-                          <span className="font-medium text-gray-900">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span>
+                          <span className="font-medium text-gray-900 break-words">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                           <span className="text-gray-600">Delivery Fee:</span>
                           <span className="font-medium text-green-600">Free</span>
                         </div>
                         <div className="border-t border-gray-200 pt-2 mt-2">
-                          <div className="flex justify-between items-center">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                             <span className="text-gray-900 font-semibold">Total Amount:</span>
-                            <span className="text-gray-900 text-base font-bold">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span>
+                            <span className="text-gray-900 text-sm sm:text-base font-bold">{formatPrice(orderDetails?.totalAmount || order?.totalPrice || 0)}</span>
                           </div>
                         </div>
                       </div>
@@ -1457,8 +1457,8 @@ const PaymentWizardPage = () => {
                     {/* Delivery Address */}
                     {(orderDetails?.deliveryAddress || order?.deliveryAddress) && (
                       <div className="bg-white rounded-lg p-3 border border-gray-200">
-                        <h4 className="font-semibold text-gray-900 text-sm mb-2">Delivery Address</h4>
-                        <div className="text-xs text-gray-600">
+                        <h4 className="font-semibold text-gray-900 text-xs sm:text-sm mb-2">Delivery Address</h4>
+                        <div className="text-xs text-gray-600 break-words">
                           {orderDetails?.deliveryAddress?.housename && `${orderDetails.deliveryAddress.housename}, `}
                           {orderDetails?.deliveryAddress?.street || order?.deliveryAddress?.street}
                           <br />
@@ -1471,16 +1471,16 @@ const PaymentWizardPage = () => {
                     )}
 
                     {/* Complete Payment Button */}
-                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="bg-white rounded-lg p-2 sm:p-3 border border-gray-200">
                       <button
                         onClick={handlePaymentSubmit}
                         disabled={!canProceed() || paymentProcessing}
-                        className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed shadow-sm text-sm"
+                        className="w-full bg-blue-600 text-white py-2.5 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed shadow-sm text-xs sm:text-sm min-h-[44px] sm:min-h-0"
                       >
                         {paymentProcessing ? (
                           <div className="flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            {location.state?.goToReceiptUpload ? 'Uploading Receipt...' : 'Processing Payment...'}
+                            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+                            <span className="text-xs sm:text-sm">{location.state?.goToReceiptUpload ? 'Uploading Receipt...' : 'Processing Payment...'}</span>
                           </div>
                         ) : (
                           location.state?.goToReceiptUpload ? 'Upload Receipt' : 'Complete Payment'
@@ -1540,50 +1540,52 @@ const PaymentWizardPage = () => {
       <div className="max-w-7xl mx-auto px-3 py-4 pt-8">
                  {/* Professional Header */}
          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4">
-           <div className="px-4 py-3 border-b border-gray-200">
-             <div className="flex items-center justify-between">
-               <div>
-                 <h1 className="text-xl font-semibold text-gray-900">Payment Processing</h1>
-                 <p className="text-gray-600 mt-1 text-sm">Complete your order payment securely</p>
+           <div className="px-3 sm:px-4 py-3 border-b border-gray-200">
+             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+               <div className="min-w-0 flex-1">
+                 <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Payment Processing</h1>
+                 <p className="text-gray-600 mt-1 text-xs sm:text-sm">Complete your order payment securely</p>
                </div>
-                             <div className="flex items-center gap-2">
+               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => setShowCancelModal(true)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-2 shadow-sm"
+                  className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
                 >
-                  <MdCancel className="w-4 h-4" />
-                  Cancel Order
+                  <MdCancel className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Cancel Order</span>
+                  <span className="sm:hidden">Cancel</span>
                 </button>
                 <button
                   onClick={() => navigate('/jkhm/place-order')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2 shadow-sm"
+                  className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
                 >
-                  <MdEdit className="w-4 h-4" />
-                  Create New Order
+                  <MdEdit className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Create New Order</span>
+                  <span className="sm:hidden">New Order</span>
                 </button>
               </div>
              </div>
            </div>
           
           {/* Professional Step Progress */}
-          <div className="px-4 py-3">
+          <div className="px-3 sm:px-4 py-3">
             <div className="flex items-center justify-between">
               {steps.map((step, index) => (
                 <div key={step.id} className="flex items-center flex-1">
                   <div className="flex items-center">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-200 ${
+                    <div className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 transition-all duration-200 ${
                       currentStep >= step.id
                         ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
                         : 'bg-white border-gray-300 text-gray-400'
                     }`}>
                       {currentStep > step.id ? (
-                        <MdCheckCircle className="text-sm" />
+                        <MdCheckCircle className="text-xs sm:text-sm" />
                       ) : (
-                        <step.icon className="text-sm" />
+                        <step.icon className="text-xs sm:text-sm" />
                       )}
                     </div>
                     
-                    <div className="ml-2 hidden sm:block">
+                    <div className="ml-1 sm:ml-2 hidden md:block">
                       <div className={`text-xs font-medium transition-colors ${
                         currentStep >= step.id ? 'text-gray-900' : 'text-gray-500'
                       }`}>
@@ -1593,104 +1595,117 @@ const PaymentWizardPage = () => {
                   </div>
                   
                   {index < steps.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-2 transition-colors ${
+                    <div className={`flex-1 h-0.5 mx-1 sm:mx-2 transition-colors ${
                       currentStep > step.id ? 'bg-blue-600' : 'bg-gray-200'
                     }`} />
                   )}
                 </div>
               ))}
             </div>
+            
+            {/* Mobile Step Title */}
+            <div className="mt-2 md:hidden">
+              <div className={`text-xs font-medium text-center transition-colors ${
+                currentStep >= 1 ? 'text-gray-900' : 'text-gray-500'
+              }`}>
+                {steps[currentStep - 1]?.title}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* Left Column - Wizard Content */}
-          <div className="xl:col-span-3">
+          <div className="lg:col-span-3">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 {renderStepContent()}
               </div>
               
               {/* Professional Navigation */}
-              <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    onClick={prevStep}
-                    disabled={currentStep === 1}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                      currentStep === 1
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                    }`}
-                  >
-                    <MdArrowBack className="mr-1" />
-                    Previous
-                  </button>
-                  
-                  <div className="text-xs text-gray-500 px-3">
-                    Step {currentStep} of {steps.length}
-                  </div>
-                  
-                  {currentStep < steps.length ? (
+              <div className="px-3 sm:px-4 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
-                      onClick={nextStep}
-                      disabled={!canProceed()}
-                      className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                        !canProceed()
+                      onClick={prevStep}
+                      disabled={currentStep === 1}
+                      className={`flex items-center justify-center px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
+                        currentStep === 1
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                       }`}
                     >
-                      Next
-                      <MdArrowForward className="ml-1" />
+                      <MdArrowBack className="mr-1 text-sm sm:text-base" />
+                      <span className="hidden sm:inline">Previous</span>
+                      <span className="sm:hidden">Prev</span>
                     </button>
-                  ) : (
-                    <div className="text-xs text-gray-500 text-center">
-                      Payment can be completed in the step above
+                    
+                    <div className="text-xs text-gray-500 px-2 sm:px-3 whitespace-nowrap">
+                      Step {currentStep} of {steps.length}
                     </div>
-                  )}
+                    
+                    {currentStep < steps.length ? (
+                      <button
+                        onClick={nextStep}
+                        disabled={!canProceed()}
+                        className={`flex items-center justify-center px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
+                          !canProceed()
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                        }`}
+                      >
+                        <span className="hidden sm:inline">Next</span>
+                        <span className="sm:hidden">Next</span>
+                        <MdArrowForward className="ml-1 text-sm sm:text-base" />
+                      </button>
+                    ) : (
+                      <div className="text-xs text-gray-500 text-center w-full sm:w-auto">
+                        Payment can be completed in the step above
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
                      {/* Right Column - Professional Summary */}
-           <div className="xl:col-span-1">
+           <div className="lg:col-span-1">
              <div className="sticky top-4">
                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                  <div className="px-3 py-2 border-b border-gray-200">
-                   <h3 className="text-base font-semibold text-gray-900">Payment Status</h3>
+                   <h3 className="text-sm sm:text-base font-semibold text-gray-900">Payment Status</h3>
                  </div>
                  
                  {order && (
                    <div className="p-3 space-y-3">
-                     <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                     <div className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200">
                        <div className="text-center">
-                         <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                           <MdPayment className="w-6 h-6 text-blue-600" />
+                         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                           <MdPayment className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                          </div>
-                         <div className="text-sm font-medium text-gray-900">Payment Method</div>
-                         <div className="text-xs text-gray-600 mt-1">
+                         <div className="text-xs sm:text-sm font-medium text-gray-900">Payment Method</div>
+                         <div className="text-xs text-gray-600 mt-1 break-words">
                            {paymentMethods.find(m => m.id === paymentMethod)?.name || 'Not selected'}
                          </div>
                        </div>
                      </div>
                      
-                     <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                     <div className="bg-green-50 rounded-lg p-2 sm:p-3 border border-green-200">
                        <div className="text-center">
-                         <div className="text-sm font-medium text-green-800">Order Total</div>
-                         <div className="text-lg font-bold text-green-700">₹{order.totalPrice || 0}</div>
+                         <div className="text-xs sm:text-sm font-medium text-green-800">Order Total</div>
+                         <div className="text-base sm:text-lg font-bold text-green-700">₹{order.totalPrice || 0}</div>
                        </div>
                      </div>
                      
                      {receiptFile && (
-                       <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                       <div className="bg-blue-50 rounded-lg p-2 sm:p-3 border border-blue-200">
                          <div className="text-center">
-                           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                           <MdCheckCircle className="w-4 h-4 text-blue-600" />
+                           <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                           <MdCheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
                            </div>
-                           <div className="text-sm font-medium text-blue-800">Receipt Uploaded</div>
-                           <div className="text-xs text-blue-600 mt-1">{receiptFile.name}</div>
+                           <div className="text-xs sm:text-sm font-medium text-blue-800">Receipt Uploaded</div>
+                           <div className="text-xs text-blue-600 mt-1 break-words">{receiptFile.name}</div>
                          </div>
                        </div>
                      )}
@@ -1711,30 +1726,30 @@ const PaymentWizardPage = () => {
           <button
             key="close"
             onClick={() => setShowReceiptModal(false)}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            className="px-3 sm:px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs sm:text-sm min-h-[44px] sm:min-h-0"
           >
             Close
           </button>
         ]}
-        width={800}
+        width={isMobile ? '95%' : 800}
       >
         {receiptPreview ? (
           <div className="text-center">
             <img
               src={receiptPreview}
               alt="Payment Receipt"
-              className="max-w-full h-auto rounded-lg shadow-lg"
+              className="max-w-full h-auto rounded-lg shadow-lg max-h-96 sm:max-h-none"
             />
-            <div className="mt-4 text-sm text-gray-600">
-              <p><strong>File:</strong> {receiptFile?.name}</p>
+            <div className="mt-4 text-xs sm:text-sm text-gray-600">
+              <p><strong>File:</strong> <span className="break-words">{receiptFile?.name}</span></p>
               <p><strong>Size:</strong> {(receiptFile?.size / 1024 / 1024).toFixed(2)} MB</p>
-              <p><strong>Type:</strong> {receiptFile?.type}</p>
+              <p><strong>Type:</strong> <span className="break-words">{receiptFile?.type}</span></p>
             </div>
           </div>
         ) : (
-          <div className="text-center py-8">
-            <MdReceipt className="text-6xl text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No receipt preview available</p>
+          <div className="text-center py-6 sm:py-8">
+            <MdReceipt className="text-4xl sm:text-6xl text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600 text-sm sm:text-base">No receipt preview available</p>
           </div>
         )}
       </Modal>
@@ -1748,97 +1763,97 @@ const PaymentWizardPage = () => {
           <button
             key="cancel"
             onClick={handleCloseAddressModal}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            className="px-3 sm:px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs sm:text-sm min-h-[44px] sm:min-h-0"
           >
             Cancel
           </button>,
           <button
             key="save"
             onClick={handleSaveAddress}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs sm:text-sm min-h-[44px] sm:min-h-0"
           >
             Save Address
           </button>
         ]}
-        width={600}
+        width={isMobile ? '95%' : 600}
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
               Address Name *
             </label>
             <input
               type="text"
               value={addressForm.name}
               onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               placeholder="e.g., Home, Office, etc."
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
               Full Address *
             </label>
             <textarea
               value={addressForm.address}
               onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               rows={3}
               placeholder="Enter complete address with landmarks"
             />
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 City *
               </label>
               <input
                 type="text"
                 value={addressForm.city}
                 onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 placeholder="City"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Pincode *
               </label>
               <input
                 type="text"
                 value={addressForm.pincode}
                 onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 placeholder="Pincode"
               />
             </div>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
               State *
             </label>
             <input
               type="text"
               value={addressForm.state}
               onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               placeholder="State"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
               Contact Number *
             </label>
             <input
               type="tel"
               value={addressForm.contactNumber}
               onChange={(e) => setAddressForm({ ...addressForm, contactNumber: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               placeholder="Contact number"
             />
           </div>
@@ -1851,7 +1866,7 @@ const PaymentWizardPage = () => {
               onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
             />
-            <label htmlFor="isDefault" className="ml-2 text-sm text-gray-700">
+            <label htmlFor="isDefault" className="ml-2 text-xs sm:text-sm text-gray-700">
               Set as default address
             </label>
           </div>
@@ -1884,14 +1899,14 @@ const PaymentWizardPage = () => {
         okText="Yes, Cancel Order"
         cancelText="Keep Order"
         okType="danger"
-        width={400}
+        width={isMobile ? '95%' : 400}
       >
         <div className="text-center py-4">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MdWarning className="w-8 h-8 text-red-600" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MdWarning className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Cancel Order?</h3>
-          <p className="text-gray-600 text-sm leading-relaxed">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Cancel Order?</h3>
+          <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
             Are you sure you want to cancel this order? This action cannot be undone and all order data will be lost.
           </p>
         </div>

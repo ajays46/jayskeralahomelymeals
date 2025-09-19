@@ -92,7 +92,7 @@ const OrderSummary = ({
               <div className="mb-3 p-2 sm:p-3 bg-blue-50 rounded border border-blue-200">
                 <h5 className="font-semibold text-blue-800 text-xs sm:text-sm mb-1">Selected Menu:</h5>
                 <p className="text-blue-700 text-xs sm:text-sm font-medium break-words">{selectedMenu.name}</p>
-                {selectedMenu.price > 0 && (
+a                {selectedMenu.price > 0 && (
                   <p className="text-blue-600 text-xs sm:text-sm">₹{selectedMenu.price}</p>
                 )}
                 <p className="text-blue-600 text-xs sm:text-sm capitalize">

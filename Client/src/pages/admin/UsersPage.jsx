@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSlide from '../../components/AdminSlide';
+import Pagination from '../../components/Pagination';
 import { FiArrowLeft, FiUser, FiMail, FiPhone, FiLock, FiPlus, FiHome } from 'react-icons/fi';
 import { useCompanyList, useUserRoles, useAdminUsers, useCreateAdminUser } from '../../hooks/adminHook/adminHook';
 
@@ -21,6 +22,10 @@ import { useCompanyList, useUserRoles, useAdminUsers, useCreateAdminUser } from 
 const UsersPage = () => {
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Fetch companies and roles
   const { data: companyList, isLoading: loadingCompanies, refetch: fetchCompanies } = useCompanyList();
@@ -51,6 +56,28 @@ const UsersPage = () => {
   });
 
   const [createUserErrors, setCreateUserErrors] = useState({});
+
+  // Pagination calculations
+  const totalItems = users.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = users.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const handlePageChange = useCallback((page) => {
+    setCurrentPage(page);
+  }, []);
+
+  const handleItemsPerPageChange = useCallback((newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  }, []);
+
+  // Reset pagination when users data changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [users]);
 
   // Create user handlers
   const handleCreateUserInputChange = useCallback((e) => {
@@ -504,7 +531,7 @@ const UsersPage = () => {
           {/* Users List */}
           <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
             <div className="p-4 border-b border-gray-700">
-              <h2 className="text-lg font-semibold text-white">System Users ({users.length})</h2>
+              <h2 className="text-lg font-semibold text-white">System Users ({totalItems})</h2>
             </div>
             
             {loadingUsers ? (
@@ -531,6 +558,7 @@ const UsersPage = () => {
                 <p className="text-sm">Click "Create User" to add your first user</p>
               </div>
             ) : (
+            <>
             <div className="overflow-x-auto">
                 <table className="w-full">
                 <thead className="bg-gray-700">
@@ -559,7 +587,7 @@ const UsersPage = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-gray-800 divide-y divide-gray-700">
-                    {users.map((user) => (
+                    {paginatedUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-700 transition-colors">
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center">
@@ -644,6 +672,19 @@ const UsersPage = () => {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination */}
+            <div className="p-4 border-t border-gray-700">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                onItemsPerPageChange={handleItemsPerPageChange}
+              />
+            </div>
+            </>
             )}
           </div>
         </div>

@@ -6,6 +6,7 @@ import {
     deleteAddressService,
     getAddressByIdService
 } from '../services/address.service.js';
+import { saveAddressToExternalApi } from '../utils/externalApi.js';
 
 // Get all addresses for a user
 export const getUserAddresses = async (req, res, next) => {
@@ -33,6 +34,25 @@ export const createAddress = async (req, res, next) => {
         
         const newAddress = await createAddressService(userId, addressData);
 
+        // Call external API to save address
+        try {
+            await saveAddressToExternalApi({
+                id: newAddress.id,
+                userId: userId,
+                street: newAddress.street,
+                housename: newAddress.housename,
+                city: newAddress.city,
+                pincode: newAddress.pincode,
+                geoLocation: newAddress.geoLocation,
+                googleMapsUrl: newAddress.googleMapsUrl,
+                addressType: newAddress.addressType,
+                createdAt: newAddress.createdAt,
+                updatedAt: newAddress.updatedAt
+            });
+        } catch (externalError) {
+            // Don't throw error - address was saved successfully in our database
+        }
+
         res.status(201).json({
             success: true,
             message: 'Address created successfully',
@@ -53,6 +73,25 @@ export const updateAddress = async (req, res, next) => {
         const addressData = req.body;
 
         const updatedAddress = await updateAddressService(userId, addressId, addressData);
+
+        // Call external API to save address (using same endpoint for updates)
+        try {
+            await saveAddressToExternalApi({
+                id: updatedAddress.id,
+                userId: userId,
+                street: updatedAddress.street,
+                housename: updatedAddress.housename,
+                city: updatedAddress.city,
+                pincode: updatedAddress.pincode,
+                geoLocation: updatedAddress.geoLocation,
+                googleMapsUrl: updatedAddress.googleMapsUrl,
+                addressType: updatedAddress.addressType,
+                createdAt: updatedAddress.createdAt,
+                updatedAt: updatedAddress.updatedAt
+            });
+        } catch (externalError) {
+            // Don't throw error - address was updated successfully in our database
+        }
 
         res.status(200).json({
             success: true,

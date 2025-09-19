@@ -1,5 +1,6 @@
-import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressForUser, getUserOrders, cancelDeliveryItem, deleteUser, updateCustomer } from '../services/seller.service.js';
+import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressForUser, deleteAddressForUser, getUserOrders, cancelDeliveryItem, deleteUser, updateCustomer } from '../services/seller.service.js';
 import { cancelOrderService } from '../services/order.service.js';
+import { saveAddressToExternalApi } from '../utils/externalApi.js';
 
 // Create contact only (for sellers)
 export const createContactController = async (req, res, next) => {
@@ -98,11 +99,61 @@ export const createUserAddressController = async (req, res, next) => {
     
     const newAddress = await createAddressForUser(userId, sellerId, addressData);
     
+    // Call external API to save address
+    try {
+      await saveAddressToExternalApi({
+        id: newAddress.id,
+        userId: userId,
+        street: newAddress.street,
+        housename: newAddress.housename,
+        city: newAddress.city,
+        pincode: newAddress.pincode,
+        geoLocation: newAddress.geoLocation,
+        googleMapsUrl: newAddress.googleMapsUrl,
+        addressType: newAddress.addressType,
+        createdAt: newAddress.createdAt,
+        updatedAt: newAddress.updatedAt
+      });
+    } catch (externalError) {
+      // Don't throw error - address was saved successfully in our database
+    }
+    
     res.status(201).json({
       success: true,
       message: 'Address created successfully for user',
       data: newAddress
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Delete address for a specific user created by the seller
+export const deleteUserAddressController = async (req, res, next) => {
+  try {
+    const sellerId = req.user.userId; // Get seller ID from JWT token
+    const { userId, addressId } = req.params; // Get user ID and address ID from URL params
+    
+    if (!userId || !addressId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID and Address ID are required'
+      });
+    }
+    
+    const success = await deleteAddressForUser(userId, addressId, sellerId);
+    
+    if (success) {
+      res.status(200).json({
+        success: true,
+        message: 'Address deleted successfully for user'
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'Address not found or could not be deleted'
+      });
+    }
   } catch (error) {
     next(error);
   }

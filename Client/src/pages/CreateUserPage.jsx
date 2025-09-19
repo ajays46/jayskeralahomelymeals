@@ -249,8 +249,9 @@ const CreateUserPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3 sm:py-4">
+            {/* Left Side - Back Button and Title */}
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate('/jkhm/seller/customers')}
@@ -259,11 +260,11 @@ const CreateUserPage = () => {
               >
                 <MdArrowBack className="w-5 h-5" />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">
                   {isEditMode ? 'Edit Customer' : 'Create New Customer'}
                 </h1>
-                <p className="text-sm text-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 truncate">
                   {isEditMode 
                     ? `Edit ${editCustomer?.contacts?.[0]?.firstName} ${editCustomer?.contacts?.[0]?.lastName}'s information`
                     : 'Add a new customer and start booking'
@@ -272,31 +273,41 @@ const CreateUserPage = () => {
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            {/* Right Side - Action Buttons */}
+            <div className="flex flex-row items-center gap-2">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-3 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
               >
-                <MdCancel className="w-4 h-4 inline mr-2" />
-                Cancel
+                <MdCancel className="w-4 h-4 inline mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Cancel</span>
+                <span className="sm:hidden">Cancel</span>
               </button>
               
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={saving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                className="px-3 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm text-sm"
               >
                 {saving ? (
                   <div className="animate-spin rounded-full w-4 h-4 border-2 border-white border-t-transparent"></div>
                 ) : (
                   isEditMode ? <MdEdit className="w-4 h-4" /> : <MdAdd className="w-4 h-4" />
                 )}
-                {saving 
-                  ? (isEditMode ? 'Saving...' : 'Creating...') 
-                  : (isEditMode ? 'Save Changes' : 'Create & Book')
-                }
+                <span className="hidden sm:inline">
+                  {saving 
+                    ? (isEditMode ? 'Saving...' : 'Creating...') 
+                    : (isEditMode ? 'Save Changes' : 'Create & Book')
+                  }
+                </span>
+                <span className="sm:hidden">
+                  {saving 
+                    ? (isEditMode ? 'Saving...' : 'Creating...') 
+                    : (isEditMode ? 'Save' : 'Create')
+                  }
+                </span>
               </button>
             </div>
           </div>
@@ -304,30 +315,58 @@ const CreateUserPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
-
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
         {/* Success Message Display */}
         {successMessage && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center">
+          <div className="mb-4 sm:mb-6 bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-start sm:items-center">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div className="ml-3">
+              <div className="ml-3 flex-1 min-w-0">
                 <h3 className="text-sm font-medium text-green-800">
                   Success
                 </h3>
-                <div className="mt-2 text-sm text-green-700">
-                  <p>{successMessage}</p>
+                <div className="mt-1 sm:mt-2 text-sm text-green-700">
+                  <p className="break-words">{successMessage}</p>
                 </div>
-                <div className="mt-3">
+                <div className="mt-2 sm:mt-3">
                   <button
                     type="button"
                     onClick={() => setSuccessMessage('')}
-                    className="bg-green-50 px-2 py-1.5 rounded-md text-sm font-medium text-green-800 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    className="bg-green-50 px-2 py-1.5 rounded-md text-xs sm:text-sm font-medium text-green-800 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* API Error Display */}
+        {apiError && (
+          <div className="mb-4 sm:mb-6 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-start sm:items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3 flex-1 min-w-0">
+                <h3 className="text-sm font-medium text-red-800">
+                  Error
+                </h3>
+                <div className="mt-1 sm:mt-2 text-sm text-red-700">
+                  <p className="break-words">{apiError}</p>
+                </div>
+                <div className="mt-2 sm:mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setApiError('')}
+                    className="bg-red-50 px-2 py-1.5 rounded-md text-xs sm:text-sm font-medium text-red-800 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   >
                     Dismiss
                   </button>
@@ -337,20 +376,20 @@ const CreateUserPage = () => {
           </div>
         )}
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           
           {/* Left Column - Form */}
-          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
+          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-4 sm:space-y-6">
             
             {/* Basic Information Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MdPerson className="w-5 h-5 text-blue-600" />
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <MdPerson className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 Basic Information
               </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number *
                   </label>
@@ -359,7 +398,7 @@ const CreateUserPage = () => {
                     name="phoneNumber"
                     value={formData.phoneNumber}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.phoneNumber || (apiError && apiError.toLowerCase().includes('phone number')) ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter phone number"
@@ -381,7 +420,7 @@ const CreateUserPage = () => {
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.firstName ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter first name"
@@ -400,7 +439,7 @@ const CreateUserPage = () => {
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.lastName ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter last name"
@@ -413,14 +452,14 @@ const CreateUserPage = () => {
             </div>
 
             {/* Address Information Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MdLocationOn className="w-5 h-5 text-green-600" />
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <MdLocationOn className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 Address Information
               </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Street Address
                   </label>
@@ -429,12 +468,12 @@ const CreateUserPage = () => {
                     name="street"
                     value={formData.street}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter street address"
                   />
                 </div>
                 
-                <div className="md:col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     House Name
                   </label>
@@ -443,7 +482,7 @@ const CreateUserPage = () => {
                     name="housename"
                     value={formData.housename}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter house name"
                   />
                 </div>
@@ -457,7 +496,7 @@ const CreateUserPage = () => {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter city"
                   />
                 </div>
@@ -471,7 +510,7 @@ const CreateUserPage = () => {
                     name="pincode"
                     value={formData.pincode}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.pincode ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter pincode"
@@ -487,25 +526,25 @@ const CreateUserPage = () => {
           </form>
 
           {/* Right Column - Information */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             
             {/* Information Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MdPerson className="w-5 h-5 text-blue-600" />
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <MdPerson className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 Information
               </h2>
               
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                    <MdAdd className="w-8 h-8" />
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg">
+                    <MdAdd className="w-6 h-6 sm:w-8 sm:h-8" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
                       {isEditMode ? 'Edit Customer' : 'New Customer'}
                     </h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-xs sm:text-sm text-gray-600">
                       {isEditMode 
                         ? 'Updating customer information'
                         : 'Creating a new customer and starting booking'
@@ -514,24 +553,26 @@ const CreateUserPage = () => {
                   </div>
                 </div>
                 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MdPerson className="w-4 h-4" />
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                    <MdPerson className="w-3 h-3 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
                     <span>Fill in all required fields marked with *</span>
                   </div>
                   
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MdPhone className="w-4 h-4" />
+                  <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                    <MdPhone className="w-3 h-3 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
                     <span>Phone number for contact purposes</span>
                   </div>
                   
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MdLocationOn className="w-4 h-4" />
+                  <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                    <MdLocationOn className="w-3 h-3 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
                     <span>Address fields are optional</span>
                   </div>
                   
-                  <div className="flex items-center gap-2 text-sm text-blue-600">
-                    {isEditMode ? <MdEdit className="w-4 h-4" /> : <MdAdd className="w-4 h-4" />}
+                  <div className="flex items-start gap-2 text-xs sm:text-sm text-blue-600">
+                    <div className="mt-0.5 flex-shrink-0">
+                      {isEditMode ? <MdEdit className="w-3 h-3 sm:w-4 sm:h-4" /> : <MdAdd className="w-3 h-3 sm:w-4 sm:h-4" />}
+                    </div>
                     <span>
                       {isEditMode 
                         ? 'Changes will be saved to the customer profile'
@@ -544,16 +585,17 @@ const CreateUserPage = () => {
             </div>
 
             {/* Quick Actions Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
               
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <button
                   onClick={() => navigate('/jkhm/customers')}
-                  className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+                  className="w-full px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   <MdArrowBack className="w-4 h-4" />
-                  Back to Customers
+                  <span className="hidden sm:inline">Back to Customers</span>
+                  <span className="sm:hidden">Back to Customers</span>
                 </button>
               </div>
             </div>

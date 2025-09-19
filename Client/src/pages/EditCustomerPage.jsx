@@ -205,8 +205,9 @@ const EditCustomerPage = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3 sm:py-4">
+            {/* Left Side - Back Button and Title */}
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate('/jkhm/seller/customers')}
@@ -215,35 +216,42 @@ const EditCustomerPage = () => {
               >
                 <MdArrowBack className="w-5 h-5" />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Edit Customer</h1>
-                <p className="text-sm text-gray-600">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">Edit Customer</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">
                   {customer.contacts?.[0]?.firstName} {customer.contacts?.[0]?.lastName}
                 </p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            {/* Right Side - Action Buttons */}
+            <div className="flex flex-row items-center gap-2">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-3 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
               >
-                <MdCancel className="w-4 h-4 inline mr-2" />
-                Cancel
+                <MdCancel className="w-4 h-4 inline mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Cancel</span>
+                <span className="sm:hidden">Cancel</span>
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={saving}
                 type='submit'
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm"
               >
                 {saving ? (
                   <div className="animate-spin rounded-full w-4 h-4 border-2 border-white border-t-transparent"></div>
                 ) : (
                   <MdSave className="w-4 h-4" />
                 )}
-                {saving ? 'Saving...' : 'Save Changes'}
+                <span className="hidden sm:inline">
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </span>
+                <span className="sm:hidden">
+                  {saving ? 'Saving...' : 'Save'}
+                </span>
               </button>
             </div>
           </div>
@@ -251,21 +259,21 @@ const EditCustomerPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           
-                     {/* Left Column - Basic Information */}
-           <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
+          {/* Left Column - Basic Information */}
+          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-4 sm:space-y-6">
              
-             {/* Basic Information Card */}
-             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                 <MdPerson className="w-5 h-5 text-blue-600" />
-                 Basic Information
-               </h2>
-               
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+            {/* Basic Information Card */}
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <MdPerson className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                Basic Information
+              </h2>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number *
                   </label>
@@ -274,7 +282,7 @@ const EditCustomerPage = () => {
                     name="phoneNumber"
                     value={formData.phoneNumber}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.phoneNumber ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter phone number"
@@ -293,7 +301,7 @@ const EditCustomerPage = () => {
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.firstName ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter first name"
@@ -312,7 +320,7 @@ const EditCustomerPage = () => {
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.lastName ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter last name"
@@ -325,14 +333,14 @@ const EditCustomerPage = () => {
             </div>
 
             {/* Address Information Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MdLocationOn className="w-5 h-5 text-green-600" />
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <MdLocationOn className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 Address Information
               </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Street Address
                   </label>
@@ -341,7 +349,7 @@ const EditCustomerPage = () => {
                     name="street"
                     value={formData.street}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter street address"
                   />
                 </div>
@@ -355,7 +363,7 @@ const EditCustomerPage = () => {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.city ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter city"
@@ -374,7 +382,7 @@ const EditCustomerPage = () => {
                     name="pincode"
                     value={formData.pincode}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.pincode ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter pincode"
@@ -383,8 +391,6 @@ const EditCustomerPage = () => {
                     <p className="text-red-500 text-xs mt-1">{errors.pincode}</p>
                   )}
                 </div>
-                
-
               </div>
             </div>
             
@@ -392,44 +398,44 @@ const EditCustomerPage = () => {
           </form>
 
           {/* Right Column - Customer Summary */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             
             {/* Customer Summary Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MdPerson className="w-5 h-5 text-blue-600" />
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <MdPerson className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 Customer Summary
               </h2>
               
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg">
                     {customer.contacts?.[0]?.firstName?.charAt(0) || 'C'}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
                       {customer.contacts?.[0]?.firstName} {customer.contacts?.[0]?.lastName}
                     </h3>
-                    <p className="text-sm text-gray-600">ID: {customer.id?.slice(-6)}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">ID: {customer.id?.slice(-6)}</p>
                   </div>
                 </div>
                 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MdCalendarToday className="w-4 h-4" />
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                    <MdCalendarToday className="w-3 h-3 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
                     <span>Joined: {new Date(customer.createdAt).toLocaleDateString()}</span>
                   </div>
                   
                   {customer.orders && customer.orders.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MdShoppingCart className="w-4 h-4" />
+                    <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                      <MdShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
                       <span>{customer.orders.length} orders</span>
                     </div>
                   )}
                   
                   {customer.orders && customer.orders.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MdAttachMoney className="w-4 h-4" />
+                    <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                      <MdAttachMoney className="w-3 h-3 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
                       <span className="text-green-600 font-medium">
                         {new Intl.NumberFormat('en-IN', {
                           style: 'currency',
@@ -443,10 +449,10 @@ const EditCustomerPage = () => {
             </div>
 
             {/* Quick Actions Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
               
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <button
                   onClick={() => navigate('/jkhm/place-order', { 
                     state: { 
@@ -459,18 +465,20 @@ const EditCustomerPage = () => {
                       }
                     } 
                   })}
-                  className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                  className="w-full px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   <MdShoppingCart className="w-4 h-4" />
-                  Book Now
+                  <span className="hidden sm:inline">Book Now</span>
+                  <span className="sm:hidden">Book Now</span>
                 </button>
                 
                 <button
                   onClick={() => navigate('/jkhm/seller/customers')}
-                  className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+                  className="w-full px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   <MdArrowBack className="w-4 h-4" />
-                  Back to List
+                  <span className="hidden sm:inline">Back to List</span>
+                  <span className="sm:hidden">Back to List</span>
                 </button>
               </div>
             </div>

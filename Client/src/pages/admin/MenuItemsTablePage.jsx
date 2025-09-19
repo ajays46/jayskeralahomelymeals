@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSlide from '../../components/AdminSlide';
+import Pagination from '../../components/Pagination';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import MenuItemPriceModal from '../../components/MenuItemPriceModal';
 import { FiArrowLeft, FiEdit, FiTrash2, FiSearch, FiFilter, FiDollarSign } from 'react-icons/fi';
@@ -22,6 +23,10 @@ const MenuItemsTablePage = () => {
     isOpen: false,
     menuItem: null
   });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // API hooks
   const { data: menuItemListData, isLoading, error } = useMenuItemList();
@@ -102,6 +107,28 @@ const MenuItemsTablePage = () => {
         }
       });
   }, [menuItems, searchTerm, filterMealType, sortBy, sortOrder, sanitizeInput]);
+
+  // Pagination calculations
+  const totalItems = filteredAndSortedItems.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = filteredAndSortedItems.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const handlePageChange = useCallback((page) => {
+    setCurrentPage(page);
+  }, []);
+
+  const handleItemsPerPageChange = useCallback((newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  }, []);
+
+  // Reset pagination when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterMealType, sortBy, sortOrder]);
 
   // Memoized unique meal types
   const uniqueMealTypes = useMemo(() => {
@@ -285,7 +312,7 @@ const MenuItemsTablePage = () => {
               {/* Results Count */}
               <div className="flex items-center justify-end">
                 <span className="text-gray-400 text-sm">
-                  {filteredAndSortedItems.length} of {menuItems.length} items
+                  {totalItems} of {menuItems.length} items
                 </span>
               </div>
             </div>
@@ -356,7 +383,7 @@ const MenuItemsTablePage = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-gray-800 divide-y divide-gray-700">
-                  {filteredAndSortedItems.length === 0 ? (
+                  {paginatedItems.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-4 py-8 text-center text-gray-400">
                         <div className="flex flex-col items-center">
@@ -367,7 +394,7 @@ const MenuItemsTablePage = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredAndSortedItems.map((menuItem) => (
+                    paginatedItems.map((menuItem) => (
                       <tr key={menuItem.id} className="hover:bg-gray-700 transition-colors">
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm font-medium text-white">{menuItem.name}</div>
@@ -451,6 +478,20 @@ const MenuItemsTablePage = () => {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination */}
+            {totalItems > 0 && (
+              <div className="p-4 border-t border-gray-700">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={handlePageChange}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
