@@ -25,13 +25,13 @@ export const createAddressService = async (userId, addressData) => {
     try {
         const { street, housename, city, pincode, geoLocation, googleMapsUrl, addressType } = addressData;
 
-        // Validate required fields
-        if (!street || !city || !pincode) {
-            throw new AppError('Street, city, and pincode are required', 400);
+        // Validate required fields - allow Google Maps URL only
+        if (!googleMapsUrl && (!street || !city || !pincode)) {
+            throw new AppError('Either Google Maps URL or street, city, and pincode are required', 400);
         }
 
-        // Validate pincode format (6 digits for Indian pincodes)
-        if (!/^\d{6}$/.test(pincode.toString())) {
+        // Validate pincode format only if pincode is provided
+        if (pincode && !/^\d{6}$/.test(pincode.toString())) {
             throw new AppError('Pincode must be 6 digits', 400);
         }
 
@@ -44,10 +44,10 @@ export const createAddressService = async (userId, addressData) => {
         const newAddress = await prisma.address.create({
             data: {
                 userId: userId,
-                street: street,
+                street: street || '',
                 housename: housename || '',
-                city: city,
-                pincode: parseInt(pincode),
+                city: city || '',
+                pincode: pincode ? parseInt(pincode) : 0,
                 geoLocation: geoLocation && geoLocation.trim() !== '' ? geoLocation : null,
                 googleMapsUrl: googleMapsUrl && googleMapsUrl.trim() !== '' ? googleMapsUrl : null,
                 addressType: addressType || 'HOME'
@@ -81,13 +81,13 @@ export const updateAddressService = async (userId, addressId, addressData) => {
             throw new AppError('Address not found', 404);
         }
 
-        // Validate required fields
-        if (!street || !city || !pincode) {
-            throw new AppError('Street, city, and pincode are required', 400);
+        // Validate required fields - allow Google Maps URL only
+        if (!googleMapsUrl && (!street || !city || !pincode)) {
+            throw new AppError('Either Google Maps URL or street, city, and pincode are required', 400);
         }
 
-        // Validate pincode format
-        if (!/^\d{6}$/.test(pincode.toString())) {
+        // Validate pincode format only if pincode is provided
+        if (pincode && !/^\d{6}$/.test(pincode.toString())) {
             throw new AppError('Pincode must be 6 digits', 400);
         }
 
@@ -102,10 +102,10 @@ export const updateAddressService = async (userId, addressId, addressData) => {
                 id: addressId
             },
             data: {
-                street: street,
+                street: street || '',
                 housename: housename || '',
-                city: city,
-                pincode: parseInt(pincode),
+                city: city || '',
+                pincode: pincode ? parseInt(pincode) : 0,
                 geoLocation: geoLocation && geoLocation.trim() !== '' ? geoLocation : null,
                 googleMapsUrl: googleMapsUrl && googleMapsUrl.trim() !== '' ? googleMapsUrl : null,
                 addressType: addressType || 'HOME'

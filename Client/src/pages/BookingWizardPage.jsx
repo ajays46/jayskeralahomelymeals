@@ -41,7 +41,7 @@ import AddressPicker from '../components/AddressPicker';
 import AdminOrderBlockedModal from '../components/AdminOrderBlockedModal';
 import OrderSuccessPopup from '../components/OrderSuccessPopup';
 import Pagination from '../components/Pagination';
-import { SkeletonTable, SkeletonCard } from '../components/Skeleton';
+import { SkeletonTable, SkeletonCard, SkeletonWizardStep, SkeletonLoading } from '../components/Skeleton';
 import { 
   DateSelector, 
   MenuSelector, 
@@ -637,13 +637,12 @@ const BookingWizardPage = () => {
           return !!deliveryLocations[singleMealType];
         }
         
-        // For daily flexible rates, require individual meal addresses
+        // For daily flexible rates, require individual meal addresses (no primary address needed)
         if (selectedMenu && selectedMenu.isDailyRateItem) {
-          const hasRequiredAddresses = true;
           if (selectedMenu.hasBreakfast && !deliveryLocations.breakfast) return false;
           if (selectedMenu.hasLunch && !deliveryLocations.lunch) return false;
           if (selectedMenu.hasDinner && !deliveryLocations.dinner) return false;
-          return hasRequiredAddresses;
+          return true;
         }
         // For other menu types, check if user has provided either primary address or meal-specific addresses
         return deliveryLocations.full || deliveryLocations.breakfast || deliveryLocations.lunch || deliveryLocations.dinner;
@@ -1216,46 +1215,48 @@ const BookingWizardPage = () => {
             </div>
             
             <div className="space-y-4">
-              {/* Primary Address */}
-              <div className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <div className="w-4 h-4 sm:w-5 sm:h-5 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
-                      <MdLocationOn className="w-2 h-2 sm:w-3 sm:h-3 text-white" />
+              {/* Primary Address - Only show for non-daily rate items */}
+              {selectedMenu && !selectedMenu.isDailyRateItem && (
+                <div className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
+                        <MdLocationOn className="w-2 h-2 sm:w-3 sm:h-3 text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-900">Primary Delivery Address</label>
+                      <p className="text-xs text-gray-600">Default address for all meal deliveries</p>
+                    </div>
+                    </div>
+                    {(deliveryLocations.full || deliveryLocationNames.full) && (
+                      <button
+                        onClick={() => clearDeliveryAddress('full')}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
+                        title="Clear address"
+                      >
+                        <MdClear className="w-3 h-3" />
+                        <span className="hidden sm:inline">Clear</span>
+                      </button>
+                    )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <label className="block text-xs sm:text-sm font-semibold text-gray-900">Primary Delivery Address</label>
-                    <p className="text-xs text-gray-600">Default address for all meal deliveries</p>
-                  </div>
-                  </div>
-                  {(deliveryLocations.full || deliveryLocationNames.full) && (
-                    <button
-                      onClick={() => clearDeliveryAddress('full')}
-                      className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
-                      title="Clear address"
-                    >
-                      <MdClear className="w-3 h-3" />
-                      <span className="hidden sm:inline">Clear</span>
-                    </button>
-                  )}
+                  <AddressPicker
+                    value={deliveryLocationNames.full || deliveryLocations.full}
+                    onChange={(e) => {
+                      const addressId = e.target.value;
+                      const displayName = e.target.displayName || getAddressDisplayName(addressId);
+                      handleDeliveryLocationChange('full', addressId, displayName);
+                    }}
+                    placeholder="Select primary delivery address..."
+                    className="w-full px-3 py-3 sm:py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm min-h-[44px] sm:min-h-0"
+                    mealType="full"
+                    addresses={selectedUserAddresses}
+                    onAddressCreate={createAddressForUser}
+                    onAddressDelete={deleteAddressForUser}
+                    selectedUserId={selectedUser?.id}
+                    disabled={isModalOpen}
+                  />
                 </div>
-                <AddressPicker
-                  value={deliveryLocationNames.full || deliveryLocations.full}
-                  onChange={(e) => {
-                    const addressId = e.target.value;
-                    const displayName = e.target.displayName || getAddressDisplayName(addressId);
-                    handleDeliveryLocationChange('full', addressId, displayName);
-                  }}
-                  placeholder="Select primary delivery address..."
-                  className="w-full px-3 py-3 sm:py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm min-h-[44px] sm:min-h-0"
-                  mealType="full"
-                  addresses={selectedUserAddresses}
-                  onAddressCreate={createAddressForUser}
-                  onAddressDelete={deleteAddressForUser}
-                  selectedUserId={selectedUser?.id}
-                  disabled={isModalOpen}
-                />
-              </div>
+              )}
 
               {/* Meal-Specific Addresses */}
               {selectedMenu && (
@@ -2156,7 +2157,7 @@ const BookingWizardPage = () => {
                      <div className="text-xs sm:text-sm font-medium text-purple-900 mb-1">
                        {selectedMenu && selectedMenu.isDailyRateItem ? 'Meal Delivery Addresses' : 'Delivery Addresses'}
                      </div>
-                     {deliveryLocations.full && (
+                     {deliveryLocations.full && !selectedMenu?.isDailyRateItem && (
                        <div className="text-purple-700 text-xs mb-1 break-words">
                          <span className="font-medium">Primary:</span> {deliveryLocationNames.full || 'Selected'}
                        </div>

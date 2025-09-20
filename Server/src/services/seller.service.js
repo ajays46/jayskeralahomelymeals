@@ -75,9 +75,9 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
         }
       });
 
-      // 5. Create address if provided
+      // 5. Create address if provided - allow Google Maps URL only
       let addressRecord;
-      if (address && (address.street || address.housename || address.city || address.pincode)) {
+      if (address && (address.googleMapsUrl || address.street || address.housename || address.city || address.pincode)) {
         addressRecord = await tx.address.create({
           data: {
             userId: user.id,
@@ -366,14 +366,14 @@ export const createAddressForUser = async (userId, sellerId, addressData) => {
       throw new AppError('User not found or not created by this seller', 404);
     }
 
-    // Create the address for this user
+    // Create the address for this user - handle Google Maps URL only case
     const newAddress = await prisma.address.create({
       data: {
         userId: userId,
-        street: addressData.street,
+        street: addressData.street || '',
         housename: addressData.housename || '',
-        city: addressData.city,
-        pincode: addressData.pincode,
+        city: addressData.city || '',
+        pincode: addressData.pincode ? parseInt(addressData.pincode) : 0,
         geoLocation: addressData.geoLocation && addressData.geoLocation.trim() !== '' ? addressData.geoLocation : null,
         googleMapsUrl: addressData.googleMapsUrl && addressData.googleMapsUrl.trim() !== '' ? addressData.googleMapsUrl : null,
         addressType: addressData.addressType || 'HOME'

@@ -4,6 +4,7 @@ import { FiArrowLeft, FiTrendingUp, FiTrendingDown, FiBarChart2, FiPieChart, FiA
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney, MdAnalytics, MdDashboard, MdAssessment, MdBusinessCenter } from 'react-icons/md';
 import axiosInstance from '../api/axios';
 import Navbar from '../components/Navbar';
+import { SkeletonChart, SkeletonDashboard, SkeletonLoading } from '../components/Skeleton';
 
 const DeliveryAnalyticsPage = () => {
   const [sellers, setSellers] = useState([]);
@@ -106,10 +107,12 @@ const DeliveryAnalyticsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading analytics dashboard...</p>
+      <div className="min-h-screen bg-gray-900 text-white">
+        <Navbar />
+        <div className="pt-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <SkeletonDashboard />
+          </div>
         </div>
       </div>
     );

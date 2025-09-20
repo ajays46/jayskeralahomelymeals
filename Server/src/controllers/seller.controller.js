@@ -90,10 +90,10 @@ export const createUserAddressController = async (req, res, next) => {
       });
     }
     
-    if (!addressData.street || !addressData.city || !addressData.pincode) {
+    if (!addressData.googleMapsUrl && (!addressData.street || !addressData.city || !addressData.pincode)) {
       return res.status(400).json({
         success: false,
-        message: 'Street, city, and pincode are required'
+        message: 'Either Google Maps URL or street, city, and pincode are required'
       });
     }
     

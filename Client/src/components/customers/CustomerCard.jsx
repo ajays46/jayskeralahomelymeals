@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   MdPhone, 
@@ -11,6 +11,7 @@ import {
   MdEdit, 
   MdDelete 
 } from 'react-icons/md';
+import AddressModal from './AddressModal';
 
 const CustomerCard = memo(({ 
   customer, 
@@ -32,6 +33,7 @@ const CustomerCard = memo(({
 }) => {
   const navigate = useNavigate();
   const customerDraft = getDraftForCustomer(customer.id);
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
   const handleResumeOrder = (e) => {
     e.preventDefault();
@@ -67,6 +69,16 @@ const CustomerCard = memo(({
         customer: customer
       } 
     });
+  };
+
+  const handleShowAddresses = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowAddressModal(true);
+  };
+
+  const handleCloseAddressModal = () => {
+    setShowAddressModal(false);
   };
 
   return (
@@ -127,9 +139,12 @@ const CustomerCard = memo(({
                     {customer.addresses[0].street}, {customer.addresses[0].pincode}
                   </div>
                   {customer.addresses.length > 1 && (
-                    <div className="text-xs text-blue-600 font-medium mt-1">
+                    <button
+                      onClick={handleShowAddresses}
+                      className="text-xs text-blue-600 font-medium mt-1 hover:text-blue-800 hover:underline transition-colors"
+                    >
                       +{customer.addresses.length - 1} more location{customer.addresses.length > 2 ? 's' : ''}
-                    </div>
+                    </button>
                   )}
                 </div>
               </div>
@@ -293,9 +308,12 @@ const CustomerCard = memo(({
                 </div>
               </div>
               {customer.addresses.length > 1 && (
-                <div className="text-xs text-blue-600 font-medium">
+                <button
+                  onClick={handleShowAddresses}
+                  className="text-xs text-blue-600 font-medium hover:text-blue-800 hover:underline transition-colors"
+                >
                   +{customer.addresses.length - 1} more location{customer.addresses.length > 2 ? 's' : ''}
-                </div>
+                </button>
               )}
             </div>
           ) : (
@@ -394,6 +412,14 @@ const CustomerCard = memo(({
           </div>
         </div>
       </div>
+
+      {/* Address Modal */}
+      <AddressModal
+        isOpen={showAddressModal}
+        onClose={handleCloseAddressModal}
+        addresses={customer.addresses}
+        customerName={customer.contacts?.[0]?.firstName || 'Customer'}
+      />
     </div>
   );
 });

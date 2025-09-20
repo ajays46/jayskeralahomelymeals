@@ -412,18 +412,18 @@ const AddressPicker = ({
       // This means we're managing addresses for a seller-selected user
       // We'll need to create the address through a different API endpoint
       try {
-        // Validate required fields
-        if (!addressForm.street || !addressForm.city || !addressForm.pincode) {
-          showWarningToast('Please fill in all required fields (Street, City, Pincode)');
+        // Validate required fields - allow Google Maps URL only
+        if (!addressForm.googleMapsUrl && (!addressForm.street || !addressForm.city || !addressForm.pincode)) {
+          showWarningToast('Please fill in all required fields (Street, City, Pincode) or provide a Google Maps URL');
           return;
         }
 
-        // Create address data object
+        // Create address data object - handle Google Maps URL only case
         const addressData = {
-          street: addressForm.street,
-          housename: addressForm.housename,
-          city: addressForm.city,
-          pincode: parseInt(addressForm.pincode),
+          street: addressForm.street || '',
+          housename: addressForm.housename || '',
+          city: addressForm.city || '',
+          pincode: addressForm.pincode ? parseInt(addressForm.pincode) : 0,
           geoLocation: addressForm.geoLocation || '',
           googleMapsUrl: addressForm.googleMapsUrl || '',
           addressType: addressForm.addressType
@@ -436,8 +436,11 @@ const AddressPicker = ({
             if (savedAddress) {
               showSuccessToast('Address created successfully for the selected user!');
               
-              // Update the form value with address ID
-              onChange({ target: { value: savedAddress.id, displayName: `${savedAddress.housename ? savedAddress.housename + ', ' : ''}${savedAddress.street}, ${savedAddress.city} - ${savedAddress.pincode}` } });
+              // Update the form value with address ID - handle Google Maps URL only case
+              const displayName = savedAddress.googleMapsUrl && !savedAddress.street 
+                ? `Google Maps Location (${savedAddress.googleMapsUrl})`
+                : `${savedAddress.housename ? savedAddress.housename + ', ' : ''}${savedAddress.street}, ${savedAddress.city} - ${savedAddress.pincode}`;
+              onChange({ target: { value: savedAddress.id, displayName } });
               
               // Close form dropdown and reset
               setShowAddFormDropdown(false);
@@ -468,18 +471,18 @@ const AddressPicker = ({
     }
     
     try {
-      // Validate required fields
-      if (!addressForm.street || !addressForm.city || !addressForm.pincode) {
-        showWarningToast('Please fill in all required fields (Street, City, Pincode)');
+      // Validate required fields - allow Google Maps URL only
+      if (!addressForm.googleMapsUrl && (!addressForm.street || !addressForm.city || !addressForm.pincode)) {
+        showWarningToast('Please fill in all required fields (Street, City, Pincode) or provide a Google Maps URL');
         return;
       }
 
-      // Create address data object
+      // Create address data object - handle Google Maps URL only case
       const addressData = {
-        street: addressForm.street,
-        housename: addressForm.housename,
-        city: addressForm.city,
-        pincode: parseInt(addressForm.pincode),
+        street: addressForm.street || '',
+        housename: addressForm.housename || '',
+        city: addressForm.city || '',
+        pincode: addressForm.pincode ? parseInt(addressForm.pincode) : 0,
         geoLocation: addressForm.geoLocation || '',
         googleMapsUrl: addressForm.googleMapsUrl || '',
         addressType: addressForm.addressType
@@ -498,8 +501,11 @@ const AddressPicker = ({
         showSuccessToast('Address saved successfully!');
       }
       
-      // Update the form value with address ID
-      onChange({ target: { value: savedAddress.id, displayName: `${savedAddress.housename ? savedAddress.housename + ', ' : ''}${savedAddress.street}, ${savedAddress.city} - ${savedAddress.pincode}` } });
+      // Update the form value with address ID - handle Google Maps URL only case
+      const displayName = savedAddress.googleMapsUrl && !savedAddress.street 
+        ? `Google Maps Location (${savedAddress.googleMapsUrl})`
+        : `${savedAddress.housename ? savedAddress.housename + ', ' : ''}${savedAddress.street}, ${savedAddress.city} - ${savedAddress.pincode}`;
+      onChange({ target: { value: savedAddress.id, displayName } });
       
       // Close form dropdown and reset
       setShowAddFormDropdown(false);
@@ -597,7 +603,7 @@ const AddressPicker = ({
                   {/* Street Address */}
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Street Address *
+                      Street Address
                     </label>
                     <input
                       type="text"
@@ -605,7 +611,6 @@ const AddressPicker = ({
                       value={addressForm.street}
                       onChange={handleFormChange}
                       placeholder="e.g., 123 Main Street"
-                      required
                       className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
                     />
                   </div>
@@ -613,7 +618,7 @@ const AddressPicker = ({
                   {/* City */}
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      City *
+                      City
                     </label>
                     <input
                       type="text"
@@ -621,7 +626,6 @@ const AddressPicker = ({
                       value={addressForm.city}
                       onChange={handleFormChange}
                       placeholder="e.g., Kochi"
-                      required
                       className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
                     />
                   </div>
@@ -629,7 +633,7 @@ const AddressPicker = ({
                   {/* Pincode */}
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Pincode *
+                      Pincode
                     </label>
                     <input
                       type="number"
@@ -637,7 +641,6 @@ const AddressPicker = ({
                       value={addressForm.pincode}
                       onChange={handleFormChange}
                       placeholder="e.g., 682001"
-                      required
                       className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
                     />
                   </div>
@@ -678,7 +681,7 @@ const AddressPicker = ({
                   {/* Google Maps URL */}
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Google Maps URL
+                      Google Maps URL *
                     </label>
                     <input
                       type="url"
@@ -689,7 +692,7 @@ const AddressPicker = ({
                       className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Optional: Paste a Google Maps share URL for precise location
+                      Required: Paste a Google Maps share URL for precise location, or fill in the address fields above
                     </p>
                   </div>
 
@@ -757,7 +760,10 @@ const AddressPicker = ({
                   key={address.id}
                   className="p-3 sm:p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => {
-                    const fullAddress = `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
+                    // Handle Google Maps URL only case for display
+                    const fullAddress = address.googleMapsUrl && !address.street 
+                      ? `Google Maps Location (${address.googleMapsUrl})`
+                      : `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
                     // Send both the address ID and the display name
                     onChange({ target: { value: address.id, displayName: fullAddress } });
                     setSelectedAddress(address);
@@ -779,10 +785,26 @@ const AddressPicker = ({
                             <span className="text-xs sm:text-sm text-gray-500">({address.housename})</span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mb-1 break-words">{address.street}</p>
-                        <p className="text-sm text-gray-600 break-words">
-                          {address.city} - {address.pincode}
-                        </p>
+                        {address.googleMapsUrl && !address.street ? (
+                          <div className="text-sm text-gray-600 break-words">
+                            <p className="mb-1 font-medium">Google Maps Location:</p>
+                            <a 
+                              href={address.googleMapsUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline break-all"
+                            >
+                              {address.googleMapsUrl}
+                            </a>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-600 mb-1 break-words">{address.street}</p>
+                            <p className="text-sm text-gray-600 break-words">
+                              {address.city} - {address.pincode}
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                     
@@ -802,7 +824,9 @@ const AddressPicker = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const addressName = `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
+                          const addressName = address.googleMapsUrl && !address.street 
+                            ? `Google Maps Location (${address.googleMapsUrl})`
+                            : `${address.housename ? address.housename + ', ' : ''}${address.street}, ${address.city} - ${address.pincode}`;
                           handleDeleteAddress(address.id, addressName);
                         }}
                         className="flex-1 sm:flex-none p-2 text-gray-400 hover:text-red-600 transition-colors rounded-md hover:bg-red-50 flex items-center justify-center gap-2 sm:gap-1"

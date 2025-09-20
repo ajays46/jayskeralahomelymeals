@@ -8,6 +8,7 @@ import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes } 
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
 import { isSeller } from '../utils/roleUtils';
+import { SkeletonDeliveryManager, SkeletonLoading } from '../components/Skeleton';
 
 const DeliveryManagerPage = () => {
   const { user, roles } = useAuthStore();
@@ -99,7 +100,6 @@ const DeliveryManagerPage = () => {
   
   // Extract executives from the data
   const activeExecutives = activeExecutivesData?.data?.executives || activeExecutivesData?.data?.data || [];  
-  console.log("activeExecutives", activeExecutives);
   const navigate = useNavigate(); 
   const [cancellingItems, setCancellingItems] = useState(new Set());
   const [showCancelItemModal, setShowCancelItemModal] = useState(false);
@@ -1771,10 +1771,9 @@ const DeliveryManagerPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading delivery manager dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <SkeletonDeliveryManager />
         </div>
       </div>
     );
@@ -2718,9 +2717,19 @@ const DeliveryManagerPage = () => {
                                           </div>
                                           
                                           {loadingItems[order.id] ? (
-                                            <div className="text-center py-4">
-                                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                                              <p className="text-gray-400">Loading delivery items...</p>
+                                            <div className="space-y-3">
+                                              {Array.from({ length: 3 }).map((_, index) => (
+                                                <div key={index} className="bg-gray-800 rounded-lg p-4 animate-pulse">
+                                                  <div className="flex items-center space-x-3">
+                                                    <div className="w-10 h-10 bg-gray-700 rounded-full"></div>
+                                                    <div className="flex-1 space-y-2">
+                                                      <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                                                      <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+                                                    </div>
+                                                    <div className="w-20 h-6 bg-gray-700 rounded-full"></div>
+                                                  </div>
+                                                </div>
+                                              ))}
                                             </div>
                                           ) : deliveryItems[order.id] && deliveryItems[order.id].length > 0 ? (
                                             <div>
@@ -3572,8 +3581,6 @@ const DeliveryManagerPage = () => {
                           </p>
                           <button
                             onClick={() => {
-                              console.log('Show table clicked, current state:', showActiveExecutivesTable);
-                              console.log('Active executives data:', activeExecutives);
                               setShowActiveExecutivesTable(!showActiveExecutivesTable);
                             }}
                             className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
@@ -3644,8 +3651,6 @@ const DeliveryManagerPage = () => {
                           <tbody>
                             {(() => {
                               try {
-                                console.log('Rendering table with executives:', activeExecutives.length);
-                                
                                 // Test row to ensure table is rendering
                                 if (activeExecutives.length === 0) {
                                   return (
@@ -3660,9 +3665,6 @@ const DeliveryManagerPage = () => {
                                 return activeExecutives.map((executive, index) => {
                                   // Add error handling for each executive
                                   if (!executive) return null;
-                                  
-                                  // Debug logging
-                                  console.log(`Rendering executive ${index + 1}:`, executive);
                                   
                                   return (
                                     <tr key={executive.user_id || executive.id || index} className="border-b border-gray-600 hover:bg-gray-600/50 transition-colors">

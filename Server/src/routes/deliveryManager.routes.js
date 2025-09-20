@@ -13,7 +13,7 @@ const router = express.Router();
 
 // All delivery manager routes require authentication and DELIVERY_MANAGER role
 router.use(authenticateToken);
-router.use(checkRole('DELIVERY_MANAGER'));
+router.use(checkRole('DELIVERY_MANAGER','SELLER'));
 
 // Dashboard data
 router.get('/dashboard', getDeliveryManagerDashboard);

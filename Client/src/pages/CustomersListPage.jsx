@@ -24,7 +24,7 @@ import CustomerTable from '../components/customers/CustomerTable';
 import ResultsSummary from '../components/customers/ResultsSummary';
 import DeleteModal from '../components/customers/DeleteModal';
 import Pagination from '../components/Pagination';
-import { SkeletonTable, SkeletonFilters, SkeletonHeader, SkeletonPagination } from '../components/Skeleton';
+import { SkeletonTable, SkeletonFilters, SkeletonHeader, SkeletonPagination, SkeletonCustomerCard, SkeletonDashboard } from '../components/Skeleton';
 
 const CustomersListPage = () => {
   const navigate = useNavigate();

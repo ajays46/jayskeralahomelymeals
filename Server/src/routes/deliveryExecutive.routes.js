@@ -6,7 +6,8 @@ import {
   updateLocation,
   getAllProfiles,
   deleteProfile,
-  updateDeliveryDetails
+  updateDeliveryDetails,
+  getRoutes
 } from '../controllers/deliveryExecutive.controller.js';
 
 const router = express.Router();
@@ -31,5 +32,8 @@ router.get('/', getAllProfiles);
 
 // Delete delivery executive profile
 router.delete('/:userId/profile', deleteProfile);
+
+// Get delivery routes for a phone number
+router.get('/get-routes/:phoneNumber', getRoutes);
 
 export default router;

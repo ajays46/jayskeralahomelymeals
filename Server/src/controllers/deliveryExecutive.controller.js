@@ -256,3 +256,59 @@ export const updateDeliveryDetails = async (req, res) => {
     });
   }
 };
+
+// Get delivery routes for a phone number
+export const getRoutes = async (req, res) => {
+  try {
+    const { phoneNumber } = req.params;
+    
+    
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+
+    // Make request to external API
+    const externalApiUrl = `${process.env.AI_ROUTE_API}/get-routes/${phoneNumber}`;
+    
+    const response = await fetch(externalApiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer mysecretkey123',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    if (response.status === 404 && data.error && data.error.includes('No routes found')) {
+      // Handle case where no routes are found - this is not an error
+      res.json({
+        success: true,
+        message: 'No routes found for this delivery executive',
+        data: []
+      });
+    } else if (!response.ok) {
+      // Handle other errors
+      throw new Error(`External API responded with status: ${response.status} - ${JSON.stringify(data)}`);
+    } else {
+      // Success case
+      res.json({
+        success: true,
+        message: 'Routes fetched successfully',
+        data: data
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Error in getRoutes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch routes',
+      error: error.message
+    });
+  }
+};
+

@@ -39,6 +39,7 @@ import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
 import Navbar from '../components/Navbar';
 import axiosInstance from '../api/axios';
+import { SkeletonTable, SkeletonCard, SkeletonDashboard, SkeletonOrderCard } from '../components/Skeleton';
 
 const SellerPage = () => {
   try {
@@ -510,8 +511,12 @@ const SellerPage = () => {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-          {/* Business Metrics Dashboard */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {sellerUsersLoading ? (
+            <SkeletonDashboard />
+          ) : (
+            <>
+              {/* Business Metrics Dashboard */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -1003,6 +1008,8 @@ const SellerPage = () => {
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
 
 

@@ -37,6 +37,7 @@ import {
 } from '../utils/toastConfig.jsx';
 import axiosInstance from '../api/axios.js';
 import useAuthStore from '../stores/Zustand.store.js';
+import { SkeletonWizardStep, SkeletonLoading } from '../components/Skeleton';
 
 const PaymentWizardPage = () => {
   const navigate = useNavigate();
@@ -1526,10 +1527,9 @@ const PaymentWizardPage = () => {
   // Show loading state for receipt upload mode while fetching payment details
   if (location.state?.goToReceiptUpload && !order && isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading payment details...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <SkeletonWizardStep />
         </div>
       </div>
     );

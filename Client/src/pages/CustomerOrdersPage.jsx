@@ -28,6 +28,7 @@ import {
 } from 'react-icons/md';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
+import { SkeletonTable, SkeletonCard, SkeletonOrderList } from '../components/Skeleton';
 
 const CustomerOrdersPage = () => {
   const navigate = useNavigate();
@@ -688,9 +689,8 @@ const CustomerOrdersPage = () => {
           )}
           
           {loading ? (
-            <div className="p-8 text-center bg-blue-50">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
-              <p className="text-blue-700 font-medium text-lg">Loading orders...</p>
+            <div className="p-8">
+              <SkeletonOrderList count={5} />
             </div>
           ) : error ? (
             <div className="p-8 text-center">
