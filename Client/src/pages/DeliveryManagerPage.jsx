@@ -133,7 +133,6 @@ const DeliveryManagerPage = () => {
   }, []);
 
 
-
   useEffect(() => {
     if (deliveryItems) {
       // Update delivery items when they change

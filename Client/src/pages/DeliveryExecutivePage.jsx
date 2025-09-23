@@ -360,6 +360,8 @@ const DeliveryExecutivePage = () => {
   // Fetch routes function
   const fetchRoutes = async () => {
     const phoneNumber = getUserPhoneNumber();
+  
+    
     
     if (!phoneNumber) {
       setRoutesError('Phone number not found for delivery executive');

@@ -261,7 +261,7 @@ export const updateDeliveryDetails = async (req, res) => {
 export const getRoutes = async (req, res) => {
   try {
     const { phoneNumber } = req.params;
-    
+      
     
     if (!phoneNumber) {
       return res.status(400).json({

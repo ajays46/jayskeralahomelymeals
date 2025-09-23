@@ -826,202 +826,155 @@ export const getSellersWithOrders = async (req, res, next) => {
         });
 
         // Filter only sellers with valid auth records
-        const sellersWithOrders = await Promise.all(
-            sellers
-                .filter(user => {
-                    // Only include users with valid auth records and SELLER role
-                    if (!user.auth || !user.auth.email) return false;
-                    const userRole = user.userRoles[0]?.name;
-                    return userRole === 'SELLER';
-                })
-                .map(async (seller) => {
-                    try {
-                        // Fetch real orders placed by this seller for users
-                        // Since sellers place orders on behalf of users, we need to find orders
-                        // that are associated with this seller's company or created by this seller
-                        
-                        // Option 1: Get orders where the seller's company is involved
-                        // Option 2: Get orders created by this seller (if there's a createdBy field)
-                        // Option 3: Get orders for users that this seller manages
-                        
-                        // For now, let's implement Option 1: Get orders for users in the same company
-                        let orders = [];
-                        let totalRevenue = 0;
-                        
-                        if (seller.companyId) {
-                            // Get users in the same company
-                            const companyUsers = await prisma.user.findMany({
-                                where: {
-                                    companyId: seller.companyId,
-                                    // Exclude the seller themselves
-                                    id: { not: seller.id }
-                                },
-                                select: { id: true }
-                            });
-                            
-                            const userIds = companyUsers.map(user => user.id);
-                            
-                            if (userIds.length > 0) {
-                                // Get orders placed by these users
-                                orders = await prisma.order.findMany({
-                                    where: {
-                                        userId: { in: userIds }
-                                    },
-                                                                    include: {
-                                    user: {
-                                        include: {
-                                            auth: true,
-                                            contacts: {
-                                                include: {
-                                                    phoneNumbers: true
-                                                }
-                                            }
-                                        }
-                                    },
-                                        deliveryItems: {
-                                            include: {
-                                                menuItem: {
-                                                    include: {
-                                                        product: true,
-                                                        prices: {
-                                                            where: {
-                                                                companyId: seller.companyId
-                                                            },
-                                                            take: 1
-                                                        }
-                                                    }
-                                                },
-                                                deliveryAddress: true
-                                            }
-                                        },
-                                        payments: {
-                                            include: {
-                                                paymentReceipts: true
-                                            }
-                                        }
-                                    },
-                                    orderBy: {
-                                        createdAt: 'desc'
-                                    },
-                                    take: 10 // Limit to recent 10 orders
-                                });
-                                
+        const validSellers = sellers.filter(user => {
+            // Only include users with valid auth records and SELLER role
+            if (!user.auth || !user.auth.email) return false;
+            const userRole = user.userRoles[0]?.name;
+            return userRole === 'SELLER';
+        });
 
-                                
-                                // Calculate total revenue
-                                totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
-                            }
-                        }
-                        
-                        // If no company-based orders found, try to get any orders that might be related
-                        if (orders.length === 0) {
-                            // Get some sample orders to show the structure
-                            // This is a fallback when no company-based orders exist
-                            orders = await prisma.order.findMany({
-                                take: 5,
-                                include: {
-                                    user: {
-                                        include: {
-                                            auth: true,
-                                            contacts: {
-                                                include: {
-                                                    phoneNumbers: true
-                                                }
+        // Process each seller
+        const sellersWithOrders = await Promise.all(
+            validSellers.map(async (seller) => {
+                try {
+                    // Fetch real orders placed by users created by this seller
+                    // Sellers create users via createContactOnly, and these users have createdBy = seller.id
+                    let orders = [];
+                    let totalRevenue = 0;
+                    
+                    // Get users created by this seller
+                    const sellerUsers = await prisma.user.findMany({
+                        where: {
+                            createdBy: seller.id
+                        },
+                        select: { id: true }
+                    });
+                    
+                    const userIds = sellerUsers.map(user => user.id);
+                    
+                    if (userIds.length > 0) {
+                        // Get orders placed by these users
+                        orders = await prisma.order.findMany({
+                            where: {
+                                userId: { in: userIds }
+                            },
+                            include: {
+                                user: {
+                                    include: {
+                                        auth: true,
+                                        contacts: {
+                                            include: {
+                                                phoneNumbers: true
                                             }
-                                        }
-                                    },
-                                    deliveryItems: {
-                                        include: {
-                                            menuItem: {
-                                                include: {
-                                                    product: true,
-                                                    prices: true
-                                                }
-                                            },
-                                            deliveryAddress: true
                                         }
                                     }
                                 },
-                                orderBy: {
-                                    createdAt: 'desc'
-                                }
-                            });
-                            
-                            totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
-                        }
-                        
-                        // Transform orders to match the expected format
-                        const transformedOrders = orders.map(order => {
-
-                            
-                            return {
-                                id: order.id,
-                                customerName: order.user?.contacts?.[0]?.firstName || order.user?.auth?.email?.split('@')[0] || 'User',
-                                customerPhone: order.user?.contacts?.[0]?.phoneNumbers?.[0]?.number || order.user?.auth?.phoneNumber || 'No phone',
-                                customerEmail: order.user?.auth?.email || 'No email',
-                                totalPrice: order.totalPrice || 0,
-                                status: order.status || 'PENDING',
-                                createdAt: order.createdAt,
-                                deliveryItems: order.deliveryItems?.map(item => {
-
-                                    
-                                    return {
-                                        id: item.id,
-                                        orderId: item.orderId,
+                                deliveryItems: {
+                                    include: {
                                         menuItem: {
-                                            name: item.menuItem?.name || 'Unknown Item',
-                                            price: item.menuItem?.prices?.[0]?.totalPrice || 0,
-                                            product: item.menuItem?.product || null
+                                            include: {
+                                                product: true,
+                                                prices: true
+                                            }
                                         },
-                                        quantity: item.quantity,
-                                        deliveryDate: item.deliveryDate,
-                                        deliveryTimeSlot: item.deliveryTimeSlot,
-                                        status: item.status,
-                                        address: item.deliveryAddress
-                                    };
-                                }) || [],
-                                paymentReceipts: order.payments?.flatMap(payment => 
-                                    payment.paymentReceipts?.map(receipt => ({
-                                        id: receipt.id,
-                                        imageUrl: receipt.receiptImageUrl,
-                                        receiptUrl: payment.receiptUrl
-                                    })) || []
-                                ) || []
-                            };
+                                        deliveryAddress: {
+                                            select: {
+                                                id: true,
+                                                street: true,
+                                                housename: true,
+                                                city: true,
+                                                pincode: true,
+                                                geoLocation: true,
+                                                googleMapsUrl: true,
+                                                addressType: true
+                                            }
+                                        }
+                                    }
+                                },
+                                payments: {
+                                    include: {
+                                        paymentReceipts: true
+                                    }
+                                }
+                            },
+                            orderBy: {
+                                createdAt: 'desc'
+                            },
+                            take: 10 // Limit to recent 10 orders
                         });
-
-                        return {
-                            id: seller.id,
-                            name: seller.auth.email.split('@')[0],
-                            email: seller.auth.email,
-                            phone: seller.auth.phoneNumber || 'No Phone',
-                            role: seller.userRoles[0]?.name || 'SELLER',
-                            company: seller.company?.name || 'No Company',
-                            companyId: seller.companyId,
-                            status: seller.status,
-                            createdAt: seller.createdAt,
-                            orderCount: transformedOrders.length,
-                            totalRevenue: totalRevenue,
-                            recentOrders: transformedOrders
-                        };
-                    } catch (error) {
-                        console.error(`Error processing seller ${seller.id}:`, error);
-                        return {
-                            id: seller.id,
-                            name: seller.auth.email.split('@')[0],
-                            email: seller.auth.email,
-                            phone: seller.auth.phoneNumber || 'No Phone',
-                            role: seller.userRoles[0]?.name || 'SELLER',
-                            company: seller.company?.name || 'No Company',
-                            companyId: seller.companyId,
-                            status: seller.status,
-                            createdAt: seller.createdAt,
-                            orderCount: 0,
-                            totalRevenue: 0,
-                            recentOrders: []
-                        };
+                        
+                        // Calculate total revenue
+                        totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
                     }
-                })
+                    
+                    // Transform orders to match the expected format
+                    const transformedOrders = orders.map(order => {
+                        return {
+                            id: order.id,
+                            customerName: order.user?.contacts?.[0]?.firstName || order.user?.auth?.email?.split('@')[0] || 'User',
+                            customerPhone: order.user?.contacts?.[0]?.phoneNumbers?.[0]?.number || order.user?.auth?.phoneNumber || 'No phone',
+                            customerEmail: order.user?.auth?.email || 'No email',
+                            totalPrice: order.totalPrice || 0,
+                            status: order.status || 'PENDING',
+                            createdAt: order.createdAt,
+                            deliveryItems: order.deliveryItems?.map(item => {
+                                return {
+                                    id: item.id,
+                                    orderId: item.orderId,
+                                    menuItem: {
+                                        name: item.menuItem?.name || 'Unknown Item',
+                                        price: item.menuItem?.prices?.[0]?.totalPrice || 0,
+                                        product: item.menuItem?.product || null
+                                    },
+                                    quantity: item.quantity,
+                                    deliveryDate: item.deliveryDate,
+                                    deliveryTimeSlot: item.deliveryTimeSlot,
+                                    status: item.status,
+                                    address: item.deliveryAddress || null
+                                };
+                            }) || [],
+                            paymentReceipts: order.payments?.flatMap(payment => 
+                                payment.paymentReceipts?.map(receipt => ({
+                                    id: receipt.id,
+                                    imageUrl: receipt.receiptImageUrl,
+                                    receiptUrl: payment.receiptUrl
+                                })) || []
+                            ) || []
+                        };
+                    });
+
+                    return {
+                        id: seller.id,
+                        name: seller.auth.email.split('@')[0],
+                        email: seller.auth.email,
+                        phone: seller.auth.phoneNumber || 'No Phone',
+                        role: seller.userRoles[0]?.name || 'SELLER',
+                        company: seller.company?.name || 'No Company',
+                        companyId: seller.companyId,
+                        status: seller.status,
+                        createdAt: seller.createdAt,
+                        orderCount: transformedOrders.length,
+                        totalRevenue: totalRevenue,
+                        recentOrders: transformedOrders
+                    };
+                } catch (error) {
+                    console.error(`Error processing seller ${seller.id}:`, error);
+                    return {
+                        id: seller.id,
+                        name: seller.auth.email.split('@')[0],
+                        email: seller.auth.email,
+                        phone: seller.auth.phoneNumber || 'No Phone',
+                        role: seller.userRoles[0]?.name || 'SELLER',
+                        company: seller.company?.name || 'No Company',
+                        companyId: seller.companyId,
+                        status: seller.status,
+                        createdAt: seller.createdAt,
+                        orderCount: 0,
+                        totalRevenue: 0,
+                        recentOrders: []
+                    };
+                }
+            })
         );
 
         res.status(200).json({
