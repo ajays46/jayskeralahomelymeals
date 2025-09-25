@@ -11,7 +11,6 @@ import paymentRoutes from './routes/payment.routes.js';
 import deliveryItemRoutes from './routes/deliveryItem.routes.js';
 import deliveryManagerRoutes from './routes/deliveryManager.routes.js';
 import deliveryExecutiveRoutes from './routes/deliveryExecutive.routes.js';
-import deliveryDetailsRoutes from './routes/deliveryDetails.routes.js';
 import externalUploadRoutes from './routes/externalUpload.routes.js';
 import path from 'path';
 import fs from 'fs';
@@ -120,7 +119,6 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api', deliveryItemRoutes);
 app.use('/api/delivery-managers', deliveryManagerRoutes);
 app.use('/api/delivery-executives', deliveryExecutiveRoutes);
-app.use('/api/delivery-details', deliveryDetailsRoutes);
 app.use('/api/external', externalUploadRoutes);
 
 // Error handling middleware

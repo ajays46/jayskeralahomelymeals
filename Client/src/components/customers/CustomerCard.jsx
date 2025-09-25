@@ -136,8 +136,18 @@ const CustomerCard = memo(({
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-gray-700">{customer.addresses[0].city}</div>
                   <div className="text-gray-500 truncate">
-                    {customer.addresses[0].street}, {customer.addresses[0].pincode}
+                    {customer.addresses[0].street}{customer.addresses[0].pincode && customer.addresses[0].pincode !== 0 ? `, ${customer.addresses[0].pincode}` : ''}
                   </div>
+                  {customer.addresses[0].googleMapsUrl && (
+                    <a
+                      href={customer.addresses[0].googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 font-medium mt-1 hover:text-blue-800 hover:underline transition-colors inline-block"
+                    >
+                      View on Google Maps
+                    </a>
+                  )}
                   {customer.addresses.length > 1 && (
                     <button
                       onClick={handleShowAddresses}
@@ -304,8 +314,18 @@ const CustomerCard = memo(({
               <div className="text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
                 <div className="font-medium text-gray-700">{customer.addresses[0].city}</div>
                 <div className="text-gray-500 truncate">
-                  {customer.addresses[0].street}, {customer.addresses[0].pincode}
+                  {customer.addresses[0].street}{customer.addresses[0].pincode && customer.addresses[0].pincode !== 0 ? `, ${customer.addresses[0].pincode}` : ''}
                 </div>
+                {customer.addresses[0].googleMapsUrl && (
+                  <a
+                    href={customer.addresses[0].googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 font-medium mt-1 hover:text-blue-800 hover:underline transition-colors inline-block"
+                  >
+                    View on Google Maps
+                  </a>
+                )}
               </div>
               {customer.addresses.length > 1 && (
                 <button

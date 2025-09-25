@@ -24,7 +24,8 @@ import {
   MdFilterList,
   MdSearch,
   MdClear,
-  MdVisibility
+  MdVisibility,
+  MdOpenInNew
 } from 'react-icons/md';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
@@ -434,7 +435,7 @@ const CustomerOrdersPage = () => {
 
   // Format price
   const formatPrice = (price) => {
-    if (!price) return '₹0';
+    if (!price || price === 0) return 'N/A';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR'
@@ -995,9 +996,23 @@ const CustomerOrdersPage = () => {
                                                     <div className="font-medium text-gray-800">{item.deliveryAddress.housename}</div>
                                                   )}
                                                   <div>{item.deliveryAddress.street}</div>
-                                                  <div>{item.deliveryAddress.city} - {item.deliveryAddress.pincode}</div>
+                                                  <div>{item.deliveryAddress.city}{item.deliveryAddress.pincode && item.deliveryAddress.pincode !== 0 ? ` - ${item.deliveryAddress.pincode}` : ''}</div>
                                                   {item.deliveryAddress.state && (
                                                     <div>{item.deliveryAddress.state}</div>
+                                                  )}
+                                                  {item.deliveryAddress.googleMapsUrl && (
+                                                    <div className="mt-2">
+                                                      <a
+                                                        href={item.deliveryAddress.googleMapsUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                                                        title="Open in Google Maps"
+                                                      >
+                                                        <MdOpenInNew className="w-3 h-3" />
+                                                        View on Maps
+                                                      </a>
+                                                    </div>
                                                   )}
                                                 </>
                                               ) : (

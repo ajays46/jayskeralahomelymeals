@@ -94,6 +94,19 @@ const AddressModal = ({ isOpen, onClose, addresses, customerName }) => {
                             <span className="font-medium">Landmark:</span> {address.landmark}
                           </div>
                         )}
+                        {address.googleMapsUrl && (
+                          <div className="mt-2">
+                            <a
+                              href={address.googleMapsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:text-blue-800 hover:underline transition-colors"
+                            >
+                              <MdLocationOn className="w-3 h-3" />
+                              View on Google Maps
+                            </a>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

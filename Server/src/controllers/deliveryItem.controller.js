@@ -1,7 +1,10 @@
 import { 
     createDeliveryItemsAfterPaymentService,
-    getDeliveryItemsByOrderService, 
-    updateDeliveryItemStatusService 
+    getDeliveryItemsByOrderService,
+    updateDeliveryItemStatusService,
+    updateDeliveryItemAddressService,
+    uploadDeliveryImageService,
+    getDeliveryItemStatusService
 } from '../services/deliveryItem.service.js';
 
 // Create delivery items after payment confirmation
@@ -62,3 +65,104 @@ export const updateDeliveryItemStatus = async (req, res, next) => {
         next(error);
     }
 };
+
+// Update delivery item address
+export const updateDeliveryItemAddress = async (req, res, next) => {
+    try {
+        
+        const { deliveryItemId } = req.params;
+        const { latitude, longitude } = req.body;
+
+        if (!deliveryItemId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Delivery Item ID is required'
+            });
+        }
+
+        if (latitude === undefined || longitude === undefined) {
+            return res.status(400).json({
+                success: false,
+                message: 'Latitude and longitude are required'
+            });
+        }
+
+        const updatedAddress = await updateDeliveryItemAddressService(
+            deliveryItemId, 
+            { latitude, longitude }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Address updated successfully',
+            data: updatedAddress
+        });
+    } catch (error) {
+        console.error('💥 Error in updateDeliveryItemAddress controller:', error);
+        next(error);
+    }
+};
+
+// Upload delivery image
+export const uploadDeliveryImage = async (req, res, next) => {
+    try {
+        const { delivery_item_id, session, date } = req.body;
+        const imageFile = req.file;
+
+        if (!imageFile) {
+            return res.status(400).json({
+                success: false,
+                message: 'No image file provided'
+            });
+        }
+
+        if (!delivery_item_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'Delivery Item ID is required'
+            });
+        }
+
+        const uploadedImage = await uploadDeliveryImageService(
+            delivery_item_id, 
+            imageFile, 
+            session,
+            date
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Image uploaded successfully',
+            data: uploadedImage
+        });
+    } catch (error) {
+        console.error('💥 Error in uploadDeliveryImage controller:', error);
+        next(error);
+    }
+};
+
+// Get delivery item status by delivery item ID
+export const getDeliveryItemStatus = async (req, res, next) => {
+    try {
+        const { deliveryItemId } = req.params;
+        
+        if (!deliveryItemId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Delivery Item ID is required'
+            });
+        }
+
+        const deliveryItemStatus = await getDeliveryItemStatusService(deliveryItemId);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Delivery item status retrieved successfully',
+            data: deliveryItemStatus
+        });
+    } catch (error) {
+        console.error('💥 Error in getDeliveryItemStatus controller:', error);
+        next(error);
+    }
+};
+

@@ -197,65 +197,6 @@ export const deleteProfile = async (req, res) => {
   }
 };
 
-// Combined endpoint for updating both image and location
-export const updateDeliveryDetails = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { imageData, location, latitude, longitude } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'User ID is required'
-      });
-    }
-
-    // First check if delivery executive profile exists
-    const existingProfile = await getDeliveryExecutiveProfile(userId);
-    if (!existingProfile.success) {
-      return res.status(404).json({
-        success: false,
-        message: 'Delivery executive profile not found. Please contact admin to create your profile first.'
-      });
-    }
-
-    let result;
-
-    // If image data is provided, upload image first
-    if (imageData) {
-      result = await uploadDeliveryExecutiveImage(userId, imageData);
-    }
-
-    // If location data is provided, update location
-    if (location && latitude !== undefined && longitude !== undefined) {
-      result = await updateDeliveryExecutiveLocation(userId, {
-        location,
-        latitude,
-        longitude
-      });
-    }
-
-    if (!result) {
-      return res.status(400).json({
-        success: false,
-        message: 'Either image data or location data must be provided'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Delivery details updated successfully',
-      data: result.data
-    });
-  } catch (error) {
-    console.error('Error in updateDeliveryDetails:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
 
 // Get delivery routes for a phone number
 export const getRoutes = async (req, res) => {

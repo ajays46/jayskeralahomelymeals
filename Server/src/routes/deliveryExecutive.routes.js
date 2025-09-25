@@ -6,7 +6,6 @@ import {
   updateLocation,
   getAllProfiles,
   deleteProfile,
-  updateDeliveryDetails,
   getRoutes
 } from '../controllers/deliveryExecutive.controller.js';
 
@@ -23,9 +22,6 @@ router.post('/:userId/image', uploadImage);
 
 // Update delivery executive location
 router.put('/:userId/location', updateLocation);
-
-// Combined endpoint for updating both image and location
-router.put('/:userId/delivery-details', updateDeliveryDetails);
 
 // Get all delivery executives
 router.get('/', getAllProfiles);

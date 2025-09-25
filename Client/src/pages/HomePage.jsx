@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react'
-import { useUsersList } from '../hooks/userHooks/useLogin';
+import React, { useState } from 'react'
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
 import vegBreakfastData from '../data/veg-breakfast.json';
@@ -10,7 +9,6 @@ import nonVegLunchData from '../data/non-veg-lunch.json';
 import nonVegDinnerData from '../data/non-veg-dinner.json';
 
 const HomePage = () => {
-  const { data } = useUsersList();
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
 
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);

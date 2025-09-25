@@ -274,3 +274,185 @@ export const updateDeliveryItemStatusService = async (deliveryItemId, userId, st
         throw new AppError('Failed to update delivery item status', 500);
     }
 };
+
+// Update delivery item address
+export const updateDeliveryItemAddressService = async (deliveryItemId, coordinateData) => {
+    try {
+        
+        const { latitude, longitude } = coordinateData;
+
+        // First find the delivery item to get its address
+        const deliveryItem = await prisma.deliveryItem.findUnique({
+            where: { id: deliveryItemId },
+            include: {
+                deliveryAddress: true
+            }
+        });
+
+        if (!deliveryItem) {
+            throw new AppError('Delivery item not found', 404);
+        }
+
+        if (!deliveryItem.deliveryAddress) {
+            throw new AppError('No address associated with this delivery item', 404);
+        }
+
+        const addressId = deliveryItem.deliveryAddress.id;
+
+        // Update only geo coordinates
+        const updatedAddress = await prisma.address.update({
+            where: { id: addressId },
+            data: {
+                geoLocation: `${latitude}, ${longitude}`,
+                googleMapsUrl: `https://maps.google.com/?q=${latitude},${longitude}`,
+                updatedAt: new Date()
+            }
+        });
+        
+
+        return updatedAddress;
+    } catch (error) {
+        console.error('💥 Update address service error:', error);
+        if (error instanceof AppError) {
+            throw error;
+        }
+        throw new AppError('Failed to update address', 500);
+    }
+};
+
+// Upload delivery image
+export const uploadDeliveryImageService = async (deliveryItemId, imageFile, session, date) => {
+    try {
+        // First find the delivery item to get its address
+        const deliveryItem = await prisma.deliveryItem.findUnique({
+            where: { id: deliveryItemId },
+            include: {
+                deliveryAddress: true
+            }
+        });
+
+        if (!deliveryItem) {
+            throw new AppError('Delivery item not found', 404);
+        }
+
+        if (!deliveryItem.deliveryAddress) {
+            throw new AppError('No address associated with this delivery item', 404);
+        }
+
+        const addressId = deliveryItem.deliveryAddress.id;
+
+        // Create FormData for external API using memory buffer
+        const formData = new FormData();
+        formData.append('image', new Blob([imageFile.buffer], { type: imageFile.mimetype }), imageFile.originalname);
+        formData.append('address_id', addressId);
+        formData.append('session', session);
+        formData.append('date', date);
+
+        // Send to external API using fetch
+        const response = await fetch('http://13.203.227.119:5001/upload_delivery_pic', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer mysecretkey123'
+            },
+            body: formData,
+            timeout: 30000 // 30 seconds timeout
+        });
+
+        if (!response.ok) {
+            // Try to get error details from response body
+            let errorDetails = '';
+            try {
+                const errorText = await response.text();
+                errorDetails = errorText;
+            } catch (e) {
+                // Could not read error response body
+            }
+            
+            throw new AppError(`External API returned ${response.status}: ${response.statusText}. Details: ${errorDetails}`, response.status);
+        }
+
+        const responseData = await response.json();
+        
+        if (responseData && responseData.success) {
+            // Update delivery item status to Delivered
+            await prisma.deliveryItem.update({
+                where: {
+                    id: deliveryItemId
+                },
+                data: {
+                    status: 'Delivered',
+                    updatedAt: new Date()
+                }
+            });
+
+            return {
+                success: true,
+                message: 'Image uploaded successfully and delivery status updated',
+                externalResponse: responseData,
+                fileInfo: {
+                    originalName: imageFile.originalname,
+                    size: imageFile.size,
+                    mimeType: imageFile.mimetype
+                }
+            };
+        } else {
+            throw new AppError('External API returned unsuccessful response', 500);
+        }
+    } catch (error) {
+        console.error('💥 Upload image service error:', error);
+        if (error instanceof AppError) {
+            throw error;
+        }
+        if (error.response) {
+            throw new AppError(`External API error: ${error.response.data?.message || error.message}`, error.response.status);
+        }
+        throw new AppError('Failed to upload image to external API', 500);
+    }
+};
+
+// Get delivery item status by delivery item ID
+export const getDeliveryItemStatusService = async (deliveryItemId) => {
+    try {
+        const deliveryItem = await prisma.deliveryItem.findUnique({
+            where: {
+                id: deliveryItemId
+            },
+            select: {
+                id: true,
+                status: true,
+                deliveryDate: true,
+                deliveryTimeSlot: true,
+                updatedAt: true,
+                addressId: true,
+                order: {
+                    select: {
+                        id: true,
+                        status: true,
+                        orderDate: true
+                    }
+                }
+            }
+        });
+
+        if (!deliveryItem) {
+            throw new AppError('Delivery item not found', 404);
+        }
+
+        return {
+            deliveryItemId: deliveryItemId,
+            addressId: deliveryItem.addressId,
+            status: deliveryItem.status,
+            deliveryDate: deliveryItem.deliveryDate,
+            deliveryTimeSlot: deliveryItem.deliveryTimeSlot,
+            updatedAt: deliveryItem.updatedAt,
+            orderStatus: deliveryItem.order.status,
+            orderDate: deliveryItem.order.orderDate
+        };
+    } catch (error) {
+        console.error('💥 Error in getDeliveryItemStatusService:', error);
+        if (error instanceof AppError) {
+            throw error;
+        }
+        throw new AppError('Failed to get delivery item status', 500);
+    }
+};

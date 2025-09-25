@@ -4,6 +4,7 @@ import { createCompanyService, companyListService, companyDeleteService, createP
 import bcrypt from 'bcryptjs';
 import { generateApiKey } from '../utils/helpers.js';
 
+
 export const createCompany = async (req, res, next) => {
     try {
         const { name, address } = req.body;
@@ -1401,7 +1402,7 @@ export const proxyFileContent = async (req, res, next) => {
     }
 };
 
-// Proxy session data endpoint
+
 export const proxySessionData = async (req, res, next) => {
     try {
         // Call the external delivery_data API with specific parameters
@@ -1441,6 +1442,7 @@ export const proxySessionData = async (req, res, next) => {
         });
     }
 };
+
 
 // Utility function to identify orphaned users (users without valid auth records)
 export const getOrphanedUsers = async (req, res, next) => {

@@ -184,6 +184,8 @@ export const getUsersBySeller = async (sellerId) => {
             pincode: true,
             housename: true,
             addressType: true,
+            googleMapsUrl: true,
+            geoLocation: true,
             createdAt: true
           },
           orderBy: {
@@ -221,6 +223,18 @@ export const getUserAddresses = async (userId, sellerId) => {
     const addresses = await prisma.address.findMany({
       where: {
         userId: userId
+      },
+      select: {
+        id: true,
+        street: true,
+        city: true,
+        pincode: true,
+        housename: true,
+        addressType: true,
+        googleMapsUrl: true,
+        geoLocation: true,
+        createdAt: true,
+        updatedAt: true
       },
       orderBy: {
         createdAt: 'desc'
@@ -290,7 +304,9 @@ export const getUserOrders = async (userId, sellerId) => {
                 street: true,
                 housename: true,
                 city: true,
-                pincode: true
+                pincode: true,
+                googleMapsUrl: true,
+                geoLocation: true
               }
             }
           }

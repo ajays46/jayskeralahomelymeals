@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiMapPin, FiLogOut } from 'react-icons/fi';
-import { MdLocalShipping, MdAttachMoney, MdPhone } from 'react-icons/md';
+import { FiArrowLeft, FiLogOut, FiMapPin } from 'react-icons/fi';
+import { MdLocalShipping } from 'react-icons/md';
 import { message } from 'antd';
+import { toast } from 'react-toastify';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
@@ -10,20 +11,9 @@ import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from 
 const DeliveryExecutivePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('routes'); // routes, delivery
+  const [activeTab, setActiveTab] = useState('routes'); // routes only
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // Location states
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [manualAddress, setManualAddress] = useState('');
-  const [locationError, setLocationError] = useState(null);
-  
-  // Photo upload states
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [photoLoading, setPhotoLoading] = useState(false);
-  const [photoError, setPhotoError] = useState(null);
   
   // Logout confirmation state
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -34,6 +24,25 @@ const DeliveryExecutivePage = () => {
   const [routesError, setRoutesError] = useState(null);
   const [selectedSession, setSelectedSession] = useState('breakfast'); // breakfast, lunch, dinner
   const [showAllStops, setShowAllStops] = useState(false);
+  
+  // Delivery completion state
+  const [completingDelivery, setCompletingDelivery] = useState(null); // stop index being completed
+  const [completionLocation, setCompletionLocation] = useState(null);
+  const [completionLocationLoading, setCompletionLocationLoading] = useState(false);
+  const [completionLocationError, setCompletionLocationError] = useState(null);
+  const [completionLoading, setCompletionLoading] = useState(false);
+  
+  // Image upload state
+  const [uploadingImage, setUploadingImage] = useState(null); // stop index being uploaded
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageUploadLoading, setImageUploadLoading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState(null);
+  
+  // Delivery status state
+  const [deliveryStatus, setDeliveryStatus] = useState({});
+  const [loadingStatus, setLoadingStatus] = useState({});
+  
   
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -64,6 +73,20 @@ const DeliveryExecutivePage = () => {
     }
   }, [activeTab, user]);
 
+  // Auto-fetch delivery status when routes are loaded
+  useEffect(() => {
+    if (routes.sessions && routes.sessions[selectedSession]) {
+      const stops = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub');
+      
+      // Fetch status for each stop
+      stops.forEach((stop, index) => {
+        if (stop.Delivery_Item_ID) {
+          fetchDeliveryStatus(stop.Delivery_Item_ID, index);
+        }
+      });
+    }
+  }, [routes, selectedSession]);
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Recently';
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -73,31 +96,33 @@ const DeliveryExecutivePage = () => {
     });
   };
 
-  // Location functions
-  const getCurrentLocation = () => {
-    setLocationLoading(true);
-    setLocationError(null);
+  // Location capture functions for delivery completion
+  const getCompletionLocation = () => {
+    setCompletionLocationLoading(true);
+    setCompletionLocationError(null);
     
     if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by this browser.');
-      setLocationLoading(false);
+      setCompletionLocationError('Geolocation is not supported by this browser.');
+      setCompletionLocationLoading(false);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        
         const { latitude, longitude } = position.coords;
-        setCurrentLocation({
+        setCompletionLocation({
           latitude,
           longitude,
           timestamp: new Date().toISOString()
         });
-        setLocationLoading(false);
+        setCompletionLocationLoading(false);
         
         // Reverse geocoding to get address
-        reverseGeocode(latitude, longitude);
+        reverseGeocodeCompletion(latitude, longitude);
       },
       (error) => {
+        console.error('💥 GPS error:', error);
         let errorMessage = 'Unable to retrieve your location.';
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -113,8 +138,8 @@ const DeliveryExecutivePage = () => {
             errorMessage = 'An unknown error occurred.';
             break;
         }
-        setLocationError(errorMessage);
-        setLocationLoading(false);
+        setCompletionLocationError(errorMessage);
+        setCompletionLocationLoading(false);
       },
       {
         enableHighAccuracy: true,
@@ -124,32 +149,40 @@ const DeliveryExecutivePage = () => {
     );
   };
 
-  const reverseGeocode = async (latitude, longitude) => {
+  const reverseGeocodeCompletion = async (latitude, longitude) => {
+    
     try {
-      // Using OpenStreetMap Nominatim API for reverse geocoding
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
-      );
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
+      
+      const response = await fetch(url);
       
       if (response.ok) {
         const data = await response.json();
+        
         if (data.display_name) {
-          setCurrentLocation(prev => ({
-            ...prev,
+          const addressData = {
             address: data.display_name,
             city: data.address?.city || data.address?.town || data.address?.village || 'Unknown',
             state: data.address?.state || 'Unknown',
             country: data.address?.country || 'Unknown',
             postalCode: data.address?.postcode || 'Unknown'
+          };
+          
+          setCompletionLocation(prev => ({
+            ...prev,
+            ...addressData
           }));
+        } else {
         }
+      } else {
       }
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
-      // Fallback to coordinates if reverse geocoding fails
-      setCurrentLocation(prev => ({
+      console.error('💥 Reverse geocoding error:', error);
+      const fallbackAddress = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+      
+      setCompletionLocation(prev => ({
         ...prev,
-        address: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+        address: fallbackAddress,
         city: 'Coordinates Only',
         state: 'Coordinates Only',
         country: 'Coordinates Only',
@@ -158,101 +191,296 @@ const DeliveryExecutivePage = () => {
     }
   };
 
-  const handleManualAddressSubmit = () => {
-    if (manualAddress.trim()) {
-      setCurrentLocation({
-        address: manualAddress.trim(),
-        city: 'Manual Entry',
-        state: 'Manual Entry',
-        country: 'Manual Entry',
-        postalCode: 'N/A',
-        timestamp: new Date().toISOString()
-      });
-      setLocationError(null);
-    }
+
+
+  const clearCompletionLocation = () => {
+    setCompletionLocation(null);
+    setCompletionLocationError(null);
   };
 
-  const clearLocation = () => {
-    setCurrentLocation(null);
-    setManualAddress('');
-    setLocationError(null);
-  };
-
-  // Photo upload functions
-  const handlePhotoSelect = (event) => {
+  // Image upload functions
+  const handleImageSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
       // Validate file type
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-      if (!validTypes.includes(file.type)) {
-        setPhotoError('Please select a valid image file (JPG, PNG, or GIF)');
+      if (!file.type.startsWith('image/')) {
+        setImageUploadError('Please select a valid image file.');
         return;
       }
-
-      // Validate file size (5MB limit)
-      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-      if (file.size > maxSize) {
-        setPhotoError('File size must be less than 5MB');
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setImageUploadError('Image size should be less than 5MB.');
         return;
       }
-
-      setSelectedPhoto(file);
-      setPhotoError(null);
-
-      // Create preview URL
+      
+      setSelectedImage(file);
+      setImageUploadError(null);
+      
+      // Create preview
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPhotoPreview(e.target.result);
+        setImagePreview(e.target.result);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handlePhotoUpload = async () => {
-    if (!selectedPhoto) {
-      setPhotoError('Please select a photo first');
+  const clearImageUpload = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    setImageUploadError(null);
+    setUploadingImage(null);
+  };
+
+  // Fetch delivery status for a specific delivery item
+  const fetchDeliveryStatus = async (deliveryItemId, stopIndex) => {
+    if (!deliveryItemId) return;
+    
+    setLoadingStatus(prev => ({ ...prev, [stopIndex]: true }));
+    
+    try {
+      const response = await axiosInstance.get(`/delivery-items/status/${deliveryItemId}`);
+      
+      if (response.data.success) {
+        setDeliveryStatus(prev => ({
+          ...prev,
+          [stopIndex]: response.data.data
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching delivery status:', error);
+    } finally {
+      setLoadingStatus(prev => ({ ...prev, [stopIndex]: false }));
+    }
+  };
+
+  const handleImageUpload = async (stopIndex) => {
+    if (!selectedImage) {
+      setImageUploadError('Please select an image first.');
       return;
     }
 
-    setPhotoLoading(true);
-    setPhotoError(null);
+    setImageUploadLoading(true);
+    setImageUploadError(null);
 
     try {
+      // Get the current stop data
+      const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
+      const deliveryItemId = currentStop?.Delivery_Item_ID;
+      const deliveryDate = currentStop?.Date;
+      
+      if (!deliveryItemId) {
+        setImageUploadError('No delivery item ID found for this delivery stop.');
+        return;
+      }
+
+      if (!deliveryDate) {
+        setImageUploadError('No delivery date found for this stop.');
+        return;
+      }
+
       // Create FormData for file upload
       const formData = new FormData();
-      formData.append('image', selectedPhoto);
-      
-      // Send to backend API using axios
-      const response = await axiosInstance.post(`/delivery-details/${user?.id}/delivery-details`, formData, {
+      formData.append('image', selectedImage);
+      formData.append('delivery_item_id', deliveryItemId);
+      formData.append('session', selectedSession.charAt(0).toUpperCase() + selectedSession.slice(1)); // Breakfast, Lunch, Dinner
+      formData.append('date', deliveryDate); // Use the Date from the specific stop
+
+      const response = await axiosInstance.post('/delivery-items/upload-image', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
       if (response.data.success) {
-        message.success(response.data.message || 'Photo uploaded successfully!');
+        // Fetch updated delivery status from database
+        await fetchDeliveryStatus(deliveryItemId, stopIndex);
         
-        // Clear the form after successful upload
-        setSelectedPhoto(null);
-        setPhotoPreview(null);
+        // Show success toast
+        toast.success(
+          <div className="flex items-center gap-3">
+            <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <div>
+              <div className="font-semibold text-green-800 text-base">✅ Delivery Completed!</div>
+              <div className="text-sm text-green-700 mt-1">Photo uploaded and delivery marked as completed.</div>
+            </div>
+          </div>,
+          {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "light",
+            style: {
+              background: "#f0f9ff",
+              border: "1px solid #10b981",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
+            },
+          }
+        );
+        
+        // Clear upload state
+        clearImageUpload();
       } else {
-        throw new Error(response.data.message || 'Failed to upload photo');
+        throw new Error(response.data.message || 'Failed to upload image');
       }
     } catch (apiError) {
-      setPhotoError(apiError.response?.data?.message || apiError.message || 'Failed to upload photo. Please try again.');
+      console.error('💥 Error in image upload:', apiError);
+      
+      // Show error toast
+      toast.error(
+        <div className="flex items-center gap-3">
+          <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <div className="font-semibold text-red-800 text-base">❌ Upload Failed</div>
+            <div className="text-sm text-red-700 mt-1">
+              {apiError.response?.data?.message || apiError.message || 'Failed to upload image. Please try again.'}
+            </div>
+          </div>
+        </div>,
+        {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          style: {
+            background: "#fef2f2",
+            border: "1px solid #ef4444",
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(239, 68, 68, 0.15)",
+          },
+        }
+      );
+      
+      setImageUploadError(apiError.response?.data?.message || apiError.message || 'Failed to upload image. Please try again.');
     } finally {
-      setPhotoLoading(false);
+      setImageUploadLoading(false);
     }
   };
 
-  const clearPhoto = () => {
-    setSelectedPhoto(null);
-    setPhotoPreview(null);
-    setPhotoError(null);
-    // Clear the file input
-    const fileInput = document.getElementById('photo-upload');
-    if (fileInput) fileInput.value = '';
+  const handleCompleteDelivery = async (stopIndex) => {
+
+    if (!completionLocation) {
+      setCompletionLocationError('Please capture your current location first.');
+      return;
+    }
+
+    setCompletionLoading(true);
+    setCompletionLocationError(null);
+
+    try {
+      // Get the current stop data
+      const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
+      
+      // Use the real Delivery_Item_ID from the route data
+      const deliveryItemId = currentStop?.Delivery_Item_ID;
+      
+      if (!deliveryItemId) {
+        setCompletionLocationError('No delivery item ID found for this delivery stop.');
+        return;
+      }
+      
+      const requestData = {
+        latitude: completionLocation.latitude,
+        longitude: completionLocation.longitude
+      };
+      
+      const response = await axiosInstance.put(`/delivery-items/${deliveryItemId}/address`, requestData);
+
+      if (response.data.success) {
+        
+        // Show toastify success popup
+        toast.success(
+          <div className="flex items-center gap-3">
+            <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <div className="font-semibold text-green-800 text-base">✅ Address Updated Successfully!</div>
+              <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated for this delivery location.</div>
+            </div>
+          </div>,
+          {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "light",
+            style: {
+              background: "#f0f9ff",
+              border: "1px solid #10b981",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
+            },
+          }
+        );
+        
+        // Clear completion state
+        setCompletingDelivery(null);
+        clearCompletionLocation();
+      } else {
+        throw new Error(response.data.message || 'Failed to update delivery address');
+      }
+    } catch (apiError) {
+      console.error('💥 Error in delivery completion:', {
+        error: apiError,
+        response: apiError.response?.data,
+        message: apiError.message
+      });
+      
+      // Show toastify error popup
+      toast.error(
+        <div className="flex items-center gap-3">
+          <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <div className="font-semibold text-red-800 text-base">❌ Update Failed</div>
+            <div className="text-sm text-red-700 mt-1">
+              {apiError.response?.data?.message || apiError.message || 'Failed to update delivery address. Please try again.'}
+            </div>
+          </div>
+        </div>,
+        {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          style: {
+            background: "#fef2f2",
+            border: "1px solid #ef4444",
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(239, 68, 68, 0.15)",
+          },
+        }
+      );
+      
+      setCompletionLocationError(apiError.response?.data?.message || apiError.message || 'Failed to update delivery address. Please try again.');
+    } finally {
+      setCompletionLoading(false);
+    }
   };
+
 
   const handleLogout = async () => {
     try {
@@ -292,60 +520,6 @@ const DeliveryExecutivePage = () => {
     }
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      const event = { target: { files } };
-      handlePhotoSelect(event);
-    }
-  };
-
-  const handleSendDeliveryDetails = async () => {
-    if (!currentLocation) {
-      setLocationError('Please capture your current location first.');
-      return;
-    }
-    if (!selectedPhoto) {
-      setPhotoError('Please select a delivery photo first.');
-      return;
-    }
-
-    setPhotoLoading(true);
-    setPhotoError(null);
-
-    try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('image', selectedPhoto);
-      formData.append('location', currentLocation.address || JSON.stringify(currentLocation));
-      formData.append('latitude', currentLocation.latitude?.toString() || '');
-      formData.append('longitude', currentLocation.longitude?.toString() || '');
-      
-      // Send to backend API using axios
-      const response = await axiosInstance.post(`/delivery-details/${user?.id}/delivery-details`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (response.data.success) {
-        message.success(response.data.message || 'Delivery details sent successfully!');
-        clearLocation();
-        clearPhoto();
-      } else {
-        throw new Error(response.data.message || 'Failed to send delivery details');
-      }
-    } catch (apiError) {
-      setPhotoError(apiError.response?.data?.message || apiError.message || 'Failed to send delivery details. Please try again.');
-    } finally {
-      setPhotoLoading(false);
-    }
-  };
 
   // Get phone number from user object
   const getUserPhoneNumber = () => {
@@ -552,20 +726,6 @@ const DeliveryExecutivePage = () => {
                 <span>Routes</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setActiveTab('delivery');
-                  setSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-left transition-colors text-sm sm:text-base ${
-                  activeTab === 'delivery'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <MdLocalShipping className="text-base sm:text-lg" />
-                <span>Delivery</span>
-              </button>
 
               {/* Logout Button */}
               <button
@@ -590,366 +750,6 @@ const DeliveryExecutivePage = () => {
           )}
 
 
-          {/* Delivery Page Content - Combined Location & Photo */}
-          {activeTab === 'delivery' && (
-            <div className="space-y-4 sm:space-y-6">
-              {/* Page Header */}
-              <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-lg border border-gray-700 p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center sm:text-left">
-                  <MdLocalShipping className="text-3xl sm:text-4xl text-white" />
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white">Delivery Management</h2>
-                    <p className="text-green-100 text-sm sm:text-base">Location tracking and photo documentation</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Two Column Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                {/* Left Column - Location Search */}
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
-                      <FiMapPin className="text-blue-400" />
-                      📍 Location Management
-                    </h3>
-                    
-                    <div className="space-y-4 sm:space-y-6">
-                      {/* Location Search */}
-                      <div className="bg-gray-700 rounded-lg p-4 sm:p-6 border border-gray-600">
-                        <h4 className="text-sm sm:text-base font-medium text-white mb-3 sm:mb-4">🔍 Find Your Current Location</h4>
-                        
-                        <div className="space-y-3 sm:space-y-4">
-                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                            <button 
-                              onClick={getCurrentLocation}
-                              disabled={locationLoading}
-                              className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-                            >
-                              {locationLoading ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                  Getting Location...
-                                </>
-                              ) : (
-                                <>
-                                  <FiMapPin className="text-base sm:text-lg" />
-                                  Get Current Location
-                                </>
-                              )}
-                            </button>
-                            <span className="text-gray-400 text-xs sm:text-sm text-center sm:hidden">or</span>
-                            <input
-                              type="text"
-                              value={manualAddress}
-                              onChange={(e) => setManualAddress(e.target.value)}
-                              placeholder="Enter address manually..."
-                              className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-gray-600 text-white border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
-                            />
-                          </div>
-                          
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <button 
-                              onClick={handleManualAddressSubmit}
-                              disabled={!manualAddress.trim()}
-                              className="px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white rounded-lg transition-colors text-sm sm:text-base"
-                            >
-                              Search Location
-                            </button>
-                            {currentLocation && (
-                              <button 
-                                onClick={clearLocation}
-                                className="px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm sm:text-base"
-                              >
-                                Clear
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Error Display */}
-                          {locationError && (
-                            <div className="bg-red-900/20 border border-red-500 rounded-lg p-3">
-                              <p className="text-red-400 text-sm">{locationError}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Location Results */}
-                      <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
-                        <h4 className="text-md font-medium text-white mb-4">📍 Current Location Info</h4>
-                        
-                        {currentLocation ? (
-                          <div className="space-y-4">
-                            <div>
-                              <label className="text-sm font-medium text-gray-400">Address</label>
-                              <p className="text-white mt-1 break-words">{currentLocation.address}</p>
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium text-gray-400">Coordinates</label>
-                              <p className="text-white mt-1 font-mono text-sm">
-                                {currentLocation.latitude ? `${currentLocation.latitude.toFixed(6)}° N, ${currentLocation.longitude.toFixed(6)}° E` : 'N/A'}
-                              </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label className="text-sm font-medium text-gray-400">City</label>
-                                <p className="text-white mt-1">{currentLocation.city}</p>
-                              </div>
-                              <div>
-                                <label className="text-sm font-medium text-gray-400">State</label>
-                                <p className="text-white mt-1">{currentLocation.state}</p>
-                              </div>
-                              <div>
-                                <label className="text-sm font-medium text-gray-400">Country</label>
-                                <p className="text-white mt-1">{currentLocation.country}</p>
-                              </div>
-                              <div>
-                                <label className="text-sm font-medium text-gray-400">Postal Code</label>
-                                <p className="text-white mt-1">{currentLocation.postalCode}</p>
-                              </div>
-                            </div>
-                            {currentLocation.timestamp && (
-                              <div>
-                                <label className="text-sm font-medium text-gray-400">Last Updated</label>
-                                <p className="text-white mt-1 text-sm">{new Date(currentLocation.timestamp).toLocaleString()}</p>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8">
-                            <div className="text-gray-400 mb-2">
-                              <FiMapPin className="w-12 h-12 mx-auto" />
-                            </div>
-                            <p className="text-gray-400">No location data available</p>
-                            <p className="text-gray-500 text-sm mt-1">Click "Get Current Location" to start</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column - Photo Upload */}
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
-                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      📸 Photo Documentation
-                    </h3>
-                    
-                    <div className="space-y-4 sm:space-y-6">
-                      {/* Image Upload Area */}
-                      <div className="bg-gray-700 rounded-lg p-4 sm:p-6 border border-gray-600">
-                        <h4 className="text-sm sm:text-base font-medium text-white mb-3 sm:mb-4">📤 Upload Delivery Photo</h4>
-                        
-                        <div 
-                          className="border-2 border-dashed border-gray-500 rounded-lg p-4 sm:p-8 text-center hover:border-purple-400 transition-colors"
-                          onDragOver={handleDragOver}
-                          onDrop={handleDrop}
-                        >
-                          {!selectedPhoto ? (
-                            <>
-                              <div className="text-gray-400 mb-3 sm:mb-4">
-                                <svg className="w-12 h-12 sm:w-16 sm:h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                </svg>
-                              </div>
-                              <p className="text-gray-400 mb-2 text-sm sm:text-base">Drag and drop your photo here</p>
-                              <p className="text-gray-500 text-xs sm:text-sm mb-3 sm:mb-4">or click to browse files</p>
-                              
-                              <div className="space-y-3">
-                                <label className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors cursor-pointer inline-block text-sm sm:text-base">
-                                  <input
-                                    id="photo-upload"
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handlePhotoSelect}
-                                    className="hidden"
-                                  />
-                                  Choose Photo
-                                </label>
-                                <p className="text-gray-500 text-xs">Supported: JPG, PNG, GIF (Max: 5MB)</p>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="space-y-4">
-                              <div className="text-green-400 mb-2">
-                                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                              </div>
-                              <p className="text-green-400 font-medium">Photo Selected!</p>
-                              <p className="text-gray-400 text-sm">{selectedPhoto.name}</p>
-                              <p className="text-gray-500 text-xs">{(selectedPhoto.size / 1024 / 1024).toFixed(2)} MB</p>
-                              
-                              <div className="flex gap-2 justify-center">
-                                <button 
-                                  onClick={handlePhotoUpload}
-                                  disabled={photoLoading}
-                                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white rounded-lg transition-colors"
-                                >
-                                  {photoLoading ? (
-                                    <>
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-2"></div>
-                                      Uploading...
-                                    </>
-                                  ) : (
-                                    '📤 Upload Photo'
-                                  )}
-                                </button>
-                                <button 
-                                  onClick={clearPhoto}
-                                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                                >
-                                  Clear
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Error Display */}
-                        {photoError && (
-                          <div className="mt-4 bg-red-900/20 border border-red-500 rounded-lg p-3">
-                            <p className="text-red-400 text-sm">{photoError}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Image Preview */}
-                      <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
-                        <h4 className="text-md font-medium text-white mb-4">🖼️ Photo Preview</h4>
-                        
-                        {photoPreview ? (
-                          <div className="space-y-3 sm:space-y-4">
-                            <div className="bg-gray-600 rounded-lg p-3 sm:p-4 border border-gray-500">
-                              <img 
-                                src={photoPreview} 
-                                alt="Delivery Photo Preview" 
-                                className="w-full h-48 sm:h-64 object-cover rounded-lg"
-                              />
-                            </div>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
-                              <div>
-                                <label className="text-xs sm:text-sm font-medium text-gray-400">File Name</label>
-                                <p className="text-white mt-1 truncate text-xs sm:text-sm">{selectedPhoto?.name}</p>
-                              </div>
-                              <div>
-                                <label className="text-xs sm:text-sm font-medium text-gray-400">File Size</label>
-                                <p className="text-white mt-1 text-xs sm:text-sm">{selectedPhoto ? (selectedPhoto.size / 1024 / 1024).toFixed(2) + ' MB' : 'N/A'}</p>
-                              </div>
-                              <div>
-                                <label className="text-xs sm:text-sm font-medium text-gray-400">File Type</label>
-                                <p className="text-white mt-1 text-xs sm:text-sm">{selectedPhoto?.type || 'N/A'}</p>
-                              </div>
-                              <div>
-                                <label className="text-xs sm:text-sm font-medium text-gray-400">Dimensions</label>
-                                <p className="text-white mt-1 text-xs sm:text-sm">Auto-detected</p>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="bg-gray-600 rounded-lg p-8 text-center border border-gray-500">
-                            <div className="text-gray-400 mb-4">
-                              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                            <p className="text-gray-400">No photo selected</p>
-                            <p className="text-gray-500 text-sm mt-2">Upload a photo to see preview</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Send Button Section */}
-              <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-                <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
-                  <MdLocalShipping className="text-green-400" />
-                  🚀 Send Delivery Details
-                </h3>
-                
-                <div className="space-y-3 sm:space-y-4">
-                  {/* Status Summary */}
-                  <div className="bg-gray-700 rounded-lg p-3 sm:p-4 border border-gray-600">
-                    <h4 className="text-sm sm:text-base font-medium text-white mb-3">📋 Delivery Summary</h4>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      {/* Location Status */}
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div className={`w-3 h-3 rounded-full ${currentLocation ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <div>
-                          <p className="text-white font-medium text-sm sm:text-base">Location</p>
-                          <p className="text-gray-400 text-xs sm:text-sm">
-                            {currentLocation ? 'Captured' : 'Not captured'}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {/* Photo Status */}
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div className={`w-3 h-3 rounded-full ${selectedPhoto ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <div>
-                          <p className="text-white font-medium text-sm sm:text-base">Photo</p>
-                          <p className="text-gray-400 text-xs sm:text-sm">
-                            {selectedPhoto ? 'Selected' : 'Not selected'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Send Button */}
-                  <div className="text-center">
-                    <button
-                      onClick={handleSendDeliveryDetails}
-                      disabled={!currentLocation || !selectedPhoto || photoLoading}
-                      className={`w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 sm:gap-3 mx-auto ${
-                        currentLocation && selectedPhoto && !photoLoading
-                          ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
-                          : 'bg-gray-500 text-gray-300 cursor-not-allowed'
-                      }`}
-                    >
-                      {photoLoading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-white"></div>
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <MdLocalShipping className="text-xl sm:text-2xl" />
-                          📤 Send Delivery Details
-                        </>
-                      )}
-                    </button>
-                    
-                    {!currentLocation && !selectedPhoto && (
-                      <p className="text-gray-400 text-xs sm:text-sm mt-3">
-                        Please capture location and select photo to enable sending
-                      </p>
-                    )}
-                    {!currentLocation && selectedPhoto && (
-                      <p className="text-gray-400 text-xs sm:text-sm mt-3">
-                        Please capture your current location first
-                      </p>
-                    )}
-                    {currentLocation && !selectedPhoto && (
-                      <p className="text-gray-400 text-xs sm:text-sm mt-3">
-                        Please select a delivery photo first
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Routes Tab Content */}
           {activeTab === 'routes' && (
@@ -1167,21 +967,321 @@ const DeliveryExecutivePage = () => {
                                       )}
                                     </div>
 
-                                    {/* Regular Stop with Directions */}
-                                    {stop.Map_Link && (
-                                      <div className="mt-3">
-                                        <a
-                                          href={stop.Map_Link}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                    {/* Action Buttons */}
+                                    <div className="mt-3">
+                                      {/* All Action Buttons in One Row */}
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                        {/* Directions Button */}
+                                        {stop.Map_Link && (
+                                          <a
+                                            href={stop.Map_Link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center justify-center gap-2 flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                          >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            Get Directions
+                                          </a>
+                                        )}
+                                        
+                                        {/* Upload Image Button - Hide if delivered */}
+                                        {deliveryStatus[index]?.status !== 'Delivered' && (
+                                          <button
+                                            onClick={() => setUploadingImage(uploadingImage === index ? null : index)}
+                                            className="inline-flex items-center justify-center gap-2 flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                          >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            {uploadingImage === index ? 'Cancel' : 'Upload Photo'}
+                                          </button>
+                                        )}
+                                        
+                                        {/* Update Address Button - Always visible */}
+                                        <button
+                                          onClick={() => setCompletingDelivery(completingDelivery === index ? null : index)}
+                                          className="inline-flex items-center justify-center gap-2 flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
                                         >
                                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                           </svg>
-                                          Get Directions
-                                        </a>
+                                          {completingDelivery === index ? 'Cancel' : 'Update Address'}
+                                        </button>
+                                        
+                                      </div>
+                                    </div>
+
+                                    {/* Delivery Status Display */}
+                                    {(deliveryStatus[index] || loadingStatus[index]) && (
+                                      <div className={`mt-3 p-3 rounded-lg border ${
+                                        loadingStatus[index] 
+                                          ? 'bg-gray-900/20 border-gray-600'
+                                          : deliveryStatus[index].status === 'Delivered' 
+                                          ? 'bg-green-900/20 border-green-600' 
+                                          : deliveryStatus[index].status === 'Pending'
+                                          ? 'bg-yellow-900/20 border-yellow-600'
+                                          : deliveryStatus[index].status === 'Confirmed'
+                                          ? 'bg-blue-900/20 border-blue-600'
+                                          : deliveryStatus[index].status === 'Cancelled'
+                                          ? 'bg-red-900/20 border-red-600'
+                                          : 'bg-gray-900/20 border-gray-600'
+                                      }`}>
+                                        <div className="flex items-center gap-2">
+                                          {loadingStatus[index] ? (
+                                            <>
+                                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400"></div>
+                                              <div>
+                                                <div className="text-gray-400 font-medium text-sm">Loading Status...</div>
+                                                <div className="text-gray-300 text-xs">Fetching delivery information</div>
+                                              </div>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <svg className={`w-5 h-5 ${
+                                                deliveryStatus[index].status === 'Delivered' 
+                                                  ? 'text-green-500' 
+                                                  : deliveryStatus[index].status === 'Pending'
+                                                  ? 'text-yellow-500'
+                                                  : deliveryStatus[index].status === 'Confirmed'
+                                                  ? 'text-blue-500'
+                                                  : deliveryStatus[index].status === 'Cancelled'
+                                                  ? 'text-red-500'
+                                                  : 'text-gray-500'
+                                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                {deliveryStatus[index].status === 'Delivered' ? (
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                ) : deliveryStatus[index].status === 'Pending' ? (
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                ) : deliveryStatus[index].status === 'Confirmed' ? (
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                ) : deliveryStatus[index].status === 'Cancelled' ? (
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                ) : (
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                )}
+                                              </svg>
+                                              <div>
+                                                <div className={`font-medium text-sm ${
+                                                  deliveryStatus[index].status === 'Delivered' 
+                                                    ? 'text-green-400' 
+                                                    : deliveryStatus[index].status === 'Pending'
+                                                    ? 'text-yellow-400'
+                                                    : deliveryStatus[index].status === 'Confirmed'
+                                                    ? 'text-blue-400'
+                                                    : deliveryStatus[index].status === 'Cancelled'
+                                                    ? 'text-red-400'
+                                                    : 'text-gray-400'
+                                                }`}>
+                                                  {deliveryStatus[index].status === 'Delivered' ? '✅ Delivered' :
+                                                   deliveryStatus[index].status === 'Pending' ? '⏳ Pending' :
+                                                   deliveryStatus[index].status === 'Confirmed' ? '✅ Confirmed' :
+                                                   deliveryStatus[index].status === 'Cancelled' ? '❌ Cancelled' :
+                                                   deliveryStatus[index].status}
+                                                </div>
+                                                <div className={`text-xs ${
+                                                  deliveryStatus[index].status === 'Delivered' 
+                                                    ? 'text-green-300' 
+                                                    : deliveryStatus[index].status === 'Pending'
+                                                    ? 'text-yellow-300'
+                                                    : deliveryStatus[index].status === 'Confirmed'
+                                                    ? 'text-blue-300'
+                                                    : deliveryStatus[index].status === 'Cancelled'
+                                                    ? 'text-red-300'
+                                                    : 'text-gray-300'
+                                                }`}>
+                                                  Updated: {new Date(deliveryStatus[index].updatedAt).toLocaleString()}
+                                                </div>
+                                              </div>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Action UI - Show only one at a time */}
+                                    {(completingDelivery === index || uploadingImage === index) && (
+                                      <div className="mt-4 p-4 bg-gray-600 rounded-lg border border-gray-500">
+                                        {/* Delivery Completion UI */}
+                                        {completingDelivery === index && (
+                                          <>
+                                            <h6 className="text-white font-medium mb-3 flex items-center gap-2">
+                                              <FiMapPin className="text-blue-400" />
+                                              📍 Update Delivery Address
+                                            </h6>
+                                            
+                                            <div className="space-y-4">
+                                              {/* GPS Location Capture */}
+                                              <div className="bg-gray-500 rounded-lg p-3 border border-gray-400">
+                                                <h7 className="text-white font-medium text-sm mb-2 flex items-center gap-2">
+                                                  <FiMapPin className="text-blue-400" />
+                                                  📍 GPS Location
+                                                </h7>
+                                                <button 
+                                                  onClick={getCompletionLocation}
+                                                  disabled={completionLocationLoading}
+                                                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                                                >
+                                                  {completionLocationLoading ? (
+                                                    <>
+                                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                      Getting Location...
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      <FiMapPin className="text-base" />
+                                                      Get Current Location
+                                                    </>
+                                                  )}
+                                                </button>
+                                              </div>
+
+                                              {/* Clear Button */}
+                                              {completionLocation && (
+                                                <div className="text-center">
+                                                  <button 
+                                                    onClick={clearCompletionLocation}
+                                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
+                                                  >
+                                                    🗑️ Clear All
+                                                  </button>
+                                                </div>
+                                              )}
+
+                                              {/* Error Display */}
+                                              {completionLocationError && (
+                                                <div className="bg-red-900/20 border border-red-500 rounded-lg p-2">
+                                                  <p className="text-red-400 text-sm">{completionLocationError}</p>
+                                                </div>
+                                              )}
+
+                                              {/* Complete Button */}
+                                              <div className="pt-2">
+                                                <button
+                                                  onClick={() => handleCompleteDelivery(index)}
+                                                  disabled={!completionLocation || completionLoading}
+                                                  className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                                                    completionLocation && !completionLoading
+                                                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                      : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                                                  }`}
+                                                >
+                                                  {completionLoading ? (
+                                                    <>
+                                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                      Completing...
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                      </svg>
+                                                      ✅ Complete This Delivery
+                                                    </>
+                                                  )}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </>
+                                        )}
+
+                                        {/* Image Upload UI */}
+                                        {uploadingImage === index && (
+                                          <>
+                                            <h6 className="text-white font-medium mb-3 flex items-center gap-2">
+                                              <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                              </svg>
+                                              📸 Upload Delivery Photo
+                                            </h6>
+                                            
+                                            <div className="space-y-4">
+                                              {/* File Input - Compact */}
+                                              <div className="bg-gray-500 rounded-lg p-2 border border-gray-400">
+                                                <label className="block">
+                                                  <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleImageSelect}
+                                                    className="hidden"
+                                                    id={`image-upload-${index}`}
+                                                  />
+                                                  <div className="flex items-center justify-center w-full h-16 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer hover:border-purple-400 transition-colors">
+                                                    <div className="text-center">
+                                                      <svg className="w-4 h-4 text-gray-400 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                      </svg>
+                                                      <p className="text-gray-300 text-xs">
+                                                        {selectedImage ? 'Change Image' : 'Select Image'}
+                                                      </p>
+                                                      <p className="text-gray-400 text-xs">Max 5MB</p>
+                                                    </div>
+                                                  </div>
+                                                </label>
+                                              </div>
+
+                                              {/* Image Preview - Compact */}
+                                              {imagePreview && (
+                                                <div className="bg-gray-500 rounded-lg p-2 border border-gray-400">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-white font-medium text-xs">Preview:</span>
+                                                    <button
+                                                      onClick={clearImageUpload}
+                                                      className="bg-red-600 hover:bg-red-700 text-white rounded-full p-1 transition-colors"
+                                                    >
+                                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                      </svg>
+                                                    </button>
+                                                  </div>
+                                                  <div className="relative">
+                                                    <img
+                                                      src={imagePreview}
+                                                      alt="Preview"
+                                                      className="w-full h-24 object-cover rounded-lg border border-gray-400"
+                                                    />
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {/* Error Display */}
+                                              {imageUploadError && (
+                                                <div className="bg-red-900/20 border border-red-500 rounded-lg p-2">
+                                                  <p className="text-red-400 text-sm">{imageUploadError}</p>
+                                                </div>
+                                              )}
+
+                                              {/* Upload Button */}
+                                              <div className="pt-2">
+                                                <button
+                                                  onClick={() => handleImageUpload(index)}
+                                                  disabled={!selectedImage || imageUploadLoading}
+                                                  className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                                                    selectedImage && !imageUploadLoading
+                                                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                                                      : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                                                  }`}
+                                                >
+                                                  {imageUploadLoading ? (
+                                                    <>
+                                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                      Uploading...
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                      </svg>
+                                                      📤 Upload Photo
+                                                    </>
+                                                  )}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </>
+                                        )}
                                       </div>
                                     )}
                                   </div>

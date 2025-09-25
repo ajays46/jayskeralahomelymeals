@@ -208,11 +208,11 @@ const PaymentWizardPage = () => {
         setOrderDetails(response.data.data);
         setPaymentAmount(response.data.data.totalAmount?.toString() || '');
       } else {
-        console.error('❌ API returned error:', response.data);
+        // API returned error
         setError('Failed to fetch order details');
       }
     } catch (error) {
-      console.error('❌ Error fetching order details:', error);
+      // Error fetching order details
       if (error.response?.status === 404) {
         setError(`Order with ID "${orderId}" not found`);
       } else if (error.response?.status === 500) {
@@ -242,8 +242,7 @@ const PaymentWizardPage = () => {
               orderDetails = orderResponse.data.data;
             }
           } catch (orderError) {
-            console.error('❌ Could not fetch order details:', orderError);
-            console.error('❌ Order error response:', orderError.response?.data);
+            // Could not fetch order details
           }
         }
         
@@ -293,7 +292,7 @@ const PaymentWizardPage = () => {
         setError('Failed to fetch payment details');
       }
     } catch (error) {
-      console.error('Error fetching payment details:', error);
+      // Error fetching payment details
       setError('Failed to fetch payment details');
     } finally {
       setIsLoading(false);
@@ -352,7 +351,7 @@ const PaymentWizardPage = () => {
         setReceiptPreview(null);
       }
       
-      showSuccessToast('Receipt selected successfully');
+      // Receipt selected successfully
     }
   };
 
@@ -382,7 +381,7 @@ const PaymentWizardPage = () => {
       setReceiptPreview(null);
     }
     
-    showSuccessToast('Receipt selected successfully');
+    // Receipt selected successfully
   };
 
   const handleDragOver = (event) => {
@@ -409,10 +408,9 @@ const PaymentWizardPage = () => {
     try {
       await navigator.clipboard.writeText(upiId);
       setUpiIdCopied(true);
-      showSuccessToast('UPI ID copied to clipboard!');
+      // UPI ID copied to clipboard
       setTimeout(() => setUpiIdCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy UPI ID:', error);
       showErrorToast('Failed to copy UPI ID');
     }
   };
@@ -426,6 +424,13 @@ const PaymentWizardPage = () => {
       const formData = new FormData();
       formData.append('image', file);
       
+      // Get the expected amount from the current order
+      const currentOrder = orderDetails || order;
+      const expectedAmount = currentOrder?.totalAmount || currentOrder?.totalPrice || paymentAmount || 0;
+      
+      // Add the expected amount to the form data
+      formData.append('expected_amount', expectedAmount.toString());
+      
       const response = await axiosInstance.post('/external/upload-image', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -433,27 +438,39 @@ const PaymentWizardPage = () => {
       });
       
       if (response.data.success) {
-        const imageUrl = response.data.data?.url;
+        // Look for URL in multiple possible locations
+        const imageUrl = response.data.data?.url || 
+                        response.data.s3_url || 
+                        response.data.url || 
+                        response.data.data?.s3_url;
+        
         if (imageUrl) {
           setExternalUploadUrl(imageUrl);
           setExternalUploadError(null);
-          showSuccessToast('Image uploaded to external service successfully!');
+          // Don't show success toast here - let the payment completion handle it
         } else {
-          console.warn('Backend returned success but no URL found:', response.data);
           setExternalUploadError(null);
         }
-        return response.data;
+        return { success: true, data: response.data, url: imageUrl };
       } else {
         // Backend handled the external upload failure gracefully
-        console.warn('External upload failed via backend:', response.data.error);
         setExternalUploadError(null);
-        return null;
+        return { success: false, error: response.data.error };
       }
     } catch (error) {
-      console.error('External upload error:', error);
-      // Don't set error state - backend handles all error cases
+      // Handle validation failure from external API
+      if (error.response?.status === 400 && error.response?.data?.success === false) {
+        const errorMessage = error.response.data.message || 'Payment receipt verification failed';
+        const errorDetails = error.response.data.details || [];
+        
+        setExternalUploadError(errorMessage);
+        showErrorToast(`${errorMessage}. Please check your receipt and try again.`);
+        
+        return { success: false, error: errorMessage, details: errorDetails };
+      }
+      
+      // Don't set error state for other errors - backend handles all error cases
       setExternalUploadError(null);
-      console.warn('External upload failed, but local upload will continue');
       return null;
     } finally {
       setIsUploadingToExternal(false);
@@ -516,7 +533,7 @@ const PaymentWizardPage = () => {
         showErrorToast(response.data.message || 'Failed to update address');
       }
     } catch (error) {
-      console.error('Error updating address:', error);
+      // Error updating address
       showErrorToast('Failed to update address');
     }
   };
@@ -799,14 +816,22 @@ const PaymentWizardPage = () => {
     try {
       // First, upload to external API if it's an image
       let externalReceiptUrl = null;
+      let externalValidationPassed = false;
+      
       if (receiptFile.type.startsWith('image/')) {
         try {
           const externalResult = await uploadImageToExternalAPI(receiptFile);
-          if (externalResult?.success) {
-            externalReceiptUrl = externalResult.data?.downloadUrl || externalResult.data?.url;
+          if (externalResult?.success === true) {
+            // External validation passed successfully
+            externalReceiptUrl = externalResult.url || externalResult.data?.downloadUrl || externalResult.data?.url;
+            externalValidationPassed = true;
+          } else if (externalResult?.success === false) {
+            // External validation failed - prevent receipt upload
+            showErrorToast('Payment receipt verification failed. Please check your receipt and try again.');
+            return; // Stop receipt upload processing
           }
         } catch (externalError) {
-          console.warn('External upload failed, continuing with local upload:', externalError);
+          // External upload failed, continuing with local upload
         }
       }
 
@@ -826,7 +851,6 @@ const PaymentWizardPage = () => {
       
       if (response.data.success) {
         // Navigate back to customer list with success state
-        // Don't show toast here - let CustomersListPage handle it
         navigate('/jkhm/seller/customers', {
           state: {
             showReceiptSuccess: true,
@@ -839,7 +863,6 @@ const PaymentWizardPage = () => {
         showErrorToast(response.data.message || 'Failed to upload receipt');
       }
     } catch (error) {
-      console.error('Receipt upload error:', error);
       showErrorToast('Failed to upload receipt. Please try again.');
     } finally {
       setPaymentProcessing(false);
@@ -880,14 +903,22 @@ const PaymentWizardPage = () => {
       
       // First, upload to external API if it's an image and we have a receipt file
       let externalReceiptUrl = null;
+      let externalValidationPassed = false;
+      
       if (receiptFile && receiptFile.type.startsWith('image/')) {
         try {
           const externalResult = await uploadImageToExternalAPI(receiptFile);
-          if (externalResult?.success) {
-            externalReceiptUrl = externalResult.data?.downloadUrl || externalResult.data?.url;
+          if (externalResult?.success === true) {
+            // External validation passed successfully
+            externalReceiptUrl = externalResult.url || externalResult.data?.downloadUrl || externalResult.data?.url;
+            externalValidationPassed = true;
+          } else if (externalResult?.success === false) {
+            // External validation failed - prevent payment completion
+            showErrorToast('Payment receipt verification failed. Please check your receipt and try again.');
+            return; // Stop payment processing
           }
         } catch (externalError) {
-          console.warn('External upload failed, continuing with local upload:', externalError);
+          // External upload failed, continuing with local upload
         }
       }
       
@@ -963,8 +994,6 @@ const PaymentWizardPage = () => {
         showPaymentError(response.message || 'Payment submission failed');
       }
     } catch (error) {
-      console.error('Payment error:', error);
-      
       // Handle specific error types
       if (error.response?.status === 413) {
         showPaymentError('File size too large. Please upload a smaller receipt.');
@@ -1052,7 +1081,7 @@ const PaymentWizardPage = () => {
                                   onClick={async () => {
                                     try {
                                       await navigator.clipboard.writeText(upiPhoneNumber);
-                                      showSuccessToast('Phone number copied to clipboard!');
+                                      // Phone number copied to clipboard
                                     } catch (error) {
                                       showErrorToast('Failed to copy phone number');
                                     }
@@ -1225,7 +1254,7 @@ const PaymentWizardPage = () => {
               {/* Left Column - Payment Upload */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-gray-900 text-sm">
-                  {location.state?.goToReceiptUpload ? 'Payment Receipt Upload' : 'Payment Receipt Upload (Optional)'}
+                  {location.state?.goToReceiptUpload ? 'Payment Receipt Upload' : 'Payment Receipt Upload '}
                 </h3>
                 
                 {/* File Upload Area */}
@@ -1357,6 +1386,35 @@ const PaymentWizardPage = () => {
                           }
                         </p>
                       </div>
+                      
+                      {/* External validation success */}
+                      {externalUploadUrl && !externalUploadError && (
+                        <div className="p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200">
+                          <div className="flex items-center gap-2 text-green-800">
+                            <MdCheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="font-medium text-xs sm:text-sm">Receipt Verification Passed</span>
+                          </div>
+                          <p className="text-xs text-green-700 mt-1">
+                            Payment receipt has been verified successfully. You can proceed with payment.
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* External validation error */}
+                      {externalUploadError && (
+                        <div className="p-2 sm:p-3 bg-red-50 rounded-lg border border-red-200">
+                          <div className="flex items-center gap-2 text-red-800">
+                            <MdWarning className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="font-medium text-xs sm:text-sm">Receipt Verification Failed</span>
+                          </div>
+                          <p className="text-xs text-red-700 mt-1 break-words">
+                            {externalUploadError}
+                          </p>
+                          <p className="text-xs text-red-600 mt-1">
+                            Please check your receipt details and try again.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

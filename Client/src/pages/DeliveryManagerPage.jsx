@@ -29,15 +29,11 @@ const DeliveryManagerPage = () => {
   const [routeTableFilters, setRouteTableFilters] = useState({
     deliveryName: '',
     executive: '',
-    location: '',
-    packages: '',
-    distance: '',
-    time: ''
+    location: ''
   });
   const [showExecutiveAssignModal, setShowExecutiveAssignModal] = useState(false);
   const [assignedExecutiveCount, setAssignedExecutiveCount] = useState(2);
   const [showRunProgramButton, setShowRunProgramButton] = useState(false);
-  const [showWhatsAppButton, setShowWhatsAppButton] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState(null); // For expanding order details
   const [deliveryItems, setDeliveryItems] = useState({}); // Store delivery items for each order
   const [loadingItems, setLoadingItems] = useState({}); // Loading state for delivery items
@@ -116,12 +112,12 @@ const DeliveryManagerPage = () => {
   const [loadingSessionData, setLoadingSessionData] = useState(false); // Loading state for session data
   const [programRunTimestamp, setProgramRunTimestamp] = useState(null); // Force refresh timestamp
   const [currentRequestId, setCurrentRequestId] = useState(null); // Store current request ID for saving routes
+  const [routesSaved, setRoutesSaved] = useState(false); // Track if routes have been saved
   const [deliveryDataFilters, setDeliveryDataFilters] = useState({
     search: '',
     session: '',
     status: '',
-    startDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
-    endDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]  // Tomorrow
+    selectedDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Tomorrow
   });
   const [filteredDeliveryData, setFilteredDeliveryData] = useState([]);
 
@@ -159,23 +155,14 @@ const DeliveryManagerPage = () => {
         const statusMatch = !deliveryDataFilters.status || 
           item.status === deliveryDataFilters.status;
 
-        // Date range filter
+        // Date filter - check if delivery date matches selected date
         let dateMatch = true;
-        if (deliveryDataFilters.startDate || deliveryDataFilters.endDate) {
+        if (deliveryDataFilters.selectedDate) {
           const deliveryDate = new Date(item.delivery_date);
-          const startDate = deliveryDataFilters.startDate ? new Date(deliveryDataFilters.startDate) : null;
-          const endDate = deliveryDataFilters.endDate ? new Date(deliveryDataFilters.endDate) : null;
+          const selectedDate = new Date(deliveryDataFilters.selectedDate);
           
-          if (startDate && endDate) {
-            // Both dates selected - check if delivery date is within range
-            dateMatch = deliveryDate >= startDate && deliveryDate <= endDate;
-          } else if (startDate) {
-            // Only start date - check if delivery date is on or after start date
-            dateMatch = deliveryDate >= startDate;
-          } else if (endDate) {
-            // Only end date - check if delivery date is on or before end date
-            dateMatch = deliveryDate <= endDate;
-          }
+          // Compare dates (ignore time)
+          dateMatch = deliveryDate.toDateString() === selectedDate.toDateString();
         }
 
         return searchMatch && sessionMatch && statusMatch && dateMatch;
@@ -672,6 +659,9 @@ const DeliveryManagerPage = () => {
       
       message.destroy(); // Clear loading message
       message.success('Routes saved successfully!');
+      
+      // Set routes as saved to enable WhatsApp button
+      setRoutesSaved(true);
     } catch (error) {
       message.destroy(); // Clear loading message
       console.error('Error saving routes:', error);
@@ -697,6 +687,7 @@ const DeliveryManagerPage = () => {
         setFilePreviews({}); // Clear old file previews
         setLoadingPreviews({}); // Clear loading states
         setShowFullContent({}); // Reset content display toggles
+        setRoutesSaved(false); // Reset routes saved state
         const newTimestamp = Date.now();
         setProgramRunTimestamp(newTimestamp); // ← Force new timestamp for refresh
         
@@ -739,8 +730,6 @@ const DeliveryManagerPage = () => {
         } else {
         }
         
-        // Show WhatsApp button immediately after successful execution
-        setShowWhatsAppButton(true);
         
         // Extract execution results from external response
       
@@ -3320,32 +3309,18 @@ const DeliveryManagerPage = () => {
                                 
                                 {/* Filters Row */}
                                 <div className="flex flex-col sm:flex-row gap-4">
-                                  {/* Date Filters */}
+                                  {/* Date Filter */}
                                   <div className="flex gap-2">
                                     <div className="flex flex-col">
-                                      <label className="text-xs text-gray-300 mb-1">From Date</label>
+                                      <label className="text-xs text-gray-300 mb-1">Select Date</label>
                                       <input
                                         type="date"
-                                        value={deliveryDataFilters.startDate}
+                                        value={deliveryDataFilters.selectedDate}
                                         className="px-3 py-2 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                                         onChange={(e) => {
                                           setDeliveryDataFilters(prev => ({
                                             ...prev,
-                                            startDate: e.target.value
-                                          }));
-                                        }}
-                                      />
-                                    </div>
-                                    <div className="flex flex-col">
-                                      <label className="text-xs text-gray-300 mb-1">To Date</label>
-                                      <input
-                                        type="date"
-                                        value={deliveryDataFilters.endDate}
-                                        className="px-3 py-2 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                                        onChange={(e) => {
-                                          setDeliveryDataFilters(prev => ({
-                                            ...prev,
-                                            endDate: e.target.value
+                                            selectedDate: e.target.value
                                           }));
                                         }}
                                       />
@@ -3354,21 +3329,6 @@ const DeliveryManagerPage = () => {
                                   
                                   {/* Dropdown Filters */}
                                   <div className="flex gap-2">
-                                    <button
-                                      onClick={() => {
-                                        setDeliveryDataFilters({
-                                          search: '',
-                                          session: '',
-                                          status: '',
-                                          startDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
-                                          endDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]  // Tomorrow
-                                        });
-                                      }}
-                                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
-                                    >
-                                      <FiX className="w-4 h-4" />
-                                      Reset to Tomorrow
-                                    </button>
                                     <select 
                                       value={deliveryDataFilters.session}
                                       className="px-3 py-1 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -3803,24 +3763,6 @@ const DeliveryManagerPage = () => {
                     </div>
                   )}
 
-                  {/* Send WhatsApp Button - Shows after program execution */}
-                  {showWhatsAppButton && (
-                    <div className="mt-6 bg-gray-700 p-4 rounded-lg border border-gray-600">
-                      <h5 className="text-md font-medium text-white mb-4">📱 Send WhatsApp to Executives:</h5>
-                      
-                      <button
-                        onClick={handleSendWhatsApp}
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
-                      >
-                        <span className="text-xl">📱</span>
-                        <span>Send WhatsApp to {assignedExecutiveCount} Executives</span>
-                      </button>
-                      
-                      <div className="mt-3 text-xs text-gray-400 text-center">
-                        Send delivery instructions and route information to all assigned executives via WhatsApp.
-                      </div>
-                    </div>
-                  )}
 
 
                 </div>
@@ -4256,46 +4198,13 @@ const DeliveryManagerPage = () => {
                                 className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               />
                             </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Packages</label>
-                              <input
-                                type="text"
-                                placeholder="Filter by packages..."
-                                value={routeTableFilters.packages}
-                                onChange={(e) => setRouteTableFilters(prev => ({ ...prev, packages: e.target.value }))}
-                                className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Distance (km)</label>
-                              <input
-                                type="text"
-                                placeholder="Filter by distance..."
-                                value={routeTableFilters.distance}
-                                onChange={(e) => setRouteTableFilters(prev => ({ ...prev, distance: e.target.value }))}
-                                className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Time (min)</label>
-                              <input
-                                type="text"
-                                placeholder="Filter by time..."
-                                value={routeTableFilters.time}
-                                onChange={(e) => setRouteTableFilters(prev => ({ ...prev, time: e.target.value }))}
-                                className="w-full px-2 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              />
-                            </div>
                           </div>
                           <div className="flex justify-between items-center mt-3">
                             <button
                               onClick={() => setRouteTableFilters({
                                 deliveryName: '',
                                 executive: '',
-                                location: '',
-                                packages: '',
-                                distance: '',
-                                time: ''
+                                location: ''
                               })}
                               className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
                             >
@@ -4310,14 +4219,8 @@ const DeliveryManagerPage = () => {
                                     (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
                                   const locationMatch = !routeTableFilters.location || 
                                     (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
-                                  const packagesMatch = !routeTableFilters.packages || 
-                                    (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
-                                  const distanceMatch = !routeTableFilters.distance || 
-                                    (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
-                                  const timeMatch = !routeTableFilters.time || 
-                                    (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
                                   
-                                  return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
+                                  return deliveryNameMatch && executiveMatch && locationMatch;
                                 });
                                 return `Showing ${filteredData.length} of ${programExecutionResults.data.externalResponse.result[routeTableTab].length} routes`;
                               })()}
@@ -4352,14 +4255,8 @@ const DeliveryManagerPage = () => {
                                       (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
                                     const locationMatch = !routeTableFilters.location || 
                                       (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
-                                    const packagesMatch = !routeTableFilters.packages || 
-                                      (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
-                                    const distanceMatch = !routeTableFilters.distance || 
-                                      (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
-                                    const timeMatch = !routeTableFilters.time || 
-                                      (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
                                     
-                                    return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
+                                    return deliveryNameMatch && executiveMatch && locationMatch;
                                   });
                                   
                                   return filteredData.map((item, index) => (
@@ -4441,14 +4338,8 @@ const DeliveryManagerPage = () => {
                                         (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
                                       const locationMatch = !routeTableFilters.location || 
                                         (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
-                                      const packagesMatch = !routeTableFilters.packages || 
-                                        (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
-                                      const distanceMatch = !routeTableFilters.distance || 
-                                        (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
-                                      const timeMatch = !routeTableFilters.time || 
-                                        (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
                                       
-                                      return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
+                                      return deliveryNameMatch && executiveMatch && locationMatch;
                                     });
                                     return `Showing ${filteredData.length} of ${programExecutionResults.data.externalResponse.result[routeTableTab].length} routes`;
                                   })()}
@@ -4463,14 +4354,8 @@ const DeliveryManagerPage = () => {
                                         (item.Executive && item.Executive.toLowerCase().includes(routeTableFilters.executive.toLowerCase()));
                                       const locationMatch = !routeTableFilters.location || 
                                         (item.Location && item.Location.toLowerCase().includes(routeTableFilters.location.toLowerCase()));
-                                      const packagesMatch = !routeTableFilters.packages || 
-                                        (item.Packages && item.Packages.toString().includes(routeTableFilters.packages));
-                                      const distanceMatch = !routeTableFilters.distance || 
-                                        (item.Distance_From_Prev_Stop_km && item.Distance_From_Prev_Stop_km.toString().includes(routeTableFilters.distance));
-                                      const timeMatch = !routeTableFilters.time || 
-                                        (item.Leg_Time_min && item.Leg_Time_min.toString().includes(routeTableFilters.time));
                                       
-                                      return deliveryNameMatch && executiveMatch && locationMatch && packagesMatch && distanceMatch && timeMatch;
+                                      return deliveryNameMatch && executiveMatch && locationMatch;
                                     });
                                     
                                     const totalPackages = filteredData.reduce((sum, item) => sum + (parseInt(item.Packages) || 0), 0);
@@ -4789,6 +4674,35 @@ const DeliveryManagerPage = () => {
                               Save Routes
                             </>
                           )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Send WhatsApp Button - Shows only after routes are saved */}
+                  {routesSaved && (
+                    <div className="mt-6 pt-4 border-t border-gray-600">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                            <FiMessageCircle className="text-white text-xl" />
+                          </div>
+                          <div>
+                            <h5 className="text-white font-medium text-lg">
+                              📱 Send WhatsApp to Executives
+                            </h5>
+                            <p className="text-gray-400 text-sm">
+                              Send delivery instructions and route information to executives
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={handleSendWhatsApp}
+                          className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
+                        >
+                          <FiMessageCircle className="w-5 h-5" />
+                          Send WhatsApp to {assignedExecutiveCount} Executives
                         </button>
                       </div>
                     </div>

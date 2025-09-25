@@ -6,7 +6,8 @@ export const uploadImageToExternal = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const file = req.file;
-
+    const expectedAmount = req.body.expected_amount;
+    // Expected amount for validation
     if (!file) {
       throw new AppError('Image file is required', 400);
     }
@@ -23,8 +24,12 @@ export const uploadImageToExternal = async (req, res, next) => {
       throw new AppError('File size must be less than 5MB', 400);
     }
 
+    // Validate expected amount
+    if (!expectedAmount || isNaN(parseFloat(expectedAmount))) {
+      throw new AppError('Expected amount is required and must be a valid number', 400);
+    }
 
-    const result = await uploadImageToExternalAPI(file, userId);
+    const result = await uploadImageToExternalAPI(file, userId, expectedAmount);
 
     if (result.success) {
       res.status(200).json({
@@ -32,21 +37,23 @@ export const uploadImageToExternal = async (req, res, next) => {
         message: 'Image uploaded to external service successfully',
         data: {
           url: result.url,
+          s3_url: result.data?.s3_url || result.data?.url,
           externalData: result.data
-        }
+        },
+        s3_url: result.data?.s3_url || result.data?.url // Also include at root level for compatibility
       });
     } else {
-      // Don't treat external upload failure as an error
-      // Just return the failure info so frontend can handle it
-      res.status(200).json({
+      // External validation failed - return error to prevent payment completion
+      res.status(400).json({
         success: false,
-        message: 'External upload failed',
+        message: 'Payment receipt verification failed',
         error: result.error,
+        details: result.details || [],
         status: result.status
       });
     }
   } catch (error) {
-    console.error('External upload controller error:', error);
+    // External upload controller error
     next(error);
   }
 };
