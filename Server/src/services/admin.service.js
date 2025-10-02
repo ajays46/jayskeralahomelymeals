@@ -1,6 +1,12 @@
 import prisma from '../config/prisma.js';
 import { saveBase64Image } from './imageUpload.service.js';
 
+/**
+ * Admin Service - Business logic for admin operations and data management
+ * Handles all admin-related database operations and business rules
+ * Features: Company management, product management, menu management, user management, inventory tracking
+ */
+
 export const createCompanyService = async ({ name, address }) => {
   // Check if a company with the same name exists
   const existing = await prisma.company.findFirst({

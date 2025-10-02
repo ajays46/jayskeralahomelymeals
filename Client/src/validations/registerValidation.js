@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+/**
+ * Register Validation - Form validation schemas for user registration
+ * Handles registration form validation with email, phone, password, and terms agreement
+ * Features: Strong password validation, email format validation, phone number validation, terms agreement
+ */
+
 export const registerSchema = z.object({
   email: z.string()
     .email('Please enter a valid email address')

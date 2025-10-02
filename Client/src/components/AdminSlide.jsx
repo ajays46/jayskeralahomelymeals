@@ -3,6 +3,11 @@ import { FaHome, FaRegChartBar, FaUsers, FaClipboardList, FaRegSquare, FaUser, F
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLogout } from '../hooks/userHooks/useLogin';
 
+/**
+ * AdminSlide - Admin navigation sidebar with collapsible menu and profile dropdown
+ * Handles admin navigation, user profile management, and logout functionality
+ * Features: Collapsible menu, active route highlighting, profile dropdown, responsive design
+ */
 const AdminSlide = ({ isFooter = false }) => {
   const navigate = useNavigate();
   const location = useLocation();

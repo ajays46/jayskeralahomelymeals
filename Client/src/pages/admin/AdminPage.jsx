@@ -1,6 +1,11 @@
 import React from 'react';
 import AdminSlide from '../../components/AdminSlide';
 
+/**
+ * AdminPage - Main admin dashboard with navigation sidebar
+ * Provides admin interface with sidebar navigation and main content area
+ * Features: Responsive sidebar, admin navigation, main content area
+ */
 const AdminPage = () => {
   return (
     <div className="flex min-h-screen bg-gray-900 text-gray-100">

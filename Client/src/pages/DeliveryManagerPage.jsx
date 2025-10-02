@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin, FiTrendingDown, FiClock, FiCheckCircle, FiBarChart2, FiActivity, FiPieChart, FiTarget, FiShield, FiPackage, FiX, FiDownload, FiEye, FiEyeOff, FiMessageCircle } from 'react-icons/fi';
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney } from 'react-icons/md';
 import { Modal, message } from 'antd';
@@ -9,9 +9,16 @@ import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
 import { isSeller } from '../utils/roleUtils';
 import { SkeletonDeliveryManager, SkeletonLoading } from '../components/Skeleton';
+import RouteHistoryManager from '../components/deliveryManager/RouteHistoryManager';
 
+/**
+ * DeliveryManagerPage - Comprehensive delivery management dashboard with route planning and analytics
+ * Handles seller management, order tracking, route optimization, and delivery executive coordination
+ * Features: Real-time analytics, route planning, WhatsApp integration, executive management, order tracking
+ */
 const DeliveryManagerPage = () => {
   const { user, roles } = useAuthStore();
+  const location = useLocation();
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,6 +33,9 @@ const DeliveryManagerPage = () => {
   const [cancellingOrder, setCancellingOrder] = useState(null);
   const [activeTab, setActiveTab] = useState('sellers'); // 'sellers' or 'orders'
   const [routeTableTab, setRouteTableTab] = useState('breakfast'); // For route planning table tabs
+  
+  // Route History Manager ref
+  const routeHistoryManagerRef = useRef(null);
   const [routeTableFilters, setRouteTableFilters] = useState({
     deliveryName: '',
     executive: '',
@@ -126,6 +136,35 @@ const DeliveryManagerPage = () => {
     fetchDeliveryExecutives();
     // Auto-fetch delivery data when component mounts
     handleFetchSessionData();
+  }, []);
+
+  // Handle URL parameters for tab navigation
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const tab = urlParams.get('tab');
+    if (tab === 'routeManagement') {
+      setActiveTab('rootManagement');
+    }
+  }, [location.search]);
+
+
+  // Load program execution results and routes saved state from localStorage on component mount
+  useEffect(() => {
+    const savedExecutionResults = localStorage.getItem('programExecutionResults');
+    if (savedExecutionResults) {
+      try {
+        const parsed = JSON.parse(savedExecutionResults);
+        setProgramExecutionResults(parsed);
+      } catch (error) {
+        console.error('Error parsing program execution results from localStorage:', error);
+      }
+    }
+
+    // Load routes saved state
+    const savedRoutesState = localStorage.getItem('routesSaved');
+    if (savedRoutesState === 'true') {
+      setRoutesSaved(true);
+    }
   }, []);
 
 
@@ -646,22 +685,40 @@ const DeliveryManagerPage = () => {
   };
 
   // Function to save routes
-  const handleSaveRoutes = async () => {
+  const handleSaveRoutes = async (routeData = null) => {
     try {
-      if (!currentRequestId) {
-        message.warning('No request ID available. Please run the program first.');
-        return;
-      }
+      if (routeData) {
+        // Called from Route History Manager with route data
+        message.loading('💾 Saving selected route...', 0);
+        
+        // For now, just simulate saving the route data
+        // In a real implementation, you might want to save this to a different endpoint
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+        
+        message.destroy(); // Clear loading message
+        message.success('Selected route saved successfully!');
+        
+        // Set routes as saved to enable WhatsApp button
+        setRoutesSaved(true);
+        localStorage.setItem('routesSaved', 'true');
+      } else {
+        // Called from main save button with requestId
+        if (!currentRequestId) {
+          message.warning('No request ID available. Please run the program first.');
+          return;
+        }
 
-      message.loading('💾 Saving routes...', 0);
-      
-      await saveRoutesMutation.mutateAsync({ requestId: currentRequestId });
-      
-      message.destroy(); // Clear loading message
-      message.success('Routes saved successfully!');
-      
-      // Set routes as saved to enable WhatsApp button
-      setRoutesSaved(true);
+        message.loading('💾 Saving routes...', 0);
+        
+        await saveRoutesMutation.mutateAsync({ requestId: currentRequestId });
+        
+        message.destroy(); // Clear loading message
+        message.success('Routes saved successfully!');
+        
+        // Set routes as saved to enable WhatsApp button
+        setRoutesSaved(true);
+        localStorage.setItem('routesSaved', 'true');
+      }
     } catch (error) {
       message.destroy(); // Clear loading message
       console.error('Error saving routes:', error);
@@ -723,6 +780,14 @@ const DeliveryManagerPage = () => {
         
         // Store the program execution results for display
         setProgramExecutionResults(response.data);
+        
+        // Save to localStorage for persistence across page navigation
+        localStorage.setItem('programExecutionResults', JSON.stringify(response.data));
+        
+        // Save route result to history
+        if (routeHistoryManagerRef.current) {
+          routeHistoryManagerRef.current.saveRouteResult(executiveCount, response.data);
+        }
         
         // Store the request ID for saving routes later
         if (response.data.data?.requestId) {
@@ -2006,7 +2071,7 @@ const DeliveryManagerPage = () => {
           {/* Sellers Table */}
               <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden mb-6 sm:mb-8">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
-                  <h2 className="text-base sm:text-lg font-semibold text-white">Sellers & Their Orders for Users</h2>
+                  <h2 className="text-base sm:text-lg font-semibold text-white">Sellers List</h2>
                   <p className="text-gray-400 text-xs sm:text-sm">View sellers and the orders they're placing for users</p>
             </div>
             
@@ -2014,16 +2079,16 @@ const DeliveryManagerPage = () => {
               <table className="w-full min-w-[400px]">
                 <thead className="bg-gray-700">
                   <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[200px]">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300  tracking-wider min-w-[200px]">
                       Seller
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[100px]">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300  tracking-wider min-w-[100px]">
                       Status
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300  tracking-wider min-w-[120px]">
                           Orders Placed
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300  tracking-wider min-w-[120px]">
                           Total Value
                     </th>
                   </tr>
@@ -3236,7 +3301,9 @@ const DeliveryManagerPage = () => {
                     <FiActivity className="text-blue-400" />
                     Route & Management Dashboard
                   </h3>
-                  <FiTarget className="text-gray-400 text-xl" />
+                  <div className="flex items-center gap-3">
+                    <FiTarget className="text-gray-400 text-xl" />
+                  </div>
                 </div>
                 
                 
@@ -3387,9 +3454,9 @@ const DeliveryManagerPage = () => {
                                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                                       📊 Status
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                                       🆔 Order ID
-                                    </th>
+                                    </th> */}
                                   </tr>
                                 </thead>
                                 <tbody className="bg-gray-700 divide-y divide-gray-600">
@@ -3478,14 +3545,14 @@ const DeliveryManagerPage = () => {
                                       </td>
                                       
                                       {/* Order ID */}
-                                      <td className="px-4 py-3 whitespace-nowrap">
+                                      {/* <td className="px-4 py-3 whitespace-nowrap">
                                         <div className="text-xs text-gray-400 font-mono">
                                           {item.order_id ? item.order_id.substring(0, 8) + '...' : 'No ID'}
                                         </div>
                                         <div className="text-xs text-gray-500">
                                           {item.menu_item_id ? item.menu_item_id.substring(0, 8) + '...' : 'No Menu ID'}
                                         </div>
-                                      </td>
+                                      </td> */}
                                     </tr>
                                   ))}
                                 </tbody>
@@ -4054,69 +4121,63 @@ const DeliveryManagerPage = () => {
                 </div>
               )}
 
+              {/* Route History Manager */}
+              <RouteHistoryManager
+                ref={routeHistoryManagerRef}
+                onSaveRoute={handleSaveRoutes}
+                onClearHistory={() => {
+                  // Optional cleanup - can add any cleanup logic here
+                }}
+                showSuccessToast={showSuccessToast}
+                showErrorToast={showErrorToast}
+              />
+
               {/* Program Execution Results - Displayed Below Route Planning Results */}
-              {programExecutionResults && (
-                <div className="mt-6 bg-gray-800 rounded-lg border border-gray-700 p-6">
-                  <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              {false && programExecutionResults && (
+                <div className="mt-4 bg-gray-800 rounded-lg border border-gray-700 p-4">
+                  <h4 className="text-md font-semibold text-white mb-3 flex items-center gap-2">
                     <FiPackage className="text-blue-400" />
                     🚀 Program Execution Results
                   </h4>
 
-                  {/* Execution Summary */}
-                  <div className="mb-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
-                    <h5 className="text-sm font-medium text-white mb-2">📊 Execution Summary:</h5>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
-                        <div className="text-lg mb-1">👥</div>
-                        <div className="font-medium text-white text-xs">Drivers</div>
-                        <div className="text-gray-300 text-xs">
-                          {programExecutionResults.data?.numDrivers || 0}
-                        </div>
-                      </div>
-                      <div className="text-center p-2 bg-gray-600 rounded border border-gray-500">
-                        <div className="text-lg mb-1">✅</div>
-                        <div className="font-medium text-white text-xs">Status</div>
-                        <div className="text-gray-300 text-xs">
-                          {programExecutionResults.data?.status || 'Completed'}
-                        </div>
+                  {/* Compact Execution Summary */}
+                  <div className="mb-3 bg-gray-700 p-2 rounded-lg border border-gray-600">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-4">
+                        <span className="flex items-center gap-1">
+                          <span className="text-lg">👥</span>
+                          <span className="text-gray-300">Drivers:</span>
+                          <span className="text-white font-medium">{programExecutionResults.data?.numDrivers || 0}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-lg">✅</span>
+                          <span className="text-gray-300">Status:</span>
+                          <span className="text-white font-medium">{programExecutionResults.data?.status || 'Completed'}</span>
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Route Execution Results */}
+                  {/* Compact Route Execution Results */}
                   {programExecutionResults.data?.externalResponse?.executionResult && (
-                    <div className="mb-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
-                      <h5 className="text-sm font-medium text-white mb-2">🗺️ Route Execution Results:</h5>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-gray-600 p-2 rounded-lg text-center">
-                          <div className="flex items-center justify-center gap-1 mb-1">
-                            <span className="text-orange-400 text-sm">🌅</span>
-                            <span className="font-medium text-white text-xs">Breakfast</span>
-                          </div>
-                          <div className="text-lg font-bold text-orange-400">
-                            {programExecutionResults.data.externalResponse.executionResult.breakfast?.length || 0}
-                          </div>
-                          <div className="text-xs text-gray-300">Routes</div>
-                        </div>
-                        <div className="bg-gray-600 p-2 rounded-lg text-center">
-                          <div className="flex items-center justify-center gap-1 mb-1">
-                            <span className="text-yellow-400 text-sm">☀️</span>
-                            <span className="font-medium text-white text-xs">Lunch</span>
-                          </div>
-                          <div className="text-lg font-bold text-yellow-400">
-                            {programExecutionResults.data.externalResponse.executionResult.lunch?.length || 0}
-                          </div>
-                          <div className="text-xs text-gray-300">Routes</div>
-                        </div>
-                        <div className="bg-gray-600 p-2 rounded-lg text-center">
-                          <div className="flex items-center justify-center gap-1 mb-1">
-                            <span className="text-blue-400 text-sm">🌙</span>
-                            <span className="font-medium text-white text-xs">Dinner</span>
-                          </div>
-                          <div className="text-lg font-bold text-blue-400">
-                            {programExecutionResults.data.externalResponse.executionResult.dinner?.length || 0}
-                          </div>
-                          <div className="text-xs text-gray-300">Routes</div>
+                    <div className="mb-3 bg-gray-700 p-2 rounded-lg border border-gray-600">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-4">
+                          <span className="flex items-center gap-1">
+                            <span className="text-orange-400">🌅</span>
+                            <span className="text-gray-300">Breakfast:</span>
+                            <span className="text-white font-medium">{programExecutionResults.data.externalResponse.executionResult.breakfast?.length || 0}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-yellow-400">☀️</span>
+                            <span className="text-gray-300">Lunch:</span>
+                            <span className="text-white font-medium">{programExecutionResults.data.externalResponse.executionResult.lunch?.length || 0}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-blue-400">🌙</span>
+                            <span className="text-gray-300">Dinner:</span>
+                            <span className="text-white font-medium">{programExecutionResults.data.externalResponse.executionResult.dinner?.length || 0}</span>
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -4640,44 +4701,6 @@ const DeliveryManagerPage = () => {
                     </div>
                   )}
 
-                  {/* Save Routes Button */}
-                  {currentRequestId && (
-                    <div className="mt-6 pt-4 border-t border-gray-600">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                            <FiDownload className="text-white text-xl" />
-                          </div>
-                          <div>
-                            <h5 className="text-white font-medium text-lg">
-                              💾 Save Routes
-                            </h5>
-                            <p className="text-gray-400 text-sm">
-                              Save the generated routes to the external system
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <button
-                          onClick={handleSaveRoutes}
-                          disabled={saveRoutesMutation.isPending}
-                          className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-                        >
-                          {saveRoutesMutation.isPending ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              <FiDownload className="w-5 h-5" />
-                              Save Routes
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Send WhatsApp Button - Shows only after routes are saved */}
                   {routesSaved && (

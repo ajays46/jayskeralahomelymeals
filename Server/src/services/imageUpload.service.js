@@ -1,6 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * Image Upload Service - Handles image upload and file management operations
+ * Manages base64 image conversion, file storage, and image processing
+ * Features: Base64 conversion, file storage, directory management, image validation
+ */
+
 // Save base64 image to uploads folder
 export const saveBase64Image = (base64String, filename) => {
   try {

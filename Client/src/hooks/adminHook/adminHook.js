@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
 
+/**
+ * Admin Hooks - Collection of React Query hooks for admin operations
+ * Handles all admin-related API operations including CRUD operations for products, companies, menus, and users
+ * Features: Company management, product management, menu management, user management, inventory tracking
+ */
+
 export const useCreateCompany = () => {
     const queryClient = useQueryClient();
     return useMutation({
@@ -480,7 +486,6 @@ export const useAdminUsers = () => {
                 const response = await api.get('/admin/users/list');
                 return response.data;
             } catch (error) {
-                console.error('Error fetching admin users:', error);
                 // Throw a more user-friendly error
                 throw new Error(
                     error.response?.data?.message || 
@@ -517,7 +522,6 @@ export const useCreateAdminUser = () => {
             }
         },
         onError: (error) => {
-            console.error('Error creating user:', error);
             const errorMessage = error.response?.data?.message || 'Failed to create user. Please try again.';
             alert(errorMessage);
         }

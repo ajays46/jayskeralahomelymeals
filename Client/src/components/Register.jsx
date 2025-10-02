@@ -4,6 +4,11 @@ import { z } from 'zod';
 import { registerSchema, validateField } from '../validations/registerValidation';
 import { useRegister } from '../hooks/userHooks/useRegister';
 
+/**
+ * Register - User registration form component with validation
+ * Handles new user registration with email, phone, and password validation
+ * Features: Form validation, terms agreement, password visibility toggle, error handling
+ */
 const Register = () => {
   const [formData, setFormData] = useState({
     email: '',

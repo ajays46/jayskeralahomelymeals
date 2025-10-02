@@ -5,6 +5,12 @@ import {
   showErrorToast, 
   showWarningToast 
 } from '../utils/toastConfig.jsx';
+
+/**
+ * SellerPage - Seller dashboard with customer and order management
+ * Handles seller operations including customer management, order tracking, and analytics
+ * Features: Customer CRUD, order management, analytics dashboard, search and filtering
+ */
 import { 
   MdPeople, 
   MdShoppingCart, 
@@ -130,7 +136,6 @@ const SellerPage = () => {
           setUserOrders(response.data.data || []);
         }
       } catch (error) {
-        console.error('Error fetching user orders:', error);
         showErrorToast('Failed to fetch user orders');
       } finally {
         setLoadingOrders(false);
@@ -166,7 +171,6 @@ const SellerPage = () => {
           showErrorToast(response.data.message || 'Failed to cancel delivery item');
         }
       } catch (error) {
-        console.error('Error cancelling delivery item:', error);
         showErrorToast('Failed to cancel delivery item');
       } finally {
         setCancellingItems(prev => {
@@ -192,7 +196,6 @@ const SellerPage = () => {
           showErrorToast(response.data.message || 'Failed to cancel order');
         }
       } catch (error) {
-        console.error('Error cancelling order:', error);
         showErrorToast('Failed to cancel order');
       } finally {
         setCancellingOrders(prev => {
@@ -229,7 +232,6 @@ const SellerPage = () => {
           showErrorToast(response.data.message || 'Failed to delete user');
         }
       } catch (error) {
-        console.error('Error deleting user:', error);
         showErrorToast('Failed to delete user');
       } finally {
         setDeletingUsers(prev => {
@@ -1152,7 +1154,6 @@ const SellerPage = () => {
       </div>
     );
   } catch (error) {
-    console.error('Error in SellerPage:', error);
     return (
       <div className="min-h-screen bg-red-50 flex items-center justify-center">
         <div className="text-center">

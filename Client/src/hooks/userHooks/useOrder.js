@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
 
-// API functions
+/**
+ * Order API functions - Handles all order-related API operations
+ * Features: Order creation, retrieval, status updates, payment processing, menu pricing calculations
+ */
 const orderApi = {
   // Create new order
   createOrder: async (orderData) => {
@@ -178,7 +181,6 @@ export const useCalculateMenuPricing = () => {
   return useMutation({
     mutationFn: orderApi.calculateMenuPricing,
     onError: (error) => {
-      console.error('Menu pricing calculation error:', error);
       // Note: Admin blocking errors should be handled by the component using this hook
     }
   });
@@ -189,7 +191,6 @@ export const useCalculateOrderTotal = () => {
   return useMutation({
     mutationFn: orderApi.calculateOrderTotal,
     onError: (error) => {
-      console.error('Order total calculation error:', error);
       // Note: Admin blocking errors should be handled by the component using this hook
     }
   });
@@ -212,7 +213,7 @@ export const useCreateOrder = () => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
     onError: (error) => {
-      console.error('Error creating order:', error);
+      // Error handling is done by the component using this hook
     }
   });
 };
@@ -242,7 +243,7 @@ export const useUpdateOrderStatus = () => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
     onError: (error) => {
-      console.error('Error updating order status:', error);
+      // Error handling is done by the component using this hook
     }
   });
 };
@@ -267,7 +268,7 @@ export const useCancelOrder = () => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
     onError: (error) => {
-      console.error('Error deleting order:', error);
+      // Error handling is done by the component using this hook
     }
   });
 };

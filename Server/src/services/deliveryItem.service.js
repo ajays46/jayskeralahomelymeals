@@ -1,6 +1,12 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 
+/**
+ * Delivery Item Service - Handles delivery item management and operations
+ * Manages delivery items, route assignments, and delivery tracking
+ * Features: Delivery item creation, route management, status updates, delivery tracking
+ */
+
 // Create delivery items after payment confirmation
 export const createDeliveryItemsAfterPaymentService = async (orderId, orderData) => {
     try {

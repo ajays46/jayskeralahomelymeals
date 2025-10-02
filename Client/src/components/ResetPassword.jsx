@@ -3,6 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/axios';
 import { validateResetPassword } from '../validations/resetValidation';
 
+/**
+ * ResetPassword - Password reset form component with token validation
+ * Handles password reset using token from email link
+ * Features: Token validation, password confirmation, success feedback, auto-redirect
+ */
 const ResetPassword = () => {
     const { token, id } = useParams();
     

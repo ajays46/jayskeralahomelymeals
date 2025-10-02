@@ -1,6 +1,12 @@
 import AppError from '../utils/AppError.js';
 import { uploadImageToExternalAPI } from '../services/externalUpload.service.js';
 
+/**
+ * External Upload Controller - Handles external API integration for image processing
+ * Manages image uploads to external services and API communication
+ * Features: External API integration, image processing, file validation, error handling
+ */
+
 // Upload image to external API
 export const uploadImageToExternal = async (req, res, next) => {
   try {

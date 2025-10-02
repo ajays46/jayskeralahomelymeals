@@ -1,6 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * Payment Receipt Upload Service - Handles payment receipt file management
+ * Manages payment receipt storage, file operations, and receipt processing
+ * Features: File storage, receipt management, directory creation, file validation
+ */
+
 // Save payment receipt file to payment-receipts folder
 export const savePaymentReceipt = (buffer, filename) => {
   try {

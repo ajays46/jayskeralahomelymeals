@@ -7,6 +7,12 @@ import {
     getDeliveryItemStatusService
 } from '../services/deliveryItem.service.js';
 
+/**
+ * Delivery Item Controller - Handles delivery item API endpoints and operations
+ * Manages delivery item creation, status updates, and delivery tracking
+ * Features: Delivery item management, status updates, address management, image uploads
+ */
+
 // Create delivery items after payment confirmation
 export const createDeliveryItemsAfterPayment = async (req, res, next) => {
     try {

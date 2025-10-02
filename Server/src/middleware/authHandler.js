@@ -4,6 +4,12 @@ import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
+/**
+ * Auth Handler Middleware - JWT token authentication and validation
+ * Handles token verification, user authentication, and request authorization
+ * Features: JWT verification, token validation, user context injection, error handling
+ */
+
 export const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) {

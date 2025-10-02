@@ -1,5 +1,10 @@
 import { createOrderService, getOrderByIdService, getOrdersByUserIdService, cancelOrderService } from '../services/order.service.js';
 
+/**
+ * Order Controller - Handles order-related API endpoints and business logic
+ * Features: Order creation, retrieval, status updates, cancellation, order management
+ */
+
 // Create a new order
 export const createOrderController = async (req, res, next) => {
   try {

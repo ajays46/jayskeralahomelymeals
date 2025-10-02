@@ -9,6 +9,11 @@ import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.j
 import nodemailer from 'nodemailer';
 dotenv.config();
 
+/**
+ * Auth Service - Handles user authentication and authorization business logic
+ * Features: User registration, login validation, password management, role assignment, JWT token generation
+ */
+
 export const registerUser = async ({ email, password, phone }) => {
     if (!email || !password) {
         throw new AppError('Email and password are required', 400);

@@ -2,6 +2,12 @@ import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressFor
 import { cancelOrderService } from '../services/order.service.js';
 import { saveAddressToExternalApi } from '../utils/externalApi.js';
 
+/**
+ * Seller Controller - Handles seller-specific API endpoints and operations
+ * Manages seller operations including customer management, order tracking, and analytics
+ * Features: Customer management, order tracking, address management, seller analytics
+ */
+
 // Create contact only (for sellers)
 export const createContactController = async (req, res, next) => {
   try {

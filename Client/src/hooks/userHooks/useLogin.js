@@ -5,6 +5,11 @@ import useAuthStore from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardRoute } from '../../utils/roleBasedRouting';
 
+/**
+ * useLogin - Custom hook for user authentication and login management
+ * Handles login API calls, token management, and role-based navigation
+ * Features: Credential validation, token storage, role-based routing, error handling
+ */
 export const useLogin = () => {
 
   const setAccessToken = useAuthStore((state) => state.setAccessToken);

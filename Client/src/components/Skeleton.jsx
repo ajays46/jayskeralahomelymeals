@@ -1,5 +1,10 @@
 import React from 'react';
 
+/**
+ * Skeleton - Loading placeholder component with customizable styling
+ * Provides animated loading placeholders for various UI elements
+ * Features: Customizable dimensions, rounded corners, animation control, multiple variants
+ */
 const Skeleton = ({ 
   className = '', 
   width = '100%', 

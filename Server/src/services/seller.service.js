@@ -2,6 +2,12 @@ import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
 
+/**
+ * Seller Service - Handles seller-specific operations and customer management
+ * Manages seller profiles, customer relationships, and seller-specific business logic
+ * Features: Customer management, contact creation, seller analytics, order management
+ */
+
 // Create contact with minimal user account (for sellers)
 export const createContactOnly = async ({ firstName, lastName, phoneNumber, address, sellerId }) => {
   try {

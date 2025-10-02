@@ -1,6 +1,12 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 
+/**
+ * Address Service - Handles user address management and operations
+ * Manages user addresses, address validation, and address-related business logic
+ * Features: Address CRUD operations, address validation, location management, address types
+ */
+
 // Get all addresses for a user
 export const getUserAddressesService = async (userId) => {
     try {

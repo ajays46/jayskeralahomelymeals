@@ -8,9 +8,15 @@ import nonVegBreakfastData from '../data/non-veg-breakfast.json';
 import nonVegLunchData from '../data/non-veg-lunch.json';
 import nonVegDinnerData from '../data/non-veg-dinner.json';
 
+/**
+ * HomePage - Landing page component with menu showcase and authentication
+ * Displays featured menu items, hero section, and handles user authentication
+ * Features: Menu preview, auth slider, responsive design, category navigation
+ */
 const HomePage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
 
+  // Handle authentication slider open/close
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);
   const handleCloseAuthSlider = () => setAuthSliderOpen(false);
 

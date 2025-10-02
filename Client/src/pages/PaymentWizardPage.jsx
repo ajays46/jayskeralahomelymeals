@@ -35,10 +35,16 @@ import {
   showOrderSuccess,
   showOrderError
 } from '../utils/toastConfig.jsx';
+import { cleanExpiredDrafts } from '../utils/draftOrderUtils';
 import axiosInstance from '../api/axios.js';
 import useAuthStore from '../stores/Zustand.store.js';
 import { SkeletonWizardStep, SkeletonLoading } from '../components/Skeleton';
 
+/**
+ * PaymentWizardPage - Multi-step payment processing component
+ * Handles UPI payments, receipt uploads, and payment confirmation
+ * Features: Payment method selection, external validation, order summary
+ */
 const PaymentWizardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -325,6 +331,7 @@ const PaymentWizardPage = () => {
     }
   };
 
+  // Handle file upload from input field and process receipt
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -355,6 +362,7 @@ const PaymentWizardPage = () => {
     }
   };
 
+  // Process uploaded file and send to external validation service
   const processFile = async (file) => {
     if (!file) return;
     
@@ -384,6 +392,7 @@ const PaymentWizardPage = () => {
     // Receipt selected successfully
   };
 
+  // Handle drag and drop events for file upload
   const handleDragOver = (event) => {
     event.preventDefault();
     setIsDragOver(true);
@@ -961,6 +970,9 @@ const PaymentWizardPage = () => {
                            currentOrder?.originalDraftId;
                            
         if (isFromDraft && currentOrder?.id && currentOrder?.userId) {
+          // Clean expired drafts first
+          cleanExpiredDrafts();
+          
           const existingDrafts = JSON.parse(localStorage.getItem('draftOrders') || '[]');
           
           // Simple and aggressive approach: remove ALL drafts for this customer
@@ -1940,7 +1952,9 @@ const PaymentWizardPage = () => {
           localStorage.removeItem('savedOrder');
           localStorage.removeItem('fromDraft');
           
-          // Clear any draft orders for the current user
+          // Clean expired drafts first, then clear any draft orders for the current user
+          cleanExpiredDrafts();
+          
           const existingDrafts = JSON.parse(localStorage.getItem('draftOrders') || '[]');
           const currentOrder = orderDetails || order;
           if (currentOrder?.userId) {

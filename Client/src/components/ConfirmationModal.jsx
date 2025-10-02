@@ -2,6 +2,11 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
 
+/**
+ * ConfirmationModal - Reusable confirmation dialog component
+ * Handles user confirmations for destructive or important actions
+ * Features: Portal rendering, customizable styling, multiple types, keyboard navigation
+ */
 const ConfirmationModal = ({ 
   isOpen, 
   onClose, 

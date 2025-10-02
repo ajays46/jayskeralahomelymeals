@@ -1,6 +1,12 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 
+/**
+ * Inventory Service - Handles inventory management and product quantity tracking
+ * Manages product quantities, inventory updates, and stock management
+ * Features: Quantity tracking, inventory updates, stock management, product availability
+ */
+
 // Reduce product quantities based on order items (using existing ProductQuantity table)
 export const reduceProductQuantitiesService = async (orderItems, selectedDates, skipMeals = {}) => {
   try {

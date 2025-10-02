@@ -4,6 +4,10 @@ import { createCompanyService, companyListService, companyDeleteService, createP
 import bcrypt from 'bcryptjs';
 import { generateApiKey } from '../utils/helpers.js';
 
+/**
+ * Admin Controller - Handles all admin-related API endpoints and business logic
+ * Features: Company management, product management, menu management, user management, order management, analytics
+ */
 
 export const createCompany = async (req, res, next) => {
     try {

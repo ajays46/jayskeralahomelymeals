@@ -1,6 +1,11 @@
 import React from 'react';
 import { FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 
+/**
+ * Pagination - Reusable pagination component with page navigation controls
+ * Handles page navigation, items per page selection, and total count display
+ * Features: Page range calculation, navigation controls, items per page selector, responsive design
+ */
 const Pagination = ({
   currentPage,
   totalPages,

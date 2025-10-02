@@ -8,6 +8,12 @@ import {
 } from '../services/address.service.js';
 import { saveAddressToExternalApi } from '../utils/externalApi.js';
 
+/**
+ * Address Controller - Handles address management API endpoints and operations
+ * Manages user addresses, address validation, and address-related operations
+ * Features: Address CRUD operations, address validation, external API integration, location management
+ */
+
 // Get all addresses for a user
 export const getUserAddresses = async (req, res, next) => {
     try {

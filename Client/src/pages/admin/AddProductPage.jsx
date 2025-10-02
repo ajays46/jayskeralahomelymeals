@@ -8,6 +8,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { validateProductForm, validateField, validateImageFile, productSchema } from '../../validations/productValidation';
 import 'antd/dist/reset.css';
 
+/**
+ * AddProductPage - Product creation and editing form with validation
+ * Handles product CRUD operations with image upload and validation
+ * Features: Form validation, image upload, product categories, pricing, inventory management
+ */
 const AddProductPage = () => {
   const { productId } = useParams();
   const navigate = useNavigate();

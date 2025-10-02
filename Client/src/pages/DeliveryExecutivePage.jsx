@@ -8,6 +8,11 @@ import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
 
+/**
+ * DeliveryExecutivePage - Delivery executive dashboard with route and order management
+ * Handles delivery executive operations including route viewing, order updates, and location tracking
+ * Features: Route management, order status updates, location tracking, delivery analytics
+ */
 const DeliveryExecutivePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -122,7 +127,6 @@ const DeliveryExecutivePage = () => {
         reverseGeocodeCompletion(latitude, longitude);
       },
       (error) => {
-        console.error('💥 GPS error:', error);
         let errorMessage = 'Unable to retrieve your location.';
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -177,7 +181,6 @@ const DeliveryExecutivePage = () => {
       } else {
       }
     } catch (error) {
-      console.error('💥 Reverse geocoding error:', error);
       const fallbackAddress = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
       
       setCompletionLocation(prev => ({
@@ -249,7 +252,7 @@ const DeliveryExecutivePage = () => {
         }));
       }
     } catch (error) {
-      console.error('Error fetching delivery status:', error);
+      // Silent error handling - status will remain as is
     } finally {
       setLoadingStatus(prev => ({ ...prev, [stopIndex]: false }));
     }
@@ -332,7 +335,6 @@ const DeliveryExecutivePage = () => {
         throw new Error(response.data.message || 'Failed to upload image');
       }
     } catch (apiError) {
-      console.error('💥 Error in image upload:', apiError);
       
       // Show error toast
       toast.error(
@@ -438,11 +440,6 @@ const DeliveryExecutivePage = () => {
         throw new Error(response.data.message || 'Failed to update delivery address');
       }
     } catch (apiError) {
-      console.error('💥 Error in delivery completion:', {
-        error: apiError,
-        response: apiError.response?.data,
-        message: apiError.message
-      });
       
       // Show toastify error popup
       toast.error(
@@ -515,7 +512,6 @@ const DeliveryExecutivePage = () => {
       // Force page reload to clear any remaining state
       window.location.reload();
     } catch (error) {
-      console.error('Logout error:', error);
       message.error('Logout failed. Please try again.');
     }
   };
@@ -562,7 +558,6 @@ const DeliveryExecutivePage = () => {
         throw new Error(response.data?.message || 'Failed to fetch routes');
       }
     } catch (apiError) {
-      console.error('❌ API Error:', apiError);
       const errorMessage = apiError.response?.data?.message || apiError.message || 'Failed to fetch routes. Please try again.';
       setRoutesError(errorMessage);
       message.error(errorMessage);

@@ -2,7 +2,9 @@ import { prisma } from '../config/prisma.js';
 import { AppError } from '../utils/AppError.js';
 
 /**
- * User Role Service - Handles user role management with comma-separated roles
+ * User Role Service - Handles user role management and role-based operations
+ * Manages user roles, role assignments, and role-based access control
+ * Features: Role management, user role assignment, role validation, multi-role support
  */
 
 /**

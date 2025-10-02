@@ -7,6 +7,12 @@ import {
   deleteDeliveryExecutiveProfile
 } from '../services/deliveryExecutive.service.js';
 
+/**
+ * Delivery Executive Controller - Handles delivery executive API endpoints and operations
+ * Manages delivery executive profiles, location tracking, and delivery operations
+ * Features: Profile management, location updates, image uploads, delivery tracking
+ */
+
 // Create or update delivery executive profile
 export const createOrUpdateProfile = async (req, res) => {
   try {

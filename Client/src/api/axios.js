@@ -1,6 +1,12 @@
 import axios from 'axios';
 import useAuthStore from '../stores/Zustand.store';
 
+/**
+ * Axios Configuration - HTTP client setup with authentication and error handling
+ * Handles API requests with automatic token injection and response/error interceptors
+ * Features: Automatic authentication, token refresh, error handling, environment-based URLs
+ */
+
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_NODE_ENV === 'development'  ? import.meta.env.VITE_DEV_API_URL: import.meta.env.VITE_PROD_API_URL,
   withCredentials: true, // This is important for cookies

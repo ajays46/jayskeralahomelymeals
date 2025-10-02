@@ -1,5 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 
+/**
+ * Role-Based Routing - Utility functions for role-based navigation and routing
+ * Handles automatic routing based on user roles and permissions
+ * Features: Role-based dashboard routing, permission checking, fallback routing
+ */
+
 // Function to determine the appropriate dashboard route based on user roles
 export const getDashboardRoute = (roles) => {
   if (!roles || !Array.isArray(roles)) {

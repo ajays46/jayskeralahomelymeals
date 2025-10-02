@@ -1,3 +1,8 @@
+/**
+ * AppError - Custom error class for application-specific error handling
+ * Provides structured error handling with status codes and operational error classification
+ * Features: Status code management, operational error classification, error details, stack trace capture
+ */
 class AppError extends Error {
   constructor(message, statusCode, details = null) {
     super(message);

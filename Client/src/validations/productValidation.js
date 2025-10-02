@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+/**
+ * Product Validation - Form validation schemas for product management
+ * Handles product form validation including name, code, pricing, and inventory
+ * Features: Product name validation, code format validation, pricing validation, inventory validation
+ */
+
 // Product validation schema
 export const productSchema = z.object({
   // Product basic information

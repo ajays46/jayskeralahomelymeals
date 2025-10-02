@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -10,6 +11,8 @@ import ProtectedRoute from './protectRoute/Protect';
 import AdminPage from './pages/admin/AdminPage';
 import SellerPage from './pages/SellerPage';
 import DeliveryManagerPage from './pages/DeliveryManagerPage';
+import RouteComparisonPage from './pages/RouteComparisonPage';
+import RouteViewPage from './pages/RouteViewPage';
 import DeliveryExecutivePage from './pages/DeliveryExecutivePage';
 import ProfilePage from './pages/ProfilePage';
 import ResetPassword from './components/ResetPassword';
@@ -30,6 +33,7 @@ import CustomerOrdersPage from './pages/CustomerOrdersPage';
 import BookingWizardPage from './pages/BookingWizardPage';
 import PaymentWizardPage from './pages/PaymentWizardPage';
 import UploadReceiptPage from './pages/UploadReceiptPage';
+import { initializeDraftCleanup } from './utils/draftOrderUtils';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,7 +44,17 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * App - Main application component with routing and authentication
+ * Handles all route definitions, protected routes, and global state management
+ * Features: React Query setup, role-based routing, authentication guards
+ */
 const App = () => {
+  // Initialize draft cleanup on app startup
+  React.useEffect(() => {
+    initializeDraftCleanup();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
@@ -77,6 +91,8 @@ const App = () => {
             <Route path='/jkhm/edit-customer' element={<EditCustomerPage />}></Route>
             <Route path='/jkhm/delivery-items/:orderId' element={<DeliveryItemsPage />}></Route>
             <Route path='/jkhm/delivery-manager' element={<DeliveryManagerPage />}></Route>
+            <Route path='/jkhm/route-comparison' element={<RouteComparisonPage />}></Route>
+            <Route path='/jkhm/route-view' element={<RouteViewPage />}></Route>
             <Route path='/jkhm/delivery-executive' element={<DeliveryExecutivePage />}></Route>
             <Route path='/jkhm/profile' element={<ProfilePage />}></Route>
             <Route path='/jkhm/create-user' element={<CreateUserPage />}></Route>

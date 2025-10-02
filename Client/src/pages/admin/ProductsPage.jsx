@@ -6,6 +6,11 @@ import { useProductList, useDeleteProduct } from '../../hooks/adminHook/adminHoo
 import { useNavigate } from 'react-router-dom';
 import { Button, Popconfirm, message } from 'antd';
 
+/**
+ * ProductsPage - Product listing and management page with advanced filtering
+ * Handles product display, search, filtering, and CRUD operations
+ * Features: Advanced filtering, search, pagination, bulk operations, product management
+ */
 const ProductsPage = () => {
   const navigate = useNavigate();
   const { data: productListData, isLoading, error, refetch } = useProductList();

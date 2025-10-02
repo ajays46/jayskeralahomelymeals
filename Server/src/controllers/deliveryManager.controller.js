@@ -6,6 +6,12 @@ import {
   getDeliveryExecutivesService
 } from '../services/deliveryManager.service.js';
 
+/**
+ * Delivery Manager Controller - Handles delivery management API endpoints and operations
+ * Manages delivery routes, executive coordination, and delivery analytics
+ * Features: Route management, executive coordination, delivery analytics, order tracking
+ */
+
 // Get delivery manager dashboard data
 export const getDeliveryManagerDashboard = async (req, res, next) => {
   try {

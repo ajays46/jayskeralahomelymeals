@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom';
 import { validateForgotIdentifier } from '../validations/forgotValidation';
 import { useForgotPassword } from '../hooks/userHooks/useLogin';
 
+/**
+ * ForgotPassword - Password reset request form component
+ * Handles password reset requests with email/phone validation
+ * Features: Input validation, success/error states, email sending
+ */
 const ForgotPassword = ({ onBackToLogin }) => {
   const [identifier, setIdentifier] = useState('');
   const [error, setError] = useState('');

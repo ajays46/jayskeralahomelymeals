@@ -1,5 +1,11 @@
 import { toast } from 'react-toastify';
 
+/**
+ * Toast Configuration - Centralized toast notification system
+ * Provides consistent styling and behavior for all user notifications
+ * Features: Success, error, warning, info toasts with custom styling and timing
+ */
+
 // Enhanced Toast configuration
 export const toastConfig = {
   position: "top-right",

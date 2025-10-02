@@ -1,6 +1,12 @@
 import prisma from '../models/index.js';
 import { saveBase64Image } from './imageUpload.service.js';
 
+/**
+ * Delivery Executive Service - Handles delivery executive profile and operations
+ * Manages delivery executive profiles, location tracking, and delivery operations
+ * Features: Profile management, location tracking, image upload, delivery status updates
+ */
+
 // Create or update delivery executive profile
 export const createOrUpdateDeliveryExecutive = async (userId, data) => {
   try {

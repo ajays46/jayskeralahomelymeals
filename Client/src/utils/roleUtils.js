@@ -1,4 +1,8 @@
-// Utility functions for role management
+/**
+ * Role Utilities - Utility functions for user role management and validation
+ * Handles role parsing, validation, and role-based access control
+ * Features: Role parsing, role validation, permission checking, role-based routing
+ */
 
 /**
  * Parse comma-separated role string into array

@@ -13,6 +13,11 @@ import { useLogout } from '../hooks/userHooks/useLogin';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive } from '../utils/roleUtils';
 
+/**
+ * Navbar - Main navigation component with role-based menu and authentication
+ * Handles user authentication, role-based navigation, and responsive mobile menu
+ * Features: Auto-hide on scroll, role-based menu items, user dropdown, search functionality
+ */
 const Navbar = ({ onSignInClick }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");

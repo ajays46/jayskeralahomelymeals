@@ -5,6 +5,11 @@ import { Link } from 'react-router-dom';
 // import { useAuth } from '../context/AuthContext';
 import { useLogin } from '../hooks/userHooks/useLogin';
 
+/**
+ * Login - Authentication form component with validation and error handling
+ * Handles user login with email/phone, password validation, and form state management
+ * Features: Form validation, password visibility toggle, error handling, loading states
+ */
 const Login = ({ onClose, onForgotPassword }) => {
   // const { login } = useAuth();
   const { mutate: loginMutation, isPending } = useLogin();

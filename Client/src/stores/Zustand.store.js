@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+/**
+ * useAuthStore - Global authentication state management using Zustand
+ * Handles user authentication state, roles, and token management
+ * Features: Persistent storage, role-based access, token management, logout functionality
+ */
 const useAuthStore = create(
     persist(
         (set) => ({

@@ -36,6 +36,7 @@ import {
   showValidationError,
   showRequiredFieldError
 } from '../utils/toastConfig.jsx';
+import { saveDraftWithCleanup, cleanExpiredDrafts } from '../utils/draftOrderUtils';
 import useAuthStore from '../stores/Zustand.store';
 import AddressPicker from '../components/AddressPicker';
 import AdminOrderBlockedModal from '../components/AdminOrderBlockedModal';
@@ -133,6 +134,11 @@ const DraftOrdersList = ({ onLoadDraft, onDeleteDraft, currentDraftId }) => {
   );
 };
 
+/**
+ * BookingWizardPage - Multi-step order booking wizard with menu selection and customer management
+ * Handles complete order flow from customer selection to payment processing
+ * Features: Multi-step wizard, menu selection, customer management, address handling, order validation
+ */
 const BookingWizardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1585,30 +1591,21 @@ const BookingWizardPage = () => {
       dateMenuSelections,
       orderMode,
       dietaryPreference,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       customerName: selectedUser ? 
         `${selectedUser.contacts?.[0]?.firstName || ''}`.trim() :
         `${user?.contacts?.[0]?.firstName || ''}`.trim() || user?.auth?.email || 'N/A'
     };
 
-    // Get existing drafts
-    const existingDrafts = JSON.parse(localStorage.getItem('draftOrders') || '[]');
+    // Save draft with automatic cleanup of expired drafts
+    const savedDraftId = saveDraftWithCleanup(draftData);
     
-    // Update existing draft or add new one
-    const draftIndex = existingDrafts.findIndex(draft => draft.id === draftData.id);
-    if (draftIndex >= 0) {
-      existingDrafts[draftIndex] = draftData;
+    if (savedDraftId) {
+      setDraftId(savedDraftId);
+      setIsDraftMode(true);
+      showSuccessToast(`Order saved as draft successfully! You can continue this order later from the Draft Orders section.`);
     } else {
-      existingDrafts.push(draftData);
+      showErrorToast('Failed to save draft order. Please try again.');
     }
-
-    // Save to localStorage
-    localStorage.setItem('draftOrders', JSON.stringify(existingDrafts));
-    
-    setDraftId(draftData.id);
-    setIsDraftMode(true);
-    showSuccessToast(`Order saved as draft successfully! You can continue this order later from the Draft Orders section.`);
   };
 
   const loadDraftOrder = (draft) => {
@@ -1633,6 +1630,9 @@ const BookingWizardPage = () => {
   };
 
   const deleteDraftOrder = (draftId) => {
+    // Clean expired drafts first, then remove the specific draft
+    cleanExpiredDrafts();
+    
     const existingDrafts = JSON.parse(localStorage.getItem('draftOrders') || '[]');
     const updatedDrafts = existingDrafts.filter(draft => draft.id !== draftId);
     localStorage.setItem('draftOrders', JSON.stringify(updatedDrafts));

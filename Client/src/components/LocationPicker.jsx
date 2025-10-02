@@ -35,7 +35,6 @@ const LocationPicker = ({
         reverseGeocode(latitude, longitude);
       },
       (error) => {
-        console.error('Geolocation error:', error);
         switch (error.code) {
           case error.PERMISSION_DENIED:
             setLocationError('Location access denied. Please enable location services.');
@@ -74,7 +73,6 @@ const LocationPicker = ({
         setShowLocationModal(true);
       }
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
       setLocationError('Could not get address from coordinates.');
     } finally {
       setIsGettingLocation(false);

@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react';
 import axiosInstance from '../../api/axios';
 import useAuthStore from '../../stores/Zustand.store';
 
+/**
+ * useSeller - Custom hook for seller-specific operations and data management
+ * Handles seller profile management, customer operations, and seller-specific API calls
+ * Features: Profile management, customer CRUD, order tracking, seller analytics
+ */
 export const useSeller = () => {
   const [sellerProfile, setSellerProfile] = useState(null);
   const [sellerUsers, setSellerUsers] = useState([]);
@@ -93,8 +98,6 @@ export const useSeller = () => {
         return response.data;
       }
     } catch (err) {
-      console.error('Error in updateCustomer:', err);
-      
       const errorMessage = err.response?.data?.message || 'Failed to update customer';
       setError(errorMessage);
       throw new Error(errorMessage);

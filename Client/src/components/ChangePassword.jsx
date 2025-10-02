@@ -4,6 +4,11 @@ import api from '../api/axios';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
 
+/**
+ * ChangePassword - Modal component for changing user password
+ * Handles password change with current password verification and validation
+ * Features: Password visibility toggle, form validation, API integration, success feedback
+ */
 const ChangePassword = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
     currentPassword: '',

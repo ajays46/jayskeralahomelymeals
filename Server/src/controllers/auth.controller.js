@@ -9,6 +9,11 @@ import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
+/**
+ * Auth Controller - Handles user authentication and authorization operations
+ * Features: User registration, login, password reset, role management, JWT token handling
+ */
+
 // Register new user
 export const register = async (req, res, next) => {
   try {

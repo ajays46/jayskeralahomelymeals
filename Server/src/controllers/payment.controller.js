@@ -8,6 +8,12 @@ import {
     uploadReceiptService
 } from '../services/payment.service.js';
 
+/**
+ * Payment Controller - Handles payment processing API endpoints and operations
+ * Manages payment creation, validation, receipt handling, and payment status updates
+ * Features: Payment processing, receipt management, payment validation, order integration
+ */
+
 // Create a new payment
 export const createPayment = async (req, res, next) => {
     try {

@@ -1,6 +1,11 @@
 import prisma from '../config/prisma.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
 
+/**
+ * Order Service - Handles order management and business logic
+ * Features: Order creation, status updates, delivery item management, inventory tracking, pricing calculations
+ */
+
 // Create a new order
 export const createOrderService = async (orderData) => {
   try {

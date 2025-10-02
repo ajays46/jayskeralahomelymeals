@@ -2,6 +2,12 @@ import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
 
+/**
+ * Delivery Manager Service - Handles delivery management operations and analytics
+ * Manages delivery routes, executive coordination, and delivery analytics
+ * Features: Route management, executive coordination, delivery analytics, order tracking
+ */
+
 // Get delivery manager dashboard data
 export const getDeliveryManagerDashboardService = async (deliveryManagerId) => {
   try {

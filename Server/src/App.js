@@ -1,3 +1,8 @@
+/**
+ * App - Main Express server application with middleware and route configuration
+ * Handles API routing, static file serving, authentication, and error handling
+ * Features: CORS, cookie parsing, file uploads, role-based authentication, external API integration
+ */
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';

@@ -4,6 +4,11 @@ import Register from './Register';
 import ForgotPassword from './ForgotPassword';
 import { IoClose } from 'react-icons/io5';
 
+/**
+ * AuthSlider - Sliding authentication modal with tabbed interface
+ * Handles login, registration, and password reset in a single modal
+ * Features: Tab switching, form validation, success messages, responsive design
+ */
 const AuthSlider = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('login');
   const [showForgot, setShowForgot] = useState(false);

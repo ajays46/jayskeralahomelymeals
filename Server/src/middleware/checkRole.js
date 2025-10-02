@@ -1,5 +1,11 @@
 import AppError from '../utils/AppError.js';
 
+/**
+ * Role Check Middleware - Role-based access control and permission validation
+ * Handles role-based authorization and permission checking for protected routes
+ * Features: Multi-role support, permission validation, error handling, role parsing
+ */
+
 export const checkRole = (...allowedRoles) => {
   return (req, res, next) => {
     try {

@@ -1,6 +1,12 @@
 import fetch from 'node-fetch';
 import FormData from 'form-data';
 
+/**
+ * External Upload Service - Handles external API integration for image processing
+ * Manages image uploads to external services and API communication
+ * Features: External API integration, image processing, form data handling, error management
+ */
+
 // Upload image to external API
 export const uploadImageToExternalAPI = async (file, userId, expectedAmount) => {
   try {

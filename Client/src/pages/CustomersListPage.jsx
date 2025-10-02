@@ -5,6 +5,12 @@ import {
   showErrorToast, 
   showWarningToast 
 } from '../utils/toastConfig.jsx';
+
+/**
+ * CustomersListPage - Customer management page with advanced filtering and search
+ * Handles customer listing, search, filtering, and management operations
+ * Features: Advanced search, filtering, pagination, bulk operations, customer analytics
+ */
 import { 
   MdPerson,
   MdArrowBack,
@@ -17,6 +23,7 @@ import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { isDeliveryManager } from '../utils/roleUtils';
+import { getValidDrafts, cleanExpiredDrafts } from '../utils/draftOrderUtils';
 
 // Import optimized components
 import CustomerFilters from '../components/customers/CustomerFilters';
@@ -178,7 +185,7 @@ const CustomersListPage = () => {
 
         return true;
       } catch (error) {
-        console.error('Error filtering customer:', customer?.id, error);
+        // Silent fallback - exclude customer from results
         return false;
       }
     });
@@ -226,7 +233,7 @@ const CustomersListPage = () => {
             return 0;
         }
       } catch (error) {
-        console.error('Error sorting customers:', error);
+        // Silent fallback - return original order
         return 0;
       }
     });
@@ -283,7 +290,6 @@ const CustomersListPage = () => {
         showErrorToast(response.data.message || 'Failed to delete customer');
       }
     } catch (error) {
-      console.error('Error deleting customer:', error);
       showErrorToast('Failed to delete customer');
     } finally {
       setDeletingUsers(prev => {
@@ -379,12 +385,14 @@ const CustomersListPage = () => {
       navigate('/jkhm/process-payment');
       
     } catch (error) {
-      console.error('❌ Error in handleResumeOrder:', error);
       showErrorToast('Failed to resume order. Please try again.');
     }
   }, [navigate]);
 
   const handleDeleteDraft = useCallback((draftId) => {
+    // Clean expired drafts first, then remove the specific draft
+    cleanExpiredDrafts();
+    
     const updatedDrafts = draftOrders.filter(draft => draft.id !== draftId);
     setDraftOrders(updatedDrafts);
     localStorage.setItem('draftOrders', JSON.stringify(updatedDrafts));
@@ -449,16 +457,8 @@ const CustomersListPage = () => {
 
   useEffect(() => {
     const loadDraftOrders = () => {
-      const savedDrafts = JSON.parse(localStorage.getItem('draftOrders') || '[]');
-      
-      const validDrafts = savedDrafts.filter(draft => {
-        return draft.selectedUser && draft.selectedMenu && draft.selectedDates;
-      });
-      
-      if (validDrafts.length !== savedDrafts.length) {
-        localStorage.setItem('draftOrders', JSON.stringify(validDrafts));
-      }
-      
+      // Clean expired drafts and get valid ones
+      const validDrafts = getValidDrafts();
       setDraftOrders(validDrafts);
     };
     

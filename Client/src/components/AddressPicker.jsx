@@ -156,7 +156,6 @@ const AddressPicker = ({
         reverseGeocode(latitude, longitude);
       },
       (error) => {
-        console.error('Geolocation error:', error);
         switch (error.code) {
           case error.PERMISSION_DENIED:
             setLocationError('Location access denied. Please enable location services.');
@@ -208,7 +207,6 @@ const AddressPicker = ({
         alert('Location detected! Please review and save.');
       }
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
       setLocationError('Could not get address from coordinates.');
     } finally {
       setIsGettingLocation(false);
@@ -297,7 +295,7 @@ const AddressPicker = ({
         showSuccessToast('Address added successfully!');
       }
     } catch (error) {
-      console.error('Error creating address:', error);
+      // Error handling is done by the hook
     }
   };
 
@@ -340,7 +338,7 @@ const AddressPicker = ({
         showSuccessToast('Address updated successfully!');
       }
     } catch (error) {
-      console.error('Error updating address:', error);
+      // Error handling is done by the hook
     }
   };
 
@@ -390,7 +388,6 @@ const AddressPicker = ({
         setShowDropdown(false);
       }
     } catch (error) {
-      console.error('Error deleting address:', error);
       
       // Show error toast
       showErrorToast('Failed to delete address. Please try again.');
@@ -456,7 +453,7 @@ const AddressPicker = ({
               });
             }
           } catch (error) {
-            console.error('Error creating address for user:', error);
+            // Error handling is done by the hook
             showErrorToast('Failed to create address for the selected user. Please try again.');
           }
           return;
@@ -465,7 +462,7 @@ const AddressPicker = ({
         showErrorToast('Address creation not configured for seller-selected users');
         return;
       } catch (error) {
-        console.error('Error preparing address data:', error);
+        // Error handling is done by the hook
         return;
       }
     }
@@ -521,7 +518,7 @@ const AddressPicker = ({
       });
       
     } catch (error) {
-      console.error('Error saving address:', error);
+      // Error handling is done by the hook
       showErrorToast('Error saving address. Please try again.');
     }
   };

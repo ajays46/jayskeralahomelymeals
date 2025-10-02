@@ -5,6 +5,12 @@ import { createDeliveryItemsAfterPaymentService } from './deliveryItem.service.j
 import { reduceProductQuantitiesService } from './inventory.service.js';
 import { createAddressForUser } from './seller.service.js';
 
+/**
+ * Payment Service - Handles payment processing and payment-related operations
+ * Manages payment creation, validation, receipt handling, and payment status updates
+ * Features: Payment processing, receipt management, payment validation, order integration
+ */
+
 // Helper function to create delivery items (can work with transaction or main client)
 const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData, userId) => {
   const { selectedDates, orderItems, deliveryLocations, skipMeals } = orderData;
