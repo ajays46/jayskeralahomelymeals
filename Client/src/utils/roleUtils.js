@@ -102,12 +102,28 @@ export const isDeliveryExecutive = (roles) => hasRole(roles, 'DELIVERY_EXECUTIVE
 export const isUser = (roles) => hasRole(roles, 'USER');
 
 /**
+ * Check if user is CEO
+ * @param {string|Array} roles - Comma-separated role string or array
+ * @returns {boolean} - True if user is CEO
+ */
+export const isCEO = (roles) => hasRole(roles, 'CEO');
+
+/**
+ * Check if user is CFO
+ * @param {string|Array} roles - Comma-separated role string or array
+ * @returns {boolean} - True if user is CFO
+ */
+export const isCFO = (roles) => hasRole(roles, 'CFO');
+
+/**
  * Get role display name
  * @param {string} role - Role name
  * @returns {string} - Display name for the role
  */
 export const getRoleDisplayName = (role) => {
   const roleMap = {
+    'CEO': 'Chief Executive Officer',
+    'CFO': 'Chief Financial Officer',
     'ADMIN': 'Administrator',
     'SELLER': 'Seller',
     'DELIVERY_MANAGER': 'Delivery Manager',
@@ -134,6 +150,8 @@ export const getRoleDisplayNames = (roles) => {
  */
 export const getRoleColor = (role) => {
   const roleColors = {
+    'CEO': 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300',
+    'CFO': 'bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-800 border-indigo-300',
     'ADMIN': 'bg-red-100 text-red-800 border-red-200',
     'SELLER': 'bg-blue-100 text-blue-800 border-blue-200',
     'DELIVERY_MANAGER': 'bg-purple-100 text-purple-800 border-purple-200',
@@ -150,6 +168,8 @@ export const getRoleColor = (role) => {
  */
 export const getRoleIcon = (role) => {
   const roleIcons = {
+    'CEO': '👑',
+    'CFO': '💰',
     'ADMIN': '👑',
     'SELLER': '🏪',
     'DELIVERY_MANAGER': '🚚',

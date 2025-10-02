@@ -464,9 +464,13 @@ export const useUserRoles = () => {
             return {
                 success: true,
                 data: [
+                    { value: 'CEO', label: 'Chief Executive Officer' },
+                    { value: 'CFO', label: 'Chief Financial Officer' },
+                    { value: 'ADMIN', label: 'Administrator' },
                     { value: 'SELLER', label: 'Seller' },
                     { value: 'DELIVERY_EXECUTIVE', label: 'Delivery Executive' },
-                    { value: 'DELIVERY_MANAGER', label: 'Delivery Manager' }
+                    { value: 'DELIVERY_MANAGER', label: 'Delivery Manager' },
+                    { value: 'USER', label: 'Regular User' }
                 ]
             };
         },

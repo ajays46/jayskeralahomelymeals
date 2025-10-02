@@ -24,6 +24,7 @@ import AddMenuPage from './pages/admin/AddMenuPage';
 import MenuItemPage from './pages/admin/MenuItemPage';
 import MenuItemsTablePage from './pages/admin/MenuItemsTablePage';
 import UsersPage from './pages/admin/UsersPage';
+import ManagementDashboardPage from './pages/ManagementDashboardPage';
 
 import CreateUserPage from './pages/CreateUserPage';
 import DeliveryItemsPage from './pages/DeliveryItemsPage';
@@ -73,6 +74,7 @@ const App = () => {
           {/* ✅ Protected Route */}
           <Route element={<ProtectedRoute />}>
      
+            <Route path='/jkhm/management-dashboard' element={<ManagementDashboardPage/>} ></Route>
             <Route path='/jkhm/admin' element={<AdminPage/>} ></Route>
             <Route path='/jkhm/admin/company-create' element={<CompanyCreatePage/>} ></Route>
             <Route path='/jkhm/admin/add-product' element={<AddProductPage/>} ></Route>

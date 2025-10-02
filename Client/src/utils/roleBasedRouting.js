@@ -12,7 +12,17 @@ export const getDashboardRoute = (roles) => {
     return '/jkhm'; // Default fallback
   }
 
-  // Check for admin role first (highest priority)
+  // Check for CEO role first (highest priority)
+  if (roles.some(role => role.toUpperCase() === 'CEO')) {
+    return '/jkhm/management-dashboard';
+  }
+
+  // Check for CFO role (second highest priority)
+  if (roles.some(role => role.toUpperCase() === 'CFO')) {
+    return '/jkhm/management-dashboard';
+  }
+
+  // Check for admin role
   if (roles.some(role => role.toUpperCase() === 'ADMIN')) {
     return '/jkhm/admin';
   }

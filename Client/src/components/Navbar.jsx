@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLogout } from '../hooks/userHooks/useLogin';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
-import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive } from '../utils/roleUtils';
+import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO } from '../utils/roleUtils';
 
 /**
  * Navbar - Main navigation component with role-based menu and authentication
@@ -35,6 +35,8 @@ const Navbar = ({ onSignInClick }) => {
   const userIsSeller = isSeller(roles);
   const userIsDeliveryManager = isDeliveryManager(roles);
   const userIsDeliveryExecutive = isDeliveryExecutive(roles);
+  const userIsCEO = isCEO(roles);
+  const userIsCFO = isCFO(roles);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -145,6 +147,17 @@ const Navbar = ({ onSignInClick }) => {
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Admin Panel</div>
                           <a href="/jkhm/admin" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
                             <MdAdminPanelSettings className="text-xl" /> Admin Dashboard
+                          </a>
+                        </>
+                      )}
+
+                      {/* CEO/CFO Management Dashboard Options */}
+                      {(userIsCEO || userIsCFO) && (
+                        <>
+                          <div className="border-t border-gray-200 my-1"></div>
+                          <div className="px-4 py-1 text-xs text-gray-500 font-medium">Management Panel</div>
+                          <a href="/jkhm/management-dashboard" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
+                            <MdDashboard className="text-xl" /> Management Dashboard
                           </a>
                         </>
                       )}
@@ -390,10 +403,21 @@ const Navbar = ({ onSignInClick }) => {
 
                   </div>
 
-                  {/* Admin/Seller/Delivery Manager Options */}
-                  {(userIsAdmin || userIsSeller || userIsDeliveryManager || userIsDeliveryExecutive) && (
+                  {/* Admin/Seller/Delivery Manager/CEO/CFO Options */}
+                  {(userIsAdmin || userIsSeller || userIsDeliveryManager || userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
                     <div className="mb-3">
                       <div className="space-y-1">
+                        {(userIsCEO || userIsCFO) && (
+                          <motion.a 
+                            href="/jkhm/management-dashboard" 
+                            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group"
+                            whileHover={{ x: 3 }}
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <MdDashboard className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                            <span className="font-medium text-xs">Management Dashboard</span>
+                          </motion.a>
+                        )}
                         {userIsAdmin && (
                           <motion.a 
                             href="/jkhm/admin" 

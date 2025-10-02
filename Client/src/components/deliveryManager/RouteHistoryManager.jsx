@@ -369,28 +369,28 @@ const RouteHistoryManager = forwardRef(({
 
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+    <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl border border-slate-200 shadow-lg p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-            <MdHistory className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+            <MdHistory className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           <div>
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Draft Routes</h3>
-            <p className="text-xs sm:text-sm text-gray-500">Manage and approve route planning drafts</p>
+            <h3 className="text-lg sm:text-xl font-bold text-slate-800">Draft Routes</h3>
+            <p className="text-xs sm:text-sm text-slate-600">Manage and approve route planning drafts</p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
           <div className="text-left sm:text-right">
-            <div className="text-xl sm:text-2xl font-bold text-gray-900">{routeHistory.length}</div>
-            <div className="text-xs sm:text-sm text-gray-500">Routes</div>
+            <div className="text-xl sm:text-2xl font-bold text-slate-800">{routeHistory.length}</div>
+            <div className="text-xs sm:text-sm text-slate-600">Routes</div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
             {routeHistory.length > 0 && (
               <button
                 onClick={clearRouteHistory}
-                className="px-3 py-2 sm:px-4 sm:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
+                className="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium shadow-md hover:shadow-lg"
               >
                 <MdClear className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Clear All Routes</span>
@@ -400,7 +400,7 @@ const RouteHistoryManager = forwardRef(({
             {routeHistory.length > 1 && (
               <button
                 onClick={navigateToComparison}
-                className="px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
+                className="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium shadow-md hover:shadow-lg"
               >
                 <MdCompare className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Compare Routes</span>
@@ -414,21 +414,21 @@ const RouteHistoryManager = forwardRef(({
       {/* Route List */}
       {routeHistory.length === 0 ? (
         <div className="text-center py-8 sm:py-12">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-            <MdHistory className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-slate-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-md">
+            <MdHistory className="w-6 h-6 sm:w-8 sm:h-8 text-slate-500" />
           </div>
-          <h4 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No Draft Routes Available</h4>
-          <p className="text-sm sm:text-base text-gray-500 px-4">Run the route planning program to create draft routes for review and approval.</p>
+          <h4 className="text-base sm:text-lg font-semibold text-slate-800 mb-2">No Draft Routes Available</h4>
+          <p className="text-sm sm:text-base text-slate-600 px-4">Run the route planning program to create draft routes for review and approval.</p>
         </div>
       ) : (
         <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
           {routeHistory.map((route, index) => (
             <div 
               key={route.id}
-              className={`rounded-lg border transition-all duration-200 ${
+              className={`rounded-xl border transition-all duration-200 shadow-sm hover:shadow-md ${
                 selectedRouteId === route.id 
-                  ? 'border-blue-500 bg-blue-50 shadow-md' 
-                  : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                  ? 'border-blue-400 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg' 
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
               }`}
             >
               <div 
@@ -437,14 +437,14 @@ const RouteHistoryManager = forwardRef(({
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                   <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MdPeople className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <MdPeople className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h5 className="font-semibold text-gray-900 text-sm sm:text-base">
+                      <h5 className="font-bold text-slate-800 text-sm sm:text-base">
                         Draft Route {index + 1}
                       </h5>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
                         <span className="flex items-center gap-1">
                           <MdPeople className="w-3 h-3 sm:w-4 sm:h-4" />
                           {route.executiveCount} Executive{route.executiveCount > 1 ? 's' : ''}
@@ -457,12 +457,12 @@ const RouteHistoryManager = forwardRef(({
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium self-start ${
+                    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-semibold self-start shadow-sm ${
                       route.status === 'draft' 
-                        ? 'bg-orange-100 text-orange-800'
+                        ? 'bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 border border-orange-200'
                         : route.status === 'approved'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-green-100 text-green-800'
+                        ? 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border border-blue-200'
+                        : 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 border border-green-200'
                     }`}>
                       {route.status}
                     </span>
@@ -472,7 +472,7 @@ const RouteHistoryManager = forwardRef(({
                           e.stopPropagation();
                           openRouteInNewTab(route);
                         }}
-                        className="px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium"
+                        className="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-semibold shadow-md hover:shadow-lg"
                       >
                         <MdVisibility className="w-3 h-3 sm:w-4 sm:h-4" />
                         <span className="hidden sm:inline">View Route</span>
@@ -503,7 +503,7 @@ const RouteHistoryManager = forwardRef(({
                         >
                           <button
                             onClick={(e) => e.stopPropagation()}
-                            className="px-3 py-2 sm:px-4 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium"
+                            className="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-semibold shadow-md hover:shadow-lg"
                           >
                             <MdSave className="w-3 h-3 sm:w-4 sm:h-4" />
                             Approve
@@ -536,7 +536,7 @@ const RouteHistoryManager = forwardRef(({
                         >
                           <button
                             onClick={(e) => e.stopPropagation()}
-                            className="px-3 py-2 sm:px-4 sm:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium"
+                            className="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-semibold shadow-md hover:shadow-lg"
                           >
                             <MdDelete className="w-3 h-3 sm:w-4 sm:h-4" />
                             Discard
