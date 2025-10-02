@@ -687,38 +687,30 @@ const DeliveryManagerPage = () => {
   // Function to save routes
   const handleSaveRoutes = async (routeData = null) => {
     try {
+      // Always use the real backend API for saving routes
+      if (!currentRequestId) {
+        message.warning('No request ID available. Please run the program first.');
+        return;
+      }
+
       if (routeData) {
         // Called from Route History Manager with route data
         message.loading('💾 Saving selected route...', 0);
-        
-        // For now, just simulate saving the route data
-        // In a real implementation, you might want to save this to a different endpoint
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-        
-        message.destroy(); // Clear loading message
-        message.success('Selected route saved successfully!');
-        
-        // Set routes as saved to enable WhatsApp button
-        setRoutesSaved(true);
-        localStorage.setItem('routesSaved', 'true');
       } else {
-        // Called from main save button with requestId
-        if (!currentRequestId) {
-          message.warning('No request ID available. Please run the program first.');
-          return;
-        }
-
+        // Called from main save button
         message.loading('💾 Saving routes...', 0);
-        
-        await saveRoutesMutation.mutateAsync({ requestId: currentRequestId });
-        
-        message.destroy(); // Clear loading message
-        message.success('Routes saved successfully!');
-        
-        // Set routes as saved to enable WhatsApp button
-        setRoutesSaved(true);
-        localStorage.setItem('routesSaved', 'true');
       }
+      
+      // Use the real backend API for both cases
+      await saveRoutesMutation.mutateAsync({ requestId: currentRequestId });
+      
+      message.destroy(); // Clear loading message
+      message.success(routeData ? 'Selected route saved successfully!' : 'Routes saved successfully!');
+      
+      // Set routes as saved to enable WhatsApp button
+      setRoutesSaved(true);
+      localStorage.setItem('routesSaved', 'true');
+      
     } catch (error) {
       message.destroy(); // Clear loading message
       console.error('Error saving routes:', error);
@@ -3356,15 +3348,15 @@ const DeliveryManagerPage = () => {
                             </div>
                             
                             {/* Search and Filter Controls */}
-                            <div className="p-4 bg-gray-600 border-b border-gray-500">
-                              <div className="flex flex-col gap-4">
+                            <div className="p-3 sm:p-4 bg-gray-600 border-b border-gray-500">
+                              <div className="flex flex-col gap-3 sm:gap-4">
                                 {/* Search Row */}
                                 <div className="flex-1">
                                   <input
                                     type="text"
                                     placeholder="Search by customer name, address, or order ID..."
                                     value={deliveryDataFilters.search}
-                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                                     onChange={(e) => {
                                       setDeliveryDataFilters(prev => ({
                                         ...prev,
@@ -3375,7 +3367,7 @@ const DeliveryManagerPage = () => {
                                 </div>
                                 
                                 {/* Filters Row */}
-                                <div className="flex flex-col sm:flex-row gap-4">
+                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                                   {/* Date Filter */}
                                   <div className="flex gap-2">
                                     <div className="flex flex-col">
@@ -3383,7 +3375,7 @@ const DeliveryManagerPage = () => {
                                       <input
                                         type="date"
                                         value={deliveryDataFilters.selectedDate}
-                                        className="px-3 py-2 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        className="px-2 py-2 sm:px-3 sm:py-2 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm"
                                         onChange={(e) => {
                                           setDeliveryDataFilters(prev => ({
                                             ...prev,
@@ -3395,10 +3387,10 @@ const DeliveryManagerPage = () => {
                                   </div>
                                   
                                   {/* Dropdown Filters */}
-                                  <div className="flex gap-2">
+                                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
                                     <select 
                                       value={deliveryDataFilters.session}
-                                      className="px-3 py-1 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                      className="px-2 py-2 sm:px-3 sm:py-1 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm"
                                       onChange={(e) => {
                                         setDeliveryDataFilters(prev => ({
                                           ...prev,
@@ -3413,7 +3405,7 @@ const DeliveryManagerPage = () => {
                                     </select>
                                     <select 
                                       value={deliveryDataFilters.status}
-                                      className="px-3 py-1 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                      className="px-2 py-2 sm:px-3 sm:py-1 bg-gray-700 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm"
                                       onChange={(e) => {
                                         setDeliveryDataFilters(prev => ({
                                           ...prev,
@@ -3433,74 +3425,171 @@ const DeliveryManagerPage = () => {
                             </div>
                             
                             <div className="max-h-96 overflow-y-auto">
-                              <table className="w-full">
-                                <thead className="bg-gray-600 sticky top-0 z-10">
-                                  <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                      👤 Customer
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                      📅 Delivery Date
-                                    </th>
-                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                      🍽️ Session
-                                    </th>
-                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                      📦 Quantity
-                                    </th>
-                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                      📍 Address
-                                    </th>
-                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                      📊 Status
-                                    </th>
-                                    {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                      🆔 Order ID
-                                    </th> */}
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-gray-700 divide-y divide-gray-600">
-                                  {filteredDeliveryData.map((item, index) => (
-                                    <tr key={index} className="hover:bg-gray-600 transition-colors">
-                                      {/* Customer Name */}
-                                      <td className="px-4 py-3 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                          <div className="flex-shrink-0 h-8 w-8">
-                                            <div className={`h-8 w-8 rounded-full flex items-center justify-center shadow-lg ${
-                                              item.session === 'Breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
-                                              item.session === 'Lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
-                                              'bg-gradient-to-br from-purple-400 to-purple-600'
-                                            }`}>
-                                              <span className="text-white text-xs font-bold">
-                                                {item.first_name?.charAt(0)?.toUpperCase() || 'U'}
-                                              </span>
+                              {/* Desktop Table View */}
+                              <div className="hidden lg:block">
+                                <table className="w-full">
+                                  <thead className="bg-gray-600 sticky top-0 z-10">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        👤 Customer
+                                      </th>
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        📅 Delivery Date
+                                      </th>
+                                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        🍽️ Session
+                                      </th>
+                                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        📦 Quantity
+                                      </th>
+                                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        📍 Address
+                                      </th>
+                                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        📊 Status
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-gray-700 divide-y divide-gray-600">
+                                    {filteredDeliveryData.map((item, index) => (
+                                      <tr key={index} className="hover:bg-gray-600 transition-colors">
+                                        {/* Customer Name */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                          <div className="flex items-center">
+                                            <div className="flex-shrink-0 h-8 w-8">
+                                              <div className={`h-8 w-8 rounded-full flex items-center justify-center shadow-lg ${
+                                                item.session === 'Breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
+                                                item.session === 'Lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                                                'bg-gradient-to-br from-purple-400 to-purple-600'
+                                              }`}>
+                                                <span className="text-white text-xs font-bold">
+                                                  {item.first_name?.charAt(0)?.toUpperCase() || 'U'}
+                                                </span>
+                                              </div>
+                                            </div>
+                                            <div className="ml-3">
+                                              <div className="text-sm font-medium text-white">
+                                                {item.first_name || 'Unknown'} {item.last_name || ''}
+                                              </div>
+                                              <div className="text-xs text-gray-400">
+                                                {item.whatsapp_number || 'No WhatsApp'}
+                                              </div>
                                             </div>
                                           </div>
-                                          <div className="ml-3">
-                                            <div className="text-sm font-medium text-white">
-                                              {item.first_name || 'Unknown'} {item.last_name || ''}
+                                        </td>
+                                        
+                                        {/* Delivery Date */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                          <div className="text-sm text-white">
+                                            {new Date(item.delivery_date).toLocaleDateString('en-US', {
+                                              weekday: 'short',
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </div>
+                                        </td>
+                                        
+                                        {/* Session */}
+                                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                            item.session === 'Breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                                            item.session === 'Lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                            'bg-purple-100 text-purple-800 border border-purple-200'
+                                          }`}>
+                                            {item.session || 'Unknown'}
+                                          </span>
+                                        </td>
+                                        
+                                        {/* Quantity */}
+                                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                                          <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                            {item.quantity || 0}
+                                          </span>
+                                        </td>
+                                        
+                                        {/* Address */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                          <div className="max-w-xs">
+                                            <div className="text-sm text-white truncate" title={item.street}>
+                                              {item.street || 'No address'}
                                             </div>
-                                            <div className="text-xs text-gray-400">
-                                              {item.whatsapp_number || 'No WhatsApp'}
-                                            </div>
+                                            {item.geo_location && (
+                                              <div className="text-xs text-gray-400 mt-1">
+                                                📍 {item.geo_location}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </td>
+                                        
+                                        {/* Status */}
+                                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                            item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                                            item.status === 'Delivered' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                            item.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                            item.status === 'Cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                            'bg-gray-100 text-gray-800 border border-gray-200'
+                                          }`}>
+                                            {item.status || 'Unknown'}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              {/* Mobile Card View */}
+                              <div className="lg:hidden space-y-3">
+                                {filteredDeliveryData.map((item, index) => (
+                                  <div key={index} className="bg-gray-600 rounded-lg p-4 border border-gray-500">
+                                    {/* Customer Header */}
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="flex items-center">
+                                        <div className={`h-10 w-10 rounded-full flex items-center justify-center shadow-lg ${
+                                          item.session === 'Breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
+                                          item.session === 'Lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                                          'bg-gradient-to-br from-purple-400 to-purple-600'
+                                        }`}>
+                                          <span className="text-white text-sm font-bold">
+                                            {item.first_name?.charAt(0)?.toUpperCase() || 'U'}
+                                          </span>
+                                        </div>
+                                        <div className="ml-3">
+                                          <div className="text-sm font-medium text-white">
+                                            {item.first_name || 'Unknown'} {item.last_name || ''}
+                                          </div>
+                                          <div className="text-xs text-gray-400">
+                                            {item.whatsapp_number || 'No WhatsApp'}
                                           </div>
                                         </div>
-                                      </td>
-                                      
-                                      {/* Delivery Date */}
-                                      <td className="px-4 py-3 whitespace-nowrap">
-                                        <div className="text-sm text-white">
+                                      </div>
+                                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                        item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                                        item.status === 'Delivered' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                        item.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                        item.status === 'Cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                        'bg-gray-100 text-gray-800 border border-gray-200'
+                                      }`}>
+                                        {item.status || 'Unknown'}
+                                      </span>
+                                    </div>
+
+                                    {/* Details Grid */}
+                                    <div className="grid grid-cols-2 gap-3 text-xs">
+                                      <div>
+                                        <div className="text-gray-400 mb-1">📅 Delivery Date</div>
+                                        <div className="text-white">
                                           {new Date(item.delivery_date).toLocaleDateString('en-US', {
                                             weekday: 'short',
-                                            year: 'numeric',
                                             month: 'short',
                                             day: 'numeric'
                                           })}
                                         </div>
-                                      </td>
-                                      
-                                      {/* Session */}
-                                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                                      </div>
+                                      <div>
+                                        <div className="text-gray-400 mb-1">🍽️ Session</div>
                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                           item.session === 'Breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
                                           item.session === 'Lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
@@ -3508,55 +3597,36 @@ const DeliveryManagerPage = () => {
                                         }`}>
                                           {item.session || 'Unknown'}
                                         </span>
-                                      </td>
-                                      
-                                      {/* Quantity */}
-                                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                      </div>
+                                      <div>
+                                        <div className="text-gray-400 mb-1">📦 Quantity</div>
+                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
                                           {item.quantity || 0}
                                         </span>
-                                      </td>
-                                      
-                                      {/* Address */}
-                                      <td className="px-4 py-3 whitespace-nowrap">
-                                        <div className="max-w-xs">
-                                          <div className="text-sm text-white truncate" title={item.street}>
-                                            {item.street || 'No address'}
+                                      </div>
+                                      <div>
+                                        <div className="text-gray-400 mb-1">📍 Address</div>
+                                        <div className="text-white truncate">
+                                          {item.street || 'No address'}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Full Address (if truncated) */}
+                                    {item.street && item.street.length > 30 && (
+                                      <div className="mt-2 pt-2 border-t border-gray-500">
+                                        <div className="text-gray-400 text-xs mb-1">📍 Full Address</div>
+                                        <div className="text-white text-xs">{item.street}</div>
+                                        {item.geo_location && (
+                                          <div className="text-xs text-gray-400 mt-1">
+                                            📍 {item.geo_location}
                                           </div>
-                                          {item.geo_location && (
-                                            <div className="text-xs text-gray-400 mt-1">
-                                              📍 {item.geo_location}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </td>
-                                      
-                                      {/* Status */}
-                                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                          item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                                          item.status === 'Delivered' ? 'bg-green-100 text-green-800 border border-green-200' :
-                                          item.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                                          item.status === 'Cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
-                                          'bg-gray-100 text-gray-800 border border-gray-200'
-                                        }`}>
-                                          {item.status || 'Unknown'}
-                                        </span>
-                                      </td>
-                                      
-                                      {/* Order ID */}
-                                      {/* <td className="px-4 py-3 whitespace-nowrap">
-                                        <div className="text-xs text-gray-400 font-mono">
-                                          {item.order_id ? item.order_id.substring(0, 8) + '...' : 'No ID'}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                          {item.menu_item_id ? item.menu_item_id.substring(0, 8) + '...' : 'No Menu ID'}
-                                        </div>
-                                      </td> */}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         )}

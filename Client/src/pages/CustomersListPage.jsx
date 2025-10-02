@@ -307,8 +307,21 @@ const CustomersListPage = () => {
     setUserToDelete(null);
   }, []);
 
-  const handleResumeOrder = useCallback((draftOrder) => {
+  const handleResumeOrder = useCallback((draftOrder, action = 'payment') => {
     try {
+      if (action === 'edit') {
+        // Navigate to booking wizard to edit the draft order
+        navigate('/jkhm/place-order', {
+          state: {
+            draftOrder: draftOrder,
+            resumeDraft: true,
+            editMode: true
+          }
+        });
+        return;
+      }
+
+      // Default action: proceed to payment
       const orderId = draftOrder.id || `draft_${Date.now()}`;
       
       const orderTimes = [];

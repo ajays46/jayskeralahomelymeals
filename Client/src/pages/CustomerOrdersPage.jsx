@@ -500,30 +500,30 @@ const CustomerOrdersPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
       {/* Professional Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 gap-4">
-            <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 sm:py-4 gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={handleBack}
-                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Back to Customers"
               >
-                <MdArrowBack className="w-5 h-5" />
+                <MdArrowBack className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Customer Orders</h1>
-                <p className="text-sm text-gray-600">View all orders for this customer</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">Customer Orders</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">View all orders for this customer</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={fetchCustomerOrders}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1 sm:gap-2 shadow-sm text-sm sm:text-base"
               >
-                <MdRefresh className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                <MdRefresh className={`w-3 h-3 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden xs:inline">Refresh</span>
               </button>
             </div>
           </div>
@@ -531,30 +531,32 @@ const CustomerOrdersPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
         {/* Customer Info Card */}
         {customer && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                {customer.contacts?.[0]?.firstName?.charAt(0) || 'C'}
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-gray-900">
-                  {customer.contacts?.[0]?.firstName} {customer.contacts?.[0]?.lastName}
-                </h3>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-1">
-                  <div className="flex items-center gap-1">
-                    <MdPhone className="w-4 h-4" />
-                    <span>{customer.contacts?.[0]?.phoneNumbers?.[0]?.number || 'No phone'}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MdEmail className="w-4 h-4" />
-                    <span>{customer.auth?.email || 'No email'}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MdShoppingCart className="w-4 h-4" />
-                    <span>{orders.length} orders</span>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-lg flex-shrink-0">
+                  {customer.contacts?.[0]?.firstName?.charAt(0) || 'C'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">
+                    {customer.contacts?.[0]?.firstName} {customer.contacts?.[0]?.lastName}
+                  </h3>
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mt-1">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <MdPhone className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                      <span className="truncate">{customer.contacts?.[0]?.phoneNumbers?.[0]?.number || 'No phone'}</span>
+                    </div>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <MdEmail className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                      <span className="truncate">{customer.auth?.email || 'No email'}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MdShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                      <span>{orders.length} orders</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -564,19 +566,19 @@ const CustomerOrdersPage = () => {
 
         {/* Orders List */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-gray-50">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <MdShoppingCart className="w-5 h-5 text-green-600" />
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gradient-to-r from-slate-50 to-gray-50">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <MdShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 Orders History
               </h2>
               
               {/* Filter Toggle Button */}
               <button
                 onClick={() => handleFilterChange('showFilters', !filters.showFilters)}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm w-full sm:w-auto"
               >
-                <MdFilterList className="w-4 h-4" />
+                <MdFilterList className="w-3 h-3 sm:w-4 sm:h-4" />
                 {filters.showFilters ? 'Hide Filters' : 'Show Filters'}
               </button>
             </div>
@@ -584,30 +586,30 @@ const CustomerOrdersPage = () => {
 
           {/* Filters Section */}
           {filters.showFilters && (
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="px-3 sm:px-6 py-3 sm:py-4 bg-gray-50 border-b border-gray-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
                 {/* Search Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <div className="sm:col-span-2 lg:col-span-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Search</label>
                   <div className="relative">
-                    <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <MdSearch className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
                     <input
                       type="text"
                       placeholder="Order ID, customer name..."
                       value={filters.search}
                       onChange={(e) => handleFilterChange('search', e.target.value)}
-                      className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                      className="w-full pl-8 sm:pl-10 pr-2 sm:pr-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                     />
                   </div>
                 </div>
 
                 {/* Status Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Status</label>
                   <select
                     value={filters.status}
                     onChange={(e) => handleFilterChange('status', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                   >
                     <option value="all">All Statuses</option>
                     <option value="Payment_Confirmed">Payment Confirmed</option>
@@ -619,11 +621,11 @@ const CustomerOrdersPage = () => {
 
                 {/* Date Preset Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date Preset</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Date Preset</label>
                   <select
                     value={filters.datePreset}
                     onChange={(e) => handleFilterChange('datePreset', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                   >
                     <option value="all">All Dates</option>
                     <option value="today">Today</option>
@@ -636,11 +638,11 @@ const CustomerOrdersPage = () => {
 
                 {/* Sort By Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Sort By</label>
                   <select
                     value={filters.sortBy}
                     onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                   >
                     <option value="recent">Most Recent First</option>
                     <option value="oldest">Oldest First</option>
@@ -651,38 +653,38 @@ const CustomerOrdersPage = () => {
                 </div>
 
                 {/* Custom Date Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Custom Range</label>
-                  <div className="space-y-2">
+                <div className="sm:col-span-2 lg:col-span-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Custom Range</label>
+                  <div className="space-y-1 sm:space-y-2">
                     <input
                       type="date"
                       value={filters.dateFrom}
                       onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
                       placeholder="From Date"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                     />
                     <input
                       type="date"
                       value={filters.dateTo}
                       onChange={(e) => handleFilterChange('dateTo', e.target.value)}
                       placeholder="To Date"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Filter Actions */}
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                <div className="text-sm text-gray-600">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+                <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                   Showing <span className="font-semibold">{filteredOrders.length}</span> of{' '}
                   <span className="font-semibold">{orders.length}</span> orders
                 </div>
                 <button
                   onClick={clearFilters}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm w-full sm:w-auto"
                 >
-                  <MdClear className="w-4 h-4" />
+                  <MdClear className="w-3 h-3 sm:w-4 sm:h-4" />
                   Clear Filters
                 </button>
               </div>
@@ -690,36 +692,36 @@ const CustomerOrdersPage = () => {
           )}
           
           {loading ? (
-            <div className="p-8">
+            <div className="p-4 sm:p-8">
               <SkeletonOrderList count={5} />
             </div>
           ) : error ? (
-            <div className="p-8 text-center">
-              <MdCancel className="text-4xl text-red-400 mx-auto mb-4" />
-              <p className="text-red-600 font-medium">{error}</p>
+            <div className="p-4 sm:p-8 text-center">
+              <MdCancel className="text-3xl sm:text-4xl text-red-400 mx-auto mb-3 sm:mb-4" />
+              <p className="text-red-600 font-medium text-sm sm:text-base">{error}</p>
               <button
                 onClick={fetchCustomerOrders}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="mt-3 sm:mt-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
               >
                 Try Again
               </button>
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="p-8 text-center">
+            <div className="p-4 sm:p-8 text-center">
               {orders.length === 0 ? (
                 <>
-                  <MdShoppingCart className="text-4xl text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No orders found</p>
-                  <p className="text-sm text-gray-400 mt-2">This customer hasn't placed any orders yet</p>
+                  <MdShoppingCart className="text-3xl sm:text-4xl text-gray-300 mx-auto mb-3 sm:mb-4" />
+                  <p className="text-gray-500 text-sm sm:text-base">No orders found</p>
+                  <p className="text-xs sm:text-sm text-gray-400 mt-1 sm:mt-2">This customer hasn't placed any orders yet</p>
                 </>
               ) : (
                 <>
-                  <MdFilterList className="text-4xl text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No orders match your filters</p>
-                  <p className="text-sm text-gray-400 mt-2">Try adjusting your filter criteria</p>
+                  <MdFilterList className="text-3xl sm:text-4xl text-gray-300 mx-auto mb-3 sm:mb-4" />
+                  <p className="text-gray-500 text-sm sm:text-base">No orders match your filters</p>
+                  <p className="text-xs sm:text-sm text-gray-400 mt-1 sm:mt-2">Try adjusting your filter criteria</p>
                   <button
                     onClick={clearFilters}
-                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="mt-3 sm:mt-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
                   >
                     Clear Filters
                   </button>
@@ -728,8 +730,8 @@ const CustomerOrdersPage = () => {
             </div>
           ) : (
             <>
-              {/* Table Header */}
-              <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200 px-6 py-3">
+              {/* Table Header - Hidden on mobile, shown on larger screens */}
+              <div className="hidden lg:block bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200 px-6 py-3">
                 <div className="grid grid-cols-12 gap-4 items-center text-xs font-semibold text-gray-600 uppercase tracking-wide">
                   <div className="col-span-2">Order Details</div>
                   <div className="col-span-2">Date & Amount</div>
@@ -747,8 +749,97 @@ const CustomerOrdersPage = () => {
                   const StatusIcon = statusInfo.icon;
                   
                   return (
-                    <div key={order.id} className="p-6 hover:bg-gray-50 transition-colors">
-                      <div className="grid grid-cols-12 gap-4 items-center">
+                    <div key={order.id} className="p-3 sm:p-6 hover:bg-gray-50 transition-colors">
+                      {/* Mobile Layout */}
+                      <div className="lg:hidden space-y-3">
+                        {/* Order Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-600 to-emerald-700 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg">
+                              #{order.id.slice(-4)}
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-gray-900 text-xs sm:text-sm truncate">Order #{order.id.slice(-8)}</h3>
+                              <p className="text-xs text-gray-500 truncate">ID: {order.id.slice(-12)}</p>
+                            </div>
+                          </div>
+                          <div className={`flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium ${statusInfo.bgColor} ${statusInfo.color} border`}>
+                            <StatusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">{statusInfo.label}</span>
+                          </div>
+                        </div>
+
+                        {/* Order Details */}
+                        <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm">
+                          <div className="flex items-center gap-1 text-gray-600">
+                            <MdCalendarToday className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                            <span className="font-medium truncate">{formatDate(order.orderDate)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MdAttachMoney className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" />
+                            <span className="font-bold text-green-600 truncate">{formatPrice(order.totalPrice)}</span>
+                          </div>
+                        </div>
+
+                        {/* Delivery Items & Payment */}
+                        <div className="flex items-center justify-between text-xs sm:text-sm">
+                          <div className="flex items-center gap-1 text-gray-600">
+                            <MdLocalShipping className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                            <span className="font-medium">{order.deliveryItems?.length || 0} items</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-green-600">
+                            <MdReceipt className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                            <span className="font-medium">Receipt</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2">
+                          {order.deliveryItems && order.deliveryItems.length > 0 && (
+                            <button
+                              onClick={() => {
+                                const newExpandedOrders = { ...expandedOrders };
+                                newExpandedOrders[order.id] = !newExpandedOrders[order.id];
+                                setExpandedOrders(newExpandedOrders);
+                              }}
+                              className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                            >
+                              {expandedOrders[order.id] ? 'Hide Details' : 'View Details'}
+                            </button>
+                          )}
+                          
+                          {/* View Receipts Button */}
+                          {order.payments && order.payments.length > 0 && 
+                           order.payments.some(payment => 
+                             payment.receiptUrl || 
+                             (payment.paymentReceipts && payment.paymentReceipts.length > 0)
+                           ) && (
+                            <button
+                              onClick={() => handleViewReceipts(order)}
+                              className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 shadow-sm"
+                              title="View Receipts"
+                            >
+                              <MdVisibility className="w-3 h-3" />
+                              <span className="hidden sm:inline">Receipt</span>
+                            </button>
+                          )}
+                          
+                          {order.status !== 'Cancelled' && order.status !== 'Completed' && (
+                            <button
+                              onClick={() => handleCancelOrder(order.id)}
+                              disabled={loading}
+                              className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-1 shadow-sm"
+                              title="Cancel Order"
+                            >
+                              <MdCancel className="w-3 h-3" />
+                              <span className="hidden sm:inline">Cancel</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Desktop Layout */}
+                      <div className="hidden lg:grid grid-cols-12 gap-4 items-center">
                         {/* Order Details Column */}
                         <div className="col-span-2">
                           <div className="flex items-center gap-3">
@@ -860,10 +951,10 @@ const CustomerOrdersPage = () => {
                     
                       {/* Expanded Delivery Items Section */}
                       {expandedOrders[order.id] && order.deliveryItems && order.deliveryItems.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <div className="flex items-center justify-between mb-4">
-                            <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                              <MdLocalShipping className="w-4 h-4" />
+                        <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
+                            <h4 className="text-xs sm:text-sm font-semibold text-gray-800 flex items-center gap-1 sm:gap-2">
+                              <MdLocalShipping className="w-3 h-3 sm:w-4 sm:h-4" />
                               Delivery Items ({order.deliveryItems.length})
                             </h4>
                             
@@ -877,24 +968,24 @@ const CustomerOrdersPage = () => {
                                   handleDeliveryItemFilterChange(order.id, 'showFilters', true);
                                 }
                               }}
-                              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+                              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm w-full sm:w-auto"
                             >
-                              <MdFilterList className="w-4 h-4" />
+                              <MdFilterList className="w-3 h-3 sm:w-4 sm:h-4" />
                               {deliveryItemFilters[order.id]?.showFilters ? 'Hide Filters' : 'Show Filters'}
                             </button>
                           </div>
                         
                           {/* Delivery Items Filters */}
                           {deliveryItemFilters[order.id]?.showFilters && (
-                            <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                                 {/* Time Slot Filter */}
                                 <div>
                                   <label className="block text-xs font-medium text-gray-700 mb-1">Time Slot</label>
                                   <select
                                     value={deliveryItemFilters[order.id]?.timeSlot || 'all'}
                                     onChange={(e) => handleDeliveryItemFilterChange(order.id, 'timeSlot', e.target.value)}
-                                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                   >
                                     <option value="all">All Time Slots</option>
                                     <option value="Breakfast">Breakfast</option>
@@ -909,7 +1000,7 @@ const CustomerOrdersPage = () => {
                                   <select
                                     value={deliveryItemFilters[order.id]?.status || 'all'}
                                     onChange={(e) => handleDeliveryItemFilterChange(order.id, 'status', e.target.value)}
-                                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                   >
                                     <option value="all">All Statuses</option>
                                     <option value="Pending">Pending</option>
@@ -925,7 +1016,7 @@ const CustomerOrdersPage = () => {
                                   <select
                                     value={deliveryItemFilters[order.id]?.datePreset || 'all'}
                                     onChange={(e) => handleDeliveryItemFilterChange(order.id, 'datePreset', e.target.value)}
-                                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                   >
                                     <option value="all">All Dates</option>
                                     <option value="today">Today</option>
@@ -936,13 +1027,11 @@ const CustomerOrdersPage = () => {
                                   </select>
                                 </div>
 
-
-
                                 {/* Clear Filters Button */}
                                 <div className="flex items-end">
                                   <button
                                     onClick={() => clearDeliveryItemFilters(order.id)}
-                                    className="w-full px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors flex items-center justify-center gap-1"
+                                    className="w-full px-2 py-1.5 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors flex items-center justify-center gap-1"
                                   >
                                     <MdClear className="w-3 h-3" />
                                     Clear
@@ -953,14 +1042,104 @@ const CustomerOrdersPage = () => {
                           )}
 
                           {/* Filtered Delivery Items */}
-                          <div className="space-y-3">
+                          <div className="space-y-2 sm:space-y-3">
                             {(() => {
                               const filteredItems = getFilteredDeliveryItems(order.id, order.deliveryItems);
                               return filteredItems.length > 0 ? (
-                                <div className="max-h-80 overflow-y-auto space-y-3">
+                                <div className="max-h-60 sm:max-h-80 overflow-y-auto space-y-2 sm:space-y-3">
                                   {filteredItems.map((item) => (
-                                    <div key={item.id} className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-                                      <div className="flex items-center justify-between">
+                                    <div key={item.id} className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-sm transition-shadow">
+                                      {/* Mobile Layout */}
+                                      <div className="lg:hidden space-y-3">
+                                        {/* Item Header */}
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2 sm:gap-3">
+                                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
+                                              {item.quantity}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                              <h4 className="font-semibold text-gray-900 text-xs sm:text-sm truncate">
+                                                {item.menuItem?.name || 'Unknown Item'}
+                                              </h4>
+                                              <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-600 mt-1">
+                                                <div className="flex items-center gap-1">
+                                                  <MdCalendarToday className="w-3 h-3 flex-shrink-0" />
+                                                  <span className="truncate">{item.deliveryDate ? formatDate(item.deliveryDate) : 'No date'}</span>
+                                                </div>
+                                                {item.deliveryTimeSlot && (
+                                                  <div className="flex items-center gap-1">
+                                                    <MdLocalShipping className="w-3 h-3 flex-shrink-0" />
+                                                    <span className="font-medium text-blue-600 truncate">{item.deliveryTimeSlot}</span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border ${
+                                            item.status === 'Completed' ? 'bg-green-100 text-green-700 border-green-200' :
+                                            item.status === 'Cancelled' ? 'bg-red-100 text-red-700 border-red-200' :
+                                            'bg-blue-100 text-blue-700 border-blue-200'
+                                          }`}>
+                                            {item.status}
+                                          </div>
+                                        </div>
+
+                                        {/* Delivery Address */}
+                                        <div className="bg-white rounded-lg p-2 sm:p-3 border border-gray-100">
+                                          <div className="flex items-center gap-1 text-xs text-gray-600 mb-1 sm:mb-2">
+                                            <MdLocationOn className="w-3 h-3 text-red-500 flex-shrink-0" />
+                                            <span className="font-medium text-gray-700">Delivery Address</span>
+                                          </div>
+                                          <div className="text-xs text-gray-600 leading-relaxed">
+                                            {item.deliveryAddress ? (
+                                              <>
+                                                {item.deliveryAddress.housename && (
+                                                  <div className="font-medium text-gray-800 truncate">{item.deliveryAddress.housename}</div>
+                                                )}
+                                                <div className="truncate">{item.deliveryAddress.street}</div>
+                                                <div className="truncate">{item.deliveryAddress.city}{item.deliveryAddress.pincode && item.deliveryAddress.pincode !== 0 ? ` - ${item.deliveryAddress.pincode}` : ''}</div>
+                                                {item.deliveryAddress.state && (
+                                                  <div className="truncate">{item.deliveryAddress.state}</div>
+                                                )}
+                                                {item.deliveryAddress.googleMapsUrl && (
+                                                  <div className="mt-2">
+                                                    <a
+                                                      href={item.deliveryAddress.googleMapsUrl}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                                                      title="Open in Google Maps"
+                                                    >
+                                                      <MdOpenInNew className="w-3 h-3" />
+                                                      View on Maps
+                                                    </a>
+                                                  </div>
+                                                )}
+                                              </>
+                                            ) : (
+                                              <div className="text-gray-400 italic">No address specified</div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Actions */}
+                                        {item.status !== 'Cancelled' && item.status !== 'Completed' && (
+                                          <div className="flex justify-end">
+                                            <button
+                                              onClick={() => handleCancelDeliveryItem(item.id)}
+                                              disabled={loading}
+                                              className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-1 shadow-sm"
+                                              title="Cancel this item"
+                                            >
+                                              <MdCancel className="w-3 h-3" />
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Desktop Layout */}
+                                      <div className="hidden lg:flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                           <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md">
                                             {item.quantity}
@@ -1046,12 +1225,12 @@ const CustomerOrdersPage = () => {
                                   ))}
                                 </div>
                               ) : (
-                                <div className="text-center py-6 text-gray-500">
-                                  <MdFilterList className="w-8 h-8 mx-auto mb-3 text-gray-300" />
-                                  <p className="text-sm font-medium">No delivery items match your filters</p>
+                                <div className="text-center py-4 sm:py-6 text-gray-500">
+                                  <MdFilterList className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 sm:mb-3 text-gray-300" />
+                                  <p className="text-xs sm:text-sm font-medium">No delivery items match your filters</p>
                                   <button
                                     onClick={() => clearDeliveryItemFilters(order.id)}
-                                    className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                                    className="mt-2 sm:mt-3 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                                   >
                                     Clear Filters
                                   </button>
@@ -1082,8 +1261,10 @@ const CustomerOrdersPage = () => {
         okText="Yes, Cancel Order"
         cancelText="Keep Order"
         okType="danger"
+        width="90%"
+        style={{ maxWidth: '400px' }}
       >
-        <p>Are you sure you want to cancel this order? This action cannot be undone.</p>
+        <p className="text-sm sm:text-base">Are you sure you want to cancel this order? This action cannot be undone.</p>
       </Modal>
 
       {/* Cancel Delivery Item Confirmation Modal */}
@@ -1098,8 +1279,10 @@ const CustomerOrdersPage = () => {
         okText="Yes, Cancel Item"
         cancelText="Keep Item"
         okType="danger"
+        width="90%"
+        style={{ maxWidth: '400px' }}
       >
-        <p>Are you sure you want to cancel this delivery item? This action cannot be undone.</p>
+        <p className="text-sm sm:text-base">Are you sure you want to cancel this delivery item? This action cannot be undone.</p>
       </Modal>
 
     </div>

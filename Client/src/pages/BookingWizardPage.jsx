@@ -568,6 +568,7 @@ const BookingWizardPage = () => {
     if (location.state?.draftOrder && location.state?.resumeDraft) {
       try {
         const draftOrder = location.state.draftOrder;
+        const isEditMode = location.state?.editMode || false;
         
         // Load draft data
         setSelectedUser(draftOrder.selectedUser);
@@ -587,16 +588,22 @@ const BookingWizardPage = () => {
           fetchUserAddresses(draftOrder.selectedUser.id);
         }
         
-        // Navigate to the appropriate step based on what's completed
-        if (draftOrder.selectedUser && draftOrder.selectedMenu && draftOrder.selectedDates.length > 0) {
-          setCurrentStep(4); // Go to final step if everything is selected
-        } else if (draftOrder.selectedUser && draftOrder.selectedMenu) {
-          setCurrentStep(3); // Go to address step if user and menu are selected
-        } else if (draftOrder.selectedUser) {
-          setCurrentStep(2); // Go to menu step if only user is selected
+        // Navigate to the appropriate step based on edit mode
+        if (isEditMode) {
+          // If editing dates, go to Schedule & Save Order step (step 4) where date selection happens
+          setCurrentStep(4);
+          showSuccessToast('Draft order loaded for editing! You can now modify the dates and other details.');
+        } else {
+          // Navigate to the appropriate step based on what's completed
+          if (draftOrder.selectedUser && draftOrder.selectedMenu && draftOrder.selectedDates.length > 0) {
+            setCurrentStep(4); // Go to final step if everything is selected
+          } else if (draftOrder.selectedUser && draftOrder.selectedMenu) {
+            setCurrentStep(3); // Go to address step if user and menu are selected
+          } else if (draftOrder.selectedUser) {
+            setCurrentStep(2); // Go to menu step if only user is selected
+          }
+          showSuccessToast('Draft order loaded successfully! You can now continue from where you left off.');
         }
-        
-        showSuccessToast('Draft order loaded successfully! You can now continue from where you left off.');
         
         // Clear the navigation state to prevent re-loading on refresh
         navigate(location.pathname, { replace: true });
@@ -605,7 +612,7 @@ const BookingWizardPage = () => {
         navigate(location.pathname, { replace: true });
       }
     }
-  }, [location.state?.draftOrder, location.state?.resumeDraft, isSeller, navigate]);
+  }, [location.state?.draftOrder, location.state?.resumeDraft, location.state?.editMode, isSeller, navigate]);
 
   const nextStep = () => {
     if (currentStep < steps.length) {
@@ -1876,7 +1883,16 @@ const BookingWizardPage = () => {
         items: [],
         deliveryLocationNames: deliveryLocationNames,
         totalPrice: getTotalPrice(),
-        isDailyRateItem: selectedMenu.isDailyRateItem
+        isDailyRateItem: selectedMenu.isDailyRateItem,
+        // Add delivery address information for display in payment page
+        deliveryAddress: selectedUserAddresses.length > 0 ? {
+          housename: selectedUserAddresses[0].housename || '',
+          street: selectedUserAddresses[0].street || '',
+          city: selectedUserAddresses[0].city || '',
+          pincode: selectedUserAddresses[0].pincode || '',
+          state: selectedUserAddresses[0].state || '',
+          landmark: selectedUserAddresses[0].landmark || ''
+        } : null
       };
 
       setSavedOrder(orderDataForPayment);

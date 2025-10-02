@@ -41,6 +41,12 @@ const CustomerCard = memo(({
     onResumeOrder(customerDraft);
   };
 
+  const handleEditDates = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onResumeOrder(customerDraft, 'edit');
+  };
+
   const handleUploadReceipt = () => {
     const pendingPayment = getPendingPayment(customer);
     if (pendingPayment) {
@@ -138,9 +144,13 @@ const CustomerCard = memo(({
                   <div className="text-gray-500 truncate">
                     {customer.addresses[0].street}{customer.addresses[0].pincode && customer.addresses[0].pincode !== 0 ? `, ${customer.addresses[0].pincode}` : ''}
                   </div>
-                  {customer.addresses[0].googleMapsUrl && (
+                  {(customer.addresses[0].googleMapsUrl || (customer.addresses[0].street && customer.addresses[0].city)) && (
                     <a
-                      href={customer.addresses[0].googleMapsUrl}
+                      href={customer.addresses[0].googleMapsUrl || 
+                        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          `${customer.addresses[0].street || ''}, ${customer.addresses[0].city || ''}, ${customer.addresses[0].pincode || ''}`
+                        )}`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-blue-600 font-medium mt-1 hover:text-blue-800 hover:underline transition-colors inline-block"
@@ -183,12 +193,21 @@ const CustomerCard = memo(({
           <div className="flex flex-wrap gap-2">
             {/* Primary Action Button */}
             {hasDraft ? (
-              <button
-                onClick={handleResumeOrder}
-                className="flex-1 px-4 py-2 text-sm font-medium bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-              >
-                Resume Order
-              </button>
+              <>
+                <button
+                  onClick={handleResumeOrder}
+                  className="flex-1 px-4 py-2 text-sm font-medium bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  Resume Order
+                </button>
+                <button
+                  onClick={handleEditDates}
+                  className="flex-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  title="Edit dates and other details in the booking wizard"
+                >
+                  Edit Dates
+                </button>
+              </>
             ) : hasPendingPayments ? (
               <button
                 onClick={handleUploadReceipt}
@@ -316,9 +335,13 @@ const CustomerCard = memo(({
                 <div className="text-gray-500 truncate">
                   {customer.addresses[0].street}{customer.addresses[0].pincode && customer.addresses[0].pincode !== 0 ? `, ${customer.addresses[0].pincode}` : ''}
                 </div>
-                {customer.addresses[0].googleMapsUrl && (
+                {(customer.addresses[0].googleMapsUrl || (customer.addresses[0].street && customer.addresses[0].city)) && (
                   <a
-                    href={customer.addresses[0].googleMapsUrl}
+                    href={customer.addresses[0].googleMapsUrl || 
+                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        `${customer.addresses[0].street || ''}, ${customer.addresses[0].city || ''}, ${customer.addresses[0].pincode || ''}`
+                      )}`
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-blue-600 font-medium mt-1 hover:text-blue-800 hover:underline transition-colors inline-block"
@@ -366,13 +389,22 @@ const CustomerCard = memo(({
           <div className="flex items-center gap-1.5">
             {/* Show appropriate button based on customer status */}
             {hasDraft ? (
-              <button
-                onClick={handleResumeOrder}
-                className="px-2.5 py-1.5 text-xs font-medium bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
-                title="Resume Draft Order"
-              >
-                Resume Order
-              </button>
+              <>
+                <button
+                  onClick={handleResumeOrder}
+                  className="px-2.5 py-1.5 text-xs font-medium bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
+                  title="Resume Draft Order"
+                >
+                  Resume Order
+                </button>
+                <button
+                  onClick={handleEditDates}
+                  className="px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  title="Edit dates and other details in the booking wizard"
+                >
+                  Edit Dates
+                </button>
+              </>
             ) : hasPendingPayments ? (
               <button
                 onClick={handleUploadReceipt}

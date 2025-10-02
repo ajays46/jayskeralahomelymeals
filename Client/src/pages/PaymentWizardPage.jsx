@@ -39,6 +39,7 @@ import { cleanExpiredDrafts } from '../utils/draftOrderUtils';
 import axiosInstance from '../api/axios.js';
 import useAuthStore from '../stores/Zustand.store.js';
 import { SkeletonWizardStep, SkeletonLoading } from '../components/Skeleton';
+import AddressPicker from '../components/AddressPicker';
 
 /**
  * PaymentWizardPage - Multi-step payment processing component
@@ -69,6 +70,11 @@ const PaymentWizardPage = () => {
     state: '',
     landmark: ''
   });
+  
+  // Address management state for AddressPicker
+  const [selectedUserAddresses, setSelectedUserAddresses] = useState([]);
+  const [isLoadingUserAddresses, setIsLoadingUserAddresses] = useState(false);
+  const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState(null);
   const [showUpiId, setShowUpiId] = useState(false);
   const [upiIdCopied, setUpiIdCopied] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -493,25 +499,97 @@ const PaymentWizardPage = () => {
     }
   };
 
-  const handleEditAddress = (addressType) => {
-    setEditingAddress(addressType);
-    setShowAddressModal(true);
+  // Function to fetch addresses for the selected user
+  const fetchUserAddresses = async (userId) => {
+    if (!userId) return [];
     
-    // Pre-fill form with existing address if available
-    const currentOrder = orderDetails || order;
-    if (currentOrder && currentOrder.deliveryAddress) {
-      setAddressForm({
-        housename: currentOrder.deliveryAddress.housename || '',
-        street: currentOrder.deliveryAddress.street || '',
-        city: currentOrder.deliveryAddress.city || '',
-        pincode: currentOrder.deliveryAddress.pincode || '',
-        state: currentOrder.deliveryAddress.state || '',
-        landmark: currentOrder.deliveryAddress.landmark || ''
-      });
+    setIsLoadingUserAddresses(true);
+    try {
+      const response = await axiosInstance.get(`/seller/users/${userId}/addresses`);
+      
+      if (response.data.success) {
+        const addresses = response.data.data || [];
+        setSelectedUserAddresses(addresses);
+        return addresses;
+      } else {
+        setSelectedUserAddresses([]);
+        return [];
+      }
+    } catch (error) {
+      setSelectedUserAddresses([]);
+      return [];
+    } finally {
+      setIsLoadingUserAddresses(false);
     }
   };
 
-  const handleSaveAddress = async (addressData) => {
+  // Function to create address for the selected user
+  const createAddressForUser = async (userId, addressData) => {
+    if (!userId) {
+      throw new Error('No user selected');
+    }
+    
+    try {
+      const response = await axiosInstance.post(`/seller/users/${userId}/addresses`, addressData);
+      
+      if (response.data.success) {
+        await fetchUserAddresses(userId);
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to create address');
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Function to delete address for the selected user
+  const deleteAddressForUser = async (addressId) => {
+    const currentOrder = orderDetails || order;
+    const userId = currentOrder?.userId || currentOrder?.selectedUser?.id;
+    
+    if (!userId) {
+      throw new Error('No user selected');
+    }
+    
+    try {
+      const response = await axiosInstance.delete(`/seller/users/${userId}/addresses/${addressId}`);
+      
+      if (response.data.success) {
+        await fetchUserAddresses(userId);
+        return true;
+      } else {
+        throw new Error(response.data.message || 'Failed to delete address');
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleEditAddress = async (addressType) => {
+    setEditingAddress(addressType);
+    setShowAddressModal(true);
+    
+    // Fetch user addresses when opening the modal
+    const currentOrder = orderDetails || order;
+    const userId = currentOrder?.userId || currentOrder?.selectedUser?.id;
+    if (userId) {
+      const addresses = await fetchUserAddresses(userId);
+      
+      // Set current selected address after addresses are fetched
+      const currentAddress = currentOrder?.deliveryAddress;
+      if (currentAddress && addresses.length > 0) {
+        // Find the matching address in the user's addresses
+        const matchingAddress = addresses.find(addr => 
+          addr.street === currentAddress.street && 
+          addr.city === currentAddress.city
+        );
+        setSelectedDeliveryAddress(matchingAddress?.id || null);
+      }
+    }
+  };
+
+  const handleSaveAddress = async () => {
     try {
       const currentOrder = orderDetails || order;
       if (!currentOrder) {
@@ -519,30 +597,53 @@ const PaymentWizardPage = () => {
         return;
       }
 
-      const response = await axiosInstance.put(`/orders/${currentOrder.id}/address`, addressData);
-      
-      if (response.data.success) {
-        showSuccessToast('Address updated successfully');
-        setShowAddressModal(false);
-        setEditingAddress(null);
-        setAddressForm({
-          housename: '',
-          street: '',
-          city: '',
-          pincode: '',
-          state: '',
-          landmark: ''
-        });
-        
-        // Refresh order details
-        if (orderDetails) {
-          await fetchOrderDetails(currentOrder.id);
-        }
-      } else {
-        showErrorToast(response.data.message || 'Failed to update address');
+      if (!selectedDeliveryAddress) {
+        showErrorToast('Please select a delivery address');
+        return;
       }
+
+      // Find the selected address details
+      const selectedAddress = selectedUserAddresses.find(addr => addr.id === selectedDeliveryAddress);
+      if (!selectedAddress) {
+        showErrorToast('Selected address not found');
+        return;
+      }
+
+      // Update the order with the new delivery address
+      const addressData = {
+        housename: selectedAddress.housename || '',
+        street: selectedAddress.street || '',
+        city: selectedAddress.city || '',
+        pincode: selectedAddress.pincode || '',
+        state: selectedAddress.state || '',
+        landmark: selectedAddress.landmark || ''
+      };
+
+      // Update the order data in memory
+      const updatedOrder = {
+        ...currentOrder,
+        deliveryAddress: addressData
+      };
+
+      // Update localStorage
+      localStorage.setItem('savedOrder', JSON.stringify(updatedOrder));
+      
+      // Update state
+      setOrder(updatedOrder);
+      setOrderDetails(updatedOrder);
+      
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new CustomEvent('orderUpdated', { 
+        detail: { updatedOrder } 
+      }));
+      
+      showSuccessToast('Delivery address updated successfully');
+      setShowAddressModal(false);
+      setEditingAddress(null);
+      setSelectedDeliveryAddress(null);
+      
     } catch (error) {
-      // Error updating address
+      console.error('Error updating address:', error);
       showErrorToast('Failed to update address');
     }
   };
@@ -550,6 +651,7 @@ const PaymentWizardPage = () => {
   const handleCloseAddressModal = () => {
     setShowAddressModal(false);
     setEditingAddress(null);
+    setSelectedDeliveryAddress(null);
     setAddressForm({
       housename: '',
       street: '',
@@ -975,10 +1077,12 @@ const PaymentWizardPage = () => {
           
           const existingDrafts = JSON.parse(localStorage.getItem('draftOrders') || '[]');
           
-          // Simple and aggressive approach: remove ALL drafts for this customer
+          // Remove only the specific draft order that was completed, not all drafts for the customer
           const updatedDrafts = existingDrafts.filter(draft => {
-            const shouldKeep = draft.selectedUser?.id !== currentOrder.userId;
-            return shouldKeep;
+            // Keep drafts that are not the one being completed
+            const isNotCurrentDraft = draft.id !== currentOrder.originalDraftId && 
+                                     draft.id !== currentOrder.id;
+            return isNotCurrentDraft;
           });
           
           localStorage.setItem('draftOrders', JSON.stringify(updatedDrafts));
@@ -1224,22 +1328,6 @@ const PaymentWizardPage = () => {
                         </div>
                       </div>
                     </div>
-
-                    {/* Delivery Address */}
-                    {(orderDetails?.deliveryAddress || order?.deliveryAddress) && (
-                      <div className="bg-white rounded-lg p-3 border border-gray-200">
-                        <h4 className="font-semibold text-gray-900 text-xs sm:text-sm mb-2">Delivery Address</h4>
-                        <div className="text-xs text-gray-600 break-words">
-                          {orderDetails?.deliveryAddress?.housename && `${orderDetails.deliveryAddress.housename}, `}
-                          {orderDetails?.deliveryAddress?.street || order?.deliveryAddress?.street}
-                          <br />
-                          {orderDetails?.deliveryAddress?.city || order?.deliveryAddress?.city}, 
-                          {orderDetails?.deliveryAddress?.pincode || order?.deliveryAddress?.pincode}
-                          <br />
-                          {orderDetails?.deliveryAddress?.state || order?.deliveryAddress?.state}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1528,16 +1616,111 @@ const PaymentWizardPage = () => {
                     {/* Delivery Address */}
                     {(orderDetails?.deliveryAddress || order?.deliveryAddress) && (
                       <div className="bg-white rounded-lg p-3 border border-gray-200">
-                        <h4 className="font-semibold text-gray-900 text-xs sm:text-sm mb-2">Delivery Address</h4>
-                        <div className="text-xs text-gray-600 break-words">
-                          {orderDetails?.deliveryAddress?.housename && `${orderDetails.deliveryAddress.housename}, `}
-                          {orderDetails?.deliveryAddress?.street || order?.deliveryAddress?.street}
-                          <br />
-                          {orderDetails?.deliveryAddress?.city || order?.deliveryAddress?.city}, 
-                          {orderDetails?.deliveryAddress?.pincode || order?.deliveryAddress?.pincode}
-                          <br />
-                          {orderDetails?.deliveryAddress?.state || order?.deliveryAddress?.state}
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-gray-900 text-xs sm:text-sm">Delivery Address</h4>
+                          <button
+                            onClick={() => handleEditAddress('delivery')}
+                            className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                            title="Edit Delivery Address"
+                          >
+                            <MdEdit className="w-3 h-3" />
+                            Edit
+                          </button>
                         </div>
+                        <div className="text-xs text-gray-600 break-words mb-2">
+                          {(() => {
+                            const currentOrder = orderDetails || order;
+                            const address = currentOrder?.deliveryAddress;
+                            if (address) {
+                              const addressParts = [];
+                              if (address.housename) addressParts.push(address.housename);
+                              if (address.street) addressParts.push(address.street);
+                              if (address.city) addressParts.push(address.city);
+                              if (address.pincode) addressParts.push(address.pincode);
+                              if (address.state) addressParts.push(address.state);
+                              
+                              if (addressParts.length > 0) {
+                                return addressParts.join(', ');
+                              } else {
+                                return 'Address details not available';
+                              }
+                            }
+                            return 'No delivery address found';
+                          })()}
+                        </div>
+                        {/* Google Maps Link */}
+                        {(() => {
+                          const currentOrder = orderDetails || order;
+                          const address = currentOrder?.deliveryAddress;
+                          
+                          // Try to create map URL from delivery address
+                          if (address) {
+                            const addressParts = [];
+                            if (address.housename) addressParts.push(address.housename);
+                            if (address.street) addressParts.push(address.street);
+                            if (address.city) addressParts.push(address.city);
+                            if (address.pincode) addressParts.push(address.pincode);
+                            if (address.state) addressParts.push(address.state);
+                            
+                            if (addressParts.length > 0) {
+                              const addressString = addressParts.join(', ');
+                              const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressString)}`;
+                              return (
+                                <a
+                                  href={mapUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                                >
+                                  <MdLocationOn className="w-3 h-3" />
+                                  View on Google Maps
+                                </a>
+                              );
+                            }
+                          }
+                          
+                          // Fallback: Try to get location from customer data
+                          const customer = currentOrder?.selectedUser || currentOrder?.userId;
+                          if (customer && customer.addresses && customer.addresses.length > 0) {
+                            const customerAddress = customer.addresses[0];
+                            const addressParts = [];
+                            if (customerAddress.housename) addressParts.push(customerAddress.housename);
+                            if (customerAddress.street) addressParts.push(customerAddress.street);
+                            if (customerAddress.city) addressParts.push(customerAddress.city);
+                            if (customerAddress.pincode) addressParts.push(customerAddress.pincode);
+                            if (customerAddress.state) addressParts.push(customerAddress.state);
+                            
+                            if (addressParts.length > 0) {
+                              const addressString = addressParts.join(', ');
+                              const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressString)}`;
+                              return (
+                                <a
+                                  href={mapUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                                >
+                                  <MdLocationOn className="w-3 h-3" />
+                                  View on Google Maps
+                                </a>
+                              );
+                            }
+                          }
+                          
+                          // Final fallback: Generic Kerala location
+                          const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Kerala, India')}`;
+                          return (
+                            <a
+                              href={mapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                            >
+                              <MdLocationOn className="w-3 h-3" />
+                              View on Google Maps
+                            </a>
+                          );
+                        })()}
                       </div>
                     )}
 
@@ -1826,7 +2009,7 @@ const PaymentWizardPage = () => {
 
       {/* Address Edit Modal */}
       <Modal
-        title={editingAddress ? "Edit Address" : "Add New Address"}
+        title="Select Delivery Address"
         open={showAddressModal}
         onCancel={handleCloseAddressModal}
         footer={[
@@ -1840,136 +2023,118 @@ const PaymentWizardPage = () => {
           <button
             key="save"
             onClick={handleSaveAddress}
-            className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs sm:text-sm min-h-[44px] sm:min-h-0"
+            disabled={!selectedDeliveryAddress}
+            className={`px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm min-h-[44px] sm:min-h-0 ${
+              selectedDeliveryAddress
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
           >
-            Save Address
+            Update Address
           </button>
         ]}
         width={isMobile ? '95%' : 600}
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Address Name *
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+              Select Delivery Address
             </label>
-            <input
-              type="text"
-              value={addressForm.name}
-              onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              placeholder="e.g., Home, Office, etc."
-            />
-          </div>
-          
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Full Address *
-            </label>
-            <textarea
-              value={addressForm.address}
-              onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              rows={3}
-              placeholder="Enter complete address with landmarks"
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                City *
-              </label>
-              <input
-                type="text"
-                value={addressForm.city}
-                onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="City"
+            {isLoadingUserAddresses ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-sm text-gray-600">Loading addresses...</span>
+              </div>
+            ) : (
+              <AddressPicker
+                value={selectedDeliveryAddress}
+                onChange={(e) => {
+                  const addressId = e.target.value;
+                  setSelectedDeliveryAddress(addressId);
+                }}
+                placeholder="Select delivery address..."
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm min-h-[44px]"
+                mealType="delivery"
+                addresses={selectedUserAddresses}
+                onAddressCreate={async (addressData) => {
+                  const currentOrder = orderDetails || order;
+                  const userId = currentOrder?.userId || currentOrder?.selectedUser?.id;
+                  if (userId) {
+                    const newAddress = await createAddressForUser(userId, addressData);
+                    setSelectedDeliveryAddress(newAddress.id);
+                    return newAddress;
+                  }
+                }}
+                onAddressDelete={deleteAddressForUser}
+                selectedUserId={(() => {
+                  const currentOrder = orderDetails || order;
+                  return currentOrder?.userId || currentOrder?.selectedUser?.id;
+                })()}
+                disabled={false}
               />
+            )}
+          </div>
+          
+          {selectedDeliveryAddress && (
+            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+              <div className="flex items-center gap-2 text-blue-800">
+                <MdCheckCircle className="w-4 h-4" />
+                <span className="text-sm font-medium">Address Selected</span>
+              </div>
+              <p className="text-xs text-blue-700 mt-1">
+                The selected address will be used for delivery. You can create new addresses or modify existing ones using the dropdown above.
+              </p>
             </div>
-            
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                Pincode *
-              </label>
-              <input
-                type="text"
-                value={addressForm.pincode}
-                onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Pincode"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              State *
-            </label>
-            <input
-              type="text"
-              value={addressForm.state}
-              onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              placeholder="State"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Contact Number *
-            </label>
-            <input
-              type="tel"
-              value={addressForm.contactNumber}
-              onChange={(e) => setAddressForm({ ...addressForm, contactNumber: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              placeholder="Contact number"
-            />
-          </div>
-          
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isDefault"
-              checked={addressForm.isDefault}
-              onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="isDefault" className="ml-2 text-xs sm:text-sm text-gray-700">
-              Set as default address
-            </label>
-          </div>
+          )}
         </div>
       </Modal>
 
       {/* Cancel Order Confirmation Modal */}
       <Modal
-        title="Cancel Order"
+        title={location.state?.goToReceiptUpload ? "Cancel Receipt Upload" : "Cancel Order"}
         open={showCancelModal}
         onOk={() => {
-          // Clear saved order data
+          // Check if this is receipt upload mode
+          const isReceiptUploadMode = location.state?.goToReceiptUpload && location.state?.paymentId;
+          
+          if (isReceiptUploadMode) {
+            // For receipt upload mode, just navigate back without clearing any data
+            // The order and payment data should remain intact for future receipt uploads
+            navigate('/jkhm/seller/customers');
+            return;
+          }
+          
+          // Clear saved order data for normal order flow
           localStorage.removeItem('savedOrder');
           localStorage.removeItem('fromDraft');
           
-          // Clean expired drafts first, then clear any draft orders for the current user
+          // Clean expired drafts first
           cleanExpiredDrafts();
           
-          const existingDrafts = JSON.parse(localStorage.getItem('draftOrders') || '[]');
+          // Only clear the specific draft order if this was from a draft
           const currentOrder = orderDetails || order;
-          if (currentOrder?.userId) {
+          const isFromDraft = localStorage.getItem('fromDraft') === 'true' || 
+                             currentOrder?.id?.startsWith('draft_') || 
+                             currentOrder?.originalDraftId;
+          
+          if (isFromDraft && currentOrder?.originalDraftId) {
+            // Remove only the specific draft order, not all drafts for the user
+            const existingDrafts = JSON.parse(localStorage.getItem('draftOrders') || '[]');
             const updatedDrafts = existingDrafts.filter(draft => 
-              draft.selectedUser?.id !== currentOrder.userId
+              draft.id !== currentOrder.originalDraftId
             );
             localStorage.setItem('draftOrders', JSON.stringify(updatedDrafts));
+            
+            // Dispatch custom event to notify other components
+            window.dispatchEvent(new CustomEvent('draftOrdersUpdated'));
           }
           
           // Navigate to customers list
           navigate('/jkhm/seller/customers');
         }}
         onCancel={() => setShowCancelModal(false)}
-        okText="Yes, Cancel Order"
-        cancelText="Keep Order"
+        okText={location.state?.goToReceiptUpload ? "Yes, Go Back" : "Yes, Cancel Order"}
+        cancelText={location.state?.goToReceiptUpload ? "Continue Upload" : "Keep Order"}
         okType="danger"
         width={isMobile ? '95%' : 400}
       >
@@ -1977,9 +2142,14 @@ const PaymentWizardPage = () => {
           <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <MdWarning className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
           </div>
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Cancel Order?</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+            {location.state?.goToReceiptUpload ? "Cancel Receipt Upload?" : "Cancel Order?"}
+          </h3>
           <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
-            Are you sure you want to cancel this order? This action cannot be undone and all order data will be lost.
+            {location.state?.goToReceiptUpload 
+              ? "Are you sure you want to go back? You can upload the receipt later from the customer list."
+              : "Are you sure you want to cancel this order? This action cannot be undone and all order data will be lost."
+            }
           </p>
         </div>
       </Modal>
