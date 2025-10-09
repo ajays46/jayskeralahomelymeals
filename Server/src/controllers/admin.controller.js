@@ -1920,7 +1920,6 @@ export const updateExecutiveStatus = async (req, res, next) => {
 export const saveAllRoutes = async (req, res, next) => {
     try {
         const { requestId } = req.body;
-        console.log('requestId', requestId);
         
         if (!requestId) {
             return res.status(400).json({

@@ -17,6 +17,9 @@ import deliveryItemRoutes from './routes/deliveryItem.routes.js';
 import deliveryManagerRoutes from './routes/deliveryManager.routes.js';
 import deliveryExecutiveRoutes from './routes/deliveryExecutive.routes.js';
 import externalUploadRoutes from './routes/externalUpload.routes.js';
+import financialRoutes from './routes/financial.routes.js';
+import deliveryDashboardRoutes from './routes/deliveryDashboard.routes.js';
+import sellerPerformanceRoutes from './routes/sellerPerformance.routes.js';
 import path from 'path';
 import fs from 'fs';
 import './models/index.js'; // Import models to ensure associations are loaded
@@ -125,6 +128,10 @@ app.use('/api', deliveryItemRoutes);
 app.use('/api/delivery-managers', deliveryManagerRoutes);
 app.use('/api/delivery-executives', deliveryExecutiveRoutes);
 app.use('/api/external', externalUploadRoutes);
+app.use('/api/financial', financialRoutes);
+app.use('/api/delivery-dashboard', deliveryDashboardRoutes);
+app.use('/api/seller-performance', sellerPerformanceRoutes);
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {

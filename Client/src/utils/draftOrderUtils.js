@@ -41,9 +41,6 @@ export const cleanExpiredDrafts = () => {
     
     // Return count of removed drafts for logging
     const removedCount = savedDrafts.length - validDrafts.length;
-    if (removedCount > 0) {
-      console.log(`Cleaned ${removedCount} expired draft orders`);
-    }
     
     return validDrafts;
   } catch (error) {
@@ -115,7 +112,6 @@ export const saveDraftWithCleanup = (draftData) => {
 export const initializeDraftCleanup = () => {
   try {
     const cleanedDrafts = cleanExpiredDrafts();
-    console.log(`Draft cleanup initialized. ${cleanedDrafts.length} valid drafts remaining.`);
     return cleanedDrafts;
   } catch (error) {
     console.error('Error initializing draft cleanup:', error);

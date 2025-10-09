@@ -25,6 +25,9 @@ import MenuItemPage from './pages/admin/MenuItemPage';
 import MenuItemsTablePage from './pages/admin/MenuItemsTablePage';
 import UsersPage from './pages/admin/UsersPage';
 import ManagementDashboardPage from './pages/ManagementDashboardPage';
+import FinancialDashboardPage from './pages/FinancialDashboardPage';
+import DeliveryDashboardPage from './pages/DeliveryDashboardPage';
+import SellerPerformanceDashboardPage from './pages/SellerPerformanceDashboardPage';
 
 import CreateUserPage from './pages/CreateUserPage';
 import DeliveryItemsPage from './pages/DeliveryItemsPage';
@@ -75,6 +78,9 @@ const App = () => {
           <Route element={<ProtectedRoute />}>
      
             <Route path='/jkhm/management-dashboard' element={<ManagementDashboardPage/>} ></Route>
+            <Route path='/jkhm/financial-dashboard' element={<FinancialDashboardPage/>} ></Route>
+            <Route path='/jkhm/delivery-dashboard' element={<DeliveryDashboardPage/>} ></Route>
+            <Route path='/jkhm/seller-performance-dashboard' element={<SellerPerformanceDashboardPage/>} ></Route>
             <Route path='/jkhm/admin' element={<AdminPage/>} ></Route>
             <Route path='/jkhm/admin/company-create' element={<CompanyCreatePage/>} ></Route>
             <Route path='/jkhm/admin/add-product' element={<AddProductPage/>} ></Route>
