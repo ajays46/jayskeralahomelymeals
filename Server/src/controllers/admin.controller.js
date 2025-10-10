@@ -1406,7 +1406,6 @@ export const proxyFileContent = async (req, res, next) => {
     }
 };
 
-
 export const proxySessionData = async (req, res, next) => {
     try {
         // Call the external delivery_data API with specific parameters
