@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   apps: [{
     name: 'jayskeralahm-server',
     script: 'src/App.js',
