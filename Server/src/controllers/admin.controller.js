@@ -1408,8 +1408,14 @@ export const proxyFileContent = async (req, res, next) => {
 
 export const proxySessionData = async (req, res, next) => {
     try {
+        console.log('🔍 proxySessionData called');
+        console.log('🔍 AI_ROUTE_API:', process.env.AI_ROUTE_API);
+        
+        const apiUrl = `${process.env.AI_ROUTE_API}/delivery_data`;
+        console.log('🔍 Making request to:', apiUrl);
+        
         // Call the external delivery_data API with specific parameters
-        const response = await fetch(`${process.env.AI_ROUTE_API}/delivery_data`, {
+        const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {
                 'Authorization': 'Bearer mysecretkey123',
@@ -1417,11 +1423,17 @@ export const proxySessionData = async (req, res, next) => {
             }
         });
         
+        console.log('🔍 Response status:', response.status);
+        console.log('🔍 Response ok:', response.ok);
+        
         if (!response.ok) {
-            throw new Error(`External API responded with status: ${response.status}`);
+            const errorText = await response.text();
+            console.log('🔍 Error response body:', errorText);
+            throw new Error(`External API responded with status: ${response.status} - ${errorText}`);
         }
         
         const data = await response.json();
+        console.log('🔍 Successfully fetched data, count:', data.count || 'unknown');
         
         res.status(200).json({
             success: true,
@@ -1437,7 +1449,8 @@ export const proxySessionData = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error in delivery data proxy:', error);
+        console.error('❌ Error in delivery data proxy:', error);
+        console.error('❌ Error stack:', error.stack);
         res.status(500).json({
             success: false,
             message: 'Failed to fetch delivery data',
