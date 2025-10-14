@@ -18,6 +18,10 @@ export const getSellerPerformanceSummary = async (period = 'all') => {
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
         break;
+      case 'yesterday':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        break;
       case 'week':
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         endDate = now;
@@ -26,9 +30,21 @@ export const getSellerPerformanceSummary = async (period = 'all') => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         endDate = now;
         break;
+      case 'quarter':
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), currentQuarter * 3, 1);
+        endDate = now;
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = now;
+        break;
+      case 'all':
       default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        // For 'all' period, set startDate to a very early date
+        startDate = new Date('2020-01-01');
+        endDate = now;
+        break;
     }
 
     // Get all sellers with SELLER role
@@ -177,6 +193,7 @@ export const getSellerPerformanceSummary = async (period = 'all') => {
       });
 
       // Get revenue from orders in seller companies
+      // Include all orders, not just Delivered/Confirmed to match delivery manager behavior
       const ordersWithRevenue = await prisma.order.findMany({
         where: {
           createdAt: {
@@ -192,30 +209,16 @@ export const getSellerPerformanceSummary = async (period = 'all') => {
                 name: 'USER'
               }
             }
-          },
-          status: {
-            in: ['Delivered', 'Confirmed']
           }
+          // Removed status filter to match delivery manager behavior
         },
-        include: {
-          deliveryItems: {
-            include: {
-              menuItem: {
-                include: {
-                  prices: true
-                }
-              }
-            }
-          }
+        select: {
+          totalPrice: true
         }
       });
 
       const totalRevenue = ordersWithRevenue.reduce((sum, order) => {
-        const orderRevenue = order.deliveryItems.reduce((orderSum, item) => {
-          const price = item.menuItem.prices[0]?.totalPrice || 0;
-          return orderSum + (price * item.quantity);
-        }, 0);
-        return sum + orderRevenue;
+        return sum + (order.totalPrice || 0);
       }, 0);
 
       const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
@@ -332,6 +335,10 @@ export const getSellerPerformanceDetails = async (period = 'all') => {
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
         break;
+      case 'yesterday':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        break;
       case 'week':
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         endDate = now;
@@ -340,9 +347,21 @@ export const getSellerPerformanceDetails = async (period = 'all') => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         endDate = now;
         break;
+      case 'quarter':
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), currentQuarter * 3, 1);
+        endDate = now;
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = now;
+        break;
+      case 'all':
       default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        // For 'all' period, set startDate to a very early date
+        startDate = new Date('2020-01-01');
+        endDate = now;
+        break;
     }
 
     // Get all sellers with SELLER role
@@ -389,6 +408,7 @@ export const getSellerPerformanceDetails = async (period = 'all') => {
             });
 
             // Get total revenue from orders of customers created by this seller
+            // Include all orders, not just Delivered/Confirmed to match delivery manager behavior
             const ordersWithRevenue = await prisma.order.findMany({
               where: {
                 createdAt: {
@@ -397,31 +417,17 @@ export const getSellerPerformanceDetails = async (period = 'all') => {
                 },
                 user: {
                   createdBy: seller.id
-                },
-                status: {
-                  in: ['Delivered', 'Confirmed']
                 }
+                // Removed status filter to match delivery manager behavior
               },
-              include: {
-                deliveryItems: {
-                  include: {
-                    menuItem: {
-                      include: {
-                        prices: true
-                      }
-                    }
-                  }
-                }
+              select: {
+                totalPrice: true
               }
             });
 
-            // Calculate total revenue from orders
+            // Calculate total revenue from orders using totalPrice
             const totalRevenue = ordersWithRevenue.reduce((sum, order) => {
-              const orderRevenue = order.deliveryItems.reduce((orderSum, item) => {
-                const price = item.menuItem.prices[0]?.totalPrice || 0;
-                return orderSum + (price * item.quantity);
-              }, 0);
-              return sum + orderRevenue;
+              return sum + (order.totalPrice || 0);
             }, 0);
 
             // Get customer count (customers created by this seller)
@@ -482,6 +488,10 @@ export const getTopPerformingSellers = async (period = 'all', limit = 5) => {
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
         break;
+      case 'yesterday':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        break;
       case 'week':
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         endDate = now;
@@ -490,9 +500,21 @@ export const getTopPerformingSellers = async (period = 'all', limit = 5) => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         endDate = now;
         break;
+      case 'quarter':
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), currentQuarter * 3, 1);
+        endDate = now;
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = now;
+        break;
+      case 'all':
       default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        // For 'all' period, set startDate to a very early date
+        startDate = new Date('2020-01-01');
+        endDate = now;
+        break;
     }
 
     // Get all sellers with SELLER role
@@ -539,6 +561,7 @@ export const getTopPerformingSellers = async (period = 'all', limit = 5) => {
         });
 
         // Get total revenue from orders of customers created by this seller
+        // Include all orders, not just Delivered/Confirmed to match delivery manager behavior
         const ordersWithRevenue = await prisma.order.findMany({
           where: {
             createdAt: {
@@ -547,31 +570,18 @@ export const getTopPerformingSellers = async (period = 'all', limit = 5) => {
             },
             user: {
               createdBy: seller.id
-            },
-            status: {
-              in: ['Delivered', 'Confirmed']
             }
+            // Removed status filter to match delivery manager behavior
           },
-          include: {
-            deliveryItems: {
-              include: {
-                menuItem: {
-                  include: {
-                    prices: true
-                  }
-                }
-              }
-            }
+          select: {
+            totalPrice: true,
+            status: true
           }
         });
 
-        // Calculate total revenue from orders
+        // Calculate total revenue from orders using totalPrice
         const totalRevenue = ordersWithRevenue.reduce((sum, order) => {
-          const orderRevenue = order.deliveryItems.reduce((orderSum, item) => {
-            const price = item.menuItem.prices[0]?.totalPrice || 0;
-            return orderSum + (price * item.quantity);
-          }, 0);
-          return sum + orderRevenue;
+          return sum + (order.totalPrice || 0);
         }, 0);
 
         // Get customer count (customers created by this seller)

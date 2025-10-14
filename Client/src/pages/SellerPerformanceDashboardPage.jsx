@@ -40,6 +40,7 @@ import {
   SidebarMenuButton, 
   SidebarTitle 
 } from '../components/ui/sidebar';
+import SellerPerformanceChart from '../components/charts/SellerPerformanceChart';
 
 /**
  * SellerPerformanceDashboardPage - Comprehensive seller analytics dashboard
@@ -391,31 +392,49 @@ const SellerPerformanceDashboardPage = () => {
                         <CardDescription>Best performing sellers based on orders and revenue</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-4">
-                          {topPerformers?.map((seller, index) => (
-                            <div key={seller.id} className="flex items-center justify-between p-4 rounded-lg border">
-                              <div className="flex items-center">
-                                <div className="flex items-center justify-center w-8 h-8 bg-primary text-primary-foreground rounded-full text-sm font-bold mr-4">
-                                  {index + 1}
+                        {topPerformers && topPerformers.length > 0 ? (
+                          <div className="space-y-4">
+                            {topPerformers.map((seller, index) => (
+                              <div key={seller.id} className="flex items-center justify-between p-4 rounded-lg border">
+                                <div className="flex items-center">
+                                  <div className="flex items-center justify-center w-8 h-8 bg-primary text-primary-foreground rounded-full text-sm font-bold mr-4">
+                                    {index + 1}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium">{seller.name}</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                      {formatNumber(seller.orders || 0)} orders • {formatCurrency(seller.revenue || 0)} revenue • {seller.customers || 0} customers
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <h4 className="font-medium">{seller.name}</h4>
-                                  <p className="text-sm text-muted-foreground">
-                                    {formatNumber(seller.orders)} orders • {formatCurrency(seller.revenue)} revenue • {seller.customers || 0} customers
-                                  </p>
+                                <div className="flex items-center gap-2">
+                                  <Button variant="outline" size="sm">
+                                    <EyeIcon className="h-4 w-4 mr-1" />
+                                    View
+                                  </Button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Button variant="outline" size="sm">
-                                  <EyeIcon className="h-4 w-4 mr-1" />
-                                  View
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <ChartBarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-foreground mb-2">No Top Performers</h3>
+                            <p className="text-sm text-muted-foreground">
+                              No seller performance data available for the selected period.
+                            </p>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
+
+                    {/* Performance Charts */}
+                    <SellerPerformanceChart 
+                      topPerformers={topPerformers}
+                      summary={summary}
+                      sellers={sellers}
+                      periodFilter={periodFilter}
+                    />
                   </>
                 )}
 

@@ -40,6 +40,7 @@ import {
   SidebarMenuButton, 
   SidebarTitle 
 } from '../components/ui/sidebar';
+import DeliveryPerformanceChart from '../components/charts/DeliveryPerformanceChart';
 
 /**
  * DeliveryDashboardPage - Comprehensive delivery analytics dashboard
@@ -486,6 +487,14 @@ const DeliveryDashboardPage = () => {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Delivery Performance Charts */}
+                <DeliveryPerformanceChart 
+                  dashboard={dashboard}
+                  executives={executives}
+                  timeAnalytics={timeAnalytics}
+                  periodFilter={periodFilter}
+                />
               </>
             )}
 
