@@ -47,6 +47,10 @@ const Login = ({ onClose, onForgotPassword }) => {
 
       // If validation passes, proceed with login
       await loginMutation(formData, {
+        onSuccess: () => {
+          // Close the auth slider on successful login
+          onClose();
+        },
         onError: (error) => {
           const errorMessage = error.response?.data?.message;
           if (errorMessage?.toLowerCase().includes('invalid')) {

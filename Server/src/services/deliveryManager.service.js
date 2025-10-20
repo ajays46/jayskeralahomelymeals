@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
+import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * Delivery Manager Service - Handles delivery management operations and analytics
@@ -85,53 +86,120 @@ export const getDeliveryManagerDashboardService = async (deliveryManagerId) => {
 
 // Cancel a delivery item
 export const cancelDeliveryItemService = async (deliveryItemId, deliveryManagerId) => {
+  const startTime = Date.now();
+  const logContext = {
+    deliveryItemId,
+    deliveryManagerId,
+    timestamp: new Date().toISOString()
+  };
+
   try {
-    // Find the delivery item
-    const deliveryItem = await prisma.deliveryItem.findUnique({
-      where: { id: deliveryItemId },
-      include: {
-        order: true,
-        menuItem: true,
-        user: true
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Cancelling delivery item', logContext);
+    
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('Delivery Item Cancellation Transaction Started', {
+        deliveryItemId,
+        deliveryManagerId
+      });
+
+      // Find the delivery item within transaction
+      const deliveryItem = await tx.deliveryItem.findUnique({
+        where: { id: deliveryItemId },
+        include: {
+          order: true,
+          menuItem: true,
+          user: true
+        }
+      });
+
+      if (!deliveryItem) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Delivery item not found for cancellation', logContext);
+        throw new AppError('Delivery item not found', 404);
       }
-    });
 
-    if (!deliveryItem) {
-      throw new AppError('Delivery item not found', 404);
-    }
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery item found for cancellation', {
+        ...logContext,
+        currentStatus: deliveryItem.status,
+        orderId: deliveryItem.orderId,
+        userId: deliveryItem.userId
+      });
 
-    // Check if the delivery item can be cancelled
-    if (deliveryItem.status === 'Completed' || deliveryItem.status === 'Cancelled') {
-      throw new AppError('Cannot cancel completed or already cancelled delivery items', 400);
-    }
+      // Check if the delivery item can be cancelled within transaction
+      if (deliveryItem.status === 'Completed' || deliveryItem.status === 'Cancelled') {
+        logError(LOG_CATEGORIES.SYSTEM, 'Cannot cancel completed or already cancelled delivery item', {
+          ...logContext,
+          currentStatus: deliveryItem.status
+        });
+        throw new AppError('Cannot cancel completed or already cancelled delivery items', 400);
+      }
 
-    // Update the delivery item status to cancelled
-    const updatedDeliveryItem = await prisma.deliveryItem.update({
-      where: { id: deliveryItemId },
-      data: {
-        status: 'Cancelled',
-        updatedAt: new Date()
-      },
-      include: {
-        menuItem: {
-          include: {
-            product: true,
-            menu: true
-          }
+      // Update the delivery item status atomically
+      const updatedDeliveryItem = await tx.deliveryItem.update({
+        where: { id: deliveryItemId },
+        data: {
+          status: 'Cancelled',
+          updatedAt: new Date()
         },
-        deliveryAddress: true,
-        order: true
-      }
+        include: {
+          menuItem: {
+            include: {
+              product: true,
+              menu: true
+            }
+          },
+          deliveryAddress: true,
+          order: true
+        }
+      });
+
+      const duration = Date.now() - startTime;
+      logCritical(LOG_CATEGORIES.SYSTEM, 'Delivery item cancellation completed successfully', {
+        ...logContext,
+        orderId: updatedDeliveryItem.orderId,
+        userId: updatedDeliveryItem.userId,
+        duration: `${duration}ms`
+      });
+
+      logPerformance('Delivery Item Cancellation', duration, {
+        deliveryItemId: deliveryItemId,
+        orderId: updatedDeliveryItem.orderId
+      });
+
+      return updatedDeliveryItem;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 10000, // 10 second timeout
     });
-
-    // Note: We do NOT restore product quantities for individual delivery item cancellation
-    // Product quantities are only restored when the entire order is cancelled
-
-    return updatedDeliveryItem;
   } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.SYSTEM, 'Delivery item cancellation failed', {
+      ...logContext,
+      error: error.message,
+      code: error.code,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
     if (error instanceof AppError) {
       throw error;
     }
+    
+    // Handle specific transaction errors
+    if (error.code === 'P2034') {
+      logError(LOG_CATEGORIES.SYSTEM, 'Delivery item cancellation transaction timeout', {
+        ...logContext,
+        timeout: '10 seconds'
+      });
+      throw new AppError('Operation timed out, please try again', 408);
+    } else if (error.code === 'P2025') {
+      logError(LOG_CATEGORIES.SYSTEM, 'Delivery item record not found', {
+        ...logContext,
+        recordType: 'delivery item'
+      });
+      throw new AppError('Delivery item not found', 404);
+    }
+    
     throw new AppError('Failed to cancel delivery item: ' + error.message, 500);
   }
 };
@@ -201,55 +269,130 @@ export const cancelOrderService = async (orderId, deliveryManagerId) => {
 
 // Update delivery item status
 export const updateDeliveryItemStatusService = async (deliveryItemId, deliveryManagerId, status) => {
+  const startTime = Date.now();
+  const logContext = {
+    deliveryItemId,
+    deliveryManagerId,
+    status,
+    timestamp: new Date().toISOString()
+  };
+
   try {
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Updating delivery item status', logContext);
+    
     const validStatuses = ['Pending', 'Confirmed', 'In_Progress', 'Delivered', 'Cancelled'];
     if (!validStatuses.includes(status)) {
+      logError(LOG_CATEGORIES.SYSTEM, 'Invalid delivery item status provided', {
+        ...logContext,
+        validStatuses: validStatuses
+      });
       throw new AppError('Invalid delivery item status', 400);
     }
 
-    // Find the delivery item
-    const deliveryItem = await prisma.deliveryItem.findUnique({
-      where: { id: deliveryItemId },
-      include: {
-        menuItem: {
-          include: {
-            product: true,
-            menu: true
-          }
-        },
-        deliveryAddress: true,
-        order: true
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('Delivery Item Status Update Transaction Started', {
+        deliveryItemId,
+        deliveryManagerId,
+        status
+      });
+
+      // Find the delivery item within transaction
+      const deliveryItem = await tx.deliveryItem.findUnique({
+        where: { id: deliveryItemId },
+        include: {
+          menuItem: {
+            include: {
+              product: true,
+              menu: true
+            }
+          },
+          deliveryAddress: true,
+          order: true
+        }
+      });
+
+      if (!deliveryItem) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Delivery item not found for status update', logContext);
+        throw new AppError('Delivery item not found', 404);
       }
-    });
 
-    if (!deliveryItem) {
-      throw new AppError('Delivery item not found', 404);
-    }
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery item found for status update', {
+        ...logContext,
+        currentStatus: deliveryItem.status,
+        orderId: deliveryItem.orderId,
+        userId: deliveryItem.userId
+      });
 
-    // Update the delivery item status
-    const updatedDeliveryItem = await prisma.deliveryItem.update({
-      where: { id: deliveryItemId },
-      data: { 
-        status: status,
-        updatedAt: new Date()
-      },
-      include: {
-        menuItem: {
-          include: {
-            product: true,
-            menu: true
-          }
+      // Update the delivery item status atomically
+      const updatedDeliveryItem = await tx.deliveryItem.update({
+        where: { id: deliveryItemId },
+        data: { 
+          status: status,
+          updatedAt: new Date()
         },
-        deliveryAddress: true,
-        order: true
-      }
-    });
+        include: {
+          menuItem: {
+            include: {
+              product: true,
+              menu: true
+            }
+          },
+          deliveryAddress: true,
+          order: true
+        }
+      });
 
-    return updatedDeliveryItem;
+      const duration = Date.now() - startTime;
+      logCritical(LOG_CATEGORIES.SYSTEM, 'Delivery item status update completed successfully', {
+        ...logContext,
+        oldStatus: deliveryItem.status,
+        newStatus: status,
+        orderId: updatedDeliveryItem.orderId,
+        userId: updatedDeliveryItem.userId,
+        duration: `${duration}ms`
+      });
+
+      logPerformance('Delivery Item Status Update', duration, {
+        deliveryItemId: deliveryItemId,
+        statusChange: `${deliveryItem.status} -> ${status}`,
+        orderId: updatedDeliveryItem.orderId
+      });
+
+      return updatedDeliveryItem;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 10000, // 10 second timeout
+    });
   } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.SYSTEM, 'Delivery item status update failed', {
+      ...logContext,
+      error: error.message,
+      code: error.code,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
     if (error instanceof AppError) {
       throw error;
     }
+    
+    // Handle specific transaction errors
+    if (error.code === 'P2034') {
+      logError(LOG_CATEGORIES.SYSTEM, 'Delivery item status update transaction timeout', {
+        ...logContext,
+        timeout: '10 seconds'
+      });
+      throw new AppError('Operation timed out, please try again', 408);
+    } else if (error.code === 'P2025') {
+      logError(LOG_CATEGORIES.SYSTEM, 'Delivery item record not found', {
+        ...logContext,
+        recordType: 'delivery item'
+      });
+      throw new AppError('Delivery item not found', 404);
+    }
+    
     throw new AppError('Failed to update delivery item status: ' + error.message, 500);
   }
 };

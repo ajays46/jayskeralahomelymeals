@@ -12,6 +12,7 @@ import {
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import useAuthStore from '../stores/Zustand.store';
+import AppHeader from '../components/AppHeader';
 
 /**
  * ManagementDashboardPage - Executive dashboard for CEO and CFO roles
@@ -172,47 +173,11 @@ const ManagementDashboardPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Management Dashboard
-                </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  Welcome back, {user?.firstName || 'Executive'}! 
-                  {isCEO && ' (Chief Executive Officer)'}
-                  {isCFO && ' (Chief Financial Officer)'}
-                </p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                  <span className="text-sm text-gray-600">System Status: {dashboardData.systemHealth}</span>
-                </div>
-                <ClockIcon className="h-5 w-5 text-gray-400" />
-                <span className="text-sm text-gray-600">
-                  {new Date().toLocaleString('en-IN', {
-                    timeZone: 'Asia/Kolkata',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    day: '2-digit',
-                    month: 'short'
-                  })}
-                </span>
-                <button
-                  onClick={handleLogoutClick}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                >
-                  <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                  <span>Logout</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AppHeader 
+        title="Management Dashboard"
+        subtitle={`Welcome back, ${user?.firstName || 'Executive'}! ${isCEO ? '(Chief Executive Officer)' : ''}${isCFO ? '(Chief Financial Officer)' : ''}`}
+        showRoleSwitcher={true}
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Grid */}

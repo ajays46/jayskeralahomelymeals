@@ -14,8 +14,10 @@ export const useLogin = () => {
 
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const setRoles = useAuthStore((state) => state.setRoles);
+  const setActiveRole = useAuthStore((state) => state.setActiveRole);
   const setUser = useAuthStore((state) => state.setUser);
   const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
+  const setShowRoleSelector = useAuthStore((state) => state.setShowRoleSelector);
   const navigate = useNavigate();
 
   return useMutation({
@@ -26,14 +28,29 @@ export const useLogin = () => {
     onSuccess: (data) => {
       if (data.success) {
         const roles = data.data.roles || [data.data.role]; // Handle both new and old format
+        const primaryRole = roles[0]; // Use first role as default
+        
         setAccessToken(data.accessToken);
         setRoles(roles);
+        setActiveRole(primaryRole);
         setUser(data.data);
         setIsAuthenticated(true);
         
-        // Navigate to role-specific dashboard
-        const dashboardRoute = getDashboardRoute(roles);
-        navigate(dashboardRoute);
+        // Small delay to ensure AuthSlider closes first
+        setTimeout(() => {
+          console.log('Login successful, roles:', roles);
+          // Check if user has multiple roles
+          if (roles.length > 1) {
+            console.log('User has multiple roles, showing role selector');
+            // Show role selection sidebar
+            setShowRoleSelector(true);
+          } else {
+            console.log('User has single role, navigating to dashboard');
+            // Navigate directly to role-specific dashboard
+            const dashboardRoute = getDashboardRoute(roles);
+            navigate(dashboardRoute);
+          }
+        }, 100);
       }
     },
     onError: (error) => {

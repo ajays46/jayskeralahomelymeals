@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma.js';
 import { AppError } from '../utils/AppError.js';
+import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * User Role Service - Handles user role management and role-based operations
@@ -72,47 +73,113 @@ export const getUserWithRoles = async (userId) => {
  * @returns {Object} Updated user with roles
  */
 export const addRoleToUser = async (userId, roleName) => {
+  const startTime = Date.now();
+  const logContext = {
+    userId,
+    roleName,
+    timestamp: new Date().toISOString()
+  };
+
   try {
-    // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { userRoles: true }
-    });
-
-    if (!user) {
-      throw new AppError('User not found', 404);
-    }
-
-    if (user.userRoles.length === 0) {
-      // Create first role record
-      const newRole = await prisma.userRole.create({
-        data: {
-          userId: userId,
-          name: roleName
-        }
-      });
-      return newRole;
-    }
-
-    // Get existing roles
-    const existingRoleRecord = user.userRoles[0];
-    const existingRoles = existingRoleRecord.name.split(',').map(r => r.trim());
+    logInfo(LOG_CATEGORIES.USER_ROLES, 'Adding role to user', logContext);
     
-    // Check if role already exists
-    if (existingRoles.includes(roleName)) {
-      throw new AppError(`User already has role: ${roleName}`, 400);
-    }
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('User Role Addition Transaction Started', {
+        userId,
+        roleName
+      });
 
-    // Add new role to existing comma-separated string
-    const updatedRoles = [...existingRoles, roleName];
-    const updatedRole = await prisma.userRole.update({
-      where: { id: existingRoleRecord.id },
-      data: { name: updatedRoles.join(',') }
+      // Check if user exists within transaction
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        include: { userRoles: true }
+      });
+
+      if (!user) {
+        logError(LOG_CATEGORIES.USER_ROLES, 'User not found for role addition', logContext);
+        throw new AppError('User not found', 404);
+      }
+
+      if (user.userRoles.length === 0) {
+        // Create first role record atomically
+        const newRole = await tx.userRole.create({
+          data: {
+            userId: userId,
+            name: roleName
+          }
+        });
+        
+        logInfo(LOG_CATEGORIES.USER_ROLES, 'First role created for user', {
+          ...logContext,
+          roleId: newRole.id
+        });
+        
+        return newRole;
+      }
+
+      // Get existing roles within transaction (prevents race conditions)
+      const existingRoleRecord = user.userRoles[0];
+      const existingRoles = existingRoleRecord.name.split(',').map(r => r.trim());
+      
+      // Check if role already exists
+      if (existingRoles.includes(roleName)) {
+        logError(LOG_CATEGORIES.USER_ROLES, 'User already has role', {
+          ...logContext,
+          existingRoles: existingRoles
+        });
+        throw new AppError(`User already has role: ${roleName}`, 400);
+      }
+
+      // Add new role to existing comma-separated string atomically
+      const updatedRoles = [...existingRoles, roleName];
+      const updatedRole = await tx.userRole.update({
+        where: { id: existingRoleRecord.id },
+        data: { name: updatedRoles.join(',') }
+      });
+
+      logInfo(LOG_CATEGORIES.USER_ROLES, 'Role added to user successfully', {
+        ...logContext,
+        roleId: updatedRole.id,
+        updatedRoles: updatedRoles
+      });
+
+      return updatedRole;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 10000, // 10 second timeout
     });
-
-    return updatedRole;
   } catch (error) {
-    console.error('Error adding role to user:', error);
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.USER_ROLES, 'Failed to add role to user', {
+      ...logContext,
+      error: error.message,
+      code: error.code,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    // Handle specific transaction errors
+    if (error.code === 'P2034') {
+      logError(LOG_CATEGORIES.USER_ROLES, 'User role transaction timeout', {
+        ...logContext,
+        timeout: '10 seconds'
+      });
+      throw new AppError('Operation timed out, please try again', 408);
+    } else if (error.code === 'P2002') {
+      logError(LOG_CATEGORIES.USER_ROLES, 'User role constraint violation', {
+        ...logContext,
+        constraint: 'unique constraint'
+      });
+      throw new AppError('Role already exists or constraint violation', 409);
+    } else if (error.code === 'P2025') {
+      logError(LOG_CATEGORIES.USER_ROLES, 'User role record not found', {
+        ...logContext,
+        recordType: 'user or role'
+      });
+      throw new AppError('Record not found', 404);
+    }
+    
     throw error;
   }
 };
@@ -124,44 +191,111 @@ export const addRoleToUser = async (userId, roleName) => {
  * @returns {Object} Updated role record
  */
 export const removeRoleFromUser = async (userId, roleName) => {
+  const startTime = Date.now();
+  const logContext = {
+    userId,
+    roleName,
+    timestamp: new Date().toISOString()
+  };
+
   try {
-    // Get user with roles
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { userRoles: true }
+    logInfo(LOG_CATEGORIES.USER_ROLES, 'Removing role from user', logContext);
+    
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('User Role Removal Transaction Started', {
+        userId,
+        roleName
+      });
+
+      // Get user with roles within transaction
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        include: { userRoles: true }
+      });
+
+      if (!user || user.userRoles.length === 0) {
+        logError(LOG_CATEGORIES.USER_ROLES, 'User or role not found for removal', logContext);
+        throw new AppError(`User does not have role: ${roleName}`, 404);
+      }
+
+      const existingRoleRecord = user.userRoles[0];
+      const existingRoles = existingRoleRecord.name.split(',').map(r => r.trim());
+      
+      // Check if role exists
+      if (!existingRoles.includes(roleName)) {
+        logError(LOG_CATEGORIES.USER_ROLES, 'User does not have specified role', {
+          ...logContext,
+          existingRoles: existingRoles
+        });
+        throw new AppError(`User does not have role: ${roleName}`, 404);
+      }
+
+      // Remove role from comma-separated string
+      const updatedRoles = existingRoles.filter(role => role !== roleName);
+      
+      if (updatedRoles.length === 0) {
+        // Delete the role record if no roles left (atomically)
+        const deletedRole = await tx.userRole.delete({
+          where: { id: existingRoleRecord.id }
+        });
+        
+        logInfo(LOG_CATEGORIES.USER_ROLES, 'Last role removed, role record deleted', {
+          ...logContext,
+          roleId: deletedRole.id
+        });
+        
+        return deletedRole;
+      } else {
+        // Update with remaining roles (atomically)
+        const updatedRole = await tx.userRole.update({
+          where: { id: existingRoleRecord.id },
+          data: { name: updatedRoles.join(',') }
+        });
+        
+        logInfo(LOG_CATEGORIES.USER_ROLES, 'Role removed from user successfully', {
+          ...logContext,
+          roleId: updatedRole.id,
+          remainingRoles: updatedRoles
+        });
+        
+        return updatedRole;
+      }
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 10000, // 10 second timeout
     });
-
-    if (!user || user.userRoles.length === 0) {
-      throw new AppError(`User does not have role: ${roleName}`, 404);
-    }
-
-    const existingRoleRecord = user.userRoles[0];
-    const existingRoles = existingRoleRecord.name.split(',').map(r => r.trim());
-    
-    // Check if role exists
-    if (!existingRoles.includes(roleName)) {
-      throw new AppError(`User does not have role: ${roleName}`, 404);
-    }
-
-    // Remove role from comma-separated string
-    const updatedRoles = existingRoles.filter(role => role !== roleName);
-    
-    if (updatedRoles.length === 0) {
-      // Delete the role record if no roles left
-      const deletedRole = await prisma.userRole.delete({
-        where: { id: existingRoleRecord.id }
-      });
-      return deletedRole;
-    } else {
-      // Update with remaining roles
-      const updatedRole = await prisma.userRole.update({
-        where: { id: existingRoleRecord.id },
-        data: { name: updatedRoles.join(',') }
-      });
-      return updatedRole;
-    }
   } catch (error) {
-    console.error('Error removing role from user:', error);
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.USER_ROLES, 'Failed to remove role from user', {
+      ...logContext,
+      error: error.message,
+      code: error.code,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    // Handle specific transaction errors
+    if (error.code === 'P2034') {
+      logError(LOG_CATEGORIES.USER_ROLES, 'User role removal transaction timeout', {
+        ...logContext,
+        timeout: '10 seconds'
+      });
+      throw new AppError('Operation timed out, please try again', 408);
+    } else if (error.code === 'P2025') {
+      logError(LOG_CATEGORIES.USER_ROLES, 'User role record not found', {
+        ...logContext,
+        recordType: 'user or role'
+      });
+      throw new AppError('Record not found', 404);
+    } else if (error.code === 'P2003') {
+      logError(LOG_CATEGORIES.USER_ROLES, 'User role foreign key constraint violation', {
+        ...logContext,
+        constraint: 'foreign key'
+      });
+      throw new AppError('Foreign key constraint violation', 409);
+    }
+    
     throw error;
   }
 };
@@ -173,15 +307,81 @@ export const removeRoleFromUser = async (userId, roleName) => {
  * @returns {Object} Updated role
  */
 export const updateUserRole = async (roleId, newRoles) => {
-  try {
-    const updatedRole = await prisma.userRole.update({
-      where: { id: roleId },
-      data: { name: newRoles.join(',') }
-    });
+  const startTime = Date.now();
+  const logContext = {
+    roleId,
+    newRoles: newRoles,
+    timestamp: new Date().toISOString()
+  };
 
-    return updatedRole;
+  try {
+    logInfo(LOG_CATEGORIES.USER_ROLES, 'Updating user role', logContext);
+    
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('User Role Update Transaction Started', {
+        roleId,
+        newRoles: newRoles
+      });
+
+      // Check if role exists within transaction
+      const existingRole = await tx.userRole.findUnique({
+        where: { id: roleId }
+      });
+
+      if (!existingRole) {
+        logError(LOG_CATEGORIES.USER_ROLES, 'Role not found for update', logContext);
+        throw new AppError('Role not found', 404);
+      }
+
+      // Update role atomically
+      const updatedRole = await tx.userRole.update({
+        where: { id: roleId },
+        data: { name: newRoles.join(',') }
+      });
+
+      logInfo(LOG_CATEGORIES.USER_ROLES, 'User role updated successfully', {
+        ...logContext,
+        oldRoles: existingRole.name,
+        newRoles: newRoles.join(',')
+      });
+
+      return updatedRole;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 10000, // 10 second timeout
+    });
   } catch (error) {
-    console.error('Error updating user role:', error);
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.USER_ROLES, 'Failed to update user role', {
+      ...logContext,
+      error: error.message,
+      code: error.code,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    // Handle specific transaction errors
+    if (error.code === 'P2034') {
+      logError(LOG_CATEGORIES.USER_ROLES, 'User role update transaction timeout', {
+        ...logContext,
+        timeout: '10 seconds'
+      });
+      throw new AppError('Operation timed out, please try again', 408);
+    } else if (error.code === 'P2025') {
+      logError(LOG_CATEGORIES.USER_ROLES, 'User role record not found', {
+        ...logContext,
+        recordType: 'role'
+      });
+      throw new AppError('Role not found', 404);
+    } else if (error.code === 'P2002') {
+      logError(LOG_CATEGORIES.USER_ROLES, 'User role unique constraint violation', {
+        ...logContext,
+        constraint: 'unique constraint'
+      });
+      throw new AppError('Unique constraint violation', 409);
+    }
+    
     throw error;
   }
 };

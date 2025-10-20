@@ -53,10 +53,10 @@ model Address {
   city          String         @db.VarChar(255)
   pincode       Int
   geoLocation   String?        @map("geo_location") @db.VarChar(255)
-  googleMapsUrl String?        @map("google_maps_url") @db.VarChar(500)
   addressType   AddressType    @default(HOME) @map("address_type")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
+  googleMapsUrl String?        @map("google_maps_url") @db.VarChar(500)
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   orders        Order[]
   deliveryItems DeliveryItem[]
@@ -291,10 +291,10 @@ model Payment {
   paymentAmount       Int              @map("payment_amount")
   paymentDate         DateTime?        @map("payment_date")
   receiptUrl          String?          @map("receipt_url") @db.VarChar(500)
-  externalReceiptUrl  String?          @map("external_receipt_url") @db.VarChar(500)
   uploadedReceiptType ReceiptType?     @map("uploaded_receipt_type")
   createdAt           DateTime         @default(now()) @map("created_at")
   updatedAt           DateTime         @updatedAt @map("updated_at")
+  externalReceiptUrl  String?          @map("external_receipt_url") @db.VarChar(500)
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   order               Order            @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   paymentReceipts     PaymentReceipt[]
@@ -457,6 +457,22 @@ model customer_subscriptions {
   @@ignore
 }
 
+model manual_review_log {
+  id                String    @id @db.VarChar(36)
+  table_name        String?   @db.VarChar(255)
+  record_id         String?   @db.VarChar(36)
+  issue_type        String?   @db.VarChar(255)
+  issue_description String?   @db.Text
+  old_value         String?   @db.Text
+  new_value         String?   @db.Text
+  status            String?   @db.VarChar(100)
+  reviewed_by       String?   @db.VarChar(36)
+  reviewed_at       DateTime? @db.DateTime(0)
+  created_at        DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
 model DeliveryExecutive {
   id        String   @id @default(uuid()) @db.VarChar(36)
   userId    String   @unique @map("user_id") @db.VarChar(36)
@@ -587,3 +603,4 @@ enum DeliveryExecutiveStatus {
   ACTIVE
   INACTIVE
 }
+

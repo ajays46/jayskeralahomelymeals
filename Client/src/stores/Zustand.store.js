@@ -8,21 +8,39 @@ import { persist } from 'zustand/middleware';
  */
 const useAuthStore = create(
     persist(
-        (set) => ({
+        (set, get) => ({
             user: null,
             isAuthenticated: false,
             accessToken: null,
-            roles: [], // Changed from role to roles array
+            roles: [], // All available roles
+            activeRole: null, // Currently selected role
+            showRoleSelector: false, // Flag to show role selection sidebar
             setAccessToken: (token) => set({ accessToken: token }),
-            setRoles: (roles) => set({ roles }), // Changed from setRole to setRoles
+            setRoles: (roles) => set({ roles }), // Set all available roles
+            setActiveRole: (role) => set({ activeRole: role }), // Set currently active role
             setUser: (user) => set({ user, isAuthenticated: !!user }),
             setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
+            setShowRoleSelector: (show) => set({ showRoleSelector: show }),
+            switchRole: (newRole) => {
+                const state = get();
+                if (state.roles.includes(newRole)) {
+                    set({ activeRole: newRole });
+                    // Update user object with new active role
+                    const updatedUser = {
+                        ...state.user,
+                        role: newRole
+                    };
+                    set({ user: updatedUser });
+                }
+            },
             clearAccessToken: () => set({ accessToken: null }),
             logout: () => set({ 
                 user: null, 
                 isAuthenticated: false, 
                 accessToken: null, 
-                roles: [] // Clear roles array
+                roles: [], // Clear roles array
+                activeRole: null,
+                showRoleSelector: false
             })
         }),{name:"_app"},
     )

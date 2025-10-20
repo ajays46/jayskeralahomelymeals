@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
+import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * Inventory Service - Handles inventory management and product quantity tracking
@@ -9,184 +10,241 @@ import AppError from '../utils/AppError.js';
 
 // Reduce product quantities based on order items (using existing ProductQuantity table)
 export const reduceProductQuantitiesService = async (orderItems, selectedDates, skipMeals = {}) => {
+  const startTime = Date.now();
+  const logContext = {
+    orderItemsCount: orderItems.length,
+    selectedDatesCount: selectedDates.length,
+    skipMealsCount: Object.keys(skipMeals).length,
+    timestamp: new Date().toISOString()
+  };
+
   try {
-    
-    const quantityReductions = [];
-    
-    // Get a default company ID for creating products
-    let defaultCompanyId = null;
-    try {
-      const firstCompany = await prisma.company.findFirst({
-        select: { id: true }
-      });
-      defaultCompanyId = firstCompany?.id || 'default-company-id';
-    } catch (error) {
-      console.warn('Could not find company, using fallback ID');
-      defaultCompanyId = 'default-company-id';
-    }
+    logInfo(LOG_CATEGORIES.INVENTORY, 'Starting inventory quantity reduction', logContext);
 
-    // Group order items by menuItemId to handle package menus correctly
-    const groupedOrderItems = {};
-    for (const item of orderItems) {
-      if (!groupedOrderItems[item.menuItemId]) {
-        groupedOrderItems[item.menuItemId] = [];
-      }
-      groupedOrderItems[item.menuItemId].push(item);
-    }
-
-
-
-    for (const menuItemId in groupedOrderItems) {
-      const itemsForMenuItem = groupedOrderItems[menuItemId];
-      const firstItem = itemsForMenuItem[0]; // Use first item to get general info
-
-
-
-      // Get the menu item to find the associated product
-      const menuItem = await prisma.menuItem.findUnique({
-        where: { id: menuItemId },
-        include: { product: true }
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('Inventory Reduction Transaction Started', {
+        orderItemsCount: orderItems.length,
+        selectedDatesCount: selectedDates.length
       });
 
-      if (!menuItem) {
-        console.warn(`⚠️ MenuItem ${menuItemId} not found, skipping quantity reduction`);
-        continue;
+      const quantityReductions = [];
+      
+      // Get a default company ID for creating products
+      let defaultCompanyId = null;
+      try {
+        const firstCompany = await tx.company.findFirst({
+          select: { id: true }
+        });
+        defaultCompanyId = firstCompany?.id || 'default-company-id';
+      } catch (error) {
+        console.warn('Could not find company, using fallback ID');
+        defaultCompanyId = 'default-company-id';
       }
 
-      let productId = menuItem.productId;
-      let productName = menuItem.name; // Use menu item name as fallback
+      // Group order items by menuItemId to handle package menus correctly
+      const groupedOrderItems = {};
+      for (const item of orderItems) {
+        if (!groupedOrderItems[item.menuItemId]) {
+          groupedOrderItems[item.menuItemId] = [];
+        }
+        groupedOrderItems[item.menuItemId].push(item);
+      }
 
-      if (!productId) {
+      for (const menuItemId in groupedOrderItems) {
+        const itemsForMenuItem = groupedOrderItems[menuItemId];
+        const firstItem = itemsForMenuItem[0]; // Use first item to get general info
 
-        let existingProduct = await prisma.product.findFirst({
-          where: {
-            productName: {
-              equals: menuItem.name,
-              mode: 'insensitive'
-            }
-          }
+        // Get the menu item to find the associated product
+        const menuItem = await tx.menuItem.findUnique({
+          where: { id: menuItemId },
+          include: { product: true }
         });
 
-        if (!existingProduct) {
-          existingProduct = await prisma.product.create({
-            data: {
-              code: `MENU_${menuItem.id.substring(0, 8)}`,
-              productName: menuItem.name,
-              companyId: defaultCompanyId,
-              status: 'ACTIVE'
+        if (!menuItem) {
+          console.warn(`⚠️ MenuItem ${menuItemId} not found, skipping quantity reduction`);
+          continue;
+        }
+
+        let productId = menuItem.productId;
+        let productName = menuItem.name; // Use menu item name as fallback
+
+        if (!productId) {
+          let existingProduct = await tx.product.findFirst({
+            where: {
+              productName: {
+                equals: menuItem.name,
+                mode: 'insensitive'
+              }
             }
           });
 
+          if (!existingProduct) {
+            existingProduct = await tx.product.create({
+              data: {
+                code: `MENU_${menuItem.id.substring(0, 8)}`,
+                productName: menuItem.name,
+                companyId: defaultCompanyId,
+                status: 'ACTIVE'
+              }
+            });
+          }
+
+          productId = existingProduct.id;
+          productName = existingProduct.productName;
+
+          await tx.menuItem.update({
+            where: { id: menuItem.id },
+            data: { productId: productId }
+          });
+        } else {
+          productName = menuItem.product?.productName || menuItem.name;
         }
 
-        productId = existingProduct.id;
-        productName = existingProduct.productName;
+        const isPackageMenu = await checkIfPackageMenu(menuItem);
 
-        await prisma.menuItem.update({
-          where: { id: menuItem.id },
-          data: { productId: productId }
-        });
+        let totalProductsNeeded = 0;
 
-      } else {
-        productName = menuItem.product?.productName || menuItem.name;
-      }
-
-      const isPackageMenu = await checkIfPackageMenu(menuItem);
-
-      let totalProductsNeeded = 0;
-
-      if (isPackageMenu) {
-        // For package menus: always 1 product per package, regardless of selected days or meal types
-        // Even if frontend sends multiple orderItems for different meal types, it's still 1 package
-        totalProductsNeeded = 1;
-
-      } else {
-        // For daily rates: 1 product per unique (date, mealType) combination
-        const processedCombinations = new Set();
-        for (const date of selectedDates) {
-          const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0];
-          
-          for (const item of itemsForMenuItem) { // Iterate over items for this specific menuItemId
-            if (skipMeals && skipMeals[dateStr] && skipMeals[dateStr][item.mealType]) {
-              continue; // Skip this meal for this date
-            }
-            const combinationKey = `${dateStr}-${item.mealType}`;
-            if (!processedCombinations.has(combinationKey)) {
-              totalProductsNeeded += 1;
-              processedCombinations.add(combinationKey);
+        if (isPackageMenu) {
+          // For package menus: always 1 product per package, regardless of selected days or meal types
+          totalProductsNeeded = 1;
+        } else {
+          // For daily rates: 1 product per unique (date, mealType) combination
+          const processedCombinations = new Set();
+          for (const date of selectedDates) {
+            const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+            
+            for (const item of itemsForMenuItem) {
+              if (skipMeals && skipMeals[dateStr] && skipMeals[dateStr][item.mealType]) {
+                continue; // Skip this meal for this date
+              }
+              const combinationKey = `${dateStr}-${item.mealType}`;
+              if (!processedCombinations.has(combinationKey)) {
+                totalProductsNeeded += 1;
+                processedCombinations.add(combinationKey);
+              }
             }
           }
         }
 
-      }
+        if (totalProductsNeeded === 0) {
+          continue; // No products needed for this item
+        }
 
-      if (totalProductsNeeded === 0) {
+        let productQuantity = await tx.productQuantity.findFirst({
+          where: { productId: productId },
+          orderBy: { createdAt: 'asc' }
+        });
 
-        continue; // No products needed for this item
-      }
+        if (!productQuantity) {
+          productQuantity = await tx.productQuantity.create({
+            data: {
+              productId: productId,
+              date: new Date(),
+              quantity: 100
+            }
+          });
+        }
 
-      let productQuantity = await prisma.productQuantity.findFirst({
-        where: { productId: productId },
-        orderBy: { createdAt: 'asc' }
-      });
-
-      if (!productQuantity) {
-
-        productQuantity = await prisma.productQuantity.create({
-          data: {
+        if (productQuantity.quantity < totalProductsNeeded) {
+          logCritical(LOG_CATEGORIES.INVENTORY, 'Insufficient stock detected', {
             productId: productId,
-            date: new Date(),
-            quantity: 100
+            productName: productName,
+            requested: totalProductsNeeded,
+            available: productQuantity.quantity,
+            shortfall: totalProductsNeeded - productQuantity.quantity
+          });
+          
+          throw new AppError(
+            `Insufficient quantity for product ${productName}. Available: ${productQuantity.quantity}, Required: ${totalProductsNeeded}`,
+            400
+          );
+        }
+
+        const updatedQuantity = await tx.productQuantity.update({
+          where: { id: productQuantity.id },
+          data: {
+            quantity: productQuantity.quantity - totalProductsNeeded,
+            updatedAt: new Date()
           }
         });
 
+        quantityReductions.push({
+          productId: productId,
+          productName: productName,
+          totalProductsNeeded: totalProductsNeeded,
+          originalQuantity: productQuantity.quantity,
+          reducedQuantity: totalProductsNeeded,
+          newQuantity: updatedQuantity.quantity,
+          menuType: isPackageMenu ? 'Package Menu' : 'Daily Rates'
+        });
       }
 
-      if (productQuantity.quantity < totalProductsNeeded) {
-        throw new AppError(
-          `Insufficient quantity for product ${productName}. Available: ${productQuantity.quantity}, Required: ${totalProductsNeeded}`,
-          400
-        );
-      }
-
-      const updatedQuantity = await prisma.productQuantity.update({
-        where: { id: productQuantity.id },
-        data: {
-          quantity: productQuantity.quantity - totalProductsNeeded,
-          updatedAt: new Date()
+      return {
+        success: true,
+        message: 'Product quantities reduced successfully',
+        reductions: quantityReductions,
+        summary: {
+          total: quantityReductions.length,
+          totalProductsReduced: quantityReductions.reduce((sum, r) => sum + r.reducedQuantity, 0)
         }
-      });
+      };
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 30000, // 30 second timeout for complex inventory operations
+    });
 
-      quantityReductions.push({
-        productId: productId,
-        productName: productName,
-        totalProductsNeeded: totalProductsNeeded,
-        originalQuantity: productQuantity.quantity,
-        reducedQuantity: totalProductsNeeded,
-        newQuantity: updatedQuantity.quantity,
-        menuType: isPackageMenu ? 'Package Menu' : 'Daily Rates'
-      });
+    // Log successful inventory reduction
+    const duration = Date.now() - startTime;
+    logCritical(LOG_CATEGORIES.INVENTORY, 'Inventory reduction completed successfully', {
+      ...logContext,
+      duration: `${duration}ms`,
+      totalReductions: quantityReductions.length,
+      totalProductsReduced: quantityReductions.reduce((sum, r) => sum + r.reducedQuantity, 0)
+    });
 
+    logPerformance('Inventory Reduction', duration, {
+      orderItemsCount: orderItems.length,
+      totalReductions: quantityReductions.length
+    });
 
-    }
-
-
-
-    return {
-      success: true,
-      message: 'Product quantities reduced successfully',
-      reductions: quantityReductions,
-      summary: {
-        total: quantityReductions.length,
-        totalProductsReduced: quantityReductions.reduce((sum, r) => sum + r.reducedQuantity, 0)
-      }
-    };
-
+    return result;
   } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    // Log critical error
+    logCritical(LOG_CATEGORIES.INVENTORY, 'Inventory reduction failed', {
+      ...logContext,
+      error: error.message,
+      code: error.code,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+
     if (error instanceof AppError) {
       throw error;
     }
-    console.error('❌ Error reducing product quantities:', error);
+    
+    // Handle specific transaction errors
+    if (error.code === 'P2034') {
+      logError(LOG_CATEGORIES.INVENTORY, 'Inventory transaction timeout', {
+        ...logContext,
+        timeout: '30 seconds'
+      });
+      throw new AppError('Inventory operation timed out, please try again', 408);
+    } else if (error.code === 'P2002') {
+      logError(LOG_CATEGORIES.INVENTORY, 'Inventory constraint violation', {
+        ...logContext,
+        constraint: 'unique constraint'
+      });
+      throw new AppError('Product constraint violation', 409);
+    } else if (error.code === 'P2025') {
+      logError(LOG_CATEGORIES.INVENTORY, 'Product not found', {
+        ...logContext,
+        recordType: 'product'
+      });
+      throw new AppError('Product not found', 404);
+    }
+    
     throw new AppError('Failed to reduce product quantities', 500);
   }
 };

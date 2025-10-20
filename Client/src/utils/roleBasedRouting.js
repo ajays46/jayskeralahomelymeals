@@ -12,33 +12,36 @@ export const getDashboardRoute = (roles) => {
     return '/jkhm'; // Default fallback
   }
 
+  // If roles is a single role (string), convert to array
+  const roleArray = Array.isArray(roles) ? roles : [roles];
+
   // Check for CEO role first (highest priority)
-  if (roles.some(role => role.toUpperCase() === 'CEO')) {
+  if (roleArray.some(role => role.toUpperCase() === 'CEO')) {
     return '/jkhm/management-dashboard';
   }
 
   // Check for CFO role (second highest priority)
-  if (roles.some(role => role.toUpperCase() === 'CFO')) {
-    return '/jkhm/management-dashboard';
+  if (roleArray.some(role => role.toUpperCase() === 'CFO')) {
+    return '/jkhm/financial-dashboard';
   }
 
   // Check for admin role
-  if (roles.some(role => role.toUpperCase() === 'ADMIN')) {
+  if (roleArray.some(role => role.toUpperCase() === 'ADMIN')) {
     return '/jkhm/admin';
   }
 
   // Check for delivery manager role (higher priority than seller)
-  if (roles.some(role => role.toUpperCase() === 'DELIVERY_MANAGER')) {
+  if (roleArray.some(role => role.toUpperCase() === 'DELIVERY_MANAGER')) {
     return '/jkhm/delivery-manager';
   }
 
   // Check for seller role
-  if (roles.some(role => role.toUpperCase() === 'SELLER')) {
+  if (roleArray.some(role => role.toUpperCase() === 'SELLER')) {
     return '/jkhm/seller/customers';
   }
 
   // Check for delivery executive role
-  if (roles.some(role => role.toUpperCase() === 'DELIVERY_EXECUTIVE')) {
+  if (roleArray.some(role => role.toUpperCase() === 'DELIVERY_EXECUTIVE')) {
     return '/jkhm/delivery-executive';
   }
 

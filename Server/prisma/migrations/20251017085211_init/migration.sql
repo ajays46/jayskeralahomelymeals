@@ -39,6 +39,7 @@ CREATE TABLE `addresses` (
     `address_type` ENUM('HOME', 'OFFICE', 'OTHER') NOT NULL DEFAULT 'HOME',
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
+    `google_maps_url` VARCHAR(500) NULL,
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -46,7 +47,7 @@ CREATE TABLE `addresses` (
 -- CreateTable
 CREATE TABLE `user_roles` (
     `user_id` VARCHAR(36) NOT NULL,
-    `name` ENUM('ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER') NOT NULL,
+    `name` ENUM('ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'CEO', 'CFO') NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
     `id` VARCHAR(36) NOT NULL,
@@ -254,6 +255,7 @@ CREATE TABLE `payments` (
     `uploaded_receipt_type` ENUM('Image', 'PDF') NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
+    `external_receipt_url` VARCHAR(500) NULL,
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -423,6 +425,23 @@ CREATE TABLE `customer_subscriptions` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `manual_review_log` (
+    `id` VARCHAR(36) NOT NULL,
+    `table_name` VARCHAR(255) NULL,
+    `record_id` VARCHAR(36) NULL,
+    `issue_type` VARCHAR(255) NULL,
+    `issue_description` TEXT NULL,
+    `old_value` TEXT NULL,
+    `new_value` TEXT NULL,
+    `status` VARCHAR(100) NULL,
+    `reviewed_by` VARCHAR(36) NULL,
+    `reviewed_at` DATETIME(0) NULL,
+    `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `delivery_executives` (
     `id` VARCHAR(36) NOT NULL,
     `user_id` VARCHAR(36) NOT NULL,
@@ -434,5 +453,20 @@ CREATE TABLE `delivery_executives` (
     `updated_at` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `delivery_executives_user_id_key`(`user_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `customer_invites` (
+    `id` VARCHAR(36) NOT NULL,
+    `user_id` VARCHAR(36) NOT NULL,
+    `invite_token` VARCHAR(128) NOT NULL,
+    `status` ENUM('pending', 'accepted', 'expired', 'failed') NOT NULL DEFAULT 'pending',
+    `expires_at` DATETIME(3) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `accepted_at` DATETIME(3) NULL,
+    `message_sid` VARCHAR(255) NULL,
+
+    UNIQUE INDEX `customer_invites_invite_token_key`(`invite_token`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

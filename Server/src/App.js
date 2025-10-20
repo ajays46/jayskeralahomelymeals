@@ -20,6 +20,9 @@ import externalUploadRoutes from './routes/externalUpload.routes.js';
 import financialRoutes from './routes/financial.routes.js';
 import deliveryDashboardRoutes from './routes/deliveryDashboard.routes.js';
 import sellerPerformanceRoutes from './routes/sellerPerformance.routes.js';
+import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
+import logRotationManager from './utils/logRotationManager.js';
+import { logInfo, logError, LOG_CATEGORIES } from './utils/criticalLogger.js';
 import path from 'path';
 import fs from 'fs';
 import './models/index.js'; // Import models to ensure associations are loaded
@@ -106,6 +109,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
+// Add logging middleware
+app.use(requestLogger);
+
 // Health check endpoint for CI/CD pipeline
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -132,9 +138,21 @@ app.use('/api/financial', financialRoutes);
 app.use('/api/delivery-dashboard', deliveryDashboardRoutes);
 app.use('/api/seller-performance', sellerPerformanceRoutes);
 
+// Error logging middleware (should be after routes but before error handler)
+app.use(errorLogger);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+    // Log error using our critical logger
+    logError(LOG_CATEGORIES.SYSTEM, 'Unhandled error', {
+        error: err.message,
+        stack: err.stack,
+        method: req.method,
+        url: req.url,
+        requestId: req.requestId,
+        userId: req.user?.id || null
+    });
+    
     console.error(err.stack);
     res.status(err.statusCode || 500).json({
         success: false,
@@ -146,14 +164,27 @@ const PORT = process.env.PORT || 5000;
 
 (async () => {
     try {
+      // Initialize log rotation system
+      logRotationManager.start();
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Log rotation system initialized');
+      
       // await sequelize.sync({ alter: true }); 
   
       // Database synced successfully
   
       app.listen(PORT, () => {
-        // Server is running on port ${PORT}
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Server started successfully', {
+          port: PORT,
+          environment: process.env.NODE_ENV || 'development',
+          timestamp: new Date().toISOString()
+        });
+        console.log(`🚀 Server running on port ${PORT}`);
       });
     } catch (error) {
-      // Unable to sync database
+      logError(LOG_CATEGORIES.SYSTEM, 'Server startup failed', {
+        error: error.message,
+        stack: error.stack
+      });
+      console.error('❌ Unable to start server:', error);
     }
   })();

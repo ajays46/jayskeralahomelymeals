@@ -1,6 +1,8 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
+import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
+import crypto from 'crypto';
 
 /**
  * Seller Service - Handles seller-specific operations and customer management
@@ -8,9 +10,26 @@ import { increaseProductQuantitiesService } from './inventory.service.js';
  * Features: Customer management, contact creation, seller analytics, order management
  */
 
+
+
+
+
+
 // Create contact with minimal user account (for sellers)
 export const createContactOnly = async ({ firstName, lastName, phoneNumber, address, sellerId }) => {
+  const startTime = Date.now();
+  const logContext = {
+    firstName,
+    lastName,
+    phoneNumber,
+    sellerId,
+    hasAddress: !!address,
+    timestamp: new Date().toISOString()
+  };
+
   try {
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Creating contact for seller', logContext);
+    
     // Check if phone number already exists in contacts
     const existingContact = await prisma.contact.findFirst({
       where: {
@@ -23,6 +42,10 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
     });
 
     if (existingContact) {
+      logError(LOG_CATEGORIES.SYSTEM, 'Phone number already registered', {
+        ...logContext,
+        existingContactId: existingContact.id
+      });
       throw new AppError('This phone number is already registered', 400);
     }
 
@@ -33,11 +56,28 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
     });
 
     if (!seller || !seller.companyId) {
+      logError(LOG_CATEGORIES.SYSTEM, 'Seller not associated with company', {
+        ...logContext,
+        sellerCompanyId: seller?.companyId
+      });
       throw new AppError('Seller must be associated with a company to create contacts', 400);
     }
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Seller company verified', {
+      ...logContext,
+      companyId: seller.companyId
+    });
+
     // Use a transaction to ensure all records are created together
     const result = await prisma.$transaction(async (tx) => {
+      logTransaction('Contact Creation Transaction Started', {
+        firstName,
+        lastName,
+        phoneNumber,
+        sellerId,
+        companyId: seller.companyId
+      });
+
       // Generate a unique email for the auth record (required field)
       const timestamp = Date.now();
       const uniqueEmail = `contact_${timestamp}@system.local`;
@@ -53,6 +93,12 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
         }
       });
 
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Auth record created for contact', {
+        ...logContext,
+        authId: auth.id,
+        uniqueEmail: uniqueEmail
+      });
+
       // 2. Create a minimal User record linked to the auth, seller, and company
       const user = await tx.user.create({
         data: {
@@ -61,6 +107,12 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
           createdBy: sellerId, // Set the seller who created this user
           companyId: seller.companyId // Automatically use seller's company ID
         }
+      });
+
+      logInfo(LOG_CATEGORIES.SYSTEM, 'User record created for contact', {
+        ...logContext,
+        userId: user.id,
+        authId: auth.id
       });
 
       // 3. Create Contact record linked to the user
@@ -72,6 +124,12 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
         }
       });
 
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Contact record created', {
+        ...logContext,
+        contactId: contact.id,
+        userId: user.id
+      });
+
       // 4. Create PhoneNumber record linked to the contact
       const phone = await tx.phoneNumber.create({
         data: {
@@ -81,7 +139,27 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
         }
       });
 
-      // 5. Create address if provided - allow Google Maps URL only
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Phone number record created', {
+        ...logContext,
+        phoneId: phone.id,
+        contactId: contact.id
+      });
+
+      // 5. Create UserRole with "USER" role
+      const userRole = await tx.userRole.create({
+        data: {
+          userId: user.id,
+          name: 'USER'
+        }
+      });
+
+      logInfo(LOG_CATEGORIES.SYSTEM, 'User role created for contact', {
+        ...logContext,
+        roleId: userRole.id,
+        userId: user.id
+      });
+
+      // 6. Create address if provided - allow Google Maps URL only
       let addressRecord;
       if (address && (address.googleMapsUrl || address.street || address.housename || address.city || address.pincode)) {
         addressRecord = await tx.address.create({
@@ -96,40 +174,80 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
             addressType: 'HOME'
           }
         });
+
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Address record created for contact', {
+          ...logContext,
+          addressId: addressRecord.id,
+          userId: user.id
+        });
       }
 
-              return {
-          user: {
-            id: user.id,
-            status: user.status,
-            createdBy: user.createdBy,
-            companyId: user.companyId
-          },
-          contact: {
-            id: contact.id,
-            firstName: contact.firstName,
-            lastName: contact.lastName
-          },
-          phoneNumber: {
-            id: phone.id,
-            type: phone.type,
-            number: phone.number
-          },
-          address: addressRecord ? {
-            id: addressRecord.id,
-            street: addressRecord.street,
-            housename: addressRecord.housename,
-            city: addressRecord.city,
-            pincode: addressRecord.pincode
-          } : null,
-          company: {
-            id: seller.companyId
-          }
-        };
+      const duration = Date.now() - startTime;
+      logCritical(LOG_CATEGORIES.SYSTEM, 'Contact creation completed successfully', {
+        ...logContext,
+        userId: user.id,
+        contactId: contact.id,
+        phoneId: phone.id,
+        addressId: addressRecord?.id,
+        duration: `${duration}ms`
+      });
+
+
+      logPerformance('Contact Creation', duration, {
+        userId: user.id,
+        contactId: contact.id,
+        sellerId: sellerId
+      });
+
+      return {
+        user: {
+          id: user.id,
+          status: user.status,
+          createdBy: user.createdBy,
+          companyId: user.companyId
+        },
+        contact: {
+          id: contact.id,
+          firstName: contact.firstName,
+          lastName: contact.lastName
+        },
+        phoneNumber: {
+          id: phone.id,
+          type: phone.type,
+          number: phone.number
+        },
+        userRole: {
+          id: userRole.id,
+          name: userRole.name
+        },
+        address: addressRecord ? {
+          id: addressRecord.id,
+          street: addressRecord.street,
+          housename: addressRecord.housename,
+          city: addressRecord.city,
+          pincode: addressRecord.pincode
+        } : null,
+        company: {
+          id: seller.companyId
+        }
+      };
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 15000, // 15 second timeout for contact creation
     });
 
     return result;
   } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.SYSTEM, 'Contact creation failed', {
+      ...logContext,
+      error: error.message,
+      code: error.code,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
     throw new AppError('Failed to create contact: ' + error.message, 500);
   }
 };
@@ -598,6 +716,9 @@ export const deleteUser = async (userId, sellerId) => {
       await tx.user.delete({
         where: { id: userId }
       });
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 20000, // 20 second timeout for user deletion
     });
 
     return { success: true, message: 'User and all associated data deleted successfully' };
@@ -721,6 +842,9 @@ export const updateCustomer = async (userId, sellerId, updateData) => {
       });
 
       return updatedUser;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 15000, // 15 second timeout for user update
     });
 
     return result;

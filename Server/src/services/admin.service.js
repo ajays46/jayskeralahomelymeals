@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { saveBase64Image } from './imageUpload.service.js';
+import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * Admin Service - Business logic for admin operations and data management
@@ -82,95 +83,172 @@ export const companyDeleteService = async (id) => {
 };
 
 export const createProductService = async (productData) => {
-  
-  const {
-    productName,
-    code,
-    imageUrl,
-    companyId,
-    status,
-    category,
-    price,
-    quantity
-  } = productData;
+  const startTime = Date.now();
+  const logContext = {
+    productName: productData.productName,
+    code: productData.code,
+    companyId: productData.companyId,
+    category: productData.category?.productCategoryName,
+    timestamp: new Date().toISOString()
+  };
 
-  // Save image to uploads folder if it's a base64 string
-  let savedImageUrl = imageUrl;
-  if (imageUrl && imageUrl.startsWith('data:image/')) {
-    try {
-      // Create a clean filename: only first 20 characters, alphanumeric and hyphens only
-      const cleanProductName = productName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
-        .replace(/\s+/g, '-') // Replace spaces with hyphens
-        .substring(0, 20); // Take only first 20 characters
-      
-      const filename = saveBase64Image(imageUrl, `${cleanProductName}-${Date.now()}.jpg`);
-      savedImageUrl = `/uploads/${filename}`;
-    } catch (error) {
-      console.error('Error saving image:', error);
-      throw new Error(`Failed to save image: ${error.message}`);
+  try {
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Creating new product', logContext);
+    
+    const {
+      productName,
+      code,
+      imageUrl,
+      companyId,
+      status,
+      category,
+      price,
+      quantity
+    } = productData;
+
+    // Save image to uploads folder if it's a base64 string
+    let savedImageUrl = imageUrl;
+    if (imageUrl && imageUrl.startsWith('data:image/')) {
+      try {
+        // Create a clean filename: only first 20 characters, alphanumeric and hyphens only
+        const cleanProductName = productName
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+          .replace(/\s+/g, '-') // Replace spaces with hyphens
+          .substring(0, 20); // Take only first 20 characters
+        
+        const filename = saveBase64Image(imageUrl, `${cleanProductName}-${Date.now()}.jpg`);
+        savedImageUrl = `/uploads/${filename}`;
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product image saved successfully', {
+          ...logContext,
+          filename: filename
+        });
+      } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Failed to save product image', {
+          ...logContext,
+          error: error.message
+        });
+        throw new Error(`Failed to save image: ${error.message}`);
+      }
     }
-  }
 
-  // Use transaction to ensure all related records are created together
-  return await prisma.$transaction(async (tx) => {
-    // 1. Create the product
-    const product = await tx.product.create({
-      data: {
+    // Use transaction to ensure all related records are created together
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('Product Creation Transaction Started', {
         productName,
         code,
-        imageUrl: savedImageUrl,
-        companyId,
-        status,
-      },
-    });
+        companyId
+      });
 
-    // 2. Create product category
-    if (category && category.productCategoryName) {
-      await tx.productCategory.create({
+      // 1. Create the product
+      const product = await tx.product.create({
         data: {
+          productName,
+          code,
+          imageUrl: savedImageUrl,
           companyId,
-          productId: product.id,
-          productCategoryName: category.productCategoryName,
-          description: category.description || '',
+          status,
         },
       });
-    }
 
-    // 3. Create product price
-    if (price && price.length > 0) {
-      await tx.productPrice.create({
-        data: {
-          date: new Date(price[0].date),
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Product created successfully', {
+        ...logContext,
+        productId: product.id
+      });
+
+      // 2. Create product category
+      if (category && category.productCategoryName) {
+        await tx.productCategory.create({
+          data: {
+            companyId,
+            productId: product.id,
+            productCategoryName: category.productCategoryName,
+            description: category.description || '',
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product category created', {
+          ...logContext,
           productId: product.id,
-          price: price[0].price,
+          categoryName: category.productCategoryName
+        });
+      }
+
+      // 3. Create product price
+      if (price && price.length > 0) {
+        await tx.productPrice.create({
+          data: {
+            date: new Date(price[0].date),
+            productId: product.id,
+            price: price[0].price,
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product price created', {
+          ...logContext,
+          productId: product.id,
+          price: price[0].price
+        });
+      }
+
+      // 4. Create product quantity
+      if (quantity && quantity.length > 0) {
+        await tx.productQuantity.create({
+          data: {
+            date: new Date(quantity[0].date),
+            productId: product.id,
+            quantity: quantity[0].quantity,
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product quantity created', {
+          ...logContext,
+          productId: product.id,
+          quantity: quantity[0].quantity
+        });
+      }
+
+      // Return the created product with all related data
+      const completeProduct = await tx.product.findUnique({
+        where: { id: product.id },
+        include: {
+          company: true,
+          categories: true,
+          prices: true,
+          quantities: true,
         },
       });
-    }
 
-    // 4. Create product quantity
-    if (quantity && quantity.length > 0) {
-      await tx.productQuantity.create({
-        data: {
-          date: new Date(quantity[0].date),
-          productId: product.id,
-          quantity: quantity[0].quantity,
-        },
+      const duration = Date.now() - startTime;
+      logCritical(LOG_CATEGORIES.SYSTEM, 'Product creation completed successfully', {
+        ...logContext,
+        productId: product.id,
+        duration: `${duration}ms`
       });
-    }
 
-    // Return the created product with all related data
-    return await tx.product.findUnique({
-      where: { id: product.id },
-      include: {
-        company: true,
-        categories: true,
-        prices: true,
-        quantities: true,
-      },
+      logPerformance('Product Creation', duration, {
+        productId: product.id,
+        productName: productName
+      });
+
+      return completeProduct;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 15000, // 15 second timeout for product creation
     });
-  });
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.SYSTEM, 'Product creation failed', {
+      ...logContext,
+      error: error.message,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    throw error;
+  }
 };
 
 export const productListService = async () => {
@@ -226,149 +304,283 @@ export const getProductByIdService = async (productId) => {
 };
 
 export const updateProductService = async (productId, productData) => {
-  const {
-    productName,
-    code,
-    imageUrl,
-    companyId,
-    status,
-    category,
-    price,
-    quantity
-  } = productData;
+  const startTime = Date.now();
+  const logContext = {
+    productId,
+    productName: productData.productName,
+    code: productData.code,
+    companyId: productData.companyId,
+    category: productData.category?.productCategoryName,
+    timestamp: new Date().toISOString()
+  };
 
-  // Use transaction to ensure all related records are updated together
-  return await prisma.$transaction(async (tx) => {
-    // Check if product exists
-    const existingProduct = await tx.product.findUnique({
-      where: { id: productId }
-    });
+  try {
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Updating product', logContext);
+    
+    const {
+      productName,
+      code,
+      imageUrl,
+      companyId,
+      status,
+      category,
+      price,
+      quantity
+    } = productData;
 
-    if (!existingProduct) {
-      throw new Error('Product not found');
-    }
-
-    // Check if code is being changed and if it already exists
-    if (code !== existingProduct.code) {
-      const codeExists = await tx.product.findUnique({
-        where: { code }
-      });
-      if (codeExists) {
-        throw new Error('Product with this code already exists');
-      }
-    }
-
-    // Check if company exists
-    const company = await tx.company.findUnique({
-      where: { id: companyId }
-    });
-    if (!company) {
-      throw new Error('Company not found');
-    }
-
-    // 1. Update the product
-    const updatedProduct = await tx.product.update({
-      where: { id: productId },
-      data: {
+    // Use transaction to ensure all related records are updated together
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('Product Update Transaction Started', {
+        productId,
         productName,
-        code,
-        imageUrl,
-        companyId,
-        status,
-      },
-    });
+        code
+      });
 
-    // 2. Update product category (delete existing and create new)
-    await tx.productCategory.deleteMany({
-      where: { productId }
-    });
+      // Check if product exists
+      const existingProduct = await tx.product.findUnique({
+        where: { id: productId }
+      });
 
-    if (category && category.productCategoryName) {
-      await tx.productCategory.create({
+      if (!existingProduct) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Product not found for update', logContext);
+        throw new Error('Product not found');
+      }
+
+      // Check if code is being changed and if it already exists
+      if (code !== existingProduct.code) {
+        const codeExists = await tx.product.findUnique({
+          where: { code }
+        });
+        if (codeExists) {
+          logError(LOG_CATEGORIES.SYSTEM, 'Product code already exists', {
+            ...logContext,
+            existingCode: existingProduct.code,
+            newCode: code
+          });
+          throw new Error('Product with this code already exists');
+        }
+      }
+
+      // Check if company exists
+      const company = await tx.company.findUnique({
+        where: { id: companyId }
+      });
+      if (!company) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Company not found for product update', {
+          ...logContext,
+          companyId
+        });
+        throw new Error('Company not found');
+      }
+
+      // 1. Update the product
+      const updatedProduct = await tx.product.update({
+        where: { id: productId },
         data: {
+          productName,
+          code,
+          imageUrl,
           companyId,
-          productId: updatedProduct.id,
-          productCategoryName: category.productCategoryName,
-          description: category.description || '',
+          status,
         },
       });
-    }
 
-    // 3. Update product price (delete existing and create new)
-    await tx.productPrice.deleteMany({
-      where: { productId }
-    });
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Product updated successfully', {
+        ...logContext,
+        productId: updatedProduct.id
+      });
 
-    if (price && price.length > 0) {
-      await tx.productPrice.create({
-        data: {
-          date: new Date(price[0].date),
+      // 2. Update product category (delete existing and create new)
+      await tx.productCategory.deleteMany({
+        where: { productId }
+      });
+
+      if (category && category.productCategoryName) {
+        await tx.productCategory.create({
+          data: {
+            companyId,
+            productId: updatedProduct.id,
+            productCategoryName: category.productCategoryName,
+            description: category.description || '',
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product category updated', {
+          ...logContext,
           productId: updatedProduct.id,
-          price: price[0].price,
+          categoryName: category.productCategoryName
+        });
+      }
+
+      // 3. Update product price (delete existing and create new)
+      await tx.productPrice.deleteMany({
+        where: { productId }
+      });
+
+      if (price && price.length > 0) {
+        await tx.productPrice.create({
+          data: {
+            date: new Date(price[0].date),
+            productId: updatedProduct.id,
+            price: price[0].price,
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product price updated', {
+          ...logContext,
+          productId: updatedProduct.id,
+          price: price[0].price
+        });
+      }
+
+      // 4. Update product quantity (delete existing and create new)
+      await tx.productQuantity.deleteMany({
+        where: { productId }
+      });
+
+      if (quantity && quantity.length > 0) {
+        await tx.productQuantity.create({
+          data: {
+            date: new Date(quantity[0].date),
+            productId: updatedProduct.id,
+            quantity: quantity[0].quantity,
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product quantity updated', {
+          ...logContext,
+          productId: updatedProduct.id,
+          quantity: quantity[0].quantity
+        });
+      }
+
+      // Return the updated product with all related data
+      const completeProduct = await tx.product.findUnique({
+        where: { id: updatedProduct.id },
+        include: {
+          company: true,
+          categories: true,
+          prices: true,
+          quantities: true,
         },
       });
-    }
 
-    // 4. Update product quantity (delete existing and create new)
-    await tx.productQuantity.deleteMany({
-      where: { productId }
-    });
-
-    if (quantity && quantity.length > 0) {
-      await tx.productQuantity.create({
-        data: {
-          date: new Date(quantity[0].date),
-          productId: updatedProduct.id,
-          quantity: quantity[0].quantity,
-        },
+      const duration = Date.now() - startTime;
+      logCritical(LOG_CATEGORIES.SYSTEM, 'Product update completed successfully', {
+        ...logContext,
+        productId: updatedProduct.id,
+        duration: `${duration}ms`
       });
-    }
 
-    // Return the updated product with all related data
-    return await tx.product.findUnique({
-      where: { id: updatedProduct.id },
-      include: {
-        company: true,
-        categories: true,
-        prices: true,
-        quantities: true,
-      },
+      logPerformance('Product Update', duration, {
+        productId: updatedProduct.id,
+        productName: productName
+      });
+
+      return completeProduct;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 15000, // 15 second timeout for product update
     });
-  });
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.SYSTEM, 'Product update failed', {
+      ...logContext,
+      error: error.message,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    throw error;
+  }
 };
 
 export const deleteProductService = async (productId) => {
-  // Use transaction to ensure all related records are deleted together
-  return await prisma.$transaction(async (tx) => {
-    // Check if product exists
-    const existingProduct = await tx.product.findUnique({
-      where: { id: productId }
+  const startTime = Date.now();
+  const logContext = {
+    productId,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Deleting product', logContext);
+    
+    // Use transaction to ensure all related records are deleted together
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('Product Deletion Transaction Started', {
+        productId
+      });
+
+      // Check if product exists
+      const existingProduct = await tx.product.findUnique({
+        where: { id: productId }
+      });
+
+      if (!existingProduct) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Product not found for deletion', logContext);
+        throw new Error('Product not found');
+      }
+
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Product found for deletion', {
+        ...logContext,
+        productName: existingProduct.productName,
+        code: existingProduct.code
+      });
+
+      // Delete related records first (due to foreign key constraints)
+      await tx.productCategory.deleteMany({
+        where: { productId }
+      });
+
+      await tx.productPrice.deleteMany({
+        where: { productId }
+      });
+
+      await tx.productQuantity.deleteMany({
+        where: { productId }
+      });
+
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Product related records deleted', {
+        ...logContext,
+        productName: existingProduct.productName
+      });
+
+      // Delete the product
+      const deletedProduct = await tx.product.delete({
+        where: { id: productId }
+      });
+
+      const duration = Date.now() - startTime;
+      logCritical(LOG_CATEGORIES.SYSTEM, 'Product deletion completed successfully', {
+        ...logContext,
+        productName: deletedProduct.productName,
+        code: deletedProduct.code,
+        duration: `${duration}ms`
+      });
+
+      logPerformance('Product Deletion', duration, {
+        productId: productId,
+        productName: deletedProduct.productName
+      });
+
+      return deletedProduct;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 10000, // 10 second timeout for product deletion
     });
-
-    if (!existingProduct) {
-      throw new Error('Product not found');
-    }
-
-    // Delete related records first (due to foreign key constraints)
-    await tx.productCategory.deleteMany({
-      where: { productId }
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.SYSTEM, 'Product deletion failed', {
+      ...logContext,
+      error: error.message,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
-
-    await tx.productPrice.deleteMany({
-      where: { productId }
-    });
-
-    await tx.productQuantity.deleteMany({
-      where: { productId }
-    });
-
-    // Delete the product
-    const deletedProduct = await tx.product.delete({
-      where: { id: productId }
-    });
-
-    return deletedProduct;
-  });
+    
+    throw error;
+  }
 };
 
 // Menu services
@@ -505,6 +717,9 @@ export const deleteMenuService = async (menuId) => {
     });
 
     return deletedMenu;
+  }, {
+    isolationLevel: 'ReadCommitted', // Prevent dirty reads
+    timeout: 10000, // 10 second timeout for menu deletion
   });
 };
 
@@ -1385,6 +1600,9 @@ export const deleteOrderService = async (orderId) => {
     });
 
     return deletedOrder;
+  }, {
+    isolationLevel: 'ReadCommitted', // Prevent dirty reads
+    timeout: 10000, // 10 second timeout for order deletion
   });
 };
 

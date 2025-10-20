@@ -4,6 +4,7 @@ import { savePaymentReceipt, deletePaymentReceipt } from './paymentReceiptUpload
 import { createDeliveryItemsAfterPaymentService } from './deliveryItem.service.js';
 import { reduceProductQuantitiesService } from './inventory.service.js';
 import { createAddressForUser } from './seller.service.js';
+import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * Payment Service - Handles payment processing and payment-related operations
@@ -71,10 +72,23 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
 
 // Create a new payment
 export const createPaymentService = async (userId, paymentData) => {
+    const startTime = Date.now();
+    const logContext = {
+        userId,
+        orderId: paymentData.orderId,
+        paymentAmount: paymentData.paymentAmount,
+        paymentMethod: paymentData.paymentMethod,
+        receiptType: paymentData.receiptType,
+        timestamp: new Date().toISOString()
+    };
+
     try {
+        // Log payment creation start
+        logInfo(LOG_CATEGORIES.PAYMENT, 'Payment creation started', logContext);
+
         const { 
             orderId, 
-            paymentMethod, 
+            paymentMethod,
             paymentAmount, 
             receipt, 
             receiptType,
@@ -200,6 +214,13 @@ export const createPaymentService = async (userId, paymentData) => {
         
         // Create payment with transaction
         const payment = await prisma.$transaction(async (tx) => {
+            logTransaction('Payment Transaction Started', {
+                userId,
+                orderId,
+                paymentAmount,
+                paymentMethod
+            });
+
             let finalOrderId = orderId;
             
             
@@ -268,6 +289,13 @@ export const createPaymentService = async (userId, paymentData) => {
                     }
                 });
                 
+                logInfo(LOG_CATEGORIES.PAYMENT, 'Order created successfully', {
+                    orderId: newOrder.id,
+                    userId: orderUserId,
+                    totalPrice: paymentAmount,
+                    status: newOrder.status
+                });
+                
                 finalOrderId = newOrder.id;
                 order = newOrder;
             } else if (orderId) {
@@ -293,6 +321,14 @@ export const createPaymentService = async (userId, paymentData) => {
                 }
             });
 
+            logInfo(LOG_CATEGORIES.PAYMENT, 'Payment record created successfully', {
+                paymentId: newPayment.id,
+                orderId: finalOrderId,
+                paymentAmount: newPayment.paymentAmount,
+                paymentStatus: newPayment.paymentStatus,
+                paymentMethod: newPayment.paymentMethod
+            });
+
             // Create payment receipt record
             if (receiptUrl) {
                 await tx.paymentReceipt.create({
@@ -303,9 +339,35 @@ export const createPaymentService = async (userId, paymentData) => {
                         receipt: receiptUrl
                     }
                 });
+                
+                logInfo(LOG_CATEGORIES.PAYMENT, 'Payment receipt created successfully', {
+                    paymentId: newPayment.id,
+                    receiptUrl: receiptUrl
+                });
             }
 
             return newPayment;
+        }, {
+            isolationLevel: 'ReadCommitted', // Prevent dirty reads
+            timeout: 15000, // 15 second timeout for payment operations
+        });
+
+        // Log successful payment creation
+        const duration = Date.now() - startTime;
+        logCritical(LOG_CATEGORIES.PAYMENT, 'Payment created successfully', {
+            paymentId: payment.id,
+            orderId: payment.orderId,
+            userId: payment.userId,
+            paymentAmount: payment.paymentAmount,
+            paymentMethod: payment.paymentMethod,
+            paymentStatus: payment.paymentStatus,
+            duration: `${duration}ms`
+        });
+
+        logPerformance('Payment Creation', duration, {
+            paymentId: payment.id,
+            orderId: payment.orderId,
+            userId: payment.userId
         });
 
         // Create delivery items after the transaction is complete
@@ -367,10 +429,42 @@ export const createPaymentService = async (userId, paymentData) => {
 
         return completePayment;
     } catch (error) {
+        const duration = Date.now() - startTime;
+        
+        // Log critical error
+        logCritical(LOG_CATEGORIES.PAYMENT, 'Payment creation failed', {
+            ...logContext,
+            error: error.message,
+            code: error.code,
+            duration: `${duration}ms`,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+
         if (error instanceof AppError) {
             throw error;
         }
-        console.error('Payment creation error:', error);
+        
+        // Handle specific transaction errors
+        if (error.code === 'P2034') {
+            logError(LOG_CATEGORIES.PAYMENT, 'Payment transaction timeout', {
+                ...logContext,
+                timeout: '15 seconds'
+            });
+            throw new AppError('Payment operation timed out, please try again', 408);
+        } else if (error.code === 'P2002') {
+            logError(LOG_CATEGORIES.PAYMENT, 'Payment constraint violation', {
+                ...logContext,
+                constraint: 'unique constraint'
+            });
+            throw new AppError('Payment constraint violation', 409);
+        } else if (error.code === 'P2025') {
+            logError(LOG_CATEGORIES.PAYMENT, 'Payment record not found', {
+                ...logContext,
+                recordType: 'payment or order'
+            });
+            throw new AppError('Record not found', 404);
+        }
+        
         throw new AppError('Failed to create payment', 500);
     }
 };
@@ -616,6 +710,9 @@ export const deletePaymentService = async (userId, paymentId) => {
                 where: { id: payment.orderId },
                 data: { status: 'Pending' }
             });
+        }, {
+            isolationLevel: 'ReadCommitted', // Prevent dirty reads
+            timeout: 10000, // 10 second timeout for payment deletion
         });
 
         // Clean up receipt files from disk

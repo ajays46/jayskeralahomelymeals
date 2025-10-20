@@ -37,7 +37,10 @@ import CustomerOrdersPage from './pages/CustomerOrdersPage';
 import BookingWizardPage from './pages/BookingWizardPage';
 import PaymentWizardPage from './pages/PaymentWizardPage';
 import UploadReceiptPage from './pages/UploadReceiptPage';
+import RoleTestPage from './pages/RoleTestPage';
 import { initializeDraftCleanup } from './utils/draftOrderUtils';
+import RoleSelectionSidebar from './components/RoleSelectionSidebar';
+import useAuthStore from './stores/Zustand.store';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,14 +57,27 @@ const queryClient = new QueryClient({
  * Features: React Query setup, role-based routing, authentication guards
  */
 const App = () => {
+  const { showRoleSelector, setShowRoleSelector, roles } = useAuthStore();
+  
   // Initialize draft cleanup on app startup
   React.useEffect(() => {
     initializeDraftCleanup();
   }, []);
 
+  const handleCloseRoleSelector = () => {
+    setShowRoleSelector(false);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
+        {/* Role Selection Sidebar */}
+        <RoleSelectionSidebar 
+          isOpen={showRoleSelector}
+          onClose={handleCloseRoleSelector}
+          userRoles={roles}
+        />
+        
         <Routes>
           {/* <Route path="/register" element={<RegisterPage />} /> */}
           <Route path="/terms" element={<Terms />} />
@@ -105,6 +121,7 @@ const App = () => {
             <Route path='/jkhm/profile' element={<ProfilePage />}></Route>
             <Route path='/jkhm/create-user' element={<CreateUserPage />}></Route>
             <Route path='/jkhm/upload-receipt/:paymentId' element={<UploadReceiptPage />}></Route>
+            <Route path='/jkhm/role-test' element={<RoleTestPage />}></Route>
           </Route>
 
           {/* Add more protected routes here */}

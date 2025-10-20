@@ -1,6 +1,8 @@
 import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressForUser, deleteAddressForUser, getUserOrders, cancelDeliveryItem, deleteUser, updateCustomer } from '../services/seller.service.js';
 import { cancelOrderService } from '../services/order.service.js';
 import { saveAddressToExternalApi } from '../utils/externalApi.js';
+import prisma from '../config/prisma.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * Seller Controller - Handles seller-specific API endpoints and operations
@@ -28,6 +30,14 @@ export const createContactController = async (req, res, next) => {
       phoneNumber, 
       address, // Pass the address data
       sellerId // Pass the seller ID to track who created this user
+    });
+
+    // Log that contact was created successfully
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Contact created successfully', {
+      phoneNumber,
+      firstName,
+      contactId: result.contact.id,
+      userId: result.user.id
     });
     
     res.status(201).json({
@@ -308,3 +318,5 @@ export const getSellerProfile = async (req, res, next) => {
     next(error);
     }
 };
+
+
