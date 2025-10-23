@@ -20,6 +20,8 @@ import externalUploadRoutes from './routes/externalUpload.routes.js';
 import financialRoutes from './routes/financial.routes.js';
 import deliveryDashboardRoutes from './routes/deliveryDashboard.routes.js';
 import sellerPerformanceRoutes from './routes/sellerPerformance.routes.js';
+import zohoRoutes from './routes/zoho.routes.js';
+import { handleOAuthCallback } from './controllers/zoho.controller.js';
 import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
 import logRotationManager from './utils/logRotationManager.js';
 import { logInfo, logError, LOG_CATEGORIES } from './utils/criticalLogger.js';
@@ -130,6 +132,7 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/orders', orderRoutes);
 
 app.use('/api/payments', paymentRoutes);
+app.use('/api/zoho', zohoRoutes);
 app.use('/api', deliveryItemRoutes);
 app.use('/api/delivery-managers', deliveryManagerRoutes);
 app.use('/api/delivery-executives', deliveryExecutiveRoutes);
@@ -137,6 +140,9 @@ app.use('/api/external', externalUploadRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/delivery-dashboard', deliveryDashboardRoutes);
 app.use('/api/seller-performance', sellerPerformanceRoutes);
+
+// Add direct OAuth callback route for Zoho (matches your console configuration)
+app.get('/oauth/callback', handleOAuthCallback);
 
 // Error logging middleware (should be after routes but before error handler)
 app.use(errorLogger);

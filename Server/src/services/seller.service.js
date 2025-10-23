@@ -2,6 +2,7 @@ import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
 import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
+import { createContactInZohoCRM } from './zohoCRM.service.js';
 import crypto from 'crypto';
 
 /**
@@ -192,6 +193,77 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
         duration: `${duration}ms`
       });
 
+      // Create contact in Zoho CRM (async, don't wait for it)
+      console.log('🔄 [SELLER SERVICE] Triggering Zoho CRM sync for new contact...', {
+        firstName,
+        lastName,
+        phoneNumber,
+        userId: user.id,
+        contactId: contact.id
+      });
+      
+      createContactInZohoCRM({
+        firstName,
+        lastName,
+        phoneNumber,
+        email: uniqueEmail,
+        address: addressRecord ? {
+          street: addressRecord.street,
+          city: addressRecord.city,
+          pincode: addressRecord.pincode
+        } : null,
+        company: 'JayskeralaHM Customer'
+      }).then(zohoResult => {
+        if (zohoResult.success) {
+          console.log('✅ [SELLER SERVICE] Zoho CRM sync completed successfully!', {
+            firstName,
+            lastName,
+            phoneNumber,
+            userId: user.id,
+            contactId: contact.id,
+            zohoContactId: zohoResult.zohoContactId
+          });
+          
+          logInfo(LOG_CATEGORIES.SYSTEM, 'Contact synced to Zoho CRM successfully', {
+            ...logContext,
+            userId: user.id,
+            contactId: contact.id,
+            zohoContactId: zohoResult.zohoContactId
+          });
+        } else {
+          console.log('❌ [SELLER SERVICE] Zoho CRM sync failed:', {
+            firstName,
+            lastName,
+            phoneNumber,
+            userId: user.id,
+            contactId: contact.id,
+            zohoError: zohoResult.error
+          });
+          
+          logError(LOG_CATEGORIES.SYSTEM, 'Failed to sync contact to Zoho CRM', {
+            ...logContext,
+            userId: user.id,
+            contactId: contact.id,
+            zohoError: zohoResult.error
+          });
+        }
+      }).catch(error => {
+        console.log('💥 [SELLER SERVICE] Zoho CRM sync failed with exception:', {
+          firstName,
+          lastName,
+          phoneNumber,
+          userId: user.id,
+          contactId: contact.id,
+          error: error.message
+        });
+        
+        logError(LOG_CATEGORIES.SYSTEM, 'Zoho CRM sync failed with exception', {
+          ...logContext,
+          userId: user.id,
+          contactId: contact.id,
+          error: error.message
+        });
+      });
 
       logPerformance('Contact Creation', duration, {
         userId: user.id,
