@@ -37,13 +37,13 @@ router.post('/orders/:orderId/delivery-items-after-payment', createDeliveryItems
 router.get('/orders/:orderId/delivery-items', getDeliveryItemsByOrder);
 
 // Update delivery item status
-router.patch('/delivery-items/:deliveryItemId/status', updateDeliveryItemStatus);
+router.patch('/:deliveryItemId/status', updateDeliveryItemStatus);
 
 // Update delivery item address
-router.put('/delivery-items/:deliveryItemId/address', updateDeliveryItemAddress);
+router.put('/:deliveryItemId/address', updateDeliveryItemAddress);
 
 // Upload delivery image
-router.post('/delivery-items/upload-image', upload.single('image'), uploadDeliveryImage);
-router.get('/delivery-items/status/:deliveryItemId', getDeliveryItemStatus);
+router.post('/upload-image', upload.single('image'), uploadDeliveryImage);
+router.get('/status/:deliveryItemId', getDeliveryItemStatus);
 
 export default router;

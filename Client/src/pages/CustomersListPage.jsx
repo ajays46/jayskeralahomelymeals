@@ -53,6 +53,7 @@ const CustomersListPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [deletingUsers, setDeletingUsers] = useState(new Set());
   const [editingUsers, setEditingUsers] = useState(new Set());
+  const [generatingLinks, setGeneratingLinks] = useState(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [draftOrders, setDraftOrders] = useState([]);
@@ -305,6 +306,28 @@ const CustomersListPage = () => {
   const cancelDeleteUser = useCallback(() => {
     setShowDeleteModal(false);
     setUserToDelete(null);
+  }, []);
+
+  const handleGenerateLink = useCallback(async (userId) => {
+    setGeneratingLinks(prev => new Set(prev).add(userId));
+    try {
+      const response = await axiosInstance.post(`/seller/users/${userId}/generate-link`);
+      if (response.data.success) {
+        showSuccessToast('Customer portal link generated successfully!');
+        return response.data.data;
+      } else {
+        showErrorToast(response.data.message || 'Failed to generate customer link');
+      }
+    } catch (error) {
+      showErrorToast('Failed to generate customer link');
+      console.error('Error generating customer link:', error);
+    } finally {
+      setGeneratingLinks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+    }
   }, []);
 
   const handleResumeOrder = useCallback((draftOrder, action = 'payment') => {
@@ -648,12 +671,14 @@ const CustomersListPage = () => {
                 selectedCustomer={selectedCustomer}
                 editingUsers={editingUsers}
                 deletingUsers={deletingUsers}
+                generatingLinks={generatingLinks}
                 onEditUser={handleEditUser}
                 onDeleteUser={handleDeleteUser}
                 onResumeOrder={handleResumeOrder}
                 onUploadReceipt={() => {}} // Handled in CustomerCard
                 onBookOrder={() => {}} // Handled in CustomerCard
                 onViewOrders={() => {}} // Handled in CustomerCard
+                onGenerateLink={handleGenerateLink}
                 formatPrice={formatPrice}
                 formatDate={formatDate}
                 getDraftForCustomer={getDraftForCustomer}

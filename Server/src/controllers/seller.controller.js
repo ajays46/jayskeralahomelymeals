@@ -1,4 +1,4 @@
-import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressForUser, deleteAddressForUser, getUserOrders, cancelDeliveryItem, deleteUser, updateCustomer } from '../services/seller.service.js';
+import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressForUser, deleteAddressForUser, getUserOrders, cancelDeliveryItem, deleteUser, updateCustomer, generateCustomerAccessLink } from '../services/seller.service.js';
 import { cancelOrderService } from '../services/order.service.js';
 import { saveAddressToExternalApi } from '../utils/externalApi.js';
 import prisma from '../config/prisma.js';
@@ -317,6 +317,37 @@ export const getSellerProfile = async (req, res, next) => {
   } catch (error) {
     next(error);
     }
+};
+
+// Generate customer access link
+export const generateCustomerLinkController = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const sellerId = req.user.userId;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    const result = await generateCustomerAccessLink(userId, sellerId);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Customer access link generated via API', {
+      userId: userId,
+      sellerId: sellerId,
+      customerName: result.customerName
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Customer access link generated successfully',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 

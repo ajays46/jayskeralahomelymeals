@@ -9,12 +9,14 @@ const CustomerTable = memo(({
   selectedCustomer, 
   editingUsers, 
   deletingUsers, 
+  generatingLinks,
   onEditUser, 
   onDeleteUser, 
   onResumeOrder, 
   onUploadReceipt, 
   onBookOrder, 
   onViewOrders, 
+  onGenerateLink,
   formatPrice, 
   formatDate, 
   getDraftForCustomer, 
@@ -101,8 +103,10 @@ const CustomerTable = memo(({
               onUploadReceipt={onUploadReceipt}
               onBookOrder={onBookOrder}
               onViewOrders={onViewOrders}
+              onGenerateLink={onGenerateLink}
               isEditing={editingUsers.has(customer.id)}
               isDeleting={deletingUsers.has(customer.id)}
+              isGeneratingLink={generatingLinks.has(customer.id)}
               formatPrice={formatPrice}
               formatDate={formatDate}
               getDraftForCustomer={getDraftForCustomer}

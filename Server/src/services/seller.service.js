@@ -2,6 +2,7 @@ import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
 import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
+import { generateCustomerAccessToken } from '../utils/jwt.config.js';
 import crypto from 'crypto';
 
 /**
@@ -850,5 +851,54 @@ export const updateCustomer = async (userId, sellerId, updateData) => {
     return result;
   } catch (error) {
     throw new AppError('Failed to update customer: ' + error.message, 500);
+  }
+};
+
+// Generate customer access link for order status viewing
+export const generateCustomerAccessLink = async (userId, sellerId) => {
+  try {
+    // First verify that this user was created by the seller
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        createdBy: sellerId
+      },
+      include: {
+        contacts: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new AppError('User not found or not accessible by this seller', 404);
+    }
+
+    // Generate customer access token
+    const customerToken = generateCustomerAccessToken(userId);
+    
+    // Create the customer portal URL
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const customerPortalUrl = `${baseUrl}/customer-portal?token=${customerToken}`;
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Customer access link generated', {
+      userId: userId,
+      sellerId: sellerId,
+      customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Unknown'
+    });
+
+    return {
+      success: true,
+      customerPortalUrl: customerPortalUrl,
+      token: customerToken,
+      expiresIn: '30 days',
+      customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Unknown Customer',
+      securityNote: 'Token is automatically hidden from URL for security'
+    };
+  } catch (error) {
+    throw new AppError('Failed to generate customer access link: ' + error.message, 500);
   }
 };

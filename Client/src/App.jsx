@@ -38,6 +38,7 @@ import BookingWizardPage from './pages/BookingWizardPage';
 import PaymentWizardPage from './pages/PaymentWizardPage';
 import UploadReceiptPage from './pages/UploadReceiptPage';
 import RoleTestPage from './pages/RoleTestPage';
+import CustomerPortalPage from './pages/CustomerPortalPage';
 import { initializeDraftCleanup } from './utils/draftOrderUtils';
 import RoleSelectionSidebar from './components/RoleSelectionSidebar';
 import useAuthStore from './stores/Zustand.store';
@@ -123,6 +124,9 @@ const App = () => {
             <Route path='/jkhm/upload-receipt/:paymentId' element={<UploadReceiptPage />}></Route>
             <Route path='/jkhm/role-test' element={<RoleTestPage />}></Route>
           </Route>
+
+          {/* Customer Portal Route (No authentication required) */}
+          <Route path='/customer-portal' element={<CustomerPortalPage />}></Route>
 
           {/* Add more protected routes here */}
         </Routes>

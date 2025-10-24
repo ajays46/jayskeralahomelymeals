@@ -243,7 +243,7 @@ const DeliveryExecutivePage = () => {
     setLoadingStatus(prev => ({ ...prev, [stopIndex]: true }));
     
     try {
-      const response = await axiosInstance.get(`/delivery-items/status/${deliveryItemId}`);
+      const response = await axiosInstance.get(`/api/delivery-items/status/${deliveryItemId}`);
       
       if (response.data.success) {
         setDeliveryStatus(prev => ({
@@ -290,7 +290,7 @@ const DeliveryExecutivePage = () => {
       formData.append('session', selectedSession.charAt(0).toUpperCase() + selectedSession.slice(1)); // Breakfast, Lunch, Dinner
       formData.append('date', deliveryDate); // Use the Date from the specific stop
 
-      const response = await axiosInstance.post('/delivery-items/upload-image', formData, {
+      const response = await axiosInstance.post('/api/delivery-items/upload-image', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -400,7 +400,7 @@ const DeliveryExecutivePage = () => {
         longitude: completionLocation.longitude
       };
       
-      const response = await axiosInstance.put(`/delivery-items/${deliveryItemId}/address`, requestData);
+      const response = await axiosInstance.put(`/api/delivery-items/${deliveryItemId}/address`, requestData);
 
       if (response.data.success) {
         

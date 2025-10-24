@@ -9,7 +9,10 @@ import {
   MdAttachMoney, 
   MdVisibility, 
   MdEdit, 
-  MdDelete 
+  MdDelete,
+  MdLink,
+  MdContentCopy,
+  MdClose
 } from 'react-icons/md';
 import AddressModal from './AddressModal';
 
@@ -24,8 +27,10 @@ const CustomerCard = memo(({
   onUploadReceipt, 
   onBookOrder, 
   onViewOrders,
+  onGenerateLink,
   isEditing, 
   isDeleting, 
+  isGeneratingLink,
   formatPrice, 
   formatDate, 
   getDraftForCustomer, 
@@ -34,6 +39,7 @@ const CustomerCard = memo(({
   const navigate = useNavigate();
   const customerDraft = getDraftForCustomer(customer.id);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState(null);
 
   const handleResumeOrder = (e) => {
     e.preventDefault();
@@ -85,6 +91,28 @@ const CustomerCard = memo(({
 
   const handleCloseAddressModal = () => {
     setShowAddressModal(false);
+  };
+
+  const handleGenerateLink = async () => {
+    try {
+      const result = await onGenerateLink(customer.id);
+      if (result && result.customerPortalUrl) {
+        setGeneratedLink(result.customerPortalUrl);
+      }
+    } catch (error) {
+      console.error('Error generating link:', error);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (generatedLink) {
+      navigator.clipboard.writeText(generatedLink);
+      // You could add a toast notification here
+    }
+  };
+
+  const handleCloseLink = () => {
+    setGeneratedLink(null);
   };
 
   return (
@@ -235,6 +263,19 @@ const CustomerCard = memo(({
               </button>
               
               <button
+                onClick={handleGenerateLink}
+                disabled={isGeneratingLink}
+                className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-50"
+                title="Generate Customer Link"
+              >
+                {isGeneratingLink ? (
+                  <div className="animate-spin rounded-full w-5 h-5 border-2 border-purple-600 border-t-transparent"></div>
+                ) : (
+                  <MdLink className="w-5 h-5" />
+                )}
+              </button>
+              
+                <button
                 onClick={() => onEdit(customer)}
                 disabled={isEditing}
                 className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
@@ -432,6 +473,19 @@ const CustomerCard = memo(({
             </button>
             
             <button
+              onClick={handleGenerateLink}
+              disabled={isGeneratingLink}
+              className="p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-md transition-colors border border-purple-200 hover:border-purple-300 disabled:opacity-50"
+              title="Generate Customer Link"
+            >
+              {isGeneratingLink ? (
+                <div className="animate-spin rounded-full w-4 h-4 border-2 border-purple-600 border-t-transparent"></div>
+              ) : (
+                <MdLink className="w-4 h-4" />
+              )}
+            </button>
+            
+            <button
               onClick={() => onEdit(customer)}
               disabled={isEditing}
               className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors border border-blue-200 hover:border-blue-300 disabled:opacity-50"
@@ -464,6 +518,42 @@ const CustomerCard = memo(({
           </div>
         </div>
       </div>
+
+      {/* Generated Link Display */}
+      {generatedLink && (
+        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MdLink className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-medium text-green-800">Customer Portal Link Generated</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleCopyLink}
+                className="p-1 text-green-600 hover:text-green-800 hover:bg-green-100 rounded transition-colors"
+                title="Copy Link"
+              >
+                <MdContentCopy className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleCloseLink}
+                className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                title="Close"
+              >
+                <MdClose className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 p-2 bg-white border border-green-200 rounded text-xs text-gray-600 break-all">
+            {generatedLink}
+          </div>
+          <p className="mt-2 text-xs text-green-700">
+            This link allows the customer to view their order status. It expires in 30 days.
+            <br />
+            <span className="text-blue-600 font-medium">🔒 Token is automatically hidden from URL for security</span>
+          </p>
+        </div>
+      )}
 
       {/* Address Modal */}
       <AddressModal

@@ -12,7 +12,8 @@ import {
   cancelDeliveryItemController,
   cancelOrderController,
   deleteUserController,
-  updateCustomerController
+  updateCustomerController,
+  generateCustomerLinkController
 } from '../controllers/seller.controller.js';
 
 const router = express.Router();
@@ -35,5 +36,8 @@ router.put('/users/:userId', updateCustomerController);
 router.put('/orders/:orderId/cancel', cancelOrderController);
 router.put('/delivery-items/:deliveryItemId/cancel', cancelDeliveryItemController);
 router.delete('/users/:userId', deleteUserController);
+
+// Customer access link generation
+router.post('/users/:userId/generate-link', generateCustomerLinkController);
 
 export default router;
