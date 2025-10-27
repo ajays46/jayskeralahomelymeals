@@ -27,6 +27,7 @@ import { useMenusForBooking, useProductQuantitiesForMenus } from '../hooks/admin
 import { useAddress } from '../hooks/userHooks/userAddress';
 import { useOrder, useCalculateMenuPricing, useCalculateOrderTotal } from '../hooks/userHooks/useOrder';
 import { useAdminOrderBlock } from '../hooks/userHooks/useAdminOrderBlock';
+import { useGlobalSettings } from '../hooks/useGlobalSettings.js';
 import { 
   showSuccessToast, 
   showErrorToast, 
@@ -203,6 +204,7 @@ const BookingWizardPage = () => {
   const calculateMenuPricing = useCalculateMenuPricing();
   const calculateOrderTotal = useCalculateOrderTotal();
   const { showAdminBlockModal, handleOrderError, handleSwitchAccount, closeAdminBlockModal } = useAdminOrderBlock();
+  const { getAutoSelectionDays, getMenuTypeMessage, loading: settingsLoading, menuTypeConfig } = useGlobalSettings();
   const { user } = useAuthStore();
   const menus = menusData?.data || [];
   const productQuantities = productQuantitiesData?.data || {};
@@ -270,31 +272,6 @@ const BookingWizardPage = () => {
     return isWeekdayByName;
   };
 
-  const getAutoSelectionDays = (menu) => {
-    if (!menu) return 0;
-    
-    const itemName = menu.name?.toLowerCase() || '';
-    
-    // Only auto-select for specific menu types (works for both veg and non-veg):
-    
-    // Monthly menu - 30 days (including common typos)
-    if (itemName.includes('monthly') || itemName.includes('month') || itemName.includes('mohtly')) {
-      return 30;
-    }
-    
-    // Weekly menu - 7 days (exact match)
-    if (itemName.includes('weekly') || itemName.includes('full week')) {
-      return 7;
-    }
-    
-    // Week-day plan - 5 days (exact match)
-    if (itemName.includes('week-day') || itemName.includes('weekday') || itemName.includes('week day')) {
-      return 5;
-    }
-    
-    // No auto-selection for any other menu types
-    return 0;
-  };
 
   const formatDateForDisplay = (date) => {
     return date.toLocaleDateString('en-US', {
@@ -788,42 +765,50 @@ const BookingWizardPage = () => {
       return day >= 1 && day <= 5;
     };
     
-    // Use the startDate parameter and days to determine the selection logic
-    if (days === 30) {
-      // Monthly: Start from the selected date, but never from today
-      let startFromDate = new Date(startDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      startFromDate.setHours(0, 0, 0, 0);
+    // Dynamic selection logic based on days parameter
+    if (days > 0) {
+      // Get the selection type from global settings
+      let selectionType = 'consecutive'; // Default
       
-      // If the selected date is today or in the past, start from tomorrow
-      if (startFromDate.getTime() <= today.getTime()) {
-        startFromDate = new Date();
-        startFromDate.setDate(startFromDate.getDate() + 1);
+      // Find the matching menu type to get selection type
+      for (const [menuType, config] of Object.entries(menuTypeConfig)) {
+        if (config.autoDays === days) {
+          selectionType = config.selectionType || 'consecutive';
+          break;
+        }
       }
       
-      for (let i = 0; i < 30; i++) {
-        const date = new Date(startFromDate);
-        date.setDate(startFromDate.getDate() + i);
-        selectedDates.push(date);
-      }
-    } else if (days === 7) {
-      // Weekly: Start from next Monday from the clicked date, select Monday to Sunday (7 days)
-      const nextMonday = getNextMonday(startDate);
-      
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(nextMonday);
-        date.setDate(nextMonday.getDate() + i);
-        selectedDates.push(date);
-      }
-    } else if (days === 5) {
-      // Weekday: Start from next Monday from the clicked date, select Monday to Friday (5 weekdays)
-      const nextMonday = getNextMonday(startDate);
-      
-      for (let i = 0; i < 5; i++) {
-        const date = new Date(nextMonday);
-        date.setDate(nextMonday.getDate() + i);
-        selectedDates.push(date);
+      if (selectionType === 'weekdays_only') {
+        // Weekday selection: Start from next Monday, select only weekdays
+        const nextMonday = getNextMonday(startDate);
+        let currentDate = new Date(nextMonday);
+        let selectedCount = 0;
+        
+        while (selectedCount < days) {
+          if (isWeekday(currentDate)) {
+            selectedDates.push(new Date(currentDate));
+            selectedCount++;
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      } else {
+        // Consecutive selection: Select consecutive days
+        let startFromDate = new Date(startDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        startFromDate.setHours(0, 0, 0, 0);
+        
+        // If the selected date is today or in the past, start from tomorrow
+        if (startFromDate.getTime() <= today.getTime()) {
+          startFromDate = new Date();
+          startFromDate.setDate(startFromDate.getDate() + 1);
+        }
+        
+        for (let i = 0; i < days; i++) {
+          const date = new Date(startFromDate);
+          date.setDate(startFromDate.getDate() + i);
+          selectedDates.push(date);
+        }
       }
     }
     
@@ -843,7 +828,7 @@ const BookingWizardPage = () => {
     
     setSelectedMenu(menu);
     
-    // Auto-select dates based on menu type - works for both veg and non-veg
+    // Use dynamic configuration instead of hardcoded
     const autoSelectionDays = getAutoSelectionDays(menu);
     
     if (autoSelectionDays > 0) {
@@ -890,19 +875,8 @@ const BookingWizardPage = () => {
     
     setSelectedMenu(menu);
     
-    let menuMessage = '';
-    
-    if (menu.name?.toLowerCase().includes('monthly') || menu.name?.toLowerCase().includes('month')) {
-      menuMessage = 'Monthly Menu Selected! Click any date to auto-select 30 consecutive days.';
-    } else if (menu.name?.toLowerCase().includes('weekly') || menu.name?.toLowerCase().includes('week')) {
-      menuMessage = 'Weekly Menu Selected! Click any date to auto-select 7 consecutive days.';
-    } else if (menu.name?.toLowerCase().includes('WEEK DAY') || menu.name?.toLowerCase().includes('week day')) {
-      menuMessage = 'Week-Day Plan Selected! Click any date to auto-select 5 weekdays.';
-    } else if (menu.isDailyRateItem) {
-      menuMessage = 'Daily Rates Selected! Select individual dates for your meals.';
-    } else if (isWeekdayMenu(menu)) {
-      menuMessage = 'Weekday Menu Selected! Click any date to auto-select 5 weekdays.';
-    }
+    // Use dynamic message instead of hardcoded
+    const menuMessage = getMenuTypeMessage(menu);
     
     if (menuMessage) {
       setMenuPopupMessage(menuMessage);
@@ -1500,14 +1474,20 @@ const BookingWizardPage = () => {
                         ? (() => {
                             const days = getAutoSelectionDays(selectedMenu);
                             const menuName = selectedMenu.name?.toLowerCase() || '';
-                            if (days === 30) {
-                              return 'Click any date to auto-select 30 consecutive days from that date';
-                            } else if (days === 7) {
-                              return 'Click any date to auto-select next Monday to Sunday (7 days)';
-                            } else if (days === 5) {
-                              return 'Click any date to auto-select next Monday to Friday (5 weekdays)';
+                            // Get selection type from global settings
+                            let selectionType = 'consecutive';
+                            for (const [menuType, config] of Object.entries(menuTypeConfig)) {
+                              if (config.autoDays === days) {
+                                selectionType = config.selectionType || 'consecutive';
+                                break;
+                              }
                             }
-                            return `Click any date to auto-select ${days} days from that date`;
+                            
+                            if (selectionType === 'weekdays_only') {
+                              return `Click any date to auto-select next ${days} weekdays from that date`;
+                            } else {
+                              return `Click any date to auto-select ${days} consecutive days from that date`;
+                            }
                           })()
                         : 'Choose your preferred delivery dates'
                       }

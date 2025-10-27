@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaHome, FaRegChartBar, FaUsers, FaClipboardList, FaRegSquare, FaUser, FaBuilding, FaPlus, FaList, FaGlobe, FaUtensils, FaChevronDown, FaChevronUp, FaSignOutAlt } from 'react-icons/fa'; 
+import { FaHome, FaRegChartBar, FaUsers, FaClipboardList, FaRegSquare, FaUser, FaBuilding, FaPlus, FaList, FaGlobe, FaUtensils, FaChevronDown, FaChevronUp, FaSignOutAlt, FaCog } from 'react-icons/fa'; 
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLogout } from '../hooks/userHooks/useLogin';
 
@@ -28,6 +28,7 @@ const AdminSlide = ({ isFooter = false }) => {
     { icon: FaPlus, path: '/jkhm/admin/add-product', title: 'Add Product', color: 'hover:bg-red-200' },
     { icon: FaList, path: '/jkhm/admin/products', title: 'View Products', color: 'hover:bg-teal-200' },
     { icon: FaBuilding, path: '/jkhm/admin/company-create', title: 'Create Company', color: 'hover:bg-orange-200' },
+    { icon: FaCog, path: '/jkhm/admin/global-settings', title: 'Global Settings', color: 'hover:bg-purple-200' },
   ];
 
   const menuSubItems = [

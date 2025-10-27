@@ -4,6 +4,7 @@ import { savePaymentReceipt, deletePaymentReceipt } from './paymentReceiptUpload
 import { createDeliveryItemsAfterPaymentService } from './deliveryItem.service.js';
 import { reduceProductQuantitiesService } from './inventory.service.js';
 import { createAddressForUser } from './seller.service.js';
+import { getGlobalSetting } from './globalSettings.service.js';
 import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
@@ -17,6 +18,31 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
   const { selectedDates, orderItems, deliveryLocations, skipMeals } = orderData;
   const deliveryItems = [];
   let skippedMealsCount = 0;
+  
+  // Get delivery time slots from database once, outside the loop
+  let timeSlotConfig;
+  try {
+    timeSlotConfig = await getGlobalSetting('delivery_time_slots', {
+      breakfast: 'Breakfast',
+      lunch: 'Lunch',
+      dinner: 'Dinner'
+    });
+    console.log('✅ Global settings loaded:', timeSlotConfig);
+  console.log('📊 Order Data:', {
+    selectedDatesCount: selectedDates?.length || 0,
+    orderItemsCount: orderItems?.length || 0,
+    deliveryAddressId: orderData.deliveryAddressId,
+    userId
+  });
+  } catch (error) {
+    console.error('❌ Failed to load global settings:', error);
+    // Fallback to default values
+    timeSlotConfig = {
+      breakfast: 'Breakfast',
+      lunch: 'Lunch',
+      dinner: 'Dinner'
+    };
+  }
   
   for (const date of selectedDates) {
     // Handle both Date objects and date strings
@@ -37,12 +63,8 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
         continue;
       }
       
-      // Map meal type to delivery time slot
-      let deliveryTimeSlot = 'Breakfast'; // Default
-      if (item.mealType === 'breakfast') deliveryTimeSlot = 'Breakfast';
-      else if (item.mealType === 'lunch') deliveryTimeSlot = 'Lunch';
-      else if (item.mealType === 'dinner') deliveryTimeSlot = 'Dinner';
-      else deliveryTimeSlot = 'Breakfast'; // Fallback default
+      // Map meal type to delivery time slot using pre-fetched config
+      let deliveryTimeSlot = timeSlotConfig[item.mealType] || 'Breakfast';
       
       // Use meal-specific address if available, otherwise use primary address
       let itemAddressId = orderData.deliveryAddressId;
@@ -50,20 +72,37 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
         itemAddressId = deliveryLocations[item.mealType];
       }
       
-      const deliveryItem = await prismaClient.deliveryItem.create({
-        data: {
-          orderId: orderId,
-          menuItemId: item.menuItemId,
-          quantity: item.quantity,
-          deliveryDate: new Date(dateStr),
-          deliveryTimeSlot: deliveryTimeSlot,
-          addressId: itemAddressId,
-          userId: userId,
-          status: 'Pending'
-        }
+      console.log(`📦 Creating delivery item:`, {
+        orderId,
+        menuItemId: item.menuItemId,
+        quantity: item.quantity,
+        deliveryDate: dateStr,
+        deliveryTimeSlot,
+        addressId: itemAddressId,
+        userId,
+        mealType: item.mealType
       });
       
-      deliveryItems.push(deliveryItem);
+      try {
+        const deliveryItem = await prismaClient.deliveryItem.create({
+          data: {
+            orderId: orderId,
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            deliveryDate: new Date(dateStr),
+            deliveryTimeSlot: deliveryTimeSlot,
+            addressId: itemAddressId,
+            userId: userId,
+            status: 'Pending'
+          }
+        });
+        
+        console.log(`✅ Delivery item created:`, deliveryItem.id);
+        deliveryItems.push(deliveryItem);
+      } catch (error) {
+        console.error(`❌ Failed to create delivery item:`, error);
+        throw error;
+      }
     }
   }
   

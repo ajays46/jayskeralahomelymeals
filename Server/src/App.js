@@ -20,6 +20,7 @@ import externalUploadRoutes from './routes/externalUpload.routes.js';
 import financialRoutes from './routes/financial.routes.js';
 import deliveryDashboardRoutes from './routes/deliveryDashboard.routes.js';
 import sellerPerformanceRoutes from './routes/sellerPerformance.routes.js';
+import globalSettingsRoutes from './routes/globalSettings.routes.js';
 import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
 import logRotationManager from './utils/logRotationManager.js';
 import { logInfo, logError, LOG_CATEGORIES } from './utils/criticalLogger.js';
@@ -137,6 +138,7 @@ app.use('/api/external', externalUploadRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/delivery-dashboard', deliveryDashboardRoutes);
 app.use('/api/seller-performance', sellerPerformanceRoutes);
+app.use('/api/global-settings', globalSettingsRoutes);
 
 // Error logging middleware (should be after routes but before error handler)
 app.use(errorLogger);

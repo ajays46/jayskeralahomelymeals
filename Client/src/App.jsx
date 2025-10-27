@@ -24,6 +24,7 @@ import AddMenuPage from './pages/admin/AddMenuPage';
 import MenuItemPage from './pages/admin/MenuItemPage';
 import MenuItemsTablePage from './pages/admin/MenuItemsTablePage';
 import UsersPage from './pages/admin/UsersPage';
+import GlobalSettingsAdmin from './pages/GlobalSettingsAdmin';
 import ManagementDashboardPage from './pages/ManagementDashboardPage';
 import FinancialDashboardPage from './pages/FinancialDashboardPage';
 import DeliveryDashboardPage from './pages/DeliveryDashboardPage';
@@ -107,6 +108,7 @@ const App = () => {
             <Route path='/jkhm/admin/menu-items/:menuItemId' element={<MenuItemPage/>} ></Route>
             <Route path='/jkhm/admin/menu-items-table' element={<MenuItemsTablePage/>} ></Route>
             <Route path='/jkhm/admin/users' element={<UsersPage/>} ></Route>
+            <Route path='/jkhm/admin/global-settings' element={<GlobalSettingsAdmin/>} ></Route>
     
     
             <Route path='/jkhm/seller' element={<SellerPage />}></Route>
