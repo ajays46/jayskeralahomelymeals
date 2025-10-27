@@ -455,18 +455,3 @@ CREATE TABLE `delivery_executives` (
     UNIQUE INDEX `delivery_executives_user_id_key`(`user_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `customer_invites` (
-    `id` VARCHAR(36) NOT NULL,
-    `user_id` VARCHAR(36) NOT NULL,
-    `invite_token` VARCHAR(128) NOT NULL,
-    `status` ENUM('pending', 'accepted', 'expired', 'failed') NOT NULL DEFAULT 'pending',
-    `expires_at` DATETIME(3) NOT NULL,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `accepted_at` DATETIME(3) NULL,
-    `message_sid` VARCHAR(255) NULL,
-
-    UNIQUE INDEX `customer_invites_invite_token_key`(`invite_token`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
