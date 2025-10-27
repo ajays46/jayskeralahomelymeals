@@ -487,6 +487,16 @@ model DeliveryExecutive {
   @@map("delivery_executives")
 }
 
+model global_settings {
+  id          String   @id @db.VarChar(36)
+  key         String   @unique @db.VarChar(100)
+  value       String   @db.Text
+  description String?  @db.Text
+  category    String?  @db.VarChar(50)
+  created_at  DateTime @default(now())
+  updated_at  DateTime
+}
+
 enum Status {
   ACTIVE
   INACTIVE
@@ -603,4 +613,3 @@ enum DeliveryExecutiveStatus {
   ACTIVE
   INACTIVE
 }
-
