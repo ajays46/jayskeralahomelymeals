@@ -19,6 +19,7 @@ import {
   MdDashboard,
   MdLocalShipping
 } from 'react-icons/md';
+import { FiLogOut } from 'react-icons/fi';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
@@ -36,7 +37,7 @@ import { SkeletonTable, SkeletonFilters, SkeletonHeader, SkeletonPagination, Ske
 const CustomersListPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, roles } = useAuthStore();
+  const { user, roles, logout } = useAuthStore();
   const { sellerUsers, loading: sellerUsersLoading, getSellerUsers } = useSeller();
 
   // State management - optimized with fewer state variables
@@ -58,6 +59,7 @@ const CustomersListPage = () => {
   const [userToDelete, setUserToDelete] = useState(null);
   const [draftOrders, setDraftOrders] = useState([]);
   const successMessageShown = useRef(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -446,6 +448,43 @@ const CustomersListPage = () => {
     setSearchTerm('');
   }, []);
 
+  const handleLogout = useCallback(async () => {
+    try {
+      // Call logout API endpoint if it exists
+      try {
+        await axiosInstance.post('/auth/logout');
+      } catch (error) {
+        // Logout API call failed, proceeding with local logout
+      }
+      
+      // Clear all authentication data
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear any cookies if they exist
+      document.cookie.split(";").forEach(function(c) { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+      });
+      
+      // Clear axios default headers
+      delete axiosInstance.defaults.headers.common['Authorization'];
+      
+      // Call logout from store
+      logout();
+      
+      // Show success message
+      showSuccessToast('Logged out successfully');
+      
+      // Navigate to home page
+      navigate('/jkhm');
+      
+      // Force page reload to clear any remaining state
+      window.location.reload();
+    } catch (error) {
+      showErrorToast('Logout failed. Please try again.');
+    }
+  }, [navigate, logout]);
+
   // Effects
   useEffect(() => {
     if (user && roles?.includes('SELLER')) {
@@ -604,6 +643,14 @@ const CustomersListPage = () => {
                 <MdAdd className="w-4 h-4" />
                 <span className="hidden sm:inline">Add Customer</span>
               </button>
+              <button
+                onClick={() => setShowLogoutConfirm(true)}
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-all duration-200 shadow-sm"
+                title="Logout"
+              >
+                <FiLogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
             </div>
           </div>
         </div>
@@ -716,6 +763,42 @@ const CustomersListPage = () => {
         onCancel={cancelDeleteUser}
         onConfirm={confirmDeleteUser}
       />
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <FiLogOut className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Confirm Logout</h3>
+                <p className="text-gray-400 text-sm">Are you sure you want to logout?</p>
+              </div>
+            </div>
+            
+            <p className="text-gray-300 text-sm mb-6">
+              You will be redirected to the home page and all your session data will be cleared.
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
