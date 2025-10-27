@@ -79,12 +79,7 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const { setActiveRole, setUser, user } = useAuthStore();
   const [selectedRole, setSelectedRole] = useState(null);
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('RoleSelectionSidebar - isOpen:', isOpen, 'userRoles:', userRoles);
-  }, [isOpen, userRoles]);
-
-  // Filter out roles that don't have configuration
+    // Filter out roles that don't have configuration
   const availableRoles = userRoles.filter(role => roleConfig[role.toUpperCase()]);
 
   const handleRoleSelect = (role) => {
