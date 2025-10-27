@@ -125,7 +125,6 @@ export const getCustomerOrders = async (userId) => {
       }
     });
 
-    console.log(orders);
     return orders;
   } catch (error) {
     throw new AppError('Failed to fetch customer orders: ' + error.message, 500);

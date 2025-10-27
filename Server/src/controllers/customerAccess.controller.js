@@ -45,7 +45,6 @@ export const getCustomerOrdersController = async (req, res, next) => {
   try {
     const { token } = req.query;
     
-    console.log(token);
     if (!token) {
       return res.status(400).json({
         success: false,
