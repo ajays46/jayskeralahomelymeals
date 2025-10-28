@@ -36,7 +36,7 @@ const CustomerLoginPage = () => {
   // Fetch customer info if token provided
   const fetchCustomerInfo = async (urlToken) => {
     try {
-      const baseURL = import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000/api';
+      const baseURL = import.meta.env.VITE_PROD_API_URL 
       const response = await axios.get(`${baseURL}/customer-portal/validate-token?token=${urlToken}`);
       
       if (response.data.success) {

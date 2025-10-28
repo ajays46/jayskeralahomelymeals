@@ -85,7 +85,7 @@ const CustomerPortalPage = () => {
       setError(null);
 
       // First validate token and check password status
-      const baseURL = import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000/api';
+      const baseURL = import.meta.env.VITE_PROD_API_URL 
       
       // Validate token and get customer info
       const validateResponse = await axios.get(`${baseURL}/customer-portal/validate-token?token=${token}`);
