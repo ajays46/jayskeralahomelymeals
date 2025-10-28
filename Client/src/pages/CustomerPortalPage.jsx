@@ -84,25 +84,54 @@ const CustomerPortalPage = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch customer info and order summary
+      // First validate token and check password status
       const baseURL = import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000/api';
-      const [summaryResponse, ordersResponse, addressesResponse] = await Promise.all([
-        axios.get(`${baseURL}/customer-portal/order-summary?token=${token}`),
+      
+      // Validate token and get customer info
+      const validateResponse = await axios.get(`${baseURL}/customer-portal/validate-token?token=${token}`);
+      
+      if (validateResponse.data.success) {
+        const customerData = validateResponse.data.data;
+        
+        // Check if password setup is needed
+        if (customerData.needsPasswordSetup) {
+          // Redirect to password setup page
+          navigate(`/customer-password-setup?token=${token}`);
+          return;
+        }
+        
+        setCustomerInfo(customerData);
+      }
+
+      // Fetch orders and addresses
+      const [ordersResponse, addressesResponse] = await Promise.all([
         axios.get(`${baseURL}/customer-portal/orders?token=${token}`),
         axios.get(`${baseURL}/customer-portal/addresses?token=${token}`)
       ]);
 
-      if (summaryResponse.data.success) {
-        setCustomerInfo(summaryResponse.data.data.customer);
-        setOrderSummary(summaryResponse.data.data.summary);
-      }
-
       if (ordersResponse.data.success) {
         setOrders(ordersResponse.data.data.orders);
+        setCustomerInfo(ordersResponse.data.data.customer);
       }
 
       if (addressesResponse.data.success) {
         setAddresses(addressesResponse.data.data.addresses);
+      }
+
+      // Calculate summary from orders
+      if (ordersResponse.data.success) {
+        const orders = ordersResponse.data.data.orders;
+        const summary = {
+          totalOrders: orders.length,
+          totalSpent: orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0),
+          activeOrders: orders.filter(order => 
+            order.status === 'Payment_Confirmed' || order.status === 'In_Progress'
+          ).length,
+          completedOrders: orders.filter(order => order.status === 'Completed').length,
+          cancelledOrders: orders.filter(order => order.status === 'Cancelled').length,
+          recentOrders: orders.slice(0, 5)
+        };
+        setOrderSummary(summary);
       }
 
     } catch (error) {

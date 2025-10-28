@@ -881,7 +881,7 @@ export const generateCustomerAccessLink = async (userId, sellerId) => {
     const customerToken = generateCustomerAccessToken(userId);
     
     // Create the customer portal URL
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const baseUrl = process.env.FRONTEND_PROD_URL 
     const customerPortalUrl = `${baseUrl}/customer-portal?token=${customerToken}`;
 
     logInfo(LOG_CATEGORIES.SYSTEM, 'Customer access link generated', {
@@ -894,7 +894,7 @@ export const generateCustomerAccessLink = async (userId, sellerId) => {
       success: true,
       customerPortalUrl: customerPortalUrl,
       token: customerToken,
-      expiresIn: '30 days',
+      expiresIn: '24 hours',
       customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Unknown Customer',
       securityNote: 'Token is automatically hidden from URL for security'
     };
