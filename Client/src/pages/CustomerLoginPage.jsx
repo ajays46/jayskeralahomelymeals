@@ -99,7 +99,7 @@ const CustomerLoginPage = () => {
       setLoading(true);
       setErrors({});
       
-      const baseURL = import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000/api';
+      const baseURL = import.meta.env.VITE_PROD_API_URL
       
       // Login using phone number as identifier
       const response = await axios.post(`${baseURL}/auth/login`, {
