@@ -1,4 +1,4 @@
-import { validateCustomerToken, getCustomerOrders, getCustomerAddresses, getCustomerOrderSummary } from '../services/customerAccess.service.js';
+import { validateCustomerToken, getCustomerOrders, getCustomerAddresses, getCustomerOrderSummary, setupCustomerPassword } from '../services/customerAccess.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
@@ -120,6 +120,52 @@ export const getCustomerAddressesController = async (req, res, next) => {
       }
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// Setup customer password
+export const setupCustomerPasswordController = async (req, res, next) => {
+  try {
+    const { token } = req.query;
+    const { password } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Access token is required'
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    await setupCustomerPassword(token, password);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Customer password setup successfully', {
+      token: 'provided'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password set successfully'
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Customer password setup failed', {
+      error: error.message,
+      token: req.query.token ? 'provided' : 'missing'
+    });
     next(error);
   }
 };

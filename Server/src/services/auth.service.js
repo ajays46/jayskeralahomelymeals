@@ -96,7 +96,16 @@ export const loginUser = async ({ identifier, password }) => {
 
         const auth = await prisma.auth.findFirst({ where });
 
-        if (!auth || !(await bcrypt.compare(password, auth.password))) {
+        if (!auth) {
+            throw new AppError('Invalid credentials Please try again', 401);
+        }
+
+        // Check if password is still in placeholder state
+        if (auth.password === 'NO_PASSWORD_NEEDED') {
+            throw new AppError('Please setup your password first using the access link', 401);
+        }
+
+        if (!(await bcrypt.compare(password, auth.password))) {
             throw new AppError('Invalid credentials Please try again', 401);
         }
 

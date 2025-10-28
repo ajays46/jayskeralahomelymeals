@@ -548,7 +548,7 @@ const CustomerCard = memo(({
             {generatedLink}
           </div>
           <p className="mt-2 text-xs text-green-700">
-            This link allows the customer to view their order status. It expires in 30 days.
+            This link allows the customer to view their order status. It expires in 24 hours.
             <br />
             <span className="text-blue-600 font-medium">🔒 Token is automatically hidden from URL for security</span>
           </p>
