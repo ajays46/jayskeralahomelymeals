@@ -119,7 +119,7 @@ const CustomerPasswordSetupPage = () => {
 
     try {
       setSetupLoading(true);
-      const baseURL = import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000/api';
+      const baseURL = import.meta.env.VITE_PROD_API_URL
       
       const response = await axios.post(
         `${baseURL}/customer-portal/setup-password?token=${token}`,
