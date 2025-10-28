@@ -3,7 +3,8 @@ import {
   validateCustomerTokenController,
   getCustomerOrdersController,
   getCustomerOrderSummaryController,
-  getCustomerAddressesController
+  getCustomerAddressesController,
+  setupCustomerPasswordController
 } from '../controllers/customerAccess.controller.js';
 
 const router = express.Router();
@@ -13,5 +14,6 @@ router.get('/validate-token', validateCustomerTokenController);
 router.get('/orders', getCustomerOrdersController);
 router.get('/order-summary', getCustomerOrderSummaryController);
 router.get('/addresses', getCustomerAddressesController);
+router.post('/setup-password', setupCustomerPasswordController);
 
 export default router;

@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 /**
  * Customer Access Service - Handles customer portal access and data retrieval
@@ -36,7 +37,9 @@ export const validateCustomerToken = async (token) => {
         auth: {
           select: {
             email: true,
-            status: true
+            status: true,
+            password: true,
+            phoneNumber: true
           }
         }
       }
@@ -49,17 +52,74 @@ export const validateCustomerToken = async (token) => {
     return {
       userId: user.id,
       customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Customer',
-      phoneNumber: user.contacts?.[0]?.phoneNumbers?.[0]?.number || null,
-      email: user.auth.email
+      phoneNumber: user.contacts?.[0]?.phoneNumbers?.[0]?.number || user.auth.phoneNumber || null,
+      email: user.auth.email,
+      needsPasswordSetup: user.auth.password === 'NO_PASSWORD_NEEDED'
     };
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
-      throw new AppError('Access link has expired', 401);
+      throw new AppError('Access link has expired (24 hours). Please request a new link from your seller.', 401);
     }
     if (error.name === 'JsonWebTokenError') {
       throw new AppError('Invalid access link', 401);
     }
     throw new AppError('Token validation failed: ' + error.message, 401);
+  }
+};
+
+// Setup customer password
+export const setupCustomerPassword = async (token, password) => {
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    
+    if (decoded.type !== 'CUSTOMER_ACCESS') {
+      throw new AppError('Invalid token type', 401);
+    }
+
+    // Get user with auth info
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        auth: {
+          select: {
+            id: true,
+            password: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Check if password is already set
+    if (user.auth.password !== 'NO_PASSWORD_NEEDED') {
+      throw new AppError('Password already set up', 400);
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update the password
+    await prisma.auth.update({
+      where: { id: user.auth.id },
+      data: { password: hashedPassword }
+    });
+
+    return {
+      success: true,
+      message: 'Password set successfully'
+    };
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      throw new AppError('Access link has expired (24 hours). Please request a new link.', 401);
+    }
+    if (error.name === 'JsonWebTokenError') {
+      throw new AppError('Invalid access link', 401);
+    }
+    throw new AppError('Failed to setup password: ' + error.message, 500);
   }
 };
 
