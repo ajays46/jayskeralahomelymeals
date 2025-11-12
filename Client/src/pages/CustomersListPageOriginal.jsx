@@ -1005,7 +1005,7 @@ const CustomersListPage = () => {
                           )}
                           
                           <button
-                            onClick={() => navigate('/jkhm/delivery-items', { 
+                            onClick={() => navigate('/jkhm/customer-orders', { 
                               state: { 
                                 customer: customer
                               } 

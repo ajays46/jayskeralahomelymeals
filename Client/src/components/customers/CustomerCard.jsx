@@ -76,7 +76,7 @@ const CustomerCard = memo(({
   };
 
   const handleViewOrders = () => {
-    navigate('/jkhm/delivery-items', { 
+    navigate('/jkhm/customer-orders', { 
       state: { 
         customer: customer
       } 
