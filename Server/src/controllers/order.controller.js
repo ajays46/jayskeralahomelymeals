@@ -1,4 +1,5 @@
 import { createOrderService, getOrderByIdService, getOrdersByUserIdService, cancelOrderService } from '../services/order.service.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * Order Controller - Handles order-related API endpoints and business logic
@@ -35,6 +36,13 @@ export const createOrderController = async (req, res, next) => {
     // Create the order
     const result = await createOrderService(orderData);
 
+    logInfo(LOG_CATEGORIES.TRANSACTION, 'Order created successfully', {
+      orderId: result.order?.id,
+      userId: orderData.userId,
+      deliveryItemsCount: result.deliveryItems?.length || 0,
+      selectedDatesCount: orderData.selectedDates?.length || 0
+    });
+
     res.status(201).json({
       success: true,
       message: 'Order created successfully',
@@ -44,7 +52,11 @@ export const createOrderController = async (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error('Error in createOrderController:', error);
+    logError(LOG_CATEGORIES.TRANSACTION, 'Order creation failed', {
+      userId: req.body?.userId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to create order'
@@ -66,6 +78,10 @@ export const getOrderByIdController = async (req, res, next) => {
 
     const order = await getOrderByIdService(orderId);
 
+    logInfo(LOG_CATEGORIES.TRANSACTION, 'Order retrieved successfully', {
+      orderId: orderId
+    });
+
     res.status(200).json({
       success: true,
       message: 'Order retrieved successfully',
@@ -74,7 +90,11 @@ export const getOrderByIdController = async (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error('Error in getOrderByIdController:', error);
+    logError(LOG_CATEGORIES.TRANSACTION, 'Order retrieval failed', {
+      orderId: orderId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get order'
@@ -96,6 +116,11 @@ export const getOrdersByUserIdController = async (req, res, next) => {
 
     const orders = await getOrdersByUserIdService(userId);
 
+    logInfo(LOG_CATEGORIES.TRANSACTION, 'User orders retrieved successfully', {
+      userId: userId,
+      ordersCount: orders?.length || 0
+    });
+
     res.status(200).json({
       success: true,
       message: 'Orders retrieved successfully',
@@ -104,7 +129,11 @@ export const getOrdersByUserIdController = async (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error('Error in getOrdersByUserIdController:', error);
+    logError(LOG_CATEGORIES.TRANSACTION, 'User orders retrieval failed', {
+      userId: userId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get user orders'
@@ -128,6 +157,12 @@ export const cancelOrderController = async (req, res, next) => {
 
     const result = await cancelOrderService(orderId, userId, [userRole]);
 
+    logInfo(LOG_CATEGORIES.TRANSACTION, 'Order cancelled successfully', {
+      orderId: orderId,
+      userId: userId,
+      userRole: userRole
+    });
+
     res.status(200).json({
       success: true,
       message: 'Order cancelled successfully',
@@ -136,7 +171,13 @@ export const cancelOrderController = async (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error('Error in cancelOrderController:', error);
+    logError(LOG_CATEGORIES.TRANSACTION, 'Order cancellation failed', {
+      orderId: orderId,
+      userId: userId,
+      userRole: userRole,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to cancel order'

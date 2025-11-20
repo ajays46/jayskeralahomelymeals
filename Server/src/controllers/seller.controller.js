@@ -46,6 +46,12 @@ export const createContactController = async (req, res, next) => {
       data: result
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Contact creation failed', {
+      sellerId: req.user?.userId,
+      phoneNumber: req.body?.phoneNumber,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -57,12 +63,22 @@ export const getSellerUsers = async (req, res, next) => {
     
     const users = await getUsersBySeller(sellerId);
     
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Seller users retrieved successfully', {
+      sellerId: sellerId,
+      usersCount: users?.length || 0
+    });
+
     res.status(200).json({
       success: true,
       message: 'Seller users retrieved successfully',
       data: users
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Seller users retrieval failed', {
+      sellerId: req.user?.userId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -82,12 +98,24 @@ export const getUserAddressesController = async (req, res, next) => {
     
     const addresses = await getUserAddresses(userId, sellerId);
     
+    logInfo(LOG_CATEGORIES.SYSTEM, 'User addresses retrieved successfully', {
+      userId: userId,
+      sellerId: sellerId,
+      addressesCount: addresses?.length || 0
+    });
+
     res.status(200).json({
       success: true,
       message: 'User addresses retrieved successfully',
       data: addresses
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'User addresses retrieval failed', {
+      userId: userId,
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -132,14 +160,31 @@ export const createUserAddressController = async (req, res, next) => {
       });
     } catch (externalError) {
       // Don't throw error - address was saved successfully in our database
+      logError(LOG_CATEGORIES.SYSTEM, 'Failed to save address to external API', {
+        addressId: newAddress.id,
+        userId: userId,
+        error: externalError.message
+      });
     }
     
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Address created successfully for user', {
+      addressId: newAddress.id,
+      userId: userId,
+      sellerId: sellerId
+    });
+
     res.status(201).json({
       success: true,
       message: 'Address created successfully for user',
       data: newAddress
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Address creation failed', {
+      userId: userId,
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -160,17 +205,36 @@ export const deleteUserAddressController = async (req, res, next) => {
     const success = await deleteAddressForUser(userId, addressId, sellerId);
     
     if (success) {
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Address deleted successfully for user', {
+        addressId: addressId,
+        userId: userId,
+        sellerId: sellerId
+      });
+
       res.status(200).json({
         success: true,
         message: 'Address deleted successfully for user'
       });
     } else {
+      logError(LOG_CATEGORIES.SYSTEM, 'Address not found or could not be deleted', {
+        addressId: addressId,
+        userId: userId,
+        sellerId: sellerId
+      });
+
       res.status(404).json({
         success: false,
         message: 'Address not found or could not be deleted'
       });
     }
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Address deletion failed', {
+      addressId: addressId,
+      userId: userId,
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -190,12 +254,24 @@ export const getUserOrdersController = async (req, res, next) => {
     
     const orders = await getUserOrders(userId, sellerId);
     
+    logInfo(LOG_CATEGORIES.SYSTEM, 'User orders retrieved successfully', {
+      userId: userId,
+      sellerId: sellerId,
+      ordersCount: orders?.length || 0
+    });
+
     res.status(200).json({
       success: true,
       message: 'User orders retrieved successfully',
       data: orders
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'User orders retrieval failed', {
+      userId: userId,
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -215,12 +291,23 @@ export const cancelDeliveryItemController = async (req, res, next) => {
 
     const result = await cancelDeliveryItem(deliveryItemId, sellerId);
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery item cancelled successfully', {
+      deliveryItemId: deliveryItemId,
+      sellerId: sellerId
+    });
+
     res.status(200).json({
       success: true,
       message: 'Delivery item cancelled successfully',
       data: result
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery item cancellation failed', {
+      deliveryItemId: deliveryItemId,
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -240,12 +327,23 @@ export const cancelOrderController = async (req, res, next) => {
 
     const result = await cancelOrderService(orderId, sellerId, ['SELLER']);
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Order cancelled successfully by seller', {
+      orderId: orderId,
+      sellerId: sellerId
+    });
+
     res.status(200).json({
       success: true,
       message: 'Order cancelled successfully',
       data: result
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Order cancellation failed by seller', {
+      orderId: orderId,
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -265,12 +363,23 @@ export const deleteUserController = async (req, res, next) => {
 
     const result = await deleteUser(userId, sellerId);
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'User deleted successfully by seller', {
+      userId: userId,
+      sellerId: sellerId
+    });
+
     res.status(200).json({
       success: true,
       message: 'User deleted successfully',
       data: result
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'User deletion failed by seller', {
+      userId: userId,
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -291,12 +400,24 @@ export const updateCustomerController = async (req, res, next) => {
     
     const result = await updateCustomer(userId, sellerId, updateData);
     
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Customer updated successfully', {
+      userId: userId,
+      sellerId: sellerId,
+      updatedFields: Object.keys(updateData)
+    });
+
     res.status(200).json({
       success: true,
       message: 'Customer updated successfully',
       data: result
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Customer update failed', {
+      userId: userId,
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };
@@ -306,6 +427,10 @@ export const getSellerProfile = async (req, res, next) => {
   try {
     const sellerId = req.user.userId;
     
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Seller profile retrieved successfully', {
+      sellerId: sellerId
+    });
+
     res.status(200).json({
       success: true,
       message: 'Seller profile retrieved successfully',
@@ -315,6 +440,11 @@ export const getSellerProfile = async (req, res, next) => {
       }
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Seller profile retrieval failed', {
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
     }
 };
@@ -346,6 +476,12 @@ export const generateCustomerLinkController = async (req, res, next) => {
       data: result
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Customer access link generation failed', {
+      userId: userId,
+      sellerId: sellerId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
   }
 };

@@ -31,7 +31,8 @@ const RouteViewPage = () => {
   }, [location.state]);
 
   const goBack = () => {
-    navigate(-1); // Go back to previous page
+    // Navigate back to Route & Management tab in Delivery Manager page
+    navigate('/jkhm/delivery-manager?tab=routeManagement');
   };
 
   const generateMapLink = (location) => {

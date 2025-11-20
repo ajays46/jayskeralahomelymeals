@@ -7,6 +7,7 @@ import {
     deletePaymentService,
     uploadReceiptService
 } from '../services/payment.service.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * Payment Controller - Handles payment processing API endpoints and operations
@@ -36,12 +37,28 @@ export const createPayment = async (req, res, next) => {
 
         const payment = await createPaymentService(userId, paymentData);
 
+        logInfo(LOG_CATEGORIES.PAYMENT, 'Payment created successfully', {
+            paymentId: payment.id,
+            orderId: orderId,
+            paymentMethod: paymentMethod,
+            paymentAmount: paymentAmount,
+            userId: userId,
+            hasReceipt: !!receipt,
+            hasExternalReceipt: !!externalReceiptUrl
+        });
+
         res.status(201).json({
             success: true,
             message: receipt ? 'Payment created successfully' : 'Order created successfully. Payment receipt can be uploaded later.',
             data: { payment: payment }
         });
     } catch (error) {
+        logError(LOG_CATEGORIES.PAYMENT, 'Payment creation failed', {
+            userId: req.user?.userId,
+            orderId: req.body?.orderId,
+            error: error.message,
+            stack: error.stack
+        });
         next(error);
     }
 };
@@ -54,6 +71,11 @@ export const getPaymentById = async (req, res, next) => {
 
         const payment = await getPaymentByIdService(userId, paymentId);
 
+        logInfo(LOG_CATEGORIES.PAYMENT, 'Payment retrieved successfully', {
+            paymentId: paymentId,
+            userId: userId
+        });
+
         res.status(200).json({
             success: true,
             message: 'Payment retrieved successfully',
@@ -62,6 +84,11 @@ export const getPaymentById = async (req, res, next) => {
             }
         });
     } catch (error) {
+        logError(LOG_CATEGORIES.PAYMENT, 'Payment retrieval failed', {
+            paymentId: paymentId,
+            userId: userId,
+            error: error.message
+        });
         next(error);
     }
 };
@@ -80,6 +107,12 @@ export const getUserPayments = async (req, res, next) => {
 
         const payments = await getUserPaymentsService(userId, filters);
 
+        logInfo(LOG_CATEGORIES.PAYMENT, 'User payments retrieved successfully', {
+            userId: userId,
+            filters: filters,
+            paymentCount: payments?.length || 0
+        });
+
         res.status(200).json({
             success: true,
             message: 'User payments retrieved successfully',
@@ -88,6 +121,11 @@ export const getUserPayments = async (req, res, next) => {
             }
         });
     } catch (error) {
+        logError(LOG_CATEGORIES.PAYMENT, 'User payments retrieval failed', {
+            userId: userId,
+            filters: filters,
+            error: error.message
+        });
         next(error);
     }
 };
@@ -105,6 +143,13 @@ export const updatePaymentStatus = async (req, res, next) => {
 
         const payment = await updatePaymentStatusService(userId, paymentId, status);
 
+        logInfo(LOG_CATEGORIES.PAYMENT, 'Payment status updated successfully', {
+            paymentId: paymentId,
+            userId: userId,
+            newStatus: status,
+            previousStatus: payment?.status
+        });
+
         res.status(200).json({
             success: true,
             message: 'Payment status updated successfully',
@@ -113,6 +158,12 @@ export const updatePaymentStatus = async (req, res, next) => {
             }
         });
     } catch (error) {
+        logError(LOG_CATEGORIES.PAYMENT, 'Payment status update failed', {
+            paymentId: paymentId,
+            userId: userId,
+            status: status,
+            error: error.message
+        });
         next(error);
     }
 };
@@ -125,12 +176,22 @@ export const deletePayment = async (req, res, next) => {
 
         const result = await deletePaymentService(userId, paymentId);
 
+        logInfo(LOG_CATEGORIES.PAYMENT, 'Payment deleted successfully', {
+            paymentId: paymentId,
+            userId: userId
+        });
+
         res.status(200).json({
             success: true,
             message: result.message,
             data: result
         });
     } catch (error) {
+        logError(LOG_CATEGORIES.PAYMENT, 'Payment deletion failed', {
+            paymentId: paymentId,
+            userId: userId,
+            error: error.message
+        });
         next(error);
     }
 };
@@ -162,12 +223,25 @@ export const uploadPaymentReceipt = async (req, res, next) => {
 
         const payment = await uploadReceiptService(userId, paymentId, paymentData);
 
+        logInfo(LOG_CATEGORIES.PAYMENT, 'Payment receipt uploaded successfully', {
+            paymentId: paymentId,
+            userId: userId,
+            receiptType: paymentData.receiptType,
+            hasFile: !!receipt,
+            hasExternalUrl: !!externalReceiptUrl
+        });
+
         res.status(200).json({
             success: true,
             message: 'Payment receipt uploaded successfully',
             data: { payment: payment }
         });
     } catch (error) {
+        logError(LOG_CATEGORIES.PAYMENT, 'Payment receipt upload failed', {
+            paymentId: paymentId,
+            userId: userId,
+            error: error.message
+        });
         next(error);
     }
 }; 

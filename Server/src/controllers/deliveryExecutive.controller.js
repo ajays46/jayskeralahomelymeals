@@ -6,6 +6,7 @@ import {
   getAllDeliveryExecutives,
   deleteDeliveryExecutiveProfile
 } from '../services/deliveryExecutive.service.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * Delivery Executive Controller - Handles delivery executive API endpoints and operations
@@ -34,9 +35,19 @@ export const createOrUpdateProfile = async (req, res) => {
       longitude
     });
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery executive profile created/updated successfully', {
+      userId: userId,
+      hasImage: !!imageUrl,
+      hasLocation: !!(location && latitude && longitude)
+    });
+
     res.status(200).json(result);
   } catch (error) {
-    console.error('Error in createOrUpdateProfile:', error);
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery executive profile creation/update failed', {
+      userId: userId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -60,12 +71,23 @@ export const getProfile = async (req, res) => {
     const result = await getDeliveryExecutiveProfile(userId);
 
     if (!result.success) {
+      logError(LOG_CATEGORIES.SYSTEM, 'Delivery executive profile not found', {
+        userId: userId
+      });
       return res.status(404).json(result);
     }
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery executive profile retrieved successfully', {
+      userId: userId
+    });
+
     res.status(200).json(result);
   } catch (error) {
-    console.error('Error in getProfile:', error);
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery executive profile retrieval failed', {
+      userId: userId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -105,9 +127,18 @@ export const uploadImage = async (req, res) => {
 
     const result = await uploadDeliveryExecutiveImage(userId, imageData);
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery executive image uploaded successfully', {
+      userId: userId,
+      hasImageData: !!imageData
+    });
+
     res.status(200).json(result);
   } catch (error) {
-    console.error('Error in uploadImage:', error);
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery executive image upload failed', {
+      userId: userId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -151,9 +182,20 @@ export const updateLocation = async (req, res) => {
       longitude
     });
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery executive location updated successfully', {
+      userId: userId,
+      location: location,
+      latitude: latitude,
+      longitude: longitude
+    });
+
     res.status(200).json(result);
   } catch (error) {
-    console.error('Error in updateLocation:', error);
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery executive location update failed', {
+      userId: userId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -167,9 +209,16 @@ export const getAllProfiles = async (req, res) => {
   try {
     const result = await getAllDeliveryExecutives();
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'All delivery executive profiles retrieved successfully', {
+      count: result?.data?.length || 0
+    });
+
     res.status(200).json(result);
   } catch (error) {
-    console.error('Error in getAllProfiles:', error);
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to retrieve all delivery executive profiles', {
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -192,9 +241,17 @@ export const deleteProfile = async (req, res) => {
 
     const result = await deleteDeliveryExecutiveProfile(userId);
 
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery executive profile deleted successfully', {
+      userId: userId
+    });
+
     res.status(200).json(result);
   } catch (error) {
-    console.error('Error in deleteProfile:', error);
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery executive profile deletion failed', {
+      userId: userId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -232,6 +289,9 @@ export const getRoutes = async (req, res) => {
 
     if (response.status === 404 && data.error && data.error.includes('No routes found')) {
       // Handle case where no routes are found - this is not an error
+      logInfo(LOG_CATEGORIES.SYSTEM, 'No routes found for delivery executive', {
+        phoneNumber: phoneNumber
+      });
       res.json({
         success: true,
         message: 'No routes found for this delivery executive',
@@ -239,9 +299,18 @@ export const getRoutes = async (req, res) => {
       });
     } else if (!response.ok) {
       // Handle other errors
+      logError(LOG_CATEGORIES.SYSTEM, 'External API error when fetching routes', {
+        phoneNumber: phoneNumber,
+        status: response.status,
+        error: JSON.stringify(data)
+      });
       throw new Error(`External API responded with status: ${response.status} - ${JSON.stringify(data)}`);
     } else {
       // Success case
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Routes fetched successfully from external API', {
+        phoneNumber: phoneNumber,
+        routeCount: data?.length || 0
+      });
       res.json({
         success: true,
         message: 'Routes fetched successfully',
@@ -250,7 +319,11 @@ export const getRoutes = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Error in getRoutes:', error);
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch routes from external API', {
+      phoneNumber: phoneNumber,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Failed to fetch routes',

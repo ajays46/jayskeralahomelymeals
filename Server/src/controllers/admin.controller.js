@@ -3,6 +3,7 @@ import AppError from '../utils/AppError.js';
 import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService, createMenuCategoryService, menuCategoryListService, getMenuCategoryByIdService, updateMenuCategoryService, deleteMenuCategoryService, createMenuItemPriceService, menuItemPriceListService, getMenuItemPriceByIdService, updateMenuItemPriceService, deleteMenuItemPriceService, getMealsByDayService, getMenusForBookingService, getAllOrdersService, updateOrderStatusService, deleteOrderService, getProductQuantitiesForMenusService } from '../services/admin.service.js';
 import bcrypt from 'bcryptjs';
 import { generateApiKey } from '../utils/helpers.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * Admin Controller - Handles all admin-related API endpoints and business logic
@@ -799,7 +800,10 @@ export const getAdminUsers = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error fetching admin users:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching admin users', {
+            error: error.message,
+            stack: error.stack
+        });
         
         // Send a more user-friendly error response
         res.status(500).json({
@@ -963,7 +967,11 @@ export const getSellersWithOrders = async (req, res, next) => {
                         recentOrders: transformedOrders
                     };
                 } catch (error) {
-                    console.error(`Error processing seller ${seller.id}:`, error);
+                    logError(LOG_CATEGORIES.SYSTEM, `Error processing seller ${seller.id}`, {
+                        sellerId: seller.id,
+                        error: error.message,
+                        stack: error.stack
+                    });
                     return {
                         id: seller.id,
                         name: seller.auth.email.split('@')[0],
@@ -990,7 +998,10 @@ export const getSellersWithOrders = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error fetching sellers with orders:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching sellers with orders', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             status: 'error',
             message: 'Failed to fetch sellers with orders. Please try again.',
@@ -1045,7 +1056,10 @@ export const getDeliveryExecutives = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error fetching delivery executives:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching delivery executives', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             status: 'error',
             message: 'Failed to fetch delivery executives. Please try again.',
@@ -1093,7 +1107,10 @@ export const proxyRoutePlanning = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error in route planning proxy:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in route planning proxy', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to initiate route planning',
@@ -1146,7 +1163,10 @@ export const proxyExecutiveCount = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error in executive count proxy:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in executive count proxy', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to send executive count',
@@ -1205,7 +1225,12 @@ const pollForResults = async (requestId, maxAttempts = 30, intervalMs = 2000) =>
             await new Promise(resolve => setTimeout(resolve, intervalMs));
             
         } catch (error) {
-            console.error(`Polling attempt ${attempt} failed:`, error.message);
+            logError(LOG_CATEGORIES.SYSTEM, `Polling attempt ${attempt} failed`, {
+                attempt: attempt,
+                maxAttempts: maxAttempts,
+                error: error.message,
+                stack: error.stack
+            });
             if (attempt === maxAttempts) {
                 throw error;
             }
@@ -1289,7 +1314,10 @@ export const proxyRunScript = async (req, res, next) => {
         }
         
     } catch (error) {
-        console.error('Error in program execution proxy:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in program execution proxy', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to execute program',
@@ -1346,7 +1374,10 @@ export const proxySendRoutes = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error in send routes proxy:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in send routes proxy', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to send WhatsApp messages',
@@ -1397,7 +1428,10 @@ export const proxyFileContent = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error fetching file content:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching file content', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to fetch file content',
@@ -1437,7 +1471,10 @@ export const proxySessionData = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error in delivery data proxy:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in delivery data proxy', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to fetch delivery data',
@@ -1486,7 +1523,10 @@ export const getOrphanedUsers = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error fetching orphaned users:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching orphaned users', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             status: 'error',
             message: 'Failed to fetch orphaned users',
@@ -1556,7 +1596,10 @@ export const cleanupOrphanedUsers = async (req, res, next) => {
         });
         
     } catch (error) {
-        console.error('Error cleaning up orphaned users:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error cleaning up orphaned users', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             status: 'error',
             message: 'Failed to clean up orphaned users',
@@ -1758,7 +1801,10 @@ export const getActiveExecutives = async (req, res, next) => {
             message: `Successfully fetched ${data.length} active executives`
         });
     } catch (error) {
-        console.error('Error fetching active executives:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching active executives', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to fetch active executives from external API',
@@ -1906,7 +1952,10 @@ export const updateExecutiveStatus = async (req, res, next) => {
         }
 
     } catch (error) {
-        console.error('Error updating executive status:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error updating executive status', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to update executive status',
@@ -1952,7 +2001,10 @@ export const saveAllRoutes = async (req, res, next) => {
         });
 
     } catch (error) {
-        console.error('Error saving routes:', error);
+        logError(LOG_CATEGORIES.SYSTEM, 'Error saving routes', {
+            error: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to save routes',
