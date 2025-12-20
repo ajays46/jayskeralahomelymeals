@@ -13,3 +13,9 @@ export {
 export { 
   useSaveRoutes 
 } from './useSaveRoutes';
+
+export {
+  useVehicles,
+  useAssignVehicle,
+  useUnassignVehicle
+} from './useVehicles';

@@ -263,8 +263,8 @@ export const deleteProfile = async (req, res) => {
 
 // Get delivery routes for a phone number
 export const getRoutes = async (req, res) => {
+  const { phoneNumber } = req.params;
   try {
-    const { phoneNumber } = req.params;
       
     
     if (!phoneNumber) {

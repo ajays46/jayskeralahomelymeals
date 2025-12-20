@@ -1,6 +1,6 @@
 import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
-import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService, createMenuCategoryService, menuCategoryListService, getMenuCategoryByIdService, updateMenuCategoryService, deleteMenuCategoryService, createMenuItemPriceService, menuItemPriceListService, getMenuItemPriceByIdService, updateMenuItemPriceService, deleteMenuItemPriceService, getMealsByDayService, getMenusForBookingService, getAllOrdersService, updateOrderStatusService, deleteOrderService, getProductQuantitiesForMenusService } from '../services/admin.service.js';
+import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService, createMenuCategoryService, menuCategoryListService, getMenuCategoryByIdService, updateMenuCategoryService, deleteMenuCategoryService, createMenuItemPriceService, menuItemPriceListService, getMenuItemPriceByIdService, updateMenuItemPriceService, deleteMenuItemPriceService, getMealsByDayService, getMenusForBookingService, getAllOrdersService, updateOrderStatusService, deleteOrderService, getProductQuantitiesForMenusService, getVehiclesService, assignVehicleToExecutiveService, unassignVehicleFromExecutiveService } from '../services/admin.service.js';
 import bcrypt from 'bcryptjs';
 import { generateApiKey } from '../utils/helpers.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
@@ -1791,14 +1791,35 @@ export const getActiveExecutives = async (req, res, next) => {
         
         const data = await response.json();
         
+        // Handle different response structures from external API
+        // Structure 1: { success: true, executives: [...], vehicle_choices: [...] }
+        // Structure 2: { executives: [...], vehicle_choices: [...] }
+        // Structure 3: [...] (direct array)
+        let executivesArray = [];
+        let vehicleChoicesArray = [];
+        
+        if (Array.isArray(data)) {
+            executivesArray = data;
+        } else if (Array.isArray(data.executives)) {
+            executivesArray = data.executives;
+            vehicleChoicesArray = data.vehicle_choices || [];
+        } else if (data.data && Array.isArray(data.data)) {
+            executivesArray = data.data;
+            vehicleChoicesArray = data.vehicle_choices || [];
+        } else if (data.success && Array.isArray(data.executives)) {
+            executivesArray = data.executives;
+            vehicleChoicesArray = data.vehicle_choices || [];
+        }
+        
         res.status(200).json({
             success: true,
             data: {
-                executives: data, // Wrap the array in an executives property
-                total: data.length,
+                executives: executivesArray,
+                vehicle_choices: vehicleChoicesArray,
+                total: executivesArray.length,
                 timestamp: new Date().toISOString()
             },
-            message: `Successfully fetched ${data.length} active executives`
+            message: `Successfully fetched ${executivesArray.length} active executives`
         });
     } catch (error) {
         logError(LOG_CATEGORIES.SYSTEM, 'Error fetching active executives', {
@@ -2008,6 +2029,96 @@ export const saveAllRoutes = async (req, res, next) => {
         res.status(500).json({
             success: false,
             message: 'Failed to save routes',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Get vehicles
+export const getVehicles = async (req, res, next) => {
+    try {
+        const { user_id } = req.query;
+        
+        const vehicles = await getVehiclesService({ user_id });
+        
+        res.status(200).json({
+            success: true,
+            data: vehicles,
+            total: vehicles.length,
+            message: `Found ${vehicles.length} vehicle(s)`
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching vehicles', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch vehicles',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Assign vehicle to executive
+export const assignVehicleToExecutive = async (req, res, next) => {
+    try {
+        const { vehicleId, userId } = req.body;
+        
+        if (!vehicleId || !userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle ID and User ID are required'
+            });
+        }
+        
+        const result = await assignVehicleToExecutiveService(vehicleId, userId);
+        
+        res.status(200).json({
+            success: result.success,
+            data: result.data,
+            message: result.message || 'Vehicle assigned to executive successfully'
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error assigning vehicle to executive', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to assign vehicle to executive',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Unassign vehicle from executive
+export const unassignVehicleFromExecutive = async (req, res, next) => {
+    try {
+        const { vehicleId, userId } = req.body;
+        
+        if (!vehicleId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle ID is required'
+            });
+        }
+        
+        const result = await unassignVehicleFromExecutiveService(vehicleId, userId);
+        
+        res.status(200).json({
+            success: result.success,
+            data: result.data,
+            message: result.message || 'Vehicle unassigned from executive successfully'
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error unassigning vehicle from executive', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to unassign vehicle from executive',
             error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }

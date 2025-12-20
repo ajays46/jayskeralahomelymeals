@@ -479,7 +479,7 @@ const PaymentWizardPage = () => {
         const errorDetails = error.response.data.details || [];
         
         setExternalUploadError(errorMessage);
-        showErrorToast(`${errorMessage}. Please check your receipt and try again.`);
+          // Don't show toast here - let the calling function handle it to avoid duplicate toasts
         
         return { success: false, error: errorMessage, details: errorDetails };
       }

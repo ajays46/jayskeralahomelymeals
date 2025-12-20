@@ -1,0 +1,942 @@
+import {
+  checkApiHealthService,
+  getAvailableDatesService,
+  getDeliveryDataService,
+  planRouteService,
+  predictStartTimeService,
+  startJourneyService,
+  stopReachedService,
+  endJourneyService,
+  getJourneyStatusService,
+  getTrackingStatusService,
+  vehicleTrackingService,
+  getAllVehicleTrackingService,
+  getCurrentWeatherService,
+  getWeatherForecastService,
+  getWeatherZonesService,
+  getWeatherPredictionsService,
+  getZonesService,
+  getZoneByIdService,
+  createZoneService,
+  updateZoneService,
+  deleteZoneService,
+  getZoneDeliveriesService,
+  reoptimizeRouteService,
+  completeDriverSessionService,
+  getMissingGeoLocationsService,
+  updateGeoLocationService
+} from '../services/aiRoute.service.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
+
+/**
+ * AI Route Controller
+ * Handles AI route optimization API endpoints
+ * Features: Route planning, delivery data, journey tracking, analytics
+ */
+
+/**
+ * Check API Health
+ */
+export const checkApiHealth = async (req, res, next) => {
+  try {
+    const result = await checkApiHealthService();
+    
+    res.status(200).json({
+      success: result.success,
+      status: result.status,
+      service: result.service,
+      port: result.port,
+      timestamp: result.timestamp,
+      error: result.error,
+      message: result.message
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'API health check failed', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Available Dates
+ */
+export const getAvailableDates = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 30;
+    
+    const result = await getAvailableDatesService(limit);
+    
+    res.status(200).json({
+      success: true,
+      available_dates: result.available_dates
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch available dates', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Delivery Data
+ */
+export const getDeliveryData = async (req, res, next) => {
+  try {
+    const { date, session } = req.query;
+    
+    if (!date || !session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date and session are required'
+      });
+    }
+    
+    const result = await getDeliveryDataService({ date, session });
+    
+    // Structure response according to documentation
+    const deliveries = result.data || result.deliveries || [];
+    
+    res.status(200).json({
+      success: true,
+      deliveries: deliveries,
+      total: deliveries.length
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch delivery data', {
+      error: error.message,
+      date: req.query.date,
+      session: req.query.session
+    });
+    next(error);
+  }
+};
+
+/**
+ * Plan Route
+ */
+export const planRoute = async (req, res, next) => {
+  try {
+    const { delivery_date, delivery_session, num_drivers, depot_location } = req.body;
+    
+    if (!delivery_date || !delivery_session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Delivery date and session are required'
+      });
+    }
+    
+    const result = await planRouteService({
+      delivery_date,
+      delivery_session,
+      num_drivers,
+      depot_location
+    });
+    
+    // Extract routes data according to documentation structure
+    // Documentation shows: data.routes.routes[0].stops[]
+    const routesData = result.routes || {};
+    const routesArray = routesData.routes || [];
+    
+    // Extract route IDs for route_ids array
+    const routeIds = routesArray.map(r => r.route_id).filter(Boolean);
+    
+    // Structure response according to documentation
+    // Ensure all required fields are present
+    const responseData = {
+      success: result.success !== undefined ? result.success : true,
+      route_id: result.route_id,
+      main_route_id: result.main_route_id || result.route_id,
+      route_ids: result.route_ids || routeIds.length > 0 ? routeIds : [result.route_id].filter(Boolean),
+      delivery_date: delivery_date,
+      delivery_session: delivery_session,
+      num_drivers: result.num_drivers,
+      total_deliveries: result.total_deliveries,
+      routes: {
+        routes: routesArray.map((route, index) => {
+          // Build executive object from available data
+          const executiveData = route.executive || {};
+          const executive = {
+            user_id: route.driver_id || executiveData.user_id || `driver_${index + 1}`,
+            name: route.driver_name || executiveData.name || `Driver ${index + 1}`,
+            whatsapp_number: executiveData.whatsapp_number || null,
+            status: executiveData.status || 'ACTIVE',
+            vehicle_number: executiveData.vehicle_number || null
+          };
+          
+          // Ensure route has all necessary fields
+          return {
+            route_id: route.route_id || `${result.route_id}-${index + 1}`,
+            driver_id: route.driver_id || `driver_${index + 1}`,
+            executive: executive,
+            stops: route.stops || [],
+            estimated_time_hours: route.estimated_time_hours,
+            total_distance_km: route.total_distance_km || route.distance_km || 0,
+            // Keep additional fields for backward compatibility
+            num_stops: route.num_stops || route.stops?.length || 0,
+            confidence: route.confidence,
+            confidence_interval: route.confidence_interval,
+            risk_level: route.risk_level,
+            map_link: route.map_link,
+            location_link: route.location_link
+          };
+        })
+      },
+      route_comparison: result.route_comparison // Include comparison data if exists
+    };
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route planned successfully', {
+      delivery_date,
+      delivery_session,
+      num_drivers: responseData.num_drivers,
+      total_deliveries: responseData.total_deliveries,
+      routesCount: responseData.routes.routes.length,
+      stopsCount: responseData.routes.routes[0]?.stops?.length || 0
+    });
+    
+    res.status(200).json(responseData);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Route planning failed', {
+      error: error.message,
+      delivery_date: req.body?.delivery_date,
+      delivery_session: req.body?.delivery_session
+    });
+    next(error);
+  }
+};
+
+/**
+ * Predict Start Time
+ * Accepts either route_id OR (delivery_date + delivery_session + depot_location)
+ */
+export const predictStartTime = async (req, res, next) => {
+  try {
+    const { route_id, delivery_date, delivery_session, depot_location } = req.body;
+    
+    // If route_id is provided, use it; otherwise require date and session
+    if (route_id) {
+      const result = await predictStartTimeService({ route_id });
+      return res.status(200).json(result);
+    }
+    
+    if (!delivery_date || !delivery_session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either route_id OR (delivery_date and delivery_session) are required'
+      });
+    }
+    
+    const result = await predictStartTimeService({
+      delivery_date,
+      delivery_session,
+      depot_location
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Start time prediction failed', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Start Journey (NEW API: /api/journey/start)
+ * Executive starts journey with route_id and driver_id
+ */
+export const startJourney = async (req, res, next) => {
+  try {
+    const { route_id, driver_id } = req.body;
+    
+    if (!route_id || !driver_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_id and driver_id are required'
+      });
+    }
+    
+    const result = await startJourneyService({
+      route_id,
+      driver_id
+    });
+    
+    // Ensure response matches documentation structure
+    const responseData = {
+      success: result.success !== undefined ? result.success : true,
+      route_id: result.route_id || route_id,
+      driver_id: result.driver_id || driver_id,
+      executive_name: result.executive_name || result.executive?.name || null,
+      whatsapp_number: result.whatsapp_number || result.executive?.whatsapp_number || null,
+      vehicle_number: result.vehicle_number || result.executive?.vehicle_number || null,
+      start_time: result.start_time || new Date().toISOString(),
+      message: result.message || "Journey started successfully. Vehicle tracking is now active."
+    };
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Journey started successfully', {
+      route_id,
+      driver_id,
+      journey_id: result.journey_id
+    });
+    
+    res.status(200).json(responseData);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Journey start failed', {
+      error: error.message,
+      route_id: req.body?.route_id,
+      driver_id: req.body?.driver_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * Stop Reached (NEW API: /api/journey/stop-reached)
+ * Mark delivery stop as reached/delivered
+ */
+export const stopReached = async (req, res, next) => {
+  try {
+    const { user_id, route_id, stop_order, delivery_id, latitude, longitude, status, packages_delivered } = req.body;
+    
+    if (!user_id || !route_id || stop_order === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id, route_id, and stop_order are required'
+      });
+    }
+    
+    const result = await stopReachedService({
+      user_id,
+      route_id,
+      stop_order,
+      delivery_id,
+      latitude,
+      longitude,
+      status: status || 'delivered',
+      packages_delivered
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Stop reached marked successfully', {
+      route_id,
+      stop_order,
+      status
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Stop reached failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * End Journey (NEW API: /api/journey/end)
+ * End journey with final location
+ */
+export const endJourney = async (req, res, next) => {
+  try {
+    const { user_id, route_id, latitude, longitude } = req.body;
+    
+    if (!user_id || !route_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id and route_id are required'
+      });
+    }
+    
+    const result = await endJourneyService({
+      user_id,
+      route_id,
+      latitude,
+      longitude
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Journey ended successfully', {
+      route_id,
+      total_duration_minutes: result.total_duration_minutes
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Journey end failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Journey Status (NEW API: /api/journey/status/:route_id)
+ */
+export const getJourneyStatus = async (req, res, next) => {
+  try {
+    const { routeId } = req.params;
+    
+    if (!routeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'routeId is required'
+      });
+    }
+    
+    const result = await getJourneyStatusService(routeId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get journey status failed', {
+      error: error.message,
+      routeId: req.params?.routeId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Tracking Status
+ */
+export const getTrackingStatus = async (req, res, next) => {
+  try {
+    const { routeId } = req.params;
+    
+    if (!routeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'routeId is required'
+      });
+    }
+    
+    const result = await getTrackingStatusService(routeId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch tracking status', {
+      error: error.message,
+      routeId: req.params?.routeId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Vehicle Tracking
+ * Save vehicle GPS tracking points (complete journey tracking)
+ */
+export const vehicleTracking = async (req, res, next) => {
+  try {
+    const { route_id, driver_id, session_id, tracking_points } = req.body;
+    
+    if (!route_id || !tracking_points || !Array.isArray(tracking_points) || tracking_points.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_id and tracking_points are required'
+      });
+    }
+    
+    // Validate tracking points structure
+    for (const point of tracking_points) {
+      if (!point.timestamp || typeof point.latitude !== 'number' || typeof point.longitude !== 'number') {
+        return res.status(400).json({
+          success: false,
+          message: 'Each tracking point must have timestamp, latitude, and longitude'
+        });
+      }
+    }
+    
+    const result = await vehicleTrackingService({
+      route_id,
+      driver_id,
+      session_id,
+      tracking_points
+    });
+    
+    // Ensure response includes all documented fields
+    const responseData = {
+      success: result.success !== undefined ? result.success : true,
+      points_saved: result.points_saved || tracking_points.length,
+      route_id: result.route_id || route_id,
+      driver_id: result.driver_id || driver_id,
+      vehicle_number: result.vehicle_number || null,
+      start_time: result.start_time || null,
+      total_distance_km: result.total_distance_km || 0,
+      total_time_minutes: result.total_time_minutes || null
+    };
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Vehicle tracking data saved successfully', {
+      route_id,
+      points_saved: responseData.points_saved
+    });
+    
+    res.status(200).json(responseData);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Vehicle tracking failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+export const getAllVehicleTracking = async (req, res, next) => {
+  try {
+    const result = await getAllVehicleTrackingService();
+    logInfo(LOG_CATEGORIES.SYSTEM, 'All vehicle tracking fetched', {
+      data: result
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch all vehicle tracking', {
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get Current Weather
+ * Supports both lat/lng (documentation) and latitude/longitude (backward compatibility)
+ */
+export const getCurrentWeather = async (req, res, next) => {
+  try {
+    // Support both formats: lat/lng (doc) and latitude/longitude (current)
+    const lat = req.query.lat || req.query.latitude;
+    const lng = req.query.lng || req.query.longitude;
+    const zone_id = req.query.zone_id;
+    
+    // If zone_id is provided, try to get zone coordinates
+    let finalLat = lat;
+    let finalLng = lng;
+    
+    if (zone_id && (!lat || !lng)) {
+      try {
+        // Fetch zone details to get coordinates
+        const zoneData = await getZoneByIdService(zone_id);
+        if (zoneData?.zone?.boundaries) {
+          // Calculate center point from boundaries
+          const boundaries = zoneData.zone.boundaries;
+          finalLat = (boundaries.north + boundaries.south) / 2;
+          finalLng = (boundaries.east + boundaries.west) / 2;
+        } else if (zoneData?.zone?.center_lat && zoneData?.zone?.center_lng) {
+          // Use center coordinates if available
+          finalLat = zoneData.zone.center_lat;
+          finalLng = zoneData.zone.center_lng;
+        }
+      } catch (zoneError) {
+        // If zone lookup fails, try passing zone_id directly to external API
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Zone lookup failed, passing zone_id to external API', {
+          zone_id,
+          error: zoneError.message
+        });
+      }
+    }
+    
+    // If still no coordinates and no zone_id, return error
+    if (!finalLat || !finalLng) {
+      if (zone_id) {
+        // If zone_id was provided but we couldn't get coordinates, try passing zone_id directly
+        const result = await getCurrentWeatherService({ 
+          zone_id
+        });
+        return res.status(200).json(result);
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'lat and lng (or latitude and longitude) are required, or provide zone_id'
+        });
+      }
+    }
+    
+    const result = await getCurrentWeatherService({ 
+      zone_id, 
+      latitude: finalLat, 
+      longitude: finalLng 
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch current weather', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Weather Forecast
+ */
+export const getWeatherForecast = async (req, res, next) => {
+  try {
+    const { zone_id, latitude, longitude, days, session } = req.query;
+    
+    const result = await getWeatherForecastService({ 
+      zone_id, 
+      latitude, 
+      longitude, 
+      days: days ? parseInt(days) : 5,
+      session 
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch weather forecast', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Weather for All Zones
+ */
+export const getWeatherZones = async (req, res, next) => {
+  try {
+    const { priority, is_active } = req.query;
+    
+    const result = await getWeatherZonesService({ 
+      priority: priority ? parseInt(priority) : undefined,
+      is_active: is_active !== undefined ? parseInt(is_active) : 1
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zones weather', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Weather Predictions
+ */
+export const getWeatherPredictions = async (req, res, next) => {
+  try {
+    const { latitude, longitude, days, session } = req.query;
+    
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'latitude and longitude are required'
+      });
+    }
+    
+    const result = await getWeatherPredictionsService({
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      days: days ? parseInt(days) : 7,
+      session
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch weather predictions', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get All Zones
+ */
+export const getZones = async (req, res, next) => {
+  try {
+    const { is_active, zone_type } = req.query;
+    
+    const result = await getZonesService({
+      is_active: is_active !== undefined ? parseInt(is_active) : undefined,
+      zone_type
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zones', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Zone by ID
+ */
+export const getZoneById = async (req, res, next) => {
+  try {
+    const { zoneId } = req.params;
+    
+    if (!zoneId) {
+      return res.status(400).json({
+        success: false,
+        message: 'zoneId is required'
+      });
+    }
+    
+    const result = await getZoneByIdService(zoneId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zone', {
+      error: error.message,
+      zoneId: req.params?.zoneId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Create Zone
+ */
+export const createZone = async (req, res, next) => {
+  try {
+    const { id, name, center_latitude, center_longitude, radius_km, priority, zone_type, is_active } = req.body;
+    
+    if (!name || center_latitude === undefined || center_longitude === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'name, center_latitude, and center_longitude are required'
+      });
+    }
+    
+    const result = await createZoneService({
+      id,
+      name,
+      center_latitude,
+      center_longitude,
+      radius_km: radius_km || 2.0,
+      priority: priority || 1,
+      zone_type: zone_type || 'delivery',
+      is_active: is_active !== undefined ? is_active : 1
+    });
+    
+    res.status(201).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to create zone', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Update Zone
+ */
+export const updateZone = async (req, res, next) => {
+  try {
+    const { zoneId } = req.params;
+    const updateData = req.body;
+    
+    if (!zoneId) {
+      return res.status(400).json({
+        success: false,
+        message: 'zoneId is required'
+      });
+    }
+    
+    const result = await updateZoneService(zoneId, updateData);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update zone', {
+      error: error.message,
+      zoneId: req.params?.zoneId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Delete Zone
+ */
+export const deleteZone = async (req, res, next) => {
+  try {
+    const { zoneId } = req.params;
+    
+    if (!zoneId) {
+      return res.status(400).json({
+        success: false,
+        message: 'zoneId is required'
+      });
+    }
+    
+    const result = await deleteZoneService(zoneId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to delete zone', {
+      error: error.message,
+      zoneId: req.params?.zoneId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Zone Deliveries
+ */
+export const getZoneDeliveries = async (req, res, next) => {
+  try {
+    const { zoneId } = req.params;
+    const { date, session } = req.query;
+    
+    if (!zoneId) {
+      return res.status(400).json({
+        success: false,
+        message: 'zoneId is required'
+      });
+    }
+    
+    const result = await getZoneDeliveriesService(zoneId, { date, session });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zone deliveries', {
+      error: error.message,
+      zoneId: req.params?.zoneId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Re-optimize Route
+ */
+export const reoptimizeRoute = async (req, res, next) => {
+  try {
+    const { route_id, current_location, delay_minutes, traffic_data, weather_data } = req.body;
+    
+    if (!route_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_id is required'
+      });
+    }
+    
+    const result = await reoptimizeRouteService({
+      route_id,
+      current_location,
+      delay_minutes,
+      traffic_data,
+      weather_data
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route reoptimization completed', {
+      route_id,
+      reoptimized: result.reoptimized
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Route reoptimization failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * Complete Driver Session
+ */
+export const completeDriverSession = async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const { route_id, end_time } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId is required'
+      });
+    }
+    
+    const result = await completeDriverSessionService(sessionId, {
+      route_id,
+      end_time: end_time || new Date().toISOString()
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Driver session completed', {
+      session_id: sessionId,
+      route_id
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Driver session completion failed', {
+      error: error.message,
+      session_id: req.params?.sessionId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Missing Geo Locations
+ */
+export const getMissingGeoLocations = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    
+    const result = await getMissingGeoLocationsService(limit);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch missing geo locations', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Update Geo Location
+ */
+export const updateGeoLocation = async (req, res, next) => {
+  try {
+    const { address_id, delivery_item_id, geo_location } = req.body;
+    
+    if (!geo_location) {
+      return res.status(400).json({
+        success: false,
+        message: 'geo_location is required (format: "lat,lng")'
+      });
+    }
+    
+    if (!address_id && !delivery_item_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either address_id or delivery_item_id is required'
+      });
+    }
+    
+    // Validate geo_location format
+    const parts = geo_location.split(',');
+    if (parts.length !== 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'geo_location must be in format "latitude,longitude"'
+      });
+    }
+    
+    const lat = parseFloat(parts[0]);
+    const lng = parseFloat(parts[1]);
+    
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid latitude or longitude values'
+      });
+    }
+    
+    const result = await updateGeoLocationService({
+      address_id,
+      delivery_item_id,
+      geo_location
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Geo location updated successfully', {
+      address_id: result.address_id,
+      geo_location
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update geo location', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+

@@ -38,14 +38,11 @@ export const useLogin = () => {
         
         // Small delay to ensure AuthSlider closes first
         setTimeout(() => {
-          console.log('Login successful, roles:', roles);
           // Check if user has multiple roles
           if (roles.length > 1) {
-            console.log('User has multiple roles, showing role selector');
             // Show role selection sidebar
             setShowRoleSelector(true);
           } else {
-            console.log('User has single role, navigating to dashboard');
             // Navigate directly to role-specific dashboard
             const dashboardRoute = getDashboardRoute(roles);
             navigate(dashboardRoute);

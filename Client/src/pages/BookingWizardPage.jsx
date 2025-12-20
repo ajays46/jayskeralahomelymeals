@@ -348,6 +348,12 @@ const BookingWizardPage = () => {
       return 5;
     }
     
+    // Daily menu - 1 day (auto-select tomorrow)
+    // Check for "daily" in name OR if it's marked as daily rate item from backend
+    if (itemName.includes('daily') || menu.isDailyRateItem) {
+      return 1;
+    }
+    
     // No auto-selection for any other menu types
     return 0;
   };
@@ -845,7 +851,21 @@ const BookingWizardPage = () => {
     };
     
     // Use the startDate parameter and days to determine the selection logic
-    if (days === 30) {
+    if (days === 1) {
+      // Daily: Select tomorrow (or next day if selected date is today or in the past)
+      let selectedDate = new Date(startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+      // If the selected date is today or in the past, select tomorrow
+      if (selectedDate.getTime() <= today.getTime()) {
+        selectedDate = new Date();
+        selectedDate.setDate(selectedDate.getDate() + 1);
+      }
+      
+      selectedDates.push(selectedDate);
+    } else if (days === 30) { 
       // Monthly: Start from the selected date, but never from today
       let startFromDate = new Date(startDate);
       const today = new Date();
@@ -954,8 +974,8 @@ const BookingWizardPage = () => {
       menuMessage = 'Weekly Menu Selected! Click any date to auto-select 7 consecutive days.';
     } else if (menu.name?.toLowerCase().includes('WEEK DAY') || menu.name?.toLowerCase().includes('week day')) {
       menuMessage = 'Week-Day Plan Selected! Click any date to auto-select 5 weekdays.';
-    } else if (menu.isDailyRateItem) {
-      menuMessage = 'Daily Rates Selected! Select individual dates for your meals.';
+    } else if (menu.name?.toLowerCase().includes('daily') || menu.isDailyRateItem) {
+      menuMessage = 'Daily Menu Selected! Tomorrow has been auto-selected. You can change the date if needed.';
     } else if (isWeekdayMenu(menu)) {
       menuMessage = 'Weekday Menu Selected! Click any date to auto-select 5 weekdays.';
     }
@@ -1556,7 +1576,9 @@ const BookingWizardPage = () => {
                         ? (() => {
                             const days = getAutoSelectionDays(selectedMenu);
                             const menuName = selectedMenu.name?.toLowerCase() || '';
-                            if (days === 30) {
+                            if (days === 1) {
+                              return 'Tomorrow has been auto-selected. Click any date to change it.';
+                            } else if (days === 30) {
                               return 'Click any date to auto-select 30 consecutive days from that date';
                             } else if (days === 7) {
                               return 'Click any date to auto-select next Monday to Sunday (7 days)';

@@ -1,0 +1,888 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axiosInstance from '../../api/axios';
+
+/**
+ * AI Route Optimization Hooks
+ * React Query hooks for AI route optimization API calls
+ */
+
+// Query Keys
+export const aiRouteKeys = {
+  all: ['aiRoutes'],
+  health: () => [...aiRouteKeys.all, 'health'],
+  availableDates: () => [...aiRouteKeys.all, 'availableDates'],
+  deliveryData: (filters) => [...aiRouteKeys.all, 'deliveryData', filters],
+  routePlan: (params) => [...aiRouteKeys.all, 'routePlan', params],
+  trackingStatus: (routeId) => [...aiRouteKeys.all, 'trackingStatus', routeId],
+  allVehicleTracking: () => [...aiRouteKeys.all, 'allVehicleTracking'],
+  // Weather
+  currentWeather: (params) => [...aiRouteKeys.all, 'currentWeather', params],
+  weatherForecast: (params) => [...aiRouteKeys.all, 'weatherForecast', params],
+  weatherZones: (params) => [...aiRouteKeys.all, 'weatherZones', params],
+  weatherPredictions: (params) => [...aiRouteKeys.all, 'weatherPredictions', params],
+  // Zones
+  zones: (params) => [...aiRouteKeys.all, 'zones', params],
+  zone: (zoneId) => [...aiRouteKeys.all, 'zone', zoneId],
+  zoneDeliveries: (zoneId, params) => [...aiRouteKeys.all, 'zoneDeliveries', zoneId, params],
+  // Address
+  missingGeoLocations: (limit) => [...aiRouteKeys.all, 'missingGeoLocations', limit],
+};
+
+/**
+ * Check API Health
+ */
+export const useAIRouteHealth = (options = {}) => {
+  const {
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 30 * 1000, // 30 seconds
+    cacheTime = 5 * 60 * 1000, // 5 minutes
+    retry = 1,
+    retryDelay = 1000,
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.health(),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/health');
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to check API health');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Fetch Available Dates
+ */
+export const useAvailableDates = (options = {}) => {
+  const {
+    limit = 30,
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 5 * 60 * 1000, // 5 minutes
+    cacheTime = 10 * 60 * 1000, // 10 minutes
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.availableDates(),
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/ai-routes/delivery-data/available-dates`, {
+        params: { limit }
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch available dates');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Fetch Delivery Data
+ */
+export const useDeliveryData = (filters = {}, options = {}) => {
+  const {
+    date,
+    session,
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 2 * 60 * 1000, // 2 minutes
+    cacheTime = 5 * 60 * 1000, // 5 minutes
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.deliveryData({ date, session }),
+    queryFn: async () => {
+      const params = {};
+      if (date) params.date = date;
+      if (session) params.session = session;
+      
+      const response = await axiosInstance.get('/ai-routes/delivery-data', { params });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch delivery data');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!(date && session),
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Plan Route (Mutation)
+ */
+export const usePlanRoute = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (routeData) => {
+      const response = await axiosInstance.post('/ai-routes/route/plan', routeData);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to plan route');
+      }
+      
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate and refetch related queries
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.routePlan(variables) });
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.deliveryData() });
+    },
+    onError: (error) => {
+      console.error('Error planning route:', error);
+    }
+  });
+};
+
+/**
+ * Predict Start Time (Mutation)
+ */
+export const usePredictStartTime = () => {
+  return useMutation({
+    mutationFn: async (predictionData) => {
+      const response = await axiosInstance.post('/ai-routes/route/predict-start-time', predictionData);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to predict start time');
+      }
+      
+      return response.data;
+    },
+    onError: (error) => {
+      console.error('Error predicting start time:', error);
+    }
+  });
+};
+
+/**
+ * Start Journey (Mutation) - NEW API: /api/journey/start
+ * Sends: route_id, driver_id (per documentation)
+ */
+export const useStartJourney = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (journeyData) => {
+      const { route_id, driver_id } = journeyData;
+      
+      const response = await axiosInstance.post('/ai-routes/journey/start', {
+        route_id,
+        driver_id
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to start journey');
+      }
+      
+      return response.data;
+    },
+    onSuccess: (data) => {
+      if (data.route_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: aiRouteKeys.trackingStatus(data.route_id) 
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
+    },
+    onError: (error) => {
+      console.error('Error starting journey:', error);
+    }
+  });
+};
+
+/**
+ * Stop Reached (Mutation) - NEW API: /api/journey/stop-reached
+ * Mark delivery stop as reached/delivered
+ */
+export const useStopReached = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (stopData) => {
+      const { user_id, route_id, stop_order, delivery_id, latitude, longitude, status, packages_delivered } = stopData;
+      
+      const response = await axiosInstance.post('/ai-routes/journey/stop-reached', {
+        user_id,
+        route_id,
+        stop_order,
+        delivery_id,
+        latitude,
+        longitude,
+        status: status || 'delivered',
+        packages_delivered
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to mark stop reached');
+      }
+      
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      if (variables.route_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: aiRouteKeys.trackingStatus(variables.route_id) 
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
+    },
+    onError: (error) => {
+      console.error('Error marking stop reached:', error);
+    }
+  });
+};
+
+/**
+ * End Journey (Mutation) - NEW API: /api/journey/end
+ * End journey with final location
+ */
+export const useEndJourney = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (journeyData) => {
+      const { user_id, route_id, latitude, longitude } = journeyData;
+      
+      const response = await axiosInstance.post('/ai-routes/journey/end', {
+        user_id,
+        route_id,
+        latitude,
+        longitude
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to end journey');
+      }
+      
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      if (variables.route_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: aiRouteKeys.trackingStatus(variables.route_id) 
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
+    },
+    onError: (error) => {
+      console.error('Error ending journey:', error);
+    }
+  });
+};
+
+/**
+ * Get Journey Status - NEW API: /api/journey/status/:route_id
+ */
+export const useJourneyStatus = (routeId, options = {}) => {
+  const {
+    enabled = true,
+    refetchInterval = 30000,
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.trackingStatus(routeId),
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/ai-routes/journey/status/${routeId}`);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get journey status');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!routeId,
+    refetchInterval,
+    ...queryOptions
+  });
+};
+
+/**
+ * Fetch Tracking Status
+ */
+export const useTrackingStatus = (routeId, options = {}) => {
+  const {
+    enabled = true,
+    refetchInterval = 30000, // Refetch every 30 seconds for active routes
+    refetchOnWindowFocus = true,
+    staleTime = 10 * 1000, // 10 seconds
+    cacheTime = 5 * 60 * 1000, // 5 minutes
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.trackingStatus(routeId),
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/ai-routes/route/tracking-status/${routeId}`);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch tracking status');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!routeId,
+    refetchInterval,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Vehicle Tracking (Mutation)
+ * Save vehicle GPS tracking points for complete journey tracking
+ */
+export const useVehicleTracking = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (trackingData) => {
+      const response = await axiosInstance.post('/ai-routes/vehicle-tracking', trackingData);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to save vehicle tracking data');
+      }
+      
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate tracking status for the route
+      if (variables.route_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: aiRouteKeys.trackingStatus(variables.route_id) 
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
+    },
+    onError: (error) => {
+      console.error('Error saving vehicle tracking:', error);
+    }
+  });
+};
+
+/**
+ * Get All Vehicle Tracking
+ * Fetch all active vehicle tracking data
+ */
+export const useGetAllVehicleTracking = (options = {}) => {
+  const {
+    enabled = true,
+    refetchInterval = 30000, // Refetch every 30 seconds for real-time updates
+    refetchOnWindowFocus = true,
+    staleTime = 10 * 1000, // 10 seconds
+    cacheTime = 5 * 60 * 1000, // 5 minutes
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.allVehicleTracking(),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/vehicle/tracking/all');
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch all vehicle tracking');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    refetchInterval,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Current Weather
+ */
+export const useCurrentWeather = (params = {}, options = {}) => {
+  const {
+    zone_id,
+    latitude,
+    longitude,
+    lat, // Support 'lat' from documentation
+    lng  // Support 'lng' from documentation
+  } = params;
+  
+  const {
+    enabled = true,
+    refetchInterval = 5 * 60 * 1000, // 5 minutes
+    staleTime = 2 * 60 * 1000, // 2 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.currentWeather({ zone_id, latitude: lat || latitude, longitude: lng || longitude }),
+    queryFn: async () => {
+      const queryParams = {};
+      if (zone_id) queryParams.zone_id = zone_id;
+      // Support both 'lat'/'lng' (documentation) and 'latitude'/'longitude' (current)
+      if (lat || latitude) queryParams.lat = lat || latitude;
+      if (lng || longitude) queryParams.lng = lng || longitude;
+      
+      const response = await axiosInstance.get('/ai-routes/weather/current', { params: queryParams });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch current weather');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    refetchInterval,
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Weather Forecast
+ */
+export const useWeatherForecast = (params = {}, options = {}) => {
+  const {
+    zone_id,
+    latitude,
+    longitude,
+    days = 5,
+    session
+  } = params;
+  
+  const {
+    enabled = true,
+    staleTime = 10 * 60 * 1000, // 10 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.weatherForecast({ zone_id, latitude, longitude, days, session }),
+    queryFn: async () => {
+      const queryParams = { days };
+      if (zone_id) queryParams.zone_id = zone_id;
+      if (latitude) queryParams.latitude = latitude;
+      if (longitude) queryParams.longitude = longitude;
+      if (session) queryParams.session = session;
+      
+      const response = await axiosInstance.get('/ai-routes/weather/forecast', { params: queryParams });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch weather forecast');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Weather for All Zones
+ */
+export const useWeatherZones = (params = {}, options = {}) => {
+  const {
+    priority,
+    is_active = 1
+  } = params;
+  
+  const {
+    enabled = true,
+    refetchInterval = 5 * 60 * 1000, // 5 minutes
+    staleTime = 2 * 60 * 1000, // 2 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.weatherZones({ priority, is_active }),
+    queryFn: async () => {
+      const queryParams = { is_active };
+      if (priority !== undefined) queryParams.priority = priority;
+      
+      const response = await axiosInstance.get('/ai-routes/weather/zones', { params: queryParams });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch zones weather');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    refetchInterval,
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Weather Predictions
+ */
+export const useWeatherPredictions = (params = {}, options = {}) => {
+  const {
+    latitude,
+    longitude,
+    days = 7,
+    session
+  } = params;
+  
+  const {
+    enabled = true,
+    staleTime = 30 * 60 * 1000, // 30 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.weatherPredictions({ latitude, longitude, days, session }),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/weather/predictions', { 
+        params: { latitude, longitude, days, session } 
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch weather predictions');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!latitude && !!longitude,
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get All Zones
+ */
+export const useZones = (params = {}, options = {}) => {
+  const {
+    is_active,
+    zone_type
+  } = params;
+  
+  const {
+    enabled = true,
+    staleTime = 10 * 60 * 1000, // 10 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.zones({ is_active, zone_type }),
+    queryFn: async () => {
+      const queryParams = {};
+      if (is_active !== undefined) queryParams.is_active = is_active;
+      if (zone_type) queryParams.zone_type = zone_type;
+      
+      const response = await axiosInstance.get('/ai-routes/zones', { params: queryParams });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch zones');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Zone by ID
+ */
+export const useZone = (zoneId, options = {}) => {
+  const {
+    enabled = true,
+    staleTime = 10 * 60 * 1000, // 10 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.zone(zoneId),
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/ai-routes/zones/${zoneId}`);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch zone');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!zoneId,
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Create Zone (Mutation)
+ */
+export const useCreateZone = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (zoneData) => {
+      const response = await axiosInstance.post('/ai-routes/zones', zoneData);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to create zone');
+      }
+      
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.zones({}) });
+    },
+    onError: (error) => {
+      console.error('Error creating zone:', error);
+    }
+  });
+};
+
+/**
+ * Update Zone (Mutation)
+ */
+export const useUpdateZone = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ zoneId, data }) => {
+      const response = await axiosInstance.put(`/ai-routes/zones/${zoneId}`, data);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to update zone');
+      }
+      
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.zones({}) });
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.zone(variables.zoneId) });
+    },
+    onError: (error) => {
+      console.error('Error updating zone:', error);
+    }
+  });
+};
+
+/**
+ * Delete Zone (Mutation)
+ */
+export const useDeleteZone = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (zoneId) => {
+      const response = await axiosInstance.delete(`/ai-routes/zones/${zoneId}`);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to delete zone');
+      }
+      
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.zones({}) });
+    },
+    onError: (error) => {
+      console.error('Error deleting zone:', error);
+    }
+  });
+};
+
+/**
+ * Get Zone Deliveries
+ */
+export const useZoneDeliveries = (zoneId, params = {}, options = {}) => {
+  const {
+    date,
+    session
+  } = params;
+  
+  const {
+    enabled = true,
+    staleTime = 5 * 60 * 1000, // 5 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.zoneDeliveries(zoneId, { date, session }),
+    queryFn: async () => {
+      const queryParams = {};
+      if (date) queryParams.date = date;
+      if (session) queryParams.session = session;
+      
+      const response = await axiosInstance.get(`/ai-routes/zones/${zoneId}/deliveries`, { params: queryParams });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch zone deliveries');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!zoneId,
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Re-optimize Route (Mutation)
+ */
+export const useReoptimizeRoute = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (reoptimizeData) => {
+      const response = await axiosInstance.post('/ai-routes/route/reoptimize', reoptimizeData);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to reoptimize route');
+      }
+      
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      if (variables.route_id) {
+        queryClient.invalidateQueries({ queryKey: aiRouteKeys.trackingStatus(variables.route_id) });
+      }
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
+    },
+    onError: (error) => {
+      console.error('Error reoptimizing route:', error);
+    }
+  });
+};
+
+/**
+ * Complete Driver Session (Mutation)
+ */
+export const useCompleteDriverSession = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ sessionId, route_id, end_time }) => {
+      const response = await axiosInstance.post(`/ai-routes/driver-session/${sessionId}/complete`, {
+        route_id,
+        end_time: end_time || new Date().toISOString()
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to complete driver session');
+      }
+      
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
+    },
+    onError: (error) => {
+      console.error('Error completing driver session:', error);
+    }
+  });
+};
+
+/**
+ * Get Missing Geo Locations
+ */
+export const useMissingGeoLocations = (limit = 100, options = {}) => {
+  const {
+    enabled = true,
+    staleTime = 5 * 60 * 1000, // 5 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.missingGeoLocations(limit),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/address/get-missing-geo-locations', {
+        params: { limit }
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch missing geo locations');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Update Geo Location (Mutation)
+ */
+export const useUpdateGeoLocation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ address_id, delivery_item_id, geo_location }) => {
+      const response = await axiosInstance.post('/ai-routes/address/update-geo-location', {
+        address_id,
+        delivery_item_id,
+        geo_location
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to update geo location');
+      }
+      
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.missingGeoLocations() });
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.deliveryData() });
+    },
+    onError: (error) => {
+      console.error('Error updating geo location:', error);
+    }
+  });
+};
+

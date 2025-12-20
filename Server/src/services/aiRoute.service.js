@@ -1,0 +1,874 @@
+import AppError from '../utils/AppError.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
+import axios from 'axios';
+
+/**
+ * AI Route Service
+ * Handles business logic for AI route optimization
+ * Proxies requests to external AI Route Optimization API
+ */
+
+const AI_ROUTE_API_BASE_URL = process.env.AI_ROUTE_API_THIRD;
+
+// Create axios instance with default configuration
+const apiClient = axios.create({
+  baseURL: AI_ROUTE_API_BASE_URL,
+  timeout: 30000, // 30 seconds timeout
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+/**
+ * Check API Health
+ */
+export const checkApiHealthService = async () => {
+  try {
+    const response = await apiClient.get('/api/health');
+    const data = response.data;
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'AI Route API health check', {
+      status: data.status,
+      service: data.service
+    });
+    
+    return {
+      success: true,
+      status: data.status || 'OK',
+      service: data.service,
+      port: data.port,
+      timestamp: data.timestamp
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'AI Route API health check failed', {
+      error: error.message,
+      response: error.response?.data
+    });
+    
+    return {
+      success: false,
+      status: 'ERROR',
+      error: 'Connection failed',
+      message: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Get Available Dates
+ */
+export const getAvailableDatesService = async (limit = 30) => {
+  try {
+    const response = await apiClient.get('/api/delivery_data/available-dates', {
+      params: { limit }
+    });
+    const data = response.data;
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Available dates fetched', {
+      count: data.available_dates?.length || 0
+    });
+    
+    return {
+      success: true,
+      available_dates: data.available_dates || []
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch available dates', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch available dates', 
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Delivery Data
+ */
+export const getDeliveryDataService = async (filters = {}) => {
+  try {
+    const { date, session } = filters;
+    const params = {};
+    if (date) params.date = date;
+    if (session) params.session = session;
+    
+    const response = await apiClient.get('/api/delivery_data', { params });
+    const data = response.data;
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery data fetched', {
+      date,
+      session,
+      count: data.data?.length || 0
+    });
+    
+    return {
+      success: true,
+      data: data.data || []
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch delivery data', {
+      error: error.message,
+      filters,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch delivery data', 
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Plan Route
+ */
+export const planRouteService = async (routeData) => {
+  try {
+    const { delivery_date, delivery_session, num_drivers, depot_location } = routeData;
+
+    const response = await apiClient.post('/api/route/plan', {
+      delivery_date,
+      delivery_session,
+      num_drivers,
+      depot_location
+    });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Route planning failed');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route planned successfully', {
+      delivery_date,
+      delivery_session,
+      num_drivers: data.num_drivers,
+      total_deliveries: data.total_deliveries
+    });
+    
+    return {
+      success: true,
+      ...data
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Route planning failed', {
+      error: error.message,
+      routeData,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Route planning failed', 
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Predict Start Time
+ * Accepts either route_id OR (delivery_date + delivery_session + depot_location)
+ */
+export const predictStartTimeService = async (predictionData) => {
+  try {
+    const { route_id, delivery_date, delivery_session, depot_location } = predictionData;
+    
+    // Build request body based on available parameters
+    const requestBody = route_id 
+      ? { route_id }
+      : { delivery_date, delivery_session, depot_location };
+    
+    const response = await apiClient.post('/api/route/predict-start-time', requestBody);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to predict start time');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Start time predicted', {
+      route_id: route_id || 'N/A',
+      delivery_date: delivery_date || 'N/A',
+      delivery_session: delivery_session || 'N/A',
+      predicted_time: data.predicted_start_time || data.predicted_start_datetime
+    });
+    
+    return {
+      success: true,
+      ...data
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Start time prediction failed', {
+      error: error.message,
+      predictionData,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to predict start time', 
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Start Journey (NEW API: /api/journey/start)
+ * Executive starts journey with route_id and driver_id
+ */
+export const startJourneyService = async (journeyData) => {
+  try {
+    const { route_id, driver_id } = journeyData;
+    
+    const response = await apiClient.post('/api/journey/start', {
+      route_id,
+      driver_id
+    });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to start journey');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Journey started', {
+      route_id,
+      driver_id,
+      journey_id: data.journey_id,
+      route_id: data.route_id
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Journey start failed', {
+      error: error.message,
+      journeyData,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to start journey', 
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Mark Stop Reached (NEW API: /api/journey/stop-reached)
+ * Mark delivery stop as reached/delivered
+ */
+export const stopReachedService = async (stopData) => {
+  try {
+    const { user_id, route_id, stop_order, delivery_id, latitude, longitude, status, packages_delivered } = stopData;
+    
+    const response = await apiClient.post('/api/journey/stop-reached', {
+      user_id,
+      route_id,
+      stop_order,
+      delivery_id,
+      latitude,
+      longitude,
+      status,
+      packages_delivered
+    });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to mark stop reached');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Stop reached marked', {
+      route_id,
+      stop_order,
+      status
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Stop reached failed', {
+      error: error.message,
+      stopData,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to mark stop reached', 
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * End Journey (NEW API: /api/journey/end)
+ * End journey with final location
+ */
+export const endJourneyService = async (journeyData) => {
+  try {
+    const { user_id, route_id, latitude, longitude } = journeyData;
+    
+    const response = await apiClient.post('/api/journey/end', {
+      user_id,
+      route_id,
+      latitude,
+      longitude
+    });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to end journey');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Journey ended', {
+      route_id,
+      total_duration_minutes: data.total_duration_minutes
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Journey end failed', {
+      error: error.message,
+      journeyData,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to end journey', 
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Journey Status (NEW API: /api/journey/status/:route_id)
+ */
+export const getJourneyStatusService = async (routeId) => {
+  try {
+    const response = await apiClient.get(`/api/journey/status/${routeId}`);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to get journey status');
+    }
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get journey status failed', {
+      error: error.message,
+      routeId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to get journey status', 
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Tracking Status
+ */
+export const getTrackingStatusService = async (routeId) => {
+  try {
+    const response = await apiClient.get(`/api/route/tracking-status/${routeId}`);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch tracking status');
+    }
+    
+    return {
+      success: true,
+      ...data
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch tracking status', {
+      error: error.message,
+      routeId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch tracking status', 
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Vehicle Tracking
+ * Save vehicle GPS tracking points (complete journey tracking)
+ */
+export const vehicleTrackingService = async (trackingData) => {
+  try {
+    const { route_id, driver_id, session_id, tracking_points } = trackingData;
+    
+    if (!route_id || !tracking_points || !Array.isArray(tracking_points) || tracking_points.length === 0) {
+      throw new Error('route_id and tracking_points are required');
+    }
+    
+    const response = await apiClient.post('/api/vehicle-tracking', {
+      route_id,
+      driver_id,
+      session_id,
+      tracking_points
+    });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to save vehicle tracking data');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Vehicle tracking data saved', {
+      route_id,
+      driver_id,
+      points_saved: data.points_saved || tracking_points.length,
+      total_distance_km: data.total_distance_km
+    });
+    
+    return {
+      success: true,
+      ...data
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Vehicle tracking failed', {
+      error: error.message,
+      route_id: trackingData?.route_id,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to save vehicle tracking data', 
+      error.response?.status || 500
+    );
+  }
+};
+
+export const getAllVehicleTrackingService = async () => {
+  try {
+    const response = await apiClient.get('/api/vehicles/tracking/all');
+    const data = response.data;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'All vehicle tracking fetched', {
+      data: data
+    });
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch all vehicle tracking');
+    }
+    return data;
+   
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch all vehicle tracking', {
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get Current Weather
+ */
+export const getCurrentWeatherService = async (params) => {
+  try {
+    const response = await apiClient.get('/api/weather/current', { params });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch current weather');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Current weather fetched', {
+      zone_id: params.zone_id,
+      latitude: params.latitude,
+      longitude: params.longitude
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch current weather', {
+      error: error.message,
+      params,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch current weather',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Weather Forecast
+ */
+export const getWeatherForecastService = async (params) => {
+  try {
+    const response = await apiClient.get('/api/weather/forecast', { params });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch weather forecast');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Weather forecast fetched', {
+      zone_id: params.zone_id,
+      days: params.days
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch weather forecast', {
+      error: error.message,
+      params,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch weather forecast',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Weather for All Zones
+ */
+export const getWeatherZonesService = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/api/weather/zones', { params });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch zones weather');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Zones weather fetched', {
+      count: data.count
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zones weather', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch zones weather',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Weather Predictions
+ */
+export const getWeatherPredictionsService = async (params) => {
+  try {
+    const response = await apiClient.get('/api/weather/predictions', { params });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch weather predictions');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Weather predictions fetched', {
+      days: params.days,
+      session: params.session
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch weather predictions', {
+      error: error.message,
+      params,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch weather predictions',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get All Zones
+ */
+export const getZonesService = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/api/zones', { params });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch zones');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Zones fetched', {
+      count: data.count
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zones', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch zones',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Zone by ID
+ */
+export const getZoneByIdService = async (zoneId) => {
+  try {
+    const response = await apiClient.get(`/api/zones/${zoneId}`);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch zone');
+    }
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zone', {
+      error: error.message,
+      zoneId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch zone',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Create Zone
+ */
+export const createZoneService = async (zoneData) => {
+  try {
+    const response = await apiClient.post('/api/zones', zoneData);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to create zone');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Zone created', {
+      zone_id: data.zone_id
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to create zone', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to create zone',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Update Zone
+ */
+export const updateZoneService = async (zoneId, zoneData) => {
+  try {
+    const response = await apiClient.put(`/api/zones/${zoneId}`, zoneData);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to update zone');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Zone updated', {
+      zone_id: zoneId
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update zone', {
+      error: error.message,
+      zoneId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to update zone',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Delete Zone
+ */
+export const deleteZoneService = async (zoneId) => {
+  try {
+    const response = await apiClient.delete(`/api/zones/${zoneId}`);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to delete zone');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Zone deleted', {
+      zone_id: zoneId
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to delete zone', {
+      error: error.message,
+      zoneId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to delete zone',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Zone Deliveries
+ */
+export const getZoneDeliveriesService = async (zoneId, params = {}) => {
+  try {
+    const response = await apiClient.get(`/api/zones/${zoneId}/deliveries`, { params });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch zone deliveries');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Zone deliveries fetched', {
+      zone_id: zoneId,
+      count: data.count
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zone deliveries', {
+      error: error.message,
+      zoneId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch zone deliveries',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Re-optimize Route
+ */
+export const reoptimizeRouteService = async (reoptimizeData) => {
+  try {
+    const response = await apiClient.post('/api/route/reoptimize', reoptimizeData);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to reoptimize route');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route reoptimized', {
+      route_id: reoptimizeData.route_id,
+      reoptimized: data.reoptimized
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Route reoptimization failed', {
+      error: error.message,
+      route_id: reoptimizeData?.route_id,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to reoptimize route',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Missing Geo Locations
+ */
+export const getMissingGeoLocationsService = async (limit = 100) => {
+  try {
+    const response = await apiClient.get('/api/address/get-missing-geo-locations', {
+      params: { limit }
+    });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch missing geo locations');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Missing geo locations fetched', {
+      count: data.count
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch missing geo locations', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch missing geo locations',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Update Geo Location
+ */
+export const updateGeoLocationService = async (updateData) => {
+  try {
+    const response = await apiClient.post('/api/address/update-geo-location', updateData);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to update geo location');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Geo location updated', {
+      address_id: data.address_id,
+      geo_location: data.geo_location
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update geo location', {
+      error: error.message,
+      updateData,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to update geo location',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Complete Driver Session
+ */
+export const completeDriverSessionService = async (sessionId, sessionData) => {
+  try {
+    const response = await apiClient.post(`/api/driver-session/${sessionId}/complete`, sessionData);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to complete driver session');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Driver session completed', {
+      session_id: sessionId,
+      route_id: sessionData.route_id
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Driver session completion failed', {
+      error: error.message,
+      session_id: sessionId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to complete driver session',
+      error.response?.status || 500
+    );
+  }
+};

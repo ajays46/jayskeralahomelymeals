@@ -30,3 +30,7 @@ coverage
 
 # Test files and scripts
 tests/
+
+# Database backups
+backup.sql
+*.backup.sql

@@ -4,12 +4,14 @@ import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney } from 'react-icons/md';
 import { Modal, message } from 'antd';
 import axiosInstance from '../api/axios';
-import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes } from '../hooks/deliverymanager';
+import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes, useVehicles, useAssignVehicle, useUnassignVehicle } from '../hooks/deliverymanager';
+import { useUpdateGeoLocation } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
 import { isSeller } from '../utils/roleUtils';
 import { SkeletonDeliveryManager, SkeletonLoading } from '../components/Skeleton';
 import RouteHistoryManager from '../components/deliveryManager/RouteHistoryManager';
+import ExecutivesAndRoutes from '../components/deliveryManager/ExecutivesAndRoutes';
 
 /**
  * DeliveryManagerPage - Comprehensive delivery management dashboard with route planning and analytics
@@ -31,7 +33,7 @@ const DeliveryManagerPage = () => {
   const [selectedSeller, setSelectedSeller] = useState(null);
   const [showSellerDetails, setShowSellerDetails] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState(null);
-  const [activeTab, setActiveTab] = useState('sellers'); // 'sellers' or 'orders'
+  const [activeTab, setActiveTab] = useState('sellers'); // 'sellers', 'orders', 'analytics', 'rootManagement', or 'executivesRoutes'
   const [routeTableTab, setRouteTableTab] = useState('breakfast'); // For route planning table tabs
   
   // Route History Manager ref
@@ -104,8 +106,51 @@ const DeliveryManagerPage = () => {
   // React Query hook for saving routes
   const saveRoutesMutation = useSaveRoutes();
   
-  // Extract executives from the data
-  const activeExecutives = activeExecutivesData?.data?.executives || activeExecutivesData?.data?.data || [];  
+  // Extract executives and vehicle_choices from the data - handle multiple possible response structures
+  const { activeExecutives, vehicleChoices } = React.useMemo(() => {
+    if (!activeExecutivesData) {
+      return { activeExecutives: [], vehicleChoices: [] };
+    }
+    
+    // Try different possible data structures
+    const data = activeExecutivesData.data;
+    let executivesArray = [];
+    let vehicleChoicesArray = [];
+    
+    // Structure 1: data.executives (array) - expected structure from backend
+    if (Array.isArray(data?.executives)) {
+      executivesArray = data.executives;
+      vehicleChoicesArray = data.vehicle_choices || [];
+    }
+    // Structure 2: data.data (array)
+    else if (Array.isArray(data?.data)) {
+      executivesArray = data.data;
+      vehicleChoicesArray = data.vehicle_choices || [];
+    }
+    // Structure 3: data is directly an array
+    else if (Array.isArray(data)) {
+      executivesArray = data;
+    }
+    // Structure 4: activeExecutivesData is directly an array
+    else if (Array.isArray(activeExecutivesData)) {
+      executivesArray = activeExecutivesData;
+    }
+    // Structure 5: Check if executives is nested deeper
+    else if (data?.executives && Array.isArray(data.executives)) {
+      executivesArray = data.executives;
+      vehicleChoicesArray = data.vehicle_choices || activeExecutivesData.vehicle_choices || [];
+    }
+    
+    // Also check for vehicle_choices at root level
+    if (vehicleChoicesArray.length === 0) {
+      vehicleChoicesArray = data?.vehicle_choices || activeExecutivesData?.vehicle_choices || activeExecutivesData?.data?.vehicle_choices || [];
+    }
+    
+    return {
+      activeExecutives: executivesArray,
+      vehicleChoices: vehicleChoicesArray
+    };
+  }, [activeExecutivesData]);  
   const navigate = useNavigate(); 
   const [cancellingItems, setCancellingItems] = useState(new Set());
   const [showCancelItemModal, setShowCancelItemModal] = useState(false);
@@ -118,6 +163,17 @@ const DeliveryManagerPage = () => {
   const [programExecutionResults, setProgramExecutionResults] = useState(null); // Store program execution results
   const [sessionData, setSessionData] = useState(null); // Store session data
   const [showActiveExecutivesTable, setShowActiveExecutivesTable] = useState(false); // Show/hide active executives table
+  
+  // State for vehicle assignments
+  const [executiveVehicles, setExecutiveVehicles] = useState({}); // { executiveId: vehicleId }
+  
+  // React Query hooks for vehicles (disabled since we're using vehicle from API response)
+  // Keep for potential future assignment functionality
+  const { data: vehiclesData, isLoading: loadingVehicles } = useVehicles({}, {
+    enabled: false // Disabled - using vehicle from API response instead
+  });
+  const assignVehicleMutation = useAssignVehicle();
+  const unassignVehicleMutation = useUnassignVehicle();
   const [executivesStatus, setExecutivesStatus] = useState({}); // Track status changes for executives
   const [loadingSessionData, setLoadingSessionData] = useState(false); // Loading state for session data
   const [programRunTimestamp, setProgramRunTimestamp] = useState(null); // Force refresh timestamp
@@ -130,6 +186,15 @@ const DeliveryManagerPage = () => {
     selectedDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Tomorrow
   });
   const [filteredDeliveryData, setFilteredDeliveryData] = useState([]);
+  const [isFullscreenExecutivesRoutes, setIsFullscreenExecutivesRoutes] = useState(false);
+  
+  // Manual geo-location state
+  const [editingGeoLocation, setEditingGeoLocation] = useState(null); // index of item being edited
+  const [manualGeoLocation, setManualGeoLocation] = useState({ latitude: '', longitude: '' });
+  const [geoLocationLoading, setGeoLocationLoading] = useState(false);
+  
+  // Geo-location mutation
+  const updateGeoLocationMutation = useUpdateGeoLocation();
 
   useEffect(() => {
     fetchSellersData();
@@ -585,6 +650,92 @@ const DeliveryManagerPage = () => {
     } finally {
       setLoadingSessionData(false);
     }
+  };
+
+  // Handle manual geo-location update
+  const handleUpdateGeoLocation = async (item, index) => {
+    if (!manualGeoLocation.latitude || !manualGeoLocation.longitude) {
+      showErrorToast('Please enter both latitude and longitude');
+      return;
+    }
+    
+    const lat = parseFloat(manualGeoLocation.latitude);
+    const lng = parseFloat(manualGeoLocation.longitude);
+    
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      showErrorToast('Invalid latitude or longitude values');
+      return;
+    }
+    
+    setGeoLocationLoading(true);
+    
+    try {
+      const geoLocationString = `${lat},${lng}`;
+      
+      await updateGeoLocationMutation.mutateAsync({
+        delivery_item_id: item.delivery_item_id || item.id,
+        geo_location: geoLocationString
+      });
+      
+      // Update local state
+      setFilteredDeliveryData(prev => prev.map((d, i) => 
+        i === index ? { ...d, geo_location: geoLocationString } : d
+      ));
+      
+      // Also update sessionData if it exists
+      if (sessionData?.data) {
+        setSessionData(prev => ({
+          ...prev,
+          data: prev.data.map(d => 
+            (d.delivery_item_id || d.id) === (item.delivery_item_id || item.id) 
+              ? { ...d, geo_location: geoLocationString } 
+              : d
+          )
+        }));
+      }
+      
+      showSuccessToast('Geo-location updated successfully!');
+      setEditingGeoLocation(null);
+      setManualGeoLocation({ latitude: '', longitude: '' });
+    } catch (error) {
+      showErrorToast(error.message || 'Failed to update geo-location');
+    } finally {
+      setGeoLocationLoading(false);
+    }
+  };
+
+  // Get current location for geo-location
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      showErrorToast('Geolocation is not supported by your browser');
+      return;
+    }
+    
+    setGeoLocationLoading(true);
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setManualGeoLocation({
+          latitude: position.coords.latitude.toFixed(7),
+          longitude: position.coords.longitude.toFixed(7)
+        });
+        setGeoLocationLoading(false);
+        showSuccessToast('Location captured successfully!');
+      },
+      (error) => {
+        setGeoLocationLoading(false);
+        let errorMsg = 'Unable to get location';
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMsg = 'Location access denied';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorMsg = 'Location unavailable';
+        } else if (error.code === error.TIMEOUT) {
+          errorMsg = 'Location request timed out';
+        }
+        showErrorToast(errorMsg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   // New function to send WhatsApp messages via external API
@@ -1193,9 +1344,18 @@ const DeliveryManagerPage = () => {
   // Function to trigger active executives fetch
   const handleFetchActiveExecutives = () => {
     refetchActiveExecutives().then((result) => {
-      if (result.data?.data?.executives?.length > 0 || result.data?.data?.data?.length > 0) {
+      // Check multiple possible structures
+      const executives = result.data?.data?.executives || 
+                        result.data?.data?.data || 
+                        result.data?.executives ||
+                        result.data?.data ||
+                        [];
+      
+      if (Array.isArray(executives) && executives.length > 0) {
         setShowActiveExecutivesTable(true);
       }
+    }).catch((error) => {
+      console.error('Error fetching active executives:', error);
     });
   };
 
@@ -1210,6 +1370,44 @@ const DeliveryManagerPage = () => {
     // Show success message
     message.success(`Executive status changed to ${newStatus}`);
   };
+  
+  // Function to handle vehicle assignment
+  const handleAssignVehicle = async (executiveId, vehicleId) => {
+    if (!vehicleId) {
+      // Unassign vehicle
+      const currentVehicle = vehiclesData?.data?.find(v => v.user_id === executiveId);
+      if (currentVehicle) {
+        try {
+          await unassignVehicleMutation.mutateAsync({ 
+            vehicleId: currentVehicle.id,
+            userId: executiveId 
+          });
+          setExecutiveVehicles(prev => {
+            const newState = { ...prev };
+            delete newState[executiveId];
+            return newState;
+          });
+        } catch (error) {
+          console.error('Error unassigning vehicle:', error);
+        }
+      }
+      return;
+    }
+    
+    try {
+      await assignVehicleMutation.mutateAsync({ vehicleId, userId: executiveId });
+      setExecutiveVehicles(prev => ({
+        ...prev,
+        [executiveId]: vehicleId
+      }));
+    } catch (error) {
+      console.error('Error assigning vehicle:', error);
+    }
+  };
+  
+  // Note: Vehicle display now comes from API response (executive.vehicle)
+  // Database vehicle assignment is still available via handleAssignVehicle if needed
+  // but the displayed vehicle comes from the external API response
 
   // Function to save status changes
   const handleSaveStatusChanges = async () => {
@@ -1843,8 +2041,9 @@ const DeliveryManagerPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Navbar */}
+    <div className={`min-h-screen bg-gray-900 text-white ${isFullscreenExecutivesRoutes ? 'fixed inset-0 z-50 overflow-hidden' : ''}`}>
+      {/* Navbar - Hide in fullscreen mode */}
+      {!isFullscreenExecutivesRoutes && (
       <div className="fixed top-0 left-0 right-0 h-16 sm:h-20 lg:h-24 bg-gray-800 border-b border-gray-700 z-40 flex items-center justify-between px-3 sm:px-4 lg:px-8 overflow-hidden">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 max-w-[calc(100%-2rem)]">
           <button
@@ -1857,7 +2056,7 @@ const DeliveryManagerPage = () => {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <MdLocalShipping className="text-xl sm:text-2xl text-blue-500 flex-shrink-0" />
             <h1 className="text-sm sm:text-lg lg:text-xl font-bold truncate max-w-[200px] sm:max-w-[300px] lg:max-w-[400px]">
-              {activeTab === 'sellers' ? 'Sellers' : activeTab === 'orders' ? 'Orders' : 'Analytics'} Dashboard
+              {activeTab === 'sellers' ? 'Sellers' : activeTab === 'orders' ? 'Orders' : activeTab === 'analytics' ? 'Analytics' : activeTab === 'rootManagement' ? 'Route & Management' : activeTab === 'executivesRoutes' ? 'Executives & Routes' : 'Dashboard'}
             </h1>
           </div>
         </div>
@@ -1874,10 +2073,12 @@ const DeliveryManagerPage = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* Main Content with proper spacing for navbar */}
-      <div className="pt-16 sm:pt-20 lg:pt-24"> {/* Add top padding to account for fixed navbar height */}
-        {/* Mobile Sidebar Toggle */}
+      <div className={isFullscreenExecutivesRoutes ? 'h-screen overflow-hidden' : 'pt-16 sm:pt-20 lg:pt-24'}> {/* Add top padding to account for fixed navbar height */}
+        {/* Mobile Sidebar Toggle - Hide in fullscreen */}
+        {!isFullscreenExecutivesRoutes && (
         <div className="lg:hidden fixed top-20 sm:top-24 left-3 z-50">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1888,16 +2089,18 @@ const DeliveryManagerPage = () => {
             </svg>
           </button>
         </div>
+        )}
 
-        {/* Mobile Overlay */}
-        {sidebarOpen && (
+        {/* Mobile Overlay - Hide in fullscreen */}
+        {!isFullscreenExecutivesRoutes && sidebarOpen && (
           <div 
             className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-20"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
-        {/* Sidebar */}
+        {/* Sidebar - Hide in fullscreen */}
+        {!isFullscreenExecutivesRoutes && (
         <div className={`fixed left-0 top-16 sm:top-20 lg:top-24 w-64 h-[calc(100vh-4rem)] sm:h-[calc(100vh-5rem)] lg:h-[calc(100vh-6rem)] bg-gray-800 border-r border-gray-700 z-30 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
@@ -1970,6 +2173,20 @@ const DeliveryManagerPage = () => {
                 <FiActivity className="text-lg" />
                 <span>Route & Management</span>
               </button>
+              <button
+                onClick={() => {
+                  setActiveTab('executivesRoutes');
+                  setSidebarOpen(false); // Close sidebar on mobile after selection
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                  activeTab === 'executivesRoutes'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                <FiUsers className="text-lg" />
+                <span>Executives & Routes</span>
+              </button>
             </nav>
 
             {/* Logout Button at Bottom */}
@@ -1994,11 +2211,12 @@ const DeliveryManagerPage = () => {
             </div>
           </div>
         </div>
+        )}
 
         {/* Dashboard Content */}
-        <div className="lg:ml-64 px-3 sm:px-4 lg:px-6 py-4 sm:py-6 overflow-x-hidden max-w-full">
-          {/* Mobile Backdrop */}
-          {sidebarOpen && (
+        <div className={`${isFullscreenExecutivesRoutes ? 'h-screen overflow-y-auto' : 'lg:ml-64 px-3 sm:px-4 lg:px-6 py-4 sm:py-6'} overflow-x-hidden max-w-full`}>
+          {/* Mobile Backdrop - Hide in fullscreen */}
+          {!isFullscreenExecutivesRoutes && sidebarOpen && (
             <div 
               className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
               onClick={() => setSidebarOpen(false)}
@@ -3509,14 +3727,78 @@ const DeliveryManagerPage = () => {
                                         </td>
                                         
                                         {/* Address */}
-                                        <td className="px-4 py-3 whitespace-nowrap">
+                                        <td className="px-4 py-3">
                                           <div className="max-w-xs">
                                             <div className="text-sm text-white truncate" title={item.street}>
                                               {item.street || 'No address'}
                                             </div>
-                                            {item.geo_location && (
-                                              <div className="text-xs text-gray-400 mt-1">
-                                                📍 {item.geo_location}
+                                            {item.geo_location ? (
+                                              <div className="text-xs text-green-400 mt-1 flex items-center gap-1">
+                                                <FiMapPin className="w-3 h-3" />
+                                                {item.geo_location}
+                                              </div>
+                                            ) : (
+                                              <div className="mt-2">
+                                                {editingGeoLocation === index ? (
+                                                  <div className="space-y-2 bg-gray-800 p-2 rounded-lg border border-gray-600">
+                                                    <div className="flex gap-1">
+                                                      <input
+                                                        type="text"
+                                                        placeholder="Lat"
+                                                        value={manualGeoLocation.latitude}
+                                                        onChange={(e) => setManualGeoLocation(prev => ({ ...prev, latitude: e.target.value }))}
+                                                        className="w-20 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400"
+                                                      />
+                                                      <input
+                                                        type="text"
+                                                        placeholder="Lng"
+                                                        value={manualGeoLocation.longitude}
+                                                        onChange={(e) => setManualGeoLocation(prev => ({ ...prev, longitude: e.target.value }))}
+                                                        className="w-20 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400"
+                                                      />
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                      <button
+                                                        onClick={handleGetCurrentLocation}
+                                                        disabled={geoLocationLoading}
+                                                        className="flex-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center justify-center gap-1 disabled:opacity-50"
+                                                        title="Get Current Location"
+                                                      >
+                                                        <FiMapPin className="w-3 h-3" />
+                                                        GPS
+                                                      </button>
+                                                      <button
+                                                        onClick={() => handleUpdateGeoLocation(item, index)}
+                                                        disabled={geoLocationLoading || !manualGeoLocation.latitude || !manualGeoLocation.longitude}
+                                                        className="flex-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center gap-1 disabled:opacity-50"
+                                                      >
+                                                        {geoLocationLoading ? (
+                                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                                        ) : (
+                                                          <FiCheckCircle className="w-3 h-3" />
+                                                        )}
+                                                        Save
+                                                      </button>
+                                                      <button
+                                                        onClick={() => {
+                                                          setEditingGeoLocation(null);
+                                                          setManualGeoLocation({ latitude: '', longitude: '' });
+                                                        }}
+                                                        className="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded"
+                                                      >
+                                                        <FiX className="w-3 h-3" />
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <button
+                                                    onClick={() => setEditingGeoLocation(index)}
+                                                    className="flex items-center gap-1 px-2 py-1 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                                                  >
+                                                    <FiMapPin className="w-3 h-3" />
+                                                    Add Location
+                                                  </button>
+                                                )}
                                               </div>
                                             )}
                                           </div>
@@ -3609,8 +3891,77 @@ const DeliveryManagerPage = () => {
                                         <div className="text-white truncate">
                                           {item.street || 'No address'}
                                         </div>
+                                        {item.geo_location ? (
+                                          <div className="text-xs text-green-400 mt-1">
+                                            📍 {item.geo_location}
+                                          </div>
+                                        ) : (
+                                          <button
+                                            onClick={() => setEditingGeoLocation(`mobile-${index}`)}
+                                            className="mt-1 flex items-center gap-1 px-2 py-1 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                                          >
+                                            <FiMapPin className="w-3 h-3" />
+                                            Add Location
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
+
+                                    {/* Manual Geo-Location Input for Mobile */}
+                                    {editingGeoLocation === `mobile-${index}` && !item.geo_location && (
+                                      <div className="mt-2 pt-2 border-t border-gray-500">
+                                        <div className="text-gray-400 text-xs mb-2">📍 Add Manual Location</div>
+                                        <div className="space-y-2 bg-gray-800 p-2 rounded-lg border border-gray-600">
+                                          <div className="flex gap-2">
+                                            <input
+                                              type="text"
+                                              placeholder="Latitude"
+                                              value={manualGeoLocation.latitude}
+                                              onChange={(e) => setManualGeoLocation(prev => ({ ...prev, latitude: e.target.value }))}
+                                              className="flex-1 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400"
+                                            />
+                                            <input
+                                              type="text"
+                                              placeholder="Longitude"
+                                              value={manualGeoLocation.longitude}
+                                              onChange={(e) => setManualGeoLocation(prev => ({ ...prev, longitude: e.target.value }))}
+                                              className="flex-1 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400"
+                                            />
+                                          </div>
+                                          <div className="flex gap-2">
+                                            <button
+                                              onClick={handleGetCurrentLocation}
+                                              disabled={geoLocationLoading}
+                                              className="flex-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center justify-center gap-1 disabled:opacity-50"
+                                            >
+                                              <FiMapPin className="w-3 h-3" />
+                                              Get GPS
+                                            </button>
+                                            <button
+                                              onClick={() => handleUpdateGeoLocation(item, index)}
+                                              disabled={geoLocationLoading || !manualGeoLocation.latitude || !manualGeoLocation.longitude}
+                                              className="flex-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center gap-1 disabled:opacity-50"
+                                            >
+                                              {geoLocationLoading ? (
+                                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                              ) : (
+                                                <FiCheckCircle className="w-3 h-3" />
+                                              )}
+                                              Save
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                setEditingGeoLocation(null);
+                                                setManualGeoLocation({ latitude: '', longitude: '' });
+                                              }}
+                                              className="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded"
+                                            >
+                                              <FiX className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
 
                                     {/* Full Address (if truncated) */}
                                     {item.street && item.street.length > 30 && (
@@ -3618,7 +3969,7 @@ const DeliveryManagerPage = () => {
                                         <div className="text-gray-400 text-xs mb-1">📍 Full Address</div>
                                         <div className="text-white text-xs">{item.street}</div>
                                         {item.geo_location && (
-                                          <div className="text-xs text-gray-400 mt-1">
+                                          <div className="text-xs text-green-400 mt-1">
                                             📍 {item.geo_location}
                                           </div>
                                         )}
@@ -3701,7 +4052,7 @@ const DeliveryManagerPage = () => {
 
 
                 {/* Active Executives Table */}
-                {showActiveExecutivesTable && activeExecutives && activeExecutives.length > 0 && (
+                {showActiveExecutivesTable && activeExecutives && Array.isArray(activeExecutives) && activeExecutives.length > 0 && (
                   <div className="mt-6">
                     <div className="bg-gray-700 rounded-lg p-6 border border-gray-600">
                       <div className="flex items-center justify-between mb-4">
@@ -3740,6 +4091,7 @@ const DeliveryManagerPage = () => {
                               <th className="text-left py-3 px-4 text-gray-300 font-medium">No.</th>
                               <th className="text-left py-3 px-4 text-gray-300 font-medium">Name</th>
                               <th className="text-left py-3 px-4 text-gray-300 font-medium">Status</th>
+                              <th className="text-left py-3 px-4 text-gray-300 font-medium">Vehicle</th>
                               <th className="text-left py-3 px-4 text-gray-300 font-medium">WhatsApp</th>
                               <th className="text-left py-3 px-4 text-gray-300 font-medium">Actions</th>
                             </tr>
@@ -3751,7 +4103,7 @@ const DeliveryManagerPage = () => {
                                 if (activeExecutives.length === 0) {
                                   return (
                                     <tr>
-                                      <td colSpan="5" className="py-8 text-center text-gray-400">
+                                      <td colSpan="6" className="py-8 text-center text-gray-400">
                                         No executives found
                                       </td>
                                     </tr>
@@ -3778,6 +4130,56 @@ const DeliveryManagerPage = () => {
                                         }`}>
                                           {executivesStatus[executive.user_id] || executive.status || 'UNKNOWN'}
                                         </span>
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        {/* Dropdown to select vehicle from API vehicle_choices */}
+                                        <div className="flex flex-col gap-1">
+                                          <select
+                                            value={executive.vehicle || ''}
+                                            onChange={async (e) => {
+                                              const newVehicleNumber = e.target.value;
+                                              
+                                              try {
+                                                if (!newVehicleNumber) {
+                                                  // Unassign vehicle
+                                                  await unassignVehicleMutation.mutateAsync({ 
+                                                    vehicleId: null, // Not needed for unassignment, but required by API
+                                                    userId: executive.user_id 
+                                                  });
+                                                } else {
+                                                  // Assign vehicle - pass vehicle number directly (service accepts it)
+                                                  await assignVehicleMutation.mutateAsync({ 
+                                                    vehicleId: newVehicleNumber, // Service accepts vehicle number
+                                                    userId: executive.user_id 
+                                                  });
+                                                }
+                                                // Refetch active executives to update the display with latest data
+                                                await refetchActiveExecutives();
+                                              } catch (error) {
+                                                console.error('Error updating vehicle assignment:', error);
+                                              }
+                                            }}
+                                            disabled={assignVehicleMutation.isPending || unassignVehicleMutation.isPending}
+                                            className="w-full px-2 py-1.5 bg-gray-600 border border-gray-500 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                          >
+                                            <option value="">No Vehicle</option>
+                                            {vehicleChoices && vehicleChoices.length > 0 ? (
+                                              vehicleChoices.map((vehicleNumber, idx) => (
+                                                <option key={idx} value={vehicleNumber}>
+                                                  {vehicleNumber}
+                                                </option>
+                                              ))
+                                            ) : (
+                                              <option disabled>No vehicles available</option>
+                                            )}
+                                          </select>
+                                          {/* Debug info - remove in production */}
+                                          {process.env.NODE_ENV === 'development' && (
+                                            <div className="text-xs text-gray-500">
+                                              Choices: {vehicleChoices?.length || 0} | Current: {executive.vehicle || 'None'}
+                                            </div>
+                                          )}
+                                        </div>
                                       </td>
                                       <td className="py-3 px-4 text-gray-300">
                                         {executive.whatsapp_number ? (
@@ -3813,7 +4215,7 @@ const DeliveryManagerPage = () => {
                                 console.error('Error rendering executives table:', error);
                                 return (
                                   <tr>
-                                    <td colSpan="5" className="py-8 text-center text-red-400">
+                                    <td colSpan="6" className="py-8 text-center text-red-400">
                                       Error rendering table: {error.message}
                                     </td>
                                   </tr>
@@ -4804,6 +5206,14 @@ const DeliveryManagerPage = () => {
                 </div>
               )}
             </>
+          )}
+
+          {/* Executives & Routes Tab Content */}
+          {activeTab === 'executivesRoutes' && (
+            <ExecutivesAndRoutes 
+              isFullscreen={isFullscreenExecutivesRoutes}
+              onToggleFullscreen={setIsFullscreenExecutivesRoutes}
+            />
           )}
         </div>
       </div>
