@@ -34,3 +34,8 @@ tests/
 # Database backups
 backup.sql
 *.backup.sql
+
+# Migration files
+migration.sql
+*migration*.sql
+baseline_migration.sql
