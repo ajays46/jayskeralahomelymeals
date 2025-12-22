@@ -35,7 +35,8 @@ tests/
 backup.sql
 *.backup.sql
 
-# Migration files
-migration.sql
-*migration*.sql
+# Migration files (but keep migrations directory structure)
+# migration.sql
+# *migration*.sql
 baseline_migration.sql
+# Note: prisma/migrations/**/*.sql should be committed to git

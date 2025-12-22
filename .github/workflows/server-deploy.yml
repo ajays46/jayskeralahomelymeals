@@ -34,7 +34,7 @@ jobs:
       
     - name: Run database migrations
       working-directory: ./Server
-      run: npm run db:migrate
+      run: npx prisma migrate deploy
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -72,7 +72,8 @@ jobs:
           # IMPORTANT: For this step to work on EC2, DATABASE_URL must be available
           # in the EC2 instance's environment (e.g., via PM2 ecosystem file, .env file on EC2, or AWS Parameter Store).
           # This workflow does NOT create the .env file on EC2 with secrets.
-          npm run db:migrate || { echo "Error: Database migrations failed on EC2"; exit 1; }
+          # Use migrate deploy for production (doesn't create new migrations, only applies existing ones)
+          npx prisma migrate deploy || { echo "Error: Database migrations failed on EC2"; exit 1; }
 
           # Set environment variables for PM2
           export AI_ROUTE_API="${{ secrets.AI_ROUTE_API }}"
