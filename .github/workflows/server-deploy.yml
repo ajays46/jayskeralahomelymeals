@@ -79,6 +79,7 @@ jobs:
           export AI_ROUTE_API="${{ secrets.AI_ROUTE_API }}"
           export AI_ROUTE_API_SECOND="${{ secrets.AI_ROUTE_API_SECOND }}"
           export JWT_ACCESS_SECRET="${{ secrets.JWT_ACCESS_SECRET }}"
+          export AI_ROUTE_API_THIRD="${{ secrets.AI_ROUTE_API_THIRD }}"
           export NODE_ENV="production"
           export PORT="5000"
           
