@@ -498,8 +498,7 @@ CREATE TABLE `delivery_executives` (
     UNIQUE INDEX `delivery_executives_user_id_key`(`user_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-<<<<<<<< HEAD:Server/prisma/migrations/20251027085607_new_migration/migration.sql
-========
+
 
 -- CreateTable
 CREATE TABLE `algorithm_performance` (
@@ -769,4 +768,3 @@ CREATE TABLE `traffic_patterns` (
     INDEX `idx_time_range`(`start_hour`, `end_hour`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
->>>>>>>> Dev:Server/prisma/migrations/20251222041636_route_optimization/migration.sql
