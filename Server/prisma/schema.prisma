@@ -204,18 +204,6 @@ model ProductCategory {
   @@map("product_categories")
 }
 
-model Deliveries {
-  ID               Int      @id @default(autoincrement())
-  Date             DateTime @db.Date
-  Delivery_Name    String   @db.VarChar(100)
-  Location         String?  @db.VarChar(150)
-  Packages         Int?     @default(0)
-  Final_Latitude   Decimal? @db.Decimal(10, 6)
-  Final_Longitude  Decimal? @db.Decimal(10, 6)
-  Coords           String?  @db.VarChar(100)
-  Distance_Diff_km Decimal? @db.Decimal(10, 2)
-}
-
 model Order {
   id                     String         @id @default(uuid()) @db.VarChar(36)
   userId                 String         @map("user_id") @db.VarChar(36)
@@ -364,31 +352,45 @@ model vehicle_service_log {
 }
 
 model vehicle_tracking_log {
-  id         String    @id @db.VarChar(36)
-  vehicle_id String?   @db.VarChar(36)
-  user_id    String?   @db.VarChar(36)
-  timestamp  DateTime? @db.DateTime(0)
-  latitude   Float?    @db.Float
-  longitude  Float?    @db.Float
-  speed      Float?    @db.Float
-  created_at DateTime? @default(now()) @db.Timestamp(0)
+  id                           String                        @id @db.VarChar(36)
+  vehicle_id                   String?                       @db.VarChar(36)
+  user_id                      String?                       @db.VarChar(36)
+  route_id                     String?                       @db.VarChar(36)
+  timestamp                    DateTime?                     @db.DateTime(0)
+  time_from_start_minutes      Float?                        @db.Float
+  time_since_departure_minutes Float?                        @db.Float
+  date                         DateTime?                     @db.Date
+  session                      vehicle_tracking_log_session?
+  journey_phase                String?                       @db.VarChar(50)
+  is_at_stop                   Boolean?                      @default(false)
+  current_stop_order           Int?
+  latitude                     Float?                        @db.Float
+  longitude                    Float?                        @db.Float
+  speed                        Float?                        @db.Float
+  created_at                   DateTime?                     @default(now()) @db.Timestamp(0)
 
+  @@index([is_at_stop, route_id], map: "idx_tracking_at_stop")
+  @@index([date, session], map: "idx_tracking_date_session")
+  @@index([journey_phase, route_id], map: "idx_tracking_journey_phase")
+  @@index([route_id, date], map: "idx_tracking_route_date")
+  @@index([session], map: "idx_tracking_session")
+  @@index([route_id, timestamp], map: "idx_vehicle_tracking_route_time")
   @@ignore
 }
 
 model vehicles {
   id                  String    @id @db.VarChar(36)
-  user_id             String?   @db.VarChar(36)
-  registration_number String?   @db.VarChar(50)
+  user_id             String?   @map("user_id") @db.VarChar(36)
+  registration_number String?   @map("registration_number") @db.VarChar(50)
   model               String?   @db.VarChar(100)
-  purchase_date       DateTime? @db.Date
-  insurance_expiry    DateTime? @db.Date
-  puc_expiry          DateTime? @db.Date
-  fitness_expiry      DateTime? @db.Date
-  road_tax_expiry     DateTime? @db.Date
-  created_at          DateTime? @default(now()) @db.Timestamp(0)
+  purchase_date       DateTime? @map("purchase_date") @db.Date
+  insurance_expiry    DateTime? @map("insurance_expiry") @db.Date
+  puc_expiry          DateTime? @map("puc_expiry") @db.Date
+  fitness_expiry      DateTime? @map("fitness_expiry") @db.Date
+  road_tax_expiry     DateTime? @map("road_tax_expiry") @db.Date
+  created_at          DateTime? @default(now()) @map("created_at") @db.Timestamp(0)
 
-  @@ignore
+  @@map("vehicles")
 }
 
 model fuel_log {
@@ -404,46 +406,90 @@ model fuel_log {
 }
 
 model planned_route_stops {
-  id                          String                       @id @db.VarChar(36)
-  user_id                     String?                      @db.VarChar(36)
-  date                        DateTime?                    @db.Date
-  session                     planned_route_stops_session?
-  stop_order                  Int?
-  delivery_name               String?                      @db.VarChar(255)
-  location                    String?                      @db.VarChar(255)
-  latitude                    Float?                       @db.Float
-  longitude                   Float?                       @db.Float
-  packages                    Int?
-  customer_type               String?                      @default("normal") @db.VarChar(50)
-  priority_level              String?                      @db.VarChar(50)
-  distance_from_previous      Float?                       @db.Float
-  expected_time_from_previous Float?                       @db.Float
-  cumulative_distance         Float?                       @db.Float
-  cumulative_time             Float?                       @db.Float
-  planned_arrival_time        DateTime?                    @db.DateTime(0)
-  created_at                  DateTime?                    @default(now()) @db.Timestamp(0)
+  id                                   String                          @id @db.VarChar(36)
+  user_id                              String?                         @db.VarChar(36)
+  route_id                             String?                         @db.VarChar(36)
+  delivery_id                          String?                         @db.VarChar(36)
+  start_time                           DateTime?                       @db.DateTime(0)
+  depot_departure_time                 DateTime?                       @db.DateTime(0)
+  date                                 DateTime                        @db.Date
+  session                              planned_route_stops_session
+  route_type                           planned_route_stops_route_type? @default(ai_optimized)
+  is_best_route                        Boolean?                        @default(false)
+  route_rank                           Int?                            @default(0)
+  num_drivers                          Int?                            @default(1)
+  stop_order                           Int
+  delivery_name                        String?                         @db.VarChar(255)
+  location                             String?                         @db.VarChar(255)
+  latitude                             Float?                          @db.Float
+  longitude                            Float?                          @db.Float
+  packages                             Int?
+  customer_type                        String?                         @default("normal") @db.VarChar(50)
+  priority_level                       String?                         @db.VarChar(50)
+  distance_from_previous               Float?                          @db.Float
+  expected_time_from_previous          Float?                          @db.Float
+  time_to_travel_from_previous_minutes Float?                          @db.Float
+  cumulative_distance                  Float?                          @db.Float
+  cumulative_time                      Float?                          @db.Float
+  cumulative_travel_time_minutes       Float?                          @db.Float
+  estimated_completion_hours           Float?                          @db.Float
+  within_2_hour_constraint             Boolean?                        @default(true)
+  depot_latitude                       Float?                          @db.Float
+  depot_longitude                      Float?                          @db.Float
+  route_comparison_data                Json?
+  planned_arrival_time                 DateTime?                       @db.DateTime(0)
+  expected_arrival_time                DateTime?                       @db.DateTime(0)
+  expected_completion_time             DateTime?                       @db.DateTime(0)
+  created_at                           DateTime?                       @default(now()) @db.Timestamp(0)
 
+  @@index([date, session], map: "idx_planned_date_session")
+  @@index([delivery_id], map: "idx_planned_route_delivery_id")
+  @@index([route_id], map: "idx_planned_route_id")
+  @@index([route_id, date, session, route_type, is_best_route, stop_order], map: "idx_planned_route_main")
+  @@index([route_type], map: "idx_planned_route_type")
+  @@index([user_id], map: "idx_planned_user_id")
   @@ignore
 }
 
 model actual_route_stops {
-  id                            String                              @id @db.VarChar(36)
-  user_id                       String?                             @db.VarChar(36)
-  planned_stop_id               String?                             @db.VarChar(36)
-  stop_order                    Int?
-  delivery_name                 String?                             @db.VarChar(255)
-  location                      String?                             @db.VarChar(255)
-  latitude                      Float?                              @db.Float
-  longitude                     Float?                              @db.Float
-  packages_delivered            Int?
-  actual_arrival_time           DateTime?                           @db.DateTime(0)
-  actual_distance_from_previous Float?                              @db.Float
-  actual_time_from_previous     Float?                              @db.Float
-  delivery_status               actual_route_stops_delivery_status?
-  delay_reason                  String?                             @db.Text
-  geo_accuracy                  Float?                              @db.Float
-  status                        actual_route_stops_status?
+  id                                   String                              @id @db.VarChar(36)
+  user_id                              String?                             @db.VarChar(36)
+  route_id                             String?                             @db.VarChar(36)
+  date                                 DateTime?                           @db.Date
+  session                              actual_route_stops_session?
+  start_time                           DateTime?                           @db.DateTime(0)
+  depot_departure_time                 DateTime?                           @db.DateTime(0)
+  planned_stop_id                      String?                             @db.VarChar(36)
+  stop_order                           Int?
+  delivery_name                        String?                             @db.VarChar(255)
+  location                             String?                             @db.VarChar(255)
+  latitude                             Float?                              @db.Float
+  longitude                            Float?                              @db.Float
+  packages_delivered                   Int?
+  actual_arrival_time                  DateTime?                           @db.DateTime(0)
+  actual_completion_time               DateTime?                           @db.DateTime(0)
+  time_spent_at_stop_minutes           Float?                              @db.Float
+  actual_distance_from_previous        Float?                              @db.Float
+  actual_time_from_previous            Float?                              @db.Float
+  cumulative_travel_time_minutes       Float?                              @db.Float
+  time_to_travel_from_previous_minutes Float?                              @db.Float
+  actual_completion_hours              Float?                              @db.Float
+  total_journey_duration_minutes       Float?                              @db.Float
+  within_2_hour_constraint             Boolean?
+  performance_score                    Float?                              @db.Float
+  reward_signal                        Float?                              @db.Float
+  learning_data                        Json?
+  delivery_status                      actual_route_stops_delivery_status? @default(pending)
+  delay_reason                         String?                             @db.Text
+  geo_accuracy                         Float?                              @db.Float
+  status                               actual_route_stops_status?
+  route_type                           actual_route_stops_route_type?
 
+  @@index([performance_score], map: "idx_actual_performance")
+  @@index([route_id], map: "idx_actual_route_id")
+  @@index([route_id, date, session, route_type, stop_order], map: "idx_actual_route_main")
+  @@index([route_type], map: "idx_actual_route_type")
+  @@index([user_id], map: "idx_actual_user_id")
   @@ignore
 }
 
@@ -485,6 +531,253 @@ model DeliveryExecutive {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("delivery_executives")
+}
+
+model algorithm_performance {
+  id                   String    @id @db.VarChar(36)
+  algorithm_name       String    @db.VarChar(50)
+  delivery_date        DateTime  @db.Date
+  delivery_session     String?   @db.VarChar(20)
+  num_deliveries       Int?
+  num_drivers          Int?
+  estimated_time_hours Decimal?  @db.Decimal(5, 2)
+  actual_time_hours    Decimal?  @db.Decimal(5, 2)
+  total_distance_km    Decimal?  @db.Decimal(8, 2)
+  within_constraint    Boolean?
+  algorithm_score      Decimal?  @db.Decimal(5, 2)
+  was_selected         Boolean?  @default(false)
+  characteristics      Json?
+  created_at           DateTime? @default(now()) @db.DateTime(0)
+
+  @@index([algorithm_name], map: "idx_algorithm_name")
+  @@index([algorithm_score], map: "idx_algorithm_score")
+  @@index([delivery_date], map: "idx_delivery_date")
+  @@index([was_selected], map: "idx_was_selected")
+}
+
+model best_planned_routes {
+  id                        String                         @id @db.VarChar(36)
+  date                      DateTime                       @db.Date
+  session                   best_planned_routes_session
+  route_type                best_planned_routes_route_type
+  route_id                  String                         @db.VarChar(36)
+  driver_id                 String?                        @db.VarChar(36)
+  total_distance_km         Float?                         @db.Float
+  total_time_minutes        Float?                         @db.Float
+  num_stops                 Int?
+  num_drivers               Int?
+  within_2_hour_constraint  Boolean?                       @default(false)
+  selection_reason          String?                        @db.VarChar(255)
+  comparison_score          Float?                         @db.Float
+  ai_score                  Float?                         @db.Float
+  main_branch_score         Float?                         @db.Float
+  compared_with_route_types String?                        @db.Text
+  comparison_details        Json?
+  created_at                DateTime?                      @default(now()) @db.Timestamp(0)
+  updated_at                DateTime?                      @default(now()) @db.Timestamp(0)
+
+  @@unique([date, session, route_type], map: "unique_date_session_type")
+  @@index([date, session], map: "idx_date_session")
+  @@index([route_id], map: "idx_route_id")
+  @@index([route_type], map: "idx_route_type")
+}
+
+model deliveries {
+  ID               Int      @id @default(autoincrement())
+  Date             DateTime @db.Date
+  Delivery_Name    String   @db.VarChar(100)
+  Location         String?  @db.VarChar(150)
+  Packages         Int?     @default(0)
+  Final_Latitude   Decimal? @db.Decimal(10, 6)
+  Final_Longitude  Decimal? @db.Decimal(10, 6)
+  Coords           String?  @db.VarChar(100)
+  Distance_Diff_km Decimal? @db.Decimal(10, 2)
+}
+
+model delivery_zone_assignments {
+  id          String    @id @db.VarChar(36)
+  delivery_id String    @db.VarChar(36)
+  zone_code   String?   @db.VarChar(50)
+  assigned_at DateTime? @default(now()) @db.DateTime(0)
+
+  @@index([assigned_at], map: "idx_assigned_at")
+  @@index([delivery_id], map: "idx_delivery_id")
+  @@index([zone_code], map: "idx_zone_code")
+}
+
+model delivery_zone_polygons {
+  id          String  @id @db.VarChar(36)
+  zone_code   String  @db.VarChar(50)
+  point_order Int
+  latitude    Decimal @db.Decimal(10, 8)
+  longitude   Decimal @db.Decimal(10, 8)
+
+  @@index([zone_code], map: "idx_zone_code")
+  @@index([zone_code, point_order], map: "idx_zone_points")
+}
+
+model delivery_zones {
+  id                   String                   @id @db.VarChar(36)
+  zone_code            String                   @unique(map: "zone_code") @db.VarChar(50)
+  zone_name            String                   @db.VarChar(255)
+  zone_type            delivery_zones_zone_type
+  zone_polygon         Unsupported("geometry")?
+  center_latitude      Decimal?                 @db.Decimal(10, 8)
+  center_longitude     Decimal?                 @db.Decimal(10, 8)
+  radius_km            Decimal?                 @db.Decimal(8, 2)
+  priority_weight      Decimal?                 @default(0.50) @db.Decimal(3, 2)
+  peak_priority_weight Decimal?                 @default(0.50) @db.Decimal(3, 2)
+  peak_hours_start     DateTime?                @db.Time(0)
+  peak_hours_end       DateTime?                @db.Time(0)
+  peak_days_of_week    String?                  @default("1,2,3,4,5") @db.VarChar(20)
+  normal_speed_kmh     Int?                     @default(30)
+  peak_speed_kmh       Int?                     @default(18)
+  description          String?                  @db.Text
+  is_active            Boolean?                 @default(true)
+  created_at           DateTime?                @default(now()) @db.DateTime(0)
+  updated_at           DateTime?                @default(now()) @db.DateTime(0)
+
+  @@index([is_active], map: "idx_is_active")
+  @@index([zone_code], map: "idx_zone_code")
+  @@index([zone_type], map: "idx_zone_type")
+}
+
+model route_comparisons {
+  id                  String                           @id @db.VarChar(36)
+  planned_route_id    String?                          @db.VarChar(36)
+  actual_route_id     String?                          @db.VarChar(36)
+  session_id          String?                          @db.VarChar(36)
+  date                DateTime                         @db.Date
+  session             route_comparisons_session
+  user_id             String?                          @db.VarChar(36)
+  route_id            String?                          @db.VarChar(36)
+  planned_distance_km Float?                           @db.Float
+  planned_time_hours  Float?                           @db.Float
+  planned_start_time  DateTime?                        @db.DateTime(0)
+  planned_num_stops   Int?
+  planned_num_drivers Int?
+  actual_distance_km  Float?                           @db.Float
+  actual_time_hours   Float?                           @db.Float
+  actual_start_time   DateTime?                        @db.DateTime(0)
+  actual_num_stops    Int?
+  actual_num_drivers  Int?
+  distance_diff_km    Float?                           @db.Float
+  time_diff_hours     Float?                           @db.Float
+  efficiency_score    Float?                           @db.Float
+  reward_signal       Float?                           @db.Float
+  time_of_day         DateTime?                        @db.Time(0)
+  day_of_week         Int?
+  weather_condition   String?                          @db.VarChar(100)
+  traffic_level       route_comparisons_traffic_level?
+  model_updated       Boolean?                         @default(false)
+  learned_route_saved Boolean?                         @default(false)
+  created_at          DateTime?                        @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?                        @default(now()) @db.Timestamp(0)
+
+  @@index([actual_route_id], map: "idx_actual_route")
+  @@index([date, session], map: "idx_date_session")
+  @@index([efficiency_score], map: "idx_efficiency")
+  @@index([planned_route_id], map: "idx_planned_route")
+  @@index([reward_signal], map: "idx_reward")
+  @@index([route_id, user_id], map: "idx_route_driver")
+}
+
+model route_journey_summary {
+  id                               String                           @id @db.VarChar(36)
+  route_id                         String                           @db.VarChar(36)
+  driver_id                        String?                          @db.VarChar(36)
+  date                             DateTime                         @db.Date
+  session                          route_journey_summary_session
+  route_type                       route_journey_summary_route_type
+  planned_start_time               DateTime?                        @db.DateTime(0)
+  planned_depot_departure_time     DateTime?                        @db.DateTime(0)
+  planned_end_time                 DateTime?                        @db.DateTime(0)
+  planned_total_distance_km        Float?                           @db.Float
+  planned_total_time_minutes       Float?                           @db.Float
+  planned_num_stops                Int?
+  planned_num_drivers              Int?
+  planned_within_2_hour_constraint Boolean?                         @default(false)
+  actual_start_time                DateTime?                        @db.DateTime(0)
+  actual_depot_departure_time      DateTime?                        @db.DateTime(0)
+  actual_end_time                  DateTime?                        @db.DateTime(0)
+  actual_total_distance_km         Float?                           @db.Float
+  actual_total_time_minutes        Float?                           @db.Float
+  actual_num_stops                 Int?
+  actual_num_drivers               Int?
+  actual_within_2_hour_constraint  Boolean?                         @default(false)
+  time_difference_minutes          Float?                           @db.Float
+  distance_difference_km           Float?                           @db.Float
+  efficiency_score                 Float?                           @db.Float
+  is_best_route                    Boolean?                         @default(false)
+  average_speed_kmh                Float?                           @db.Float
+  total_service_time_minutes       Float?                           @db.Float
+  total_travel_time_minutes        Float?                           @db.Float
+  created_at                       DateTime?                        @default(now()) @db.Timestamp(0)
+  updated_at                       DateTime?                        @default(now()) @db.Timestamp(0)
+
+  @@index([is_best_route, date, session], map: "idx_best_route")
+  @@index([date, session], map: "idx_date_session")
+  @@index([driver_id], map: "idx_driver_id")
+  @@index([route_id], map: "idx_route_id")
+  @@index([route_type], map: "idx_route_type")
+}
+
+model route_stop_timing_details {
+  id                                        String                                     @id @db.VarChar(36)
+  route_id                                  String                                     @db.VarChar(36)
+  planned_stop_id                           String?                                    @db.VarChar(36)
+  actual_stop_id                            String?                                    @db.VarChar(36)
+  stop_order                                Int
+  date                                      DateTime                                   @db.Date
+  session                                   route_stop_timing_details_session
+  planned_arrival_time                      DateTime?                                  @db.DateTime(0)
+  planned_departure_time                    DateTime?                                  @db.DateTime(0)
+  planned_service_time_minutes              Float?                                     @db.Float
+  planned_travel_time_from_previous_minutes Float?                                     @db.Float
+  planned_cumulative_time_minutes           Float?                                     @db.Float
+  actual_arrival_time                       DateTime?                                  @db.DateTime(0)
+  actual_departure_time                     DateTime?                                  @db.DateTime(0)
+  actual_service_time_minutes               Float?                                     @db.Float
+  actual_travel_time_from_previous_minutes  Float?                                     @db.Float
+  actual_cumulative_time_minutes            Float?                                     @db.Float
+  arrival_time_difference_minutes           Float?                                     @db.Float
+  service_time_difference_minutes           Float?                                     @db.Float
+  travel_time_difference_minutes            Float?                                     @db.Float
+  delivery_status                           route_stop_timing_details_delivery_status? @default(pending)
+  created_at                                DateTime?                                  @default(now()) @db.Timestamp(0)
+  updated_at                                DateTime?                                  @default(now()) @db.Timestamp(0)
+
+  @@index([actual_stop_id], map: "idx_actual_stop")
+  @@index([date, session], map: "idx_date_session")
+  @@index([planned_stop_id], map: "idx_planned_stop")
+  @@index([route_id], map: "idx_route_id")
+  @@index([route_id, stop_order], map: "idx_stop_order")
+}
+
+model traffic_patterns {
+  id                 String                   @id @db.VarChar(36)
+  location_name      String?                  @db.VarChar(255)
+  location_point     Unsupported("geometry")?
+  latitude           Decimal?                 @db.Decimal(10, 8)
+  longitude          Decimal?                 @db.Decimal(10, 8)
+  radius_meters      Int?                     @default(500)
+  start_hour         Int
+  start_minute       Int?                     @default(0)
+  end_hour           Int
+  end_minute         Int?                     @default(0)
+  days_of_week       String?                  @default("1,2,3,4,5") @db.VarChar(20)
+  traffic_multiplier Decimal?                 @default(1.00) @db.Decimal(3, 2)
+  delay_minutes      Int?                     @default(0)
+  clears_at_hour     Int?
+  clears_at_minute   Int?                     @default(0)
+  description        String?                  @db.Text
+  is_active          Boolean?                 @default(true)
+  created_at         DateTime?                @default(now()) @db.DateTime(0)
+  updated_at         DateTime?                @default(now()) @db.DateTime(0)
+
+  @@index([is_active], map: "idx_is_active")
+  @@index([latitude, longitude], map: "idx_location")
+  @@index([start_hour, end_hour], map: "idx_time_range")
 }
 
 enum Status {
@@ -561,12 +854,6 @@ enum customer_subscriptions_lunch_status {
   NO
 }
 
-enum planned_route_stops_session {
-  Breakfast
-  Lunch
-  Dinner
-}
-
 enum customer_subscriptions_dinner_status {
   YES
   NO
@@ -576,12 +863,6 @@ enum traffic_weather_log_traffic_level {
   Low
   Medium
   High
-}
-
-enum actual_route_stops_delivery_status {
-  Delivered
-  Missed
-  Skipped
 }
 
 enum actual_route_stops_status {
@@ -604,3 +885,97 @@ enum DeliveryExecutiveStatus {
   INACTIVE
 }
 
+enum best_planned_routes_session {
+  breakfast
+  lunch
+  dinner
+}
+
+enum best_planned_routes_route_type {
+  ai_optimized
+  route_optimization
+  google_maps
+}
+
+enum delivery_zones_zone_type {
+  PRIMARY
+  MEDIUM
+  HIGH_DEMAND
+  LOW_PRIORITY
+}
+
+enum actual_route_stops_session {
+  breakfast
+  lunch
+  dinner
+}
+
+enum route_journey_summary_session {
+  breakfast
+  lunch
+  dinner
+}
+
+enum route_comparisons_session {
+  breakfast
+  lunch
+  dinner
+}
+
+enum route_journey_summary_route_type {
+  ai_optimized
+  route_optimization
+  google_maps
+}
+
+enum route_stop_timing_details_session {
+  breakfast
+  lunch
+  dinner
+}
+
+enum planned_route_stops_session {
+  breakfast
+  lunch
+  dinner
+}
+
+enum planned_route_stops_route_type {
+  ai_optimized
+  route_optimization
+  google_maps
+}
+
+enum vehicle_tracking_log_session {
+  breakfast
+  lunch
+  dinner
+}
+
+enum route_stop_timing_details_delivery_status {
+  pending
+  arrived
+  delivered
+  missed
+  cancelled
+}
+
+enum route_comparisons_traffic_level {
+  low
+  medium
+  high
+}
+
+enum actual_route_stops_delivery_status {
+  pending
+  arrived
+  delivered
+  missed
+  cancelled
+}
+
+enum actual_route_stops_route_type {
+  ai_optimized
+  route_optimization
+  google_maps
+}

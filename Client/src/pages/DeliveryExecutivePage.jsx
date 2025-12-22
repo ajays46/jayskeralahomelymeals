@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiLogOut, FiMapPin } from 'react-icons/fi';
+import { FiArrowLeft, FiLogOut, FiMapPin, FiPlay } from 'react-icons/fi';
 import { MdLocalShipping } from 'react-icons/md';
 import { message } from 'antd';
 import { toast } from 'react-toastify';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
+import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 /**
  * DeliveryExecutivePage - Delivery executive dashboard with route and order management
@@ -24,7 +26,7 @@ const DeliveryExecutivePage = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // Routes state
-  const [routes, setRoutes] = useState([]);
+  const [routes, setRoutes] = useState({ sessions: {} }); // Initialize as object with sessions property
   const [routesLoading, setRoutesLoading] = useState(false);
   const [routesError, setRoutesError] = useState(null);
   const [selectedSession, setSelectedSession] = useState('breakfast'); // breakfast, lunch, dinner
@@ -48,11 +50,34 @@ const DeliveryExecutivePage = () => {
   const [deliveryStatus, setDeliveryStatus] = useState({});
   const [loadingStatus, setLoadingStatus] = useState({});
   
-  
+  // Get user and roles first (before state that uses them)
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const logout = useAuthStore((state) => state.logout);
+  
+  // Start Journey state
+  const [showStartJourneyModal, setShowStartJourneyModal] = useState(false);
+  const [startJourneyData, setStartJourneyData] = useState({
+    route_id: '',
+    driver_id: ''
+  });
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [activeRouteId, setActiveRouteId] = useState(null); // Track active journey route_id
+  
+  // End Session state
+  const [showEndSessionModal, setShowEndSessionModal] = useState(false);
+  const [endSessionData, setEndSessionData] = useState({
+    sessionName: '',
+    sessionId: ''
+  });
+  
+  // React Query hooks
+  const startJourneyMutation = useStartJourney();
+  const completeSessionMutation = useCompleteDriverSession();
+  const stopReachedMutation = useStopReached();
+  const endJourneyMutation = useEndJourney();
 
   // Get display name with fallbacks
   const getDisplayName = () => {
@@ -73,7 +98,7 @@ const DeliveryExecutivePage = () => {
   useEffect(() => {
     const phoneNumber = getUserPhoneNumber();
     
-    if (activeTab === 'routes' && phoneNumber && routes.length === 0 && !routesLoading) {
+    if (activeTab === 'routes' && phoneNumber && (!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading) {
       fetchRoutes();
     }
   }, [activeTab, user]);
@@ -91,6 +116,16 @@ const DeliveryExecutivePage = () => {
       });
     }
   }, [routes, selectedSession]);
+
+  // Initialize driver_id when user is available
+  useEffect(() => {
+    if (user?.id) {
+      setStartJourneyData(prev => ({
+        ...prev,
+        driver_id: user.id
+      }));
+    }
+  }, [user?.id]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Recently';
@@ -546,13 +581,28 @@ const DeliveryExecutivePage = () => {
       const response = await axiosInstance.get(apiUrl);
 
       if (response.data && response.data.success) {
-        const routesData = response.data.data || [];
-        setRoutes(routesData);
+        const routesData = response.data.data;
         
-        if (routesData.length === 0) {
-          message.info('No routes assigned for today');
-        } else {
+        // Handle different response structures
+        // Structure 1: Object with sessions property
+        if (routesData && typeof routesData === 'object' && routesData.sessions) {
+          setRoutes(routesData);
           message.success('Routes loaded successfully!');
+        }
+        // Structure 2: Array - convert to object with sessions
+        else if (Array.isArray(routesData) && routesData.length > 0) {
+          // If it's an array, try to structure it
+          const structuredRoutes = {
+            sessions: routesData[0]?.sessions || {},
+            ...routesData[0]
+          };
+          setRoutes(structuredRoutes);
+          message.success('Routes loaded successfully!');
+        }
+        // Structure 3: Empty or no data
+        else {
+          setRoutes({ sessions: {} });
+          message.info('No routes assigned for today');
         }
       } else {
         throw new Error(response.data?.message || 'Failed to fetch routes');
@@ -574,8 +624,200 @@ const DeliveryExecutivePage = () => {
     setSidebarOpen(false);
     
     // Fetch routes when switching to routes tab
-    if (routes.length === 0 && !routesLoading && phoneNumber) {
+    if ((!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading && phoneNumber) {
       fetchRoutes();
+    }
+  };
+
+  // Get current GPS location
+  const getCurrentLocationForJourney = () => {
+    if (!navigator.geolocation) {
+      showErrorToast('Geolocation is not supported by your browser');
+      return;
+    }
+    
+    setLocationLoading(true);
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        };
+        setCurrentLocation(location);
+        // Note: Location is captured but not sent to API (API only requires route_id and driver_id)
+        setLocationLoading(false);
+        showSuccessToast('Location captured successfully!');
+      },
+      (error) => {
+        setLocationLoading(false);
+        let errorMsg = 'Unable to get location';
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMsg = 'Location access denied. Please enable location services.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorMsg = 'Location unavailable';
+        } else if (error.code === error.TIMEOUT) {
+          errorMsg = 'Location request timed out';
+        }
+        showErrorToast(errorMsg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  // Handle Start Journey button click
+  const handleStartJourneyClick = () => {
+    if (!user?.id) {
+      showErrorToast('User ID not found. Please log in again.');
+      return;
+    }
+    
+    // Set driver_id and open modal for confirmation
+    setStartJourneyData({
+      route_id: '',
+      driver_id: user?.id || ''
+    });
+    setShowStartJourneyModal(true);
+    
+    // Auto-get location when modal opens
+    getCurrentLocationForJourney();
+  };
+
+  // Handle Start Journey submission
+  const handleStartJourney = async () => {
+    if (!startJourneyData.route_id) {
+      showErrorToast('Route ID is required');
+      return;
+    }
+    
+    if (!startJourneyData.driver_id) {
+      showErrorToast('Driver ID is required');
+      return;
+    }
+    
+    try {
+      const result = await startJourneyMutation.mutateAsync({
+        route_id: startJourneyData.route_id,
+        driver_id: startJourneyData.driver_id
+      });
+      
+      // Store the route_id for later use
+      if (result.route_id) {
+        setActiveRouteId(result.route_id);
+      }
+      
+      showSuccessToast('Journey started successfully!');
+      setShowStartJourneyModal(false);
+      setStartJourneyData({
+        route_id: '',
+        driver_id: user?.id || ''
+      });
+      
+      // Refresh routes after starting journey
+      fetchRoutes();
+    } catch (error) {
+      showErrorToast(error.message || 'Failed to start journey');
+    }
+  };
+
+  // Handle marking a stop as reached/delivered
+  const handleStopReached = async (stop, stopIndex) => {
+    if (!user?.id || !activeRouteId) {
+      showErrorToast('No active journey. Please start a journey first.');
+      return;
+    }
+    
+    try {
+      // Get current location
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000
+        });
+      });
+      
+      await stopReachedMutation.mutateAsync({
+        user_id: user.id,
+        route_id: activeRouteId,
+        stop_order: stop.Stop_No || stopIndex + 1,
+        delivery_id: stop.Delivery_Item_ID,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        status: 'delivered',
+        packages_delivered: stop.Packages || 1
+      });
+      
+      showSuccessToast(`Stop ${stop.Stop_No || stopIndex + 1} marked as delivered!`);
+      fetchRoutes();
+    } catch (error) {
+      showErrorToast(error.message || 'Failed to mark stop as reached');
+    }
+  };
+
+  // Handle ending the journey
+  const handleEndJourney = async () => {
+    if (!user?.id || !activeRouteId) {
+      showErrorToast('No active journey to end.');
+      return;
+    }
+    
+    try {
+      // Get current location
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000
+        });
+      });
+      
+      await endJourneyMutation.mutateAsync({
+        user_id: user.id,
+        route_id: activeRouteId,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      });
+      
+      showSuccessToast('Journey ended successfully!');
+      setActiveRouteId(null);
+      fetchRoutes();
+    } catch (error) {
+      showErrorToast(error.message || 'Failed to end journey');
+    }
+  };
+
+  // Handle End Session button click
+  const handleEndSessionClick = (sessionName) => {
+    // Generate session ID based on session name and current date
+    const today = new Date().toISOString().split('T')[0];
+    const sessionId = `${sessionName}_${today}_${user?.id || 'unknown'}`;
+    
+    setEndSessionData({
+      sessionName: sessionName,
+      sessionId: sessionId
+    });
+    setShowEndSessionModal(true);
+  };
+
+  // Handle End Session submission
+  const handleEndSession = async () => {
+    if (!endSessionData.sessionId) {
+      showErrorToast('Session ID is required');
+      return;
+    }
+    
+    try {
+      await completeSessionMutation.mutateAsync({
+        sessionId: endSessionData.sessionId,
+        route_id: routes?.route_id || endSessionData.sessionId,
+        end_time: new Date().toISOString()
+      });
+      showSuccessToast(`${endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} session completed successfully!`);
+      setShowEndSessionModal(false);
+      setEndSessionData({ sessionName: '', sessionId: '' });
+      // Refresh routes after session completion
+      fetchRoutes();
+    } catch (error) {
+      showErrorToast(error.message || 'Failed to complete session');
     }
   };
 
@@ -784,32 +1026,43 @@ const DeliveryExecutivePage = () => {
               <div className="w-full">
                 {/* Today's Routes */}
                 <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
                     <h3 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
                       <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       📅 Today's Routes
                     </h3>
-                    <button
-                      onClick={fetchRoutes}
-                      disabled={routesLoading}
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-1"
-                    >
-                      {routesLoading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          Refresh
-                        </>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleStartJourneyClick}
+                        disabled={routesLoading || !routes.sessions || Object.keys(routes.sessions).length === 0}
+                        className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-1 font-medium"
+                      >
+                        <FiPlay className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">Start Journey</span>
+                        <span className="sm:hidden">Start</span>
+                      </button>
+                      <button
+                        onClick={fetchRoutes}
+                        disabled={routesLoading}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-1"
+                      >
+                        {routesLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Refresh
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Loading State */}
@@ -861,7 +1114,7 @@ const DeliveryExecutivePage = () => {
                   {/* Routes List */}
                   {!routesLoading && !routesError && (
                     <div className="space-y-4">
-                      {routes.length === 0 ? (
+                      {(!routes.sessions || Object.keys(routes.sessions).length === 0) ? (
                         <div className="text-center py-8">
                           <div className="text-gray-400 text-4xl mb-4">📋</div>
                           <p className="text-gray-400 mb-2">No routes found</p>
@@ -891,17 +1144,28 @@ const DeliveryExecutivePage = () => {
                             <div className="space-y-4">
                               {/* Session Header */}
                               <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-                                <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                                   <h4 className="text-lg font-semibold text-white capitalize">
                                     {selectedSession} Route
                                   </h4>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <span className="px-3 py-1 bg-green-600 text-white text-xs rounded-full">
                                       {routes.sessions[selectedSession].stops.length} Stops
                                     </span>
                                     <span className="px-3 py-1 bg-blue-600 text-white text-xs rounded-full">
                                       {routes.sessions[selectedSession].stops.reduce((total, stop) => total + (stop.Packages || 0), 0)} Packages
                                     </span>
+                                    <button
+                                      onClick={() => handleEndSessionClick(selectedSession)}
+                                      disabled={completeSessionMutation.isPending}
+                                      className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-500 text-white text-xs rounded-full transition-colors flex items-center gap-1 font-medium"
+                                    >
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                      </svg>
+                                      End Session
+                                    </button>
                                   </div>
                                 </div>
                                 
@@ -1352,6 +1616,145 @@ const DeliveryExecutivePage = () => {
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
               >
                 Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Start Journey Confirmation Modal */}
+      {showStartJourneyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <FiPlay className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Start Journey</h3>
+                <p className="text-gray-400 text-sm">Ready to start your delivery journey?</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              {/* Route ID */}
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Route ID *</label>
+                <input
+                  type="text"
+                  value={startJourneyData.route_id}
+                  onChange={(e) => setStartJourneyData(prev => ({ ...prev, route_id: e.target.value }))}
+                  placeholder="Enter route ID"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white text-sm"
+                />
+              </div>
+              
+              {/* Driver ID */}
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Driver ID *</label>
+                <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
+                  <p className="text-white font-mono text-sm">{startJourneyData.driver_id || user?.id || 'N/A'}</p>
+                </div>
+                <p className="text-gray-500 text-xs mt-1">Auto-filled from your account</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowStartJourneyModal(false);
+                  setCurrentLocation(null);
+                }}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStartJourney}
+                disabled={startJourneyMutation.isPending || !startJourneyData.route_id || !startJourneyData.driver_id}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {startJourneyMutation.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <FiPlay className="w-4 h-4" />
+                    Start Journey
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End Session Confirmation Modal */}
+      {showEndSessionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">End {endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} Session</h3>
+                <p className="text-gray-400 text-sm">Are you sure you want to end this session?</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-300 text-sm mb-2">
+                This will mark the <span className="font-semibold text-white capitalize">{endSessionData.sessionName}</span> session as completed.
+              </p>
+              <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">Session:</span>
+                  <span className="text-white capitalize font-medium">{endSessionData.sessionName}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-2">
+                  <span className="text-gray-400">End Time:</span>
+                  <span className="text-white font-mono">{new Date().toLocaleTimeString()}</span>
+                </div>
+              </div>
+              <p className="text-yellow-400 text-xs mt-2">
+                ⚠️ This action will trigger reinforcement learning and cannot be undone.
+              </p>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowEndSessionModal(false);
+                  setEndSessionData({ sessionName: '', sessionId: '' });
+                }}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEndSession}
+                disabled={completeSessionMutation.isPending}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {completeSessionMutation.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Completing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    End Session
+                  </>
+                )}
               </button>
             </div>
           </div>

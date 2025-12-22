@@ -1,3 +1,7 @@
+/**
+ * Copyright (c) 2025 JAYS KERALA INNOVATIONS PRIVATE LIMITED. All rights reserved.
+ */
+
 import React, { useState } from 'react'
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';

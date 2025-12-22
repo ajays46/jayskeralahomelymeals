@@ -2,6 +2,62 @@ import React from 'react';
 import { MdLocationOn, MdSchedule, MdShoppingCart, MdCheck } from 'react-icons/md';
 import AddressPicker from '../AddressPicker';
 
+// Helper function to format address display names (handles Google Maps URLs)
+const formatAddressDisplay = (addressName) => {
+  if (!addressName) return { displayText: 'Selected', url: null, isMapUrl: false };
+  
+  // Check if it's a Google Maps URL format
+  if (addressName.includes('Google Maps Location (') && addressName.includes('http')) {
+    // Extract the URL
+    const urlMatch = addressName.match(/\(([^)]+)\)/);
+    const url = urlMatch ? urlMatch[1] : '';
+    
+    // Try to extract a place name from various URL formats
+    let placeName = null;
+    
+    // Format 1: /place/PlaceName/
+    const placeMatch1 = url.match(/\/place\/([^/@?]+)/);
+    if (placeMatch1) {
+      placeName = decodeURIComponent(placeMatch1[1].replace(/\+/g, ' '));
+    }
+    
+    // Format 2: maps.app.goo.gl or goo.gl short links - try to get from query params
+    if (!placeName) {
+      const queryMatch = url.match(/[?&]q=([^&]+)/);
+      if (queryMatch) {
+        placeName = decodeURIComponent(queryMatch[1].replace(/\+/g, ' '));
+      }
+    }
+    
+    // Clean up the place name (remove special characters, limit length)
+    if (placeName) {
+      placeName = placeName
+        .replace(/%20/g, ' ')
+        .replace(/%2C/g, ',')
+        .trim();
+      
+      // Limit length for display
+      if (placeName.length > 40) {
+        placeName = placeName.substring(0, 37) + '...';
+      }
+    }
+    
+    // Return formatted display with clickable link
+    return {
+      displayText: placeName || 'Google Maps Location',
+      url: url,
+      isMapUrl: true
+    };
+  }
+  
+  // Regular address - return as is
+  return {
+    displayText: addressName,
+    url: null,
+    isMapUrl: false
+  };
+};
+
 const OrderSummary = ({
   selectedMenu,
   selectedDates,
@@ -295,47 +351,111 @@ a                {selectedMenu.price > 0 && (
             {(deliveryLocations.full || deliveryLocations.breakfast || deliveryLocations.lunch || deliveryLocations.dinner) && (
               <div className="mb-3 p-2 sm:p-3 bg-purple-50 rounded border border-purple-200">
                 <h5 className="font-semibold text-purple-800 text-xs sm:text-sm mb-2">Delivery Addresses:</h5>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {/* Primary Address */}
-                  {deliveryLocations.full && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-blue-500 text-xs">📍</span>
-                      <span className="text-purple-700 text-xs font-medium break-words">
-                        Primary: {deliveryLocationNames.full || 'Selected'}
-                      </span>
-                      <span className="text-xs text-green-600 bg-green-100 px-1 rounded flex-shrink-0">Required</span>
-                    </div>
-                  )}
+                  {deliveryLocations.full && (() => {
+                    const formatted = formatAddressDisplay(deliveryLocationNames.full);
+                    return (
+                      <div className="flex items-start gap-2">
+                        <span className="text-blue-500 text-xs mt-0.5">📍</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-purple-700 text-xs font-medium">Primary: </span>
+                          {formatted.isMapUrl ? (
+                            <a
+                              href={formatted.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-xs inline-flex items-center gap-1"
+                            >
+                              <MdLocationOn className="w-3 h-3" />
+                              {formatted.displayText}
+                            </a>
+                          ) : (
+                            <span className="text-purple-700 text-xs break-words">{formatted.displayText}</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-green-600 bg-green-100 px-1.5 py-0.5 rounded flex-shrink-0">Required</span>
+                      </div>
+                    );
+                  })()}
                   
                   {/* Breakfast Address */}
-                  {deliveryLocations.breakfast && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-green-500 text-xs">🍳</span>
-                      <span className="text-purple-700 text-xs break-words">
-                        Breakfast: {deliveryLocationNames.breakfast || 'Specific Address Selected'}
-                      </span>
-                    </div>
-                  )}
+                  {deliveryLocations.breakfast && (() => {
+                    const formatted = formatAddressDisplay(deliveryLocationNames.breakfast);
+                    return (
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-500 text-xs mt-0.5">🍳</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-purple-700 text-xs font-medium">Breakfast: </span>
+                          {formatted.isMapUrl ? (
+                            <a
+                              href={formatted.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-xs inline-flex items-center gap-1"
+                            >
+                              <MdLocationOn className="w-3 h-3" />
+                              {formatted.displayText}
+                            </a>
+                          ) : (
+                            <span className="text-purple-700 text-xs break-words">{formatted.displayText}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   
                   {/* Lunch Address */}
-                  {deliveryLocations.lunch && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-yellow-500 text-xs">🍽️</span>
-                      <span className="text-purple-700 text-xs break-words">
-                        Lunch: {deliveryLocationNames.lunch || 'Specific Address Selected'}
-                      </span>
-                    </div>
-                  )}
+                  {deliveryLocations.lunch && (() => {
+                    const formatted = formatAddressDisplay(deliveryLocationNames.lunch);
+                    return (
+                      <div className="flex items-start gap-2">
+                        <span className="text-yellow-500 text-xs mt-0.5">🍽️</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-purple-700 text-xs font-medium">Lunch: </span>
+                          {formatted.isMapUrl ? (
+                            <a
+                              href={formatted.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-xs inline-flex items-center gap-1"
+                            >
+                              <MdLocationOn className="w-3 h-3" />
+                              {formatted.displayText}
+                            </a>
+                          ) : (
+                            <span className="text-purple-700 text-xs break-words">{formatted.displayText}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   
                   {/* Dinner Address */}
-                  {deliveryLocations.dinner && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-pink-500 text-xs">🌙</span>
-                      <span className="text-purple-700 text-xs break-words">
-                        Dinner: {deliveryLocationNames.dinner || 'Specific Address Selected'}
-                      </span>
-                    </div>
-                  )}
+                  {deliveryLocations.dinner && (() => {
+                    const formatted = formatAddressDisplay(deliveryLocationNames.dinner);
+                    return (
+                      <div className="flex items-start gap-2">
+                        <span className="text-pink-500 text-xs mt-0.5">🌙</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-purple-700 text-xs font-medium">Dinner: </span>
+                          {formatted.isMapUrl ? (
+                            <a
+                              href={formatted.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-xs inline-flex items-center gap-1"
+                            >
+                              <MdLocationOn className="w-3 h-3" />
+                              {formatted.displayText}
+                            </a>
+                          ) : (
+                            <span className="text-purple-700 text-xs break-words">{formatted.displayText}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

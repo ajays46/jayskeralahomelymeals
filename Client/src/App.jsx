@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import Terms from './components/Terms';
@@ -41,8 +41,10 @@ import RoleTestPage from './pages/RoleTestPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
 import CustomerPasswordSetupPage from './pages/CustomerPasswordSetupPage';
 import CustomerLoginPage from './pages/CustomerLoginPage';
+import NotFound from './pages/NotFound';
 import { initializeDraftCleanup } from './utils/draftOrderUtils';
 import RoleSelectionSidebar from './components/RoleSelectionSidebar';
+import Footer from './components/Footer';
 import useAuthStore from './stores/Zustand.store';
 
 const queryClient = new QueryClient({
@@ -53,6 +55,28 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+/**
+ * ConditionalFooter - Conditionally renders Footer based on current route
+ * Only shows Footer on HomePage and MenuPage, hides on all other pagesc
+ */
+const ConditionalFooter = () => {
+  const location = useLocation();
+  
+  // Only show footer on these specific routes
+  const allowedRoutes = [
+    '/jkhm',           // HomePage (exact match)
+    '/jkhm/menu',      // MenuPage (exact match)
+  ];
+  
+  // Check if current pathname is in the allowed routes
+  if (allowedRoutes.includes(location.pathname)) {
+    return <Footer />;
+  }
+  
+  // Hide footer on all other pages
+  return null;
+};
 
 /**
  * App - Main application component with routing and authentication
@@ -133,8 +157,12 @@ const App = () => {
           <Route path='/customer-login' element={<CustomerLoginPage />}></Route>
           <Route path='/customer-orders' element={<CustomerOrdersPage />}></Route>
 
-          {/* Add more protected routes here */}
+          {/* Catch-all route for undefined routes */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
+        
+        {/* Footer - Conditionally rendered (hidden on NotFound page) */}
+        <ConditionalFooter />
       </Router>
     </QueryClientProvider>
   );

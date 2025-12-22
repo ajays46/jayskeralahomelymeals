@@ -214,6 +214,62 @@ const BookingWizardPage = () => {
     { id: 4, title: 'Schedule & Save', icon: MdSchedule, color: 'indigo' }
   ];
 
+  // Helper function to format address display names (handles Google Maps URLs)
+  const formatAddressDisplay = (addressName) => {
+    if (!addressName) return { displayText: 'Selected', url: null, isMapUrl: false };
+    
+    // Check if it's a Google Maps URL format
+    if (addressName.includes('Google Maps Location (') && addressName.includes('http')) {
+      // Extract the URL
+      const urlMatch = addressName.match(/\(([^)]+)\)/);
+      const url = urlMatch ? urlMatch[1] : '';
+      
+      // Try to extract a place name from various URL formats
+      let placeName = null;
+      
+      // Format 1: /place/PlaceName/
+      const placeMatch1 = url.match(/\/place\/([^/@?]+)/);
+      if (placeMatch1) {
+        placeName = decodeURIComponent(placeMatch1[1].replace(/\+/g, ' '));
+      }
+      
+      // Format 2: maps.app.goo.gl or goo.gl short links - try to get from query params
+      if (!placeName) {
+        const queryMatch = url.match(/[?&]q=([^&]+)/);
+        if (queryMatch) {
+          placeName = decodeURIComponent(queryMatch[1].replace(/\+/g, ' '));
+        }
+      }
+      
+      // Clean up the place name (remove special characters, limit length)
+      if (placeName) {
+        placeName = placeName
+          .replace(/%20/g, ' ')
+          .replace(/%2C/g, ',')
+          .trim();
+        
+        // Limit length for display
+        if (placeName.length > 40) {
+          placeName = placeName.substring(0, 37) + '...';
+        }
+      }
+      
+      // Return formatted display with clickable link
+      return {
+        displayText: placeName || 'Google Maps Location',
+        url: url,
+        isMapUrl: true
+      };
+    }
+    
+    // Regular address - return as is
+    return {
+      displayText: addressName,
+      url: null,
+      isMapUrl: false
+    };
+  };
+
   // Helper functions
   const getAddressDisplayName = (addressId) => {
     // If seller has selected a user, use that user's addresses
@@ -290,6 +346,12 @@ const BookingWizardPage = () => {
     // Week-day plan - 5 days (exact match)
     if (itemName.includes('week-day') || itemName.includes('weekday') || itemName.includes('week day')) {
       return 5;
+    }
+    
+    // Daily menu - 1 day (auto-select tomorrow)
+    // Check for "daily" in name OR if it's marked as daily rate item from backend
+    if (itemName.includes('daily') || menu.isDailyRateItem) {
+      return 1;
     }
     
     // No auto-selection for any other menu types
@@ -789,7 +851,21 @@ const BookingWizardPage = () => {
     };
     
     // Use the startDate parameter and days to determine the selection logic
-    if (days === 30) {
+    if (days === 1) {
+      // Daily: Select tomorrow (or next day if selected date is today or in the past)
+      let selectedDate = new Date(startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+      // If the selected date is today or in the past, select tomorrow
+      if (selectedDate.getTime() <= today.getTime()) {
+        selectedDate = new Date();
+        selectedDate.setDate(selectedDate.getDate() + 1);
+      }
+      
+      selectedDates.push(selectedDate);
+    } else if (days === 30) { 
       // Monthly: Start from the selected date, but never from today
       let startFromDate = new Date(startDate);
       const today = new Date();
@@ -898,8 +974,8 @@ const BookingWizardPage = () => {
       menuMessage = 'Weekly Menu Selected! Click any date to auto-select 7 consecutive days.';
     } else if (menu.name?.toLowerCase().includes('WEEK DAY') || menu.name?.toLowerCase().includes('week day')) {
       menuMessage = 'Week-Day Plan Selected! Click any date to auto-select 5 weekdays.';
-    } else if (menu.isDailyRateItem) {
-      menuMessage = 'Daily Rates Selected! Select individual dates for your meals.';
+    } else if (menu.name?.toLowerCase().includes('daily') || menu.isDailyRateItem) {
+      menuMessage = 'Daily Menu Selected! Tomorrow has been auto-selected. You can change the date if needed.';
     } else if (isWeekdayMenu(menu)) {
       menuMessage = 'Weekday Menu Selected! Click any date to auto-select 5 weekdays.';
     }
@@ -1500,7 +1576,9 @@ const BookingWizardPage = () => {
                         ? (() => {
                             const days = getAutoSelectionDays(selectedMenu);
                             const menuName = selectedMenu.name?.toLowerCase() || '';
-                            if (days === 30) {
+                            if (days === 1) {
+                              return 'Tomorrow has been auto-selected. Click any date to change it.';
+                            } else if (days === 30) {
                               return 'Click any date to auto-select 30 consecutive days from that date';
                             } else if (days === 7) {
                               return 'Click any date to auto-select next Monday to Sunday (7 days)';
@@ -2173,26 +2251,90 @@ const BookingWizardPage = () => {
                      <div className="text-xs sm:text-sm font-medium text-purple-900 mb-1">
                        {selectedMenu && selectedMenu.isDailyRateItem ? 'Meal Delivery Addresses' : 'Delivery Addresses'}
                      </div>
-                     {deliveryLocations.full && !selectedMenu?.isDailyRateItem && (
-                       <div className="text-purple-700 text-xs mb-1 break-words">
-                         <span className="font-medium">Primary:</span> {deliveryLocationNames.full || 'Selected'}
-                       </div>
-                     )}
-                     {deliveryLocations.breakfast && (
-                       <div className="text-purple-700 text-xs mb-1 break-words">
-                         <span className="font-medium">Breakfast:</span> {deliveryLocationNames.breakfast || 'Selected'}
-                       </div>
-                     )}
-                     {deliveryLocations.lunch && (
-                       <div className="text-purple-700 text-xs mb-1 break-words">
-                         <span className="font-medium">Lunch:</span> {deliveryLocationNames.lunch || 'Selected'}
-                       </div>
-                     )}
-                     {deliveryLocations.dinner && (
-                       <div className="text-purple-700 text-xs break-words">
-                         <span className="font-medium">Dinner:</span> {deliveryLocationNames.dinner || 'Selected'}
-                       </div>
-                     )}
+                     {deliveryLocations.full && !selectedMenu?.isDailyRateItem && (() => {
+                       const formatted = formatAddressDisplay(deliveryLocationNames.full);
+                       return (
+                         <div className="text-purple-700 text-xs mb-1.5">
+                           <span className="font-medium">Primary: </span>
+                           {formatted.isMapUrl ? (
+                             <a
+                               href={formatted.url}
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                             >
+                               <MdLocationOn className="w-3 h-3" />
+                               {formatted.displayText}
+                             </a>
+                           ) : (
+                             <span className="break-words">{formatted.displayText}</span>
+                           )}
+                         </div>
+                       );
+                     })()}
+                     {deliveryLocations.breakfast && (() => {
+                       const formatted = formatAddressDisplay(deliveryLocationNames.breakfast);
+                       return (
+                         <div className="text-purple-700 text-xs mb-1.5">
+                           <span className="font-medium">Breakfast: </span>
+                           {formatted.isMapUrl ? (
+                             <a
+                               href={formatted.url}
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                             >
+                               <MdLocationOn className="w-3 h-3" />
+                               {formatted.displayText}
+                             </a>
+                           ) : (
+                             <span className="break-words">{formatted.displayText}</span>
+                           )}
+                         </div>
+                       );
+                     })()}
+                     {deliveryLocations.lunch && (() => {
+                       const formatted = formatAddressDisplay(deliveryLocationNames.lunch);
+                       return (
+                         <div className="text-purple-700 text-xs mb-1.5">
+                           <span className="font-medium">Lunch: </span>
+                           {formatted.isMapUrl ? (
+                             <a
+                               href={formatted.url}
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                             >
+                               <MdLocationOn className="w-3 h-3" />
+                               {formatted.displayText}
+                             </a>
+                           ) : (
+                             <span className="break-words">{formatted.displayText}</span>
+                           )}
+                         </div>
+                       );
+                     })()}
+                     {deliveryLocations.dinner && (() => {
+                       const formatted = formatAddressDisplay(deliveryLocationNames.dinner);
+                       return (
+                         <div className="text-purple-700 text-xs mb-1.5">
+                           <span className="font-medium">Dinner: </span>
+                           {formatted.isMapUrl ? (
+                             <a
+                               href={formatted.url}
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                             >
+                               <MdLocationOn className="w-3 h-3" />
+                               {formatted.displayText}
+                             </a>
+                           ) : (
+                             <span className="break-words">{formatted.displayText}</span>
+                           )}
+                         </div>
+                       );
+                     })()}
                      {selectedMenu && selectedMenu.isDailyRateItem && (
                        <div className="text-purple-600 text-xs mt-2 font-medium">
                          ✓ Individual addresses configured for each meal

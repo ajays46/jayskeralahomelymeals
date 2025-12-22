@@ -3,7 +3,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder, createAdminUser, getAdminUsers, addUserRoles, removeUserRoles, getOrphanedUsers, cleanupOrphanedUsers, getSellersWithOrders, getDeliveryExecutives, proxyRoutePlanning, proxyExecutiveCount, proxyRunScript, proxySendRoutes, proxyFileContent, proxySessionData, getProductQuantitiesForMenus, getActiveExecutives, updateExecutiveStatus, saveAllRoutes} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder, createAdminUser, getAdminUsers, addUserRoles, removeUserRoles, getOrphanedUsers, cleanupOrphanedUsers, getSellersWithOrders, getDeliveryExecutives, proxyRoutePlanning, proxyExecutiveCount, proxyRunScript, proxySendRoutes, proxyFileContent, proxySessionData, getProductQuantitiesForMenus, getActiveExecutives, updateExecutiveStatus, saveAllRoutes, getVehicles, assignVehicleToExecutive, unassignVehicleFromExecutive} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -339,6 +339,25 @@ router.post('/save-all-routes',
     authenticateToken,
     // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
     saveAllRoutes
+);
+
+// Vehicles routes
+router.get('/vehicles',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    getVehicles
+);
+
+router.post('/vehicles/assign',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    assignVehicleToExecutive
+);
+
+router.post('/vehicles/unassign',
+    authenticateToken,
+    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    unassignVehicleFromExecutive
 );
 
 export default router; 

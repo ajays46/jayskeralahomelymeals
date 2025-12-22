@@ -1650,3 +1650,223 @@ export const getProductQuantitiesForMenusService = async () => {
   }
 };
 
+// Get all vehicles
+export const getVehiclesService = async (filters = {}) => {
+  try {
+    const { user_id } = filters;
+    
+    const where = {};
+    if (user_id) {
+      where.user_id = user_id;
+    }
+    
+    const vehicles = await prisma.vehicles.findMany({
+      where,
+      orderBy: {
+        created_at: 'desc'
+      }
+    });
+    
+    return vehicles;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Error fetching vehicles', {
+      error: error.message,
+      stack: error.stack,
+      filters
+    });
+    throw error;
+  }
+};
+
+// Assign vehicle to executive
+export const assignVehicleToExecutiveService = async (vehicleIdOrNumber, userId) => {
+  try {
+    // Get the vehicle to get its registration number
+    // vehicleIdOrNumber can be either vehicle ID (UUID) or vehicle registration number (string)
+    let vehicle = null;
+    let vehicleNumber = null;
+    
+    // Try to find by ID first (UUID format)
+    if (vehicleIdOrNumber && vehicleIdOrNumber.length === 36) {
+      vehicle = await prisma.vehicles.findUnique({
+        where: { id: vehicleIdOrNumber }
+      });
+      if (vehicle) {
+        vehicleNumber = vehicle.registration_number;
+      }
+    }
+    
+    // If not found by ID, treat it as registration number
+    if (!vehicle) {
+      vehicleNumber = vehicleIdOrNumber;
+    }
+    
+    if (!vehicleNumber) {
+      throw new Error('Vehicle ID or registration number is required');
+    }
+    
+    // Database updates commented out - only using external API
+    // // Update vehicle with user_id
+    // const updatedVehicle = await prisma.vehicles.update({
+    //   where: { id: vehicleId },
+    //   data: { user_id: userId }
+    // });
+    
+    // // Update DeliveryExecutive with vehicle number
+    // try {
+    //   await prisma.deliveryExecutive.update({
+    //     where: { userId: userId },
+    //     data: { vehicleNumber: vehicle.registration_number }
+    //   });
+    // } catch (deliveryExecError) {
+    //   // If DeliveryExecutive doesn't exist, log but don't fail
+    //   logError(LOG_CATEGORIES.SYSTEM, 'DeliveryExecutive not found for vehicle assignment', {
+    //     userId,
+    //     error: deliveryExecError.message
+    //   });
+    //   // Continue - vehicle assignment still succeeds
+    // }
+    
+    // Update external API (primary operation)
+    const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer mysecretkey123',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        vehicle_registration_number: vehicleNumber
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+        logError(LOG_CATEGORIES.SYSTEM, 'External API vehicle assignment failed', {
+          userId,
+          vehicleIdOrNumber,
+          vehicleNumber: vehicleNumber,
+          status: response.status,
+          error: errorText
+        });
+      throw new Error(`External API failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+        logInfo(LOG_CATEGORIES.SYSTEM, 'External API vehicle assignment succeeded', {
+          userId,
+          vehicleIdOrNumber,
+          vehicleNumber: vehicleNumber,
+          response: data
+        });
+    
+    // Return the API response
+    return {
+      success: true,
+      message: data.message || 'Vehicle assigned to executive successfully',
+      data: data,
+      vehicle: {
+        registration_number: vehicleNumber
+      }
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Error assigning vehicle to executive', {
+      error: error.message,
+      stack: error.stack,
+      vehicleIdOrNumber,
+      userId
+    });
+    throw error;
+  }
+};
+
+// Unassign vehicle from executive
+export const unassignVehicleFromExecutiveService = async (vehicleIdOrNumber, userId) => {
+  try {
+    // Get user_id from parameter (required for unassignment)
+    const executiveUserId = userId;
+    
+    if (!executiveUserId) {
+      throw new Error('User ID is required for vehicle unassignment');
+    }
+    
+    // Database lookup commented out - not needed for unassignment
+    // const vehicle = await prisma.vehicles.findUnique({
+    //   where: { id: vehicleIdOrNumber }
+    // });
+    
+    // Database updates commented out - only using external API
+    // const previousUserId = vehicle.user_id;
+    
+    // // Update vehicle to remove user_id
+    // const updatedVehicle = await prisma.vehicles.update({
+    //   where: { id: vehicleId },
+    //   data: { user_id: null }
+    // });
+    
+    // // Clear vehicleNumber from DeliveryExecutive if user_id existed
+    // if (previousUserId) {
+    //   try {
+    //     await prisma.deliveryExecutive.update({
+    //       where: { userId: previousUserId },
+    //       data: { vehicleNumber: null }
+    //     });
+    //   } catch (deliveryExecError) {
+    //     // If DeliveryExecutive doesn't exist, log but don't fail
+    //     logError(LOG_CATEGORIES.SYSTEM, 'DeliveryExecutive not found for vehicle unassignment', {
+    //       userId: previousUserId,
+    //       error: deliveryExecError.message
+    //     });
+    //     // Continue - vehicle unassignment still succeeds
+    //   }
+    // }
+    
+    // Update external API (primary operation)
+    // For unassignment, set vehicle_registration_number to null or empty string
+    const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer mysecretkey123',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        user_id: executiveUserId,
+        vehicle_registration_number: null // Set to null for unassignment
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+        logError(LOG_CATEGORIES.SYSTEM, 'External API vehicle unassignment failed', {
+          userId: executiveUserId,
+          vehicleIdOrNumber,
+          status: response.status,
+          error: errorText
+        });
+      throw new Error(`External API failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+        logInfo(LOG_CATEGORIES.SYSTEM, 'External API vehicle unassignment succeeded', {
+          userId: executiveUserId,
+          vehicleIdOrNumber,
+          response: data
+        });
+    
+    // Return the API response
+    return {
+      success: true,
+      message: data.message || 'Vehicle unassigned from executive successfully',
+      data: data
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Error unassigning vehicle from executive', {
+      error: error.message,
+      stack: error.stack,
+      vehicleIdOrNumber,
+      userId
+    });
+    throw error;
+  }
+};
+

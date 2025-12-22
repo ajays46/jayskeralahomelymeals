@@ -1,5 +1,6 @@
 import AppError from '../utils/AppError.js';
 import { uploadImageToExternalAPI } from '../services/externalUpload.service.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
  * External Upload Controller - Handles external API integration for image processing
@@ -38,6 +39,14 @@ export const uploadImageToExternal = async (req, res, next) => {
     const result = await uploadImageToExternalAPI(file, userId, expectedAmount);
 
     if (result.success) {
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Image uploaded to external service successfully', {
+        userId: userId,
+        expectedAmount: expectedAmount,
+        fileSize: file.size,
+        fileType: file.mimetype,
+        hasS3Url: !!(result.data?.s3_url || result.data?.url)
+      });
+
       res.status(200).json({
         success: true,
         message: 'Image uploaded to external service successfully',
@@ -50,6 +59,14 @@ export const uploadImageToExternal = async (req, res, next) => {
       });
     } else {
       // External validation failed - return error to prevent payment completion
+      logError(LOG_CATEGORIES.SYSTEM, 'Payment receipt verification failed', {
+        userId: userId,
+        expectedAmount: expectedAmount,
+        error: result.error,
+        status: result.status,
+        details: result.details || []
+      });
+
       res.status(400).json({
         success: false,
         message: 'Payment receipt verification failed',
@@ -59,6 +76,12 @@ export const uploadImageToExternal = async (req, res, next) => {
       });
     }
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'External image upload failed', {
+      userId: userId,
+      expectedAmount: req.body?.expected_amount,
+      error: error.message,
+      stack: error.stack
+    });
     // External upload controller error
     next(error);
   }
