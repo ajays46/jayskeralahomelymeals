@@ -78,7 +78,7 @@ jobs:
           # Set environment variables for PM2
           export AI_ROUTE_API="${{ secrets.AI_ROUTE_API }}"
           export AI_ROUTE_API_SECOND="${{ secrets.AI_ROUTE_API_SECOND }}"
-           export AI_ROUTE_API_THIRD="${{ secrets.AI_ROUTE_API_THIRD }}"
+          export AI_ROUTE_API_THIRD="${{ secrets.AI_ROUTE_API_THIRD }}"
           export JWT_ACCESS_SECRET="${{ secrets.JWT_ACCESS_SECRET }}"
           export NODE_ENV="production"
           export PORT="5000"
