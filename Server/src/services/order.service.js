@@ -111,6 +111,9 @@ export const getOrderByIdService = async (orderId) => {
           include: {
             menuItem: true,
             deliveryAddress: true
+          },
+          orderBy: {
+            deliveryDate: 'asc'
           }
         },
         deliveryAddress: true,
@@ -130,22 +133,47 @@ export const getOrderByIdService = async (orderId) => {
       throw new Error('Order not found');
     }
 
-    // Parse orderTimes to extract selectedDates
+    // Extract selectedDates from delivery items (delivery dates)
+    // This shows the actual delivery days from the delivery_items table
+    // Example: If order has delivery items for Dec 25, 26, 27, it will show "3 day(s)" and "Dec 25 - Dec 27"
     let selectedDates = [];
-    if (order.orderTimes) {
-      try {
-        const orderTimes = JSON.parse(order.orderTimes);
-        // Extract unique dates from delivery items
-        const dates = new Set();
-        order.deliveryItems.forEach(item => {
-          if (item.deliveryDate) {
-            dates.add(item.deliveryDate);
+    if (order.deliveryItems && order.deliveryItems.length > 0) {
+      // Extract unique delivery dates from delivery items
+      const dates = new Set();
+      order.deliveryItems.forEach(item => {
+        if (item.deliveryDate) {
+          try {
+            // Handle both Date objects and date strings from Prisma
+            let deliveryDate;
+            if (item.deliveryDate instanceof Date) {
+              deliveryDate = item.deliveryDate;
+            } else if (typeof item.deliveryDate === 'string') {
+              // If it's a string, parse it (could be ISO string or YYYY-MM-DD)
+              deliveryDate = new Date(item.deliveryDate);
+            } else {
+              // Try to convert to Date
+              deliveryDate = new Date(item.deliveryDate);
+            }
+            
+            // Validate the date
+            if (isNaN(deliveryDate.getTime())) {
+              console.warn('Invalid delivery date:', item.deliveryDate);
+              return;
+            }
+            
+            // Format as YYYY-MM-DD in local timezone (not UTC)
+            // This ensures dates are shown correctly regardless of timezone
+            const year = deliveryDate.getFullYear();
+            const month = String(deliveryDate.getMonth() + 1).padStart(2, '0');
+            const day = String(deliveryDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            dates.add(dateStr);
+          } catch (error) {
+            console.warn('Error processing delivery date:', item.deliveryDate, error);
           }
-        });
-        selectedDates = Array.from(dates).sort();
-      } catch (parseError) {
-        console.warn('Failed to parse orderTimes:', parseError);
-      }
+        }
+      });
+      selectedDates = Array.from(dates).sort();
     }
 
     // Add selectedDates and other useful fields to the order object

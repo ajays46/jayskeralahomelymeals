@@ -27,60 +27,67 @@ import {
   reoptimizeRoute,
   completeDriverSession,
   getMissingGeoLocations,
-  updateGeoLocation
+  updateGeoLocation,
+  checkTraffic,
+  getRouteOrder
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();
 
-// All AI route routes require authentication and DELIVERY_MANAGER role
+// All routes require authentication
 router.use(authenticateToken);
-router.use(checkRole('DELIVERY_MANAGER'));
 
 // Health check
 router.get('/health', checkApiHealth);
 
-// Delivery data
-router.get('/delivery-data/available-dates', getAvailableDates);
-router.get('/delivery-data', getDeliveryData);
+// Delivery data - DELIVERY_MANAGER only
+router.get('/delivery-data/available-dates', checkRole('DELIVERY_MANAGER'), getAvailableDates);
+router.get('/delivery-data', checkRole('DELIVERY_MANAGER'), getDeliveryData);
 
-// Route planning
-router.post('/route/plan', planRoute);
-router.post('/route/predict-start-time', predictStartTime);
+// Route planning - DELIVERY_MANAGER only
+router.post('/route/plan', checkRole('DELIVERY_MANAGER'), planRoute);
+router.post('/route/predict-start-time', checkRole('DELIVERY_MANAGER'), predictStartTime);
 
 // Journey management (NEW APIs matching documentation)
-router.post('/journey/start', startJourney);
-router.post('/journey/stop-reached', stopReached);
-router.post('/journey/end', endJourney);
-router.get('/journey/status/:routeId', getJourneyStatus);
-router.get('/route/tracking-status/:routeId', getTrackingStatus);
+// Allow both DELIVERY_MANAGER and DELIVERY_EXECUTIVE for journey operations
+router.post('/journey/start', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), startJourney);
+router.post('/journey/stop-reached', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), stopReached); // Legacy endpoint
+router.post('/journey/mark-stop', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), stopReached); // New endpoint matching documentation
+router.post('/journey/end',checkRole('DELIVERY_EXECUTIVE'), endJourney);
+router.get('/journey/status/:routeId', checkRole('DELIVERY_EXECUTIVE'), getJourneyStatus);
+router.get('/route/tracking-status/:routeId', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), getTrackingStatus);
+// Traffic check and auto-reoptimization - Allow both DELIVERY_MANAGER and DELIVERY_EXECUTIVE
+router.post('/journey/check-traffic', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), checkTraffic);
+// Get route order - Allow both DELIVERY_MANAGER and DELIVERY_EXECUTIVE
+router.get('/journey/route-order/:routeId', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), getRouteOrder);
 
-// Vehicle tracking
-router.post('/vehicle-tracking', vehicleTracking);
-router.get('/vehicle/tracking/all', getAllVehicleTracking);
+// Vehicle tracking - DELIVERY_MANAGER only
+router.post('/vehicle-tracking', checkRole('DELIVERY_MANAGER'), vehicleTracking);
+router.get('/vehicle/tracking/all', checkRole('DELIVERY_MANAGER'), getAllVehicleTracking);
 
-// Weather
-router.get('/weather/current', getCurrentWeather);
-router.get('/weather/forecast', getWeatherForecast);
-router.get('/weather/zones', getWeatherZones);
-router.get('/weather/predictions', getWeatherPredictions);
+// Weather - DELIVERY_MANAGER only
+router.get('/weather/current', checkRole('DELIVERY_MANAGER'), getCurrentWeather);
+router.get('/weather/forecast', checkRole('DELIVERY_MANAGER'), getWeatherForecast);
+router.get('/weather/zones', checkRole('DELIVERY_MANAGER'), getWeatherZones);
+router.get('/weather/predictions', checkRole('DELIVERY_MANAGER'), getWeatherPredictions);
 
-// Zones
-router.get('/zones', getZones);
-router.get('/zones/:zoneId', getZoneById);
-router.post('/zones', createZone);
-router.put('/zones/:zoneId', updateZone);
-router.delete('/zones/:zoneId', deleteZone);
-router.get('/zones/:zoneId/deliveries', getZoneDeliveries);
+// Zones - DELIVERY_MANAGER only
+router.get('/zones', checkRole('DELIVERY_MANAGER'), getZones);
+router.get('/zones/:zoneId', checkRole('DELIVERY_MANAGER'), getZoneById);
+router.post('/zones', checkRole('DELIVERY_MANAGER'), createZone);
+router.put('/zones/:zoneId', checkRole('DELIVERY_MANAGER'), updateZone);
+router.delete('/zones/:zoneId', checkRole('DELIVERY_MANAGER'), deleteZone);
+router.get('/zones/:zoneId/deliveries', checkRole('DELIVERY_MANAGER'), getZoneDeliveries);
 
-// Route re-optimization
-router.post('/route/reoptimize', reoptimizeRoute);
+// Route re-optimization - DELIVERY_MANAGER only
+router.post('/route/reoptimize', checkRole('DELIVERY_EXECUTIVE'), reoptimizeRoute);
 
-// Driver session completion
-router.post('/driver-session/:sessionId/complete', completeDriverSession);
+// Driver session completion - DELIVERY_MANAGER only
+router.post('/driver-session/:sessionId/complete', checkRole('DELIVERY_EXECUTIVE'), completeDriverSession);
 
-// Address geo-location management
-router.get('/address/get-missing-geo-locations', getMissingGeoLocations);
-router.post('/address/update-geo-location', updateGeoLocation);
+// Address geo-location management - DELIVERY_MANAGER only
+router.get('/address/get-missing-geo-locations', checkRole('DELIVERY_MANAGER'), getMissingGeoLocations);
+router.post('/address/update-geo-location', checkRole('DELIVERY_MANAGER'), updateGeoLocation);
 
 export default router;
 

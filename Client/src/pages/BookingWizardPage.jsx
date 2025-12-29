@@ -635,7 +635,14 @@ const BookingWizardPage = () => {
         // Load draft data
         setSelectedUser(draftOrder.selectedUser);
         setSelectedMenu(draftOrder.selectedMenu);
-        setSelectedDates(draftOrder.selectedDates.map(dateStr => new Date(dateStr)));
+        // Parse dates in local timezone to avoid timezone conversion issues
+        const parsedDates = draftOrder.selectedDates.map(dateStr => {
+          // Parse date string as YYYY-MM-DD in local timezone
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const date = new Date(year, month - 1, day, 0, 0, 0, 0); // month is 0-indexed
+          return date;
+        });
+        setSelectedDates(parsedDates);
         setDeliveryLocations(draftOrder.deliveryLocations || {});
         setDeliveryLocationNames(draftOrder.deliveryLocationNames || {});
         setSkipMeals(draftOrder.skipMeals || {});
@@ -673,6 +680,7 @@ const BookingWizardPage = () => {
         showErrorToast('Failed to load draft order. Please try again.');
         navigate(location.pathname, { replace: true });
       }
+
     }
   }, [location.state?.draftOrder, location.state?.resumeDraft, location.state?.editMode, isSeller, navigate]);
 
@@ -730,10 +738,12 @@ const BookingWizardPage = () => {
   const generateDates = () => {
     const dates = [];
     const startDate = new Date(currentDate);
+    startDate.setHours(0, 0, 0, 0);
     
     for (let i = 0; i < 7; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
+      date.setHours(0, 0, 0, 0);
       dates.push(date);
     }
     
@@ -787,26 +797,44 @@ const BookingWizardPage = () => {
   };
 
   const isSelected = (date) => {
-    return selectedDates.some(selectedDate => selectedDate.toDateString() === date.toDateString());
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    return selectedDates.some(selectedDate => {
+      const normalizedSelected = new Date(selectedDate);
+      normalizedSelected.setHours(0, 0, 0, 0);
+      return normalizedSelected.getTime() === normalizedDate.getTime();
+    });
   };
 
   const handleDateSelection = (date) => {
+    // Normalize the date to ensure consistent comparison (set time to midnight)
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    
     const autoSelectionDays = getAutoSelectionDays(selectedMenu);
     
     // If a menu with auto-selection is selected, always auto-select from the clicked date
     if (selectedMenu && autoSelectionDays > 0) {
-      handleAutoDateSelection(date, autoSelectionDays);
+      handleAutoDateSelection(normalizedDate, autoSelectionDays);
       return;
     }
 
     // For menus without auto-selection, toggle individual dates
     setSelectedDates(prev => {
-      const dateStr = date.toDateString();
-      const exists = prev.find(d => d.toDateString() === dateStr);
+      const dateStr = normalizedDate.toDateString();
+      const exists = prev.find(d => {
+        const normalizedPrev = new Date(d);
+        normalizedPrev.setHours(0, 0, 0, 0);
+        return normalizedPrev.toDateString() === dateStr;
+      });
       if (exists) {
-        return prev.filter(d => d.toDateString() !== dateStr);
+        return prev.filter(d => {
+          const normalizedPrev = new Date(d);
+          normalizedPrev.setHours(0, 0, 0, 0);
+          return normalizedPrev.toDateString() !== dateStr;
+        });
       } else {
-        return [...prev, date];
+        return [...prev, normalizedDate];
       }
     });
   };
@@ -814,16 +842,20 @@ const BookingWizardPage = () => {
   const handleAutoDateSelection = (startDate, days) => {
     const selectedDates = [];
     
+    // Normalize the startDate first to ensure consistent date comparison
+    // Create date in local timezone to avoid timezone conversion issues
+    const normalizedStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
+    
     // Helper function to get next Monday from a given date (never today)
     const getNextMonday = (date) => {
       const nextMonday = new Date(date);
+      nextMonday.setHours(0, 0, 0, 0);
       const dayOfWeek = nextMonday.getDay();
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
       // If it's already Monday (1), check if it's today
       if (dayOfWeek === 1) {
-        nextMonday.setHours(0, 0, 0, 0);
         if (nextMonday.getTime() <= today.getTime()) {
           // This Monday is today or past, go to next Monday
           nextMonday.setDate(nextMonday.getDate() + 7);
@@ -834,7 +866,6 @@ const BookingWizardPage = () => {
       } else if (dayOfWeek > 1) {
         // Tuesday-Saturday - go back to this Monday
         nextMonday.setDate(nextMonday.getDate() - (dayOfWeek - 1));
-        nextMonday.setHours(0, 0, 0, 0);
         if (nextMonday.getTime() <= today.getTime()) {
           // This Monday is today or past, go to next Monday
           nextMonday.setDate(nextMonday.getDate() + 7);
@@ -852,53 +883,65 @@ const BookingWizardPage = () => {
     
     // Use the startDate parameter and days to determine the selection logic
     if (days === 1) {
-      // Daily: Select tomorrow (or next day if selected date is today or in the past)
-      let selectedDate = new Date(startDate);
+      // Daily: Use the clicked date if it's in the future, otherwise use tomorrow
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      selectedDate.setHours(0, 0, 0, 0);
       
-      // If the selected date is today or in the past, select tomorrow
-      if (selectedDate.getTime() <= today.getTime()) {
+      let selectedDate;
+      // If the clicked date is today or in the past, select tomorrow
+      if (normalizedStartDate.getTime() <= today.getTime()) {
         selectedDate = new Date();
         selectedDate.setDate(selectedDate.getDate() + 1);
+        selectedDate.setHours(0, 0, 0, 0);
+      } else {
+        // Use the clicked date (it's in the future)
+        selectedDate = new Date(normalizedStartDate);
+        selectedDate.setHours(0, 0, 0, 0);
       }
       
-      selectedDates.push(selectedDate);
+      // Ensure the date is stored correctly in local timezone
+      const finalDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 0, 0, 0, 0);
+      selectedDates.push(finalDate);
     } else if (days === 30) { 
       // Monthly: Start from the selected date, but never from today
-      let startFromDate = new Date(startDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      startFromDate.setHours(0, 0, 0, 0);
       
+      let startFromDate;
       // If the selected date is today or in the past, start from tomorrow
-      if (startFromDate.getTime() <= today.getTime()) {
+      if (normalizedStartDate.getTime() <= today.getTime()) {
         startFromDate = new Date();
         startFromDate.setDate(startFromDate.getDate() + 1);
+        startFromDate.setHours(0, 0, 0, 0);
+      } else {
+        // Use the clicked date (it's in the future)
+        startFromDate = new Date(normalizedStartDate);
       }
       
       for (let i = 0; i < 30; i++) {
         const date = new Date(startFromDate);
         date.setDate(startFromDate.getDate() + i);
+        date.setHours(0, 0, 0, 0);
         selectedDates.push(date);
       }
     } else if (days === 7) {
       // Weekly: Start from next Monday from the clicked date, select Monday to Sunday (7 days)
-      const nextMonday = getNextMonday(startDate);
+      const nextMonday = getNextMonday(normalizedStartDate);
       
       for (let i = 0; i < 7; i++) {
         const date = new Date(nextMonday);
         date.setDate(nextMonday.getDate() + i);
+        date.setHours(0, 0, 0, 0);
         selectedDates.push(date);
       }
     } else if (days === 5) {
       // Weekday: Start from next Monday from the clicked date, select Monday to Friday (5 weekdays)
-      const nextMonday = getNextMonday(startDate);
+      const nextMonday = getNextMonday(normalizedStartDate);
       
       for (let i = 0; i < 5; i++) {
         const date = new Date(nextMonday);
         date.setDate(nextMonday.getDate() + i);
+        date.setHours(0, 0, 0, 0);
         selectedDates.push(date);
       }
     }
@@ -1665,11 +1708,19 @@ const BookingWizardPage = () => {
       return;
     }
 
+    // Helper function to convert date to local date string (YYYY-MM-DD)
+    const dateToLocalString = (date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+    
     const draftData = {
       id: draftId || `draft_${Date.now()}`,
       selectedUser,
       selectedMenu,
-      selectedDates: selectedDates.map(date => date.toISOString().split('T')[0]),
+      selectedDates: selectedDates.map(date => dateToLocalString(date)),
       deliveryLocations,
       deliveryLocationNames,
       skipMeals,
@@ -1696,7 +1747,14 @@ const BookingWizardPage = () => {
   const loadDraftOrder = (draft) => {
     setSelectedUser(draft.selectedUser);
     setSelectedMenu(draft.selectedMenu);
-    setSelectedDates(draft.selectedDates.map(dateStr => new Date(dateStr)));
+    // Parse dates in local timezone to avoid timezone conversion issues
+    const parsedDates = draft.selectedDates.map(dateStr => {
+      // Parse date string as YYYY-MM-DD in local timezone
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day, 0, 0, 0, 0); // month is 0-indexed
+      return date;
+    });
+    setSelectedDates(parsedDates);
     setDeliveryLocations(draft.deliveryLocations || {});
     setDeliveryLocationNames(draft.deliveryLocationNames || {});
     setSkipMeals(draft.skipMeals || {});
@@ -1922,8 +1980,34 @@ const BookingWizardPage = () => {
           deliveryLocations.dinner;
       }
       
+      // Sort selected dates for delivery items (orderDate should be the day order is placed, not delivery date)
+      const sortedSelectedDates = [...selectedDates].sort((a, b) => {
+        const dateA = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 0, 0, 0, 0);
+        const dateB = new Date(b.getFullYear(), b.getMonth(), b.getDate(), 0, 0, 0, 0);
+        return dateA.getTime() - dateB.getTime();
+      });
+      
+      // Helper function to convert date to local date string (YYYY-MM-DD)
+      const dateToLocalString = (date) => {
+        if (!date) {
+          const today = new Date();
+          const y = today.getFullYear();
+          const m = String(today.getMonth() + 1).padStart(2, '0');
+          const d = String(today.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        }
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      };
+      
+      // orderDate should be the day the order is placed (today), not the delivery date
+      const today = new Date();
+      const orderDateToday = dateToLocalString(today);
+      
       const orderData = {
-        orderDate: selectedDates.length > 0 ? selectedDates[0].toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        orderDate: orderDateToday, // Use today's date as order date (when order is placed)
         orderTimes: orderTimes,
         orderItems: orderItems,
         deliveryAddressId: primaryAddressId,
@@ -1934,7 +2018,13 @@ const BookingWizardPage = () => {
           lunch: deliveryLocations.lunch || null,
           dinner: deliveryLocations.dinner || null,
         },
-        selectedDates: selectedDates.map(date => date.toISOString().split('T')[0]),
+        selectedDates: sortedSelectedDates.map(date => {
+          // Use local date components instead of toISOString() to avoid timezone issues
+          const y = date.getFullYear();
+          const m = String(date.getMonth() + 1).padStart(2, '0');
+          const d = String(date.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        }),
         orderMode: orderMode,
         menuId: selectedMenu.menuId,
         menuName: selectedMenu.name,
@@ -1956,7 +2046,7 @@ const BookingWizardPage = () => {
       // Don't create order yet - save order data for payment
       const orderDataForPayment = {
         ...orderData,
-        orderDate: selectedDates[0]?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+        // orderDate is already set correctly from sortedSelectedDates[0] in orderData
         menu: selectedMenu,
         items: [],
         deliveryLocationNames: deliveryLocationNames,

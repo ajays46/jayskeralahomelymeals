@@ -332,3 +332,111 @@ export const getRoutes = async (req, res) => {
   }
 };
 
+// Get delivery routes by driver_id (query parameter)
+export const getRoutesByDriverId = async (req, res) => {
+  const { driver_id } = req.query;
+  
+  try {
+    if (!driver_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'driver_id is required as query parameter'
+      });
+    }
+
+    // Validate that AI_ROUTE_API_THIRD is configured
+    if (!process.env.AI_ROUTE_API_THIRD) {
+      logError(LOG_CATEGORIES.SYSTEM, 'AI_ROUTE_API_THIRD environment variable not configured');
+      return res.status(500).json({
+        success: false,
+        message: 'External API configuration missing'
+      });
+    }
+
+    // Make request to external API
+    const externalApiUrl = `${process.env.AI_ROUTE_API_THIRD}/api/executive/routes?driver_id=${driver_id}`;
+    
+    const response = await fetch(externalApiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer mysecretkey123',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Check if response is JSON before parsing
+    const contentType = response.headers.get('content-type');
+    let data;
+    
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // If not JSON, get text to see what we received
+      const textResponse = await response.text();
+      
+      logError(LOG_CATEGORIES.SYSTEM, 'External API returned non-JSON response', {
+        driver_id: driver_id,
+        status: response.status,
+        contentType: contentType,
+        responsePreview: textResponse.substring(0, 200)
+      });
+      
+      return res.status(500).json({
+        success: false,
+        message: 'External API returned invalid response format',
+        error: `Expected JSON but received ${contentType || 'unknown format'}`
+      });
+    }
+
+    if (response.status === 404 && data.error && data.error.includes('No routes found')) {
+      // Handle case where no routes are found - this is not an error
+      logInfo(LOG_CATEGORIES.SYSTEM, 'No routes found for delivery executive', {
+        driver_id: driver_id
+      });
+      return res.json({
+        success: true,
+        message: 'No routes found for this delivery executive',
+        data: []
+      });
+    } else if (!response.ok) {
+      // Handle other errors
+      logError(LOG_CATEGORIES.SYSTEM, 'External API error when fetching routes by driver_id', {
+        driver_id: driver_id,
+        status: response.status,
+        error: JSON.stringify(data)
+      });
+      return res.status(response.status || 500).json({
+        success: false,
+        message: data.message || data.error || 'Failed to fetch routes from external API',
+        error: data
+      });
+    } else {
+      // Success case - ensure proper response structure
+      const responseData = {
+        success: true,
+        message: 'Routes fetched successfully',
+        data: data.data || data
+      };
+      
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Routes fetched successfully from external API by driver_id', {
+        driver_id: driver_id,
+        routeCount: Array.isArray(responseData.data) ? responseData.data.length : (responseData.data?.routes?.length || 0)
+      });
+      
+      return res.json(responseData);
+    }
+
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch routes from external API by driver_id', {
+      driver_id: driver_id,
+      error: error.message,
+      stack: error.stack
+    });
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch routes',
+      error: error.message
+    });
+  }
+};
+

@@ -4,6 +4,7 @@ import { savePaymentReceipt, deletePaymentReceipt } from './paymentReceiptUpload
 import { createDeliveryItemsAfterPaymentService } from './deliveryItem.service.js';
 import { reduceProductQuantitiesService } from './inventory.service.js';
 import { createAddressForUser } from './seller.service.js';
+import { uploadImageToExternalAPI } from './externalUpload.service.js';
 import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
@@ -39,9 +40,9 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
       
       // Map meal type to delivery time slot
       let deliveryTimeSlot = 'Breakfast'; // Default
-      if (item.mealType === 'breakfast') deliveryTimeSlot = 'Breakfast';
-      else if (item.mealType === 'lunch') deliveryTimeSlot = 'Lunch';
-      else if (item.mealType === 'dinner') deliveryTimeSlot = 'Dinner';
+      if (item.mealType === 'breakfast') deliveryTimeSlot = 'BREAKFAST';
+      else if (item.mealType === 'lunch') deliveryTimeSlot = 'LUNCH';
+      else if (item.mealType === 'dinner') deliveryTimeSlot = 'DINNER';
       else deliveryTimeSlot = 'Breakfast'; // Fallback default
       
       // Use meal-specific address if available, otherwise use primary address
@@ -49,7 +50,7 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
       if (deliveryLocations && deliveryLocations[item.mealType]) {
         itemAddressId = deliveryLocations[item.mealType];
       }
-      
+
       const deliveryItem = await prismaClient.deliveryItem.create({
         data: {
           orderId: orderId,
@@ -511,11 +512,17 @@ export const getPaymentByIdService = async (userId, paymentId) => {
                         }
                     },
                     order: {
-                        select: {
-                            id: true,
-                            orderDate: true,
-                            totalPrice: true,
-                            status: true
+                        include: {
+                            deliveryItems: {
+                                include: {
+                                    menuItem: true,
+                                    deliveryAddress: true
+                                },
+                                orderBy: {
+                                    deliveryDate: 'asc'
+                                }
+                            },
+                            deliveryAddress: true
                         }
                     },
                     paymentReceipts: true
@@ -535,11 +542,17 @@ export const getPaymentByIdService = async (userId, paymentId) => {
                         }
                     },
                     order: {
-                        select: {
-                            id: true,
-                            orderDate: true,
-                            totalPrice: true,
-                            status: true
+                        include: {
+                            deliveryItems: {
+                                include: {
+                                    menuItem: true,
+                                    deliveryAddress: true
+                                },
+                                orderBy: {
+                                    deliveryDate: 'asc'
+                                }
+                            },
+                            deliveryAddress: true
                         }
                     },
                     paymentReceipts: true
@@ -549,6 +562,48 @@ export const getPaymentByIdService = async (userId, paymentId) => {
 
         if (!payment) {
             throw new AppError('Payment not found', 404);
+        }
+
+        // Extract selectedDates from delivery items if order exists
+        if (payment.order && payment.order.deliveryItems && payment.order.deliveryItems.length > 0) {
+            const dates = new Set();
+            payment.order.deliveryItems.forEach(item => {
+                if (item.deliveryDate) {
+                    try {
+                        // Handle both Date objects and date strings from Prisma
+                        let deliveryDate;
+                        if (item.deliveryDate instanceof Date) {
+                            deliveryDate = item.deliveryDate;
+                        } else if (typeof item.deliveryDate === 'string') {
+                            deliveryDate = new Date(item.deliveryDate);
+                        } else {
+                            deliveryDate = new Date(item.deliveryDate);
+                        }
+                        
+                        // Validate the date
+                        if (isNaN(deliveryDate.getTime())) {
+                            return;
+                        }
+                        
+                        // Format as YYYY-MM-DD in local timezone
+                        const year = deliveryDate.getFullYear();
+                        const month = String(deliveryDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(deliveryDate.getDate()).padStart(2, '0');
+                        const dateStr = `${year}-${month}-${day}`;
+                        dates.add(dateStr);
+                    } catch (error) {
+                        // Skip invalid dates
+                    }
+                }
+            });
+            
+            // Add selectedDates to order object for easy access
+            payment.order.selectedDates = Array.from(dates).sort();
+            
+            // Add menuName from first delivery item if available
+            if (payment.order.deliveryItems[0]?.menuItem?.menu?.name) {
+                payment.order.menuName = payment.order.deliveryItems[0].menuItem.menu.name;
+            }
         }
 
         return payment;
@@ -794,12 +849,61 @@ export const uploadReceiptService = async (userId, paymentId, receiptData) => {
         // Multer has already saved the file, so we just need to use the file path
         const receiptUrl = receipt ? `/payment-receipts/${receipt.filename}` : null;
         
+        // Upload to external API if receipt is an image and externalReceiptUrl is not already provided
+        // This matches the normal payment flow behavior
+        let finalExternalReceiptUrl = externalReceiptUrl || null;
+        if (receipt && receipt.mimetype && receipt.mimetype.startsWith('image/') && !externalReceiptUrl) {
+            try {
+                const expectedAmount = orderAmount || payment.paymentAmount || 0;
+                
+                const externalResult = await uploadImageToExternalAPI(receipt, userId, expectedAmount);
+                
+                if (externalResult?.success === true) {
+                    // External validation passed successfully
+                    finalExternalReceiptUrl = externalResult.url || 
+                                            externalResult.data?.s3_url || 
+                                            externalResult.data?.url ||
+                                            externalResult.data?.image_url;
+                    
+                    logInfo(LOG_CATEGORIES.PAYMENT, 'Receipt uploaded to external API successfully', {
+                        paymentId: paymentId,
+                        userId: userId,
+                        externalUrl: finalExternalReceiptUrl
+                    });
+                } else if (externalResult?.success === false) {
+                    // External validation failed - prevent receipt upload
+                    logError(LOG_CATEGORIES.PAYMENT, 'Payment receipt verification failed', {
+                        paymentId: paymentId,
+                        userId: userId,
+                        error: externalResult.error,
+                        details: externalResult.details
+                    });
+                    
+                    throw new AppError(
+                        externalResult.error || 'Payment receipt verification failed. Please check your receipt and try again.',
+                        400
+                    );
+                }
+            } catch (externalError) {
+                // If it's an AppError from validation failure, re-throw it
+                if (externalError instanceof AppError) {
+                    throw externalError;
+                }
+                // For other errors, log but continue with local upload
+                logError(LOG_CATEGORIES.PAYMENT, 'External upload failed, continuing with local upload', {
+                    paymentId: paymentId,
+                    userId: userId,
+                    error: externalError.message
+                });
+            }
+        }
+        
         // Update payment with receipt information
         const updatedPayment = await prisma.payment.update({
             where: { id: paymentId },
             data: {
                 receiptUrl: receiptUrl,
-                externalReceiptUrl: externalReceiptUrl || null, // Store external receipt URL
+                externalReceiptUrl: finalExternalReceiptUrl, // Store external receipt URL (from frontend or backend upload)
                 uploadedReceiptType: receiptType,
                 paymentStatus: 'Confirmed', // Update status to confirmed when receipt is uploaded
                 paymentDate: new Date(),
@@ -812,9 +916,23 @@ export const uploadReceiptService = async (userId, paymentId, receiptData) => {
                         receiptImageUrl: true,
                         receipt: true
                     }
+                },
+                order: {
+                    select: {
+                        id: true,
+                        status: true
+                    }
                 }
             }
         });
+
+        // Update order status to Payment_Confirmed when receipt is uploaded
+        if (updatedPayment.orderId) {
+            await prisma.order.update({
+                where: { id: updatedPayment.orderId },
+                data: { status: 'Payment_Confirmed' }
+            });
+        }
 
         return updatedPayment;
     } catch (error) {

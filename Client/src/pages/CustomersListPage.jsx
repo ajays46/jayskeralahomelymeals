@@ -88,6 +88,10 @@ const CustomersListPage = () => {
     }
     
     return customer.orders.some(order => {
+      // Exclude cancelled orders
+      if (order.status === 'Cancelled') {
+        return false;
+      }
       return order.payments && order.payments.some(payment => 
         payment.paymentStatus === 'Pending' && (!payment.receiptUrl || payment.receiptUrl === '')
       );
@@ -100,6 +104,10 @@ const CustomersListPage = () => {
     }
     
     for (const order of customer.orders) {
+      // Exclude cancelled orders
+      if (order.status === 'Cancelled') {
+        continue;
+      }
       if (order.payments) {
         const pendingPayment = order.payments.find(payment => 
           payment.paymentStatus === 'Pending' && (!payment.receiptUrl || payment.receiptUrl === '')
