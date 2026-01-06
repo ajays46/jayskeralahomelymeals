@@ -829,7 +829,7 @@ export const getZoneDeliveries = async (req, res, next) => {
 export const reoptimizeRoute = async (req, res, next) => {
   try {
     const { route_id, current_location, delay_minutes, traffic_data, weather_data } = req.body;
-    
+
     if (!route_id) {
       return res.status(400).json({
         success: false,
@@ -981,19 +981,12 @@ export const getMissingGeoLocations = async (req, res, next) => {
  */
 export const updateGeoLocation = async (req, res, next) => {
   try {
-    const { address_id, delivery_item_id, geo_location } = req.body;
+    const { address_id, delivery_item_id, geo_location, order_id, menu_item_id, delivery_date, session } = req.body;
     
     if (!geo_location) {
       return res.status(400).json({
         success: false,
         message: 'geo_location is required (format: "lat,lng")'
-      });
-    }
-    
-    if (!address_id && !delivery_item_id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Either address_id or delivery_item_id is required'
       });
     }
     
@@ -1016,14 +1009,102 @@ export const updateGeoLocation = async (req, res, next) => {
       });
     }
     
+    let finalAddressId = address_id;
+    let finalDeliveryItemId = delivery_item_id;
+    
+    // If delivery_item_id or address_id not provided, try to find delivery item using order_id and menu_item_id
+    if (!finalAddressId && !finalDeliveryItemId) {
+      if (order_id && menu_item_id) {
+        try {
+          const prisma = (await import('../config/prisma.js')).default;
+          
+          // Build where clause
+          const whereClause = {
+            orderId: order_id,
+            menuItemId: menu_item_id
+          };
+          
+          // Add delivery_date if provided
+          if (delivery_date) {
+            // Parse the delivery_date (handle GMT format)
+            const dateObj = new Date(delivery_date);
+            if (!isNaN(dateObj.getTime())) {
+              // Set to start of day for comparison
+              const startOfDay = new Date(dateObj);
+              startOfDay.setHours(0, 0, 0, 0);
+              const endOfDay = new Date(dateObj);
+              endOfDay.setHours(23, 59, 59, 999);
+              
+              whereClause.deliveryDate = {
+                gte: startOfDay,
+                lte: endOfDay
+              };
+            }
+          }
+          
+          // Add session/deliveryTimeSlot if provided
+          if (session) {
+            // Map session to deliveryTimeSlot format
+            const sessionMap = {
+              'BREAKFAST': 'BREAKFAST',
+              'LUNCH': 'LUNCH',
+              'DINNER': 'DINNER',
+              'Breakfast': 'BREAKFAST',
+              'Lunch': 'LUNCH',
+              'Dinner': 'DINNER'
+            };
+            const deliveryTimeSlot = sessionMap[session] || session.toUpperCase();
+            whereClause.deliveryTimeSlot = deliveryTimeSlot;
+          }
+          
+          // Find the delivery item
+          const deliveryItem = await prisma.deliveryItem.findFirst({
+            where: whereClause,
+            select: {
+              id: true,
+              addressId: true
+            }
+          });
+          
+          if (deliveryItem) {
+            finalDeliveryItemId = deliveryItem.id;
+            finalAddressId = deliveryItem.addressId;
+          } else {
+            return res.status(404).json({
+              success: false,
+              message: 'Delivery item not found with the provided order_id, menu_item_id, and optional filters'
+            });
+          }
+        } catch (dbError) {
+          logError(LOG_CATEGORIES.SYSTEM, 'Error finding delivery item', {
+            error: dbError.message,
+            order_id,
+            menu_item_id,
+            delivery_date,
+            session
+          });
+          return res.status(500).json({
+            success: false,
+            message: 'Error finding delivery item: ' + dbError.message
+          });
+        }
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Either (address_id or delivery_item_id) or (order_id and menu_item_id) is required'
+        });
+      }
+    }
+    
     const result = await updateGeoLocationService({
-      address_id,
-      delivery_item_id,
+      address_id: finalAddressId,
+      delivery_item_id: finalDeliveryItemId,
       geo_location
     });
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Geo location updated successfully', {
       address_id: result.address_id,
+      delivery_item_id: finalDeliveryItemId,
       geo_location
     });
     

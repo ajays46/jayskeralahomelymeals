@@ -672,10 +672,54 @@ const DeliveryManagerPage = () => {
     try {
       const geoLocationString = `${lat},${lng}`;
       
-      await updateGeoLocationMutation.mutateAsync({
-        delivery_item_id: item.delivery_item_id || item.id,
+      // Try to find the correct identifier from the item object
+      // Check multiple possible field names that might be used by the external API
+      const deliveryItemId = item.delivery_item_id || 
+                            item.Delivery_Item_ID || 
+                            item.deliveryItemId ||
+                            item.deliveryItem_id ||
+                            item.id;
+      
+      const addressId = item.address_id || 
+                       item.Address_ID || 
+                       item.addressId;
+      
+      // Get order_id and menu_item_id from the item (these are available in external API response)
+      const orderId = item.order_id || item.orderId;
+      const menuItemId = item.menu_item_id || item.menuItemId;
+      const deliveryDate = item.delivery_date || item.deliveryDate;
+      const session = item.session;
+      
+      // Prepare the mutation payload
+      const mutationPayload = {
         geo_location: geoLocationString
-      });
+      };
+      
+      // Prefer direct identifiers if available, otherwise use order_id and menu_item_id
+      if (deliveryItemId) {
+        mutationPayload.delivery_item_id = deliveryItemId;
+      } else if (addressId) {
+        mutationPayload.address_id = addressId;
+      } else if (orderId && menuItemId) {
+        // Use order_id and menu_item_id to find the delivery item on the backend
+        mutationPayload.order_id = orderId;
+        mutationPayload.menu_item_id = menuItemId;
+        
+        // Add optional filters for better matching
+        if (deliveryDate) {
+          mutationPayload.delivery_date = deliveryDate;
+        }
+        if (session) {
+          mutationPayload.session = session;
+        }
+      } else {
+        console.error('Item object:', item);
+        showErrorToast('Unable to find required identifiers (delivery_item_id, address_id, or order_id + menu_item_id) in the data.');
+        setGeoLocationLoading(false);
+        return;
+      }
+      
+      await updateGeoLocationMutation.mutateAsync(mutationPayload);
       
       // Update local state
       setFilteredDeliveryData(prev => prev.map((d, i) => 
@@ -683,14 +727,30 @@ const DeliveryManagerPage = () => {
       ));
       
       // Also update sessionData if it exists
-      if (sessionData?.data) {
+      if (sessionData?.data?.externalResponse?.data) {
         setSessionData(prev => ({
           ...prev,
-          data: prev.data.map(d => 
-            (d.delivery_item_id || d.id) === (item.delivery_item_id || item.id) 
-              ? { ...d, geo_location: geoLocationString } 
-              : d
-          )
+          data: {
+            ...prev.data,
+            externalResponse: {
+              ...prev.data.externalResponse,
+              data: prev.data.externalResponse.data.map(d => {
+                // Match by order_id and menu_item_id (most reliable for external API data)
+                const dOrderId = d.order_id || d.orderId;
+                const dMenuItemId = d.menu_item_id || d.menuItemId;
+                const dDeliveryDate = d.delivery_date || d.deliveryDate;
+                const dSession = d.session;
+                
+                if (dOrderId === orderId && 
+                    dMenuItemId === menuItemId &&
+                    (!deliveryDate || dDeliveryDate === deliveryDate) &&
+                    (!session || dSession === session)) {
+                  return { ...d, geo_location: geoLocationString };
+                }
+                return d;
+              })
+            }
+          }
         }));
       }
       
@@ -698,6 +758,8 @@ const DeliveryManagerPage = () => {
       setEditingGeoLocation(null);
       setManualGeoLocation({ latitude: '', longitude: '' });
     } catch (error) {
+      console.error('Error updating geo-location:', error);
+      console.error('Item object:', item);
       showErrorToast(error.message || 'Failed to update geo-location');
     } finally {
       setGeoLocationLoading(false);

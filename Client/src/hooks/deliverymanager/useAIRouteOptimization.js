@@ -995,11 +995,15 @@ export const useUpdateGeoLocation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ address_id, delivery_item_id, geo_location }) => {
+    mutationFn: async ({ address_id, delivery_item_id, geo_location, order_id, menu_item_id, delivery_date, session }) => {
       const response = await axiosInstance.post('/ai-routes/address/update-geo-location', {
         address_id,
         delivery_item_id,
-        geo_location
+        geo_location,
+        order_id,
+        menu_item_id,
+        delivery_date,
+        session
       });
       
       if (!response.data.success) {
