@@ -224,21 +224,21 @@ model Order {
 }
 
 model DeliveryItem {
-  id               String           @id @default(uuid()) @db.VarChar(36)
-  orderId          String           @map("order_id") @db.VarChar(36)
-  menuItemId       String           @map("menu_item_id") @db.VarChar(36)
+  id               String                            @id @default(uuid()) @db.VarChar(36)
+  orderId          String                            @map("order_id") @db.VarChar(36)
+  menuItemId       String                            @map("menu_item_id") @db.VarChar(36)
   quantity         Int
-  deliveryDate     DateTime         @map("delivery_date") @db.Date
-  deliveryTimeSlot DeliveryTimeSlot @map("delivery_time_slot")
-  addressId        String           @map("address_id") @db.VarChar(36)
-  status           OrderStatus      @default(Pending)
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
-  userId           String           @map("user_id") @db.VarChar(36)
-  order            Order            @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  menuItem         MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  deliveryAddress  Address          @relation(fields: [addressId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  deliveryDate     DateTime                          @map("delivery_date") @db.Date
+  deliveryTimeSlot delivery_items_delivery_time_slot @map("delivery_time_slot")
+  addressId        String                            @map("address_id") @db.VarChar(36)
+  status           OrderStatus                       @default(Pending)
+  createdAt        DateTime                          @default(now()) @map("created_at")
+  updatedAt        DateTime                          @updatedAt @map("updated_at")
+  userId           String                            @map("user_id") @db.VarChar(36)
+  order            Order                             @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user             User                              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menuItem         MenuItem                          @relation(fields: [menuItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  deliveryAddress  Address                           @relation(fields: [addressId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("delivery_items")
 }
@@ -820,12 +820,6 @@ enum OrderStatus {
   Payment_Confirmed
 }
 
-enum DeliveryTimeSlot {
-  Breakfast
-  Lunch
-  Dinner
-}
-
 enum PaymentMethod {
   UPI
   CreditCard
@@ -978,4 +972,10 @@ enum actual_route_stops_route_type {
   ai_optimized
   route_optimization
   google_maps
+}
+
+enum delivery_items_delivery_time_slot {
+  BREAKFAST 
+  LUNCH
+  DINNER
 }

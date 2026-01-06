@@ -911,7 +911,6 @@ export const getSellersWithOrders = async (req, res, next) => {
                             },
                             take: 10 // Limit to recent 10 orders
                         });
-                        
                         // Calculate total revenue
                         totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
                     }

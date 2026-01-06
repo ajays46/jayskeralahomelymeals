@@ -37,8 +37,18 @@ const MealSkipSelector = ({
     return meal?.color || 'gray';
   };
 
+  // Helper function to convert date to local date string (YYYY-MM-DD) - matches BookingWizardPage format
+  const dateToLocalString = (date) => {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   const handleSkipMeal = (date, mealType, skip) => {
-    const dateStr = date.toISOString().split('T')[0];
+    // Use local date format to match selectedDates format in BookingWizardPage
+    const dateStr = dateToLocalString(date);
     const newSkipMeals = { ...skipMeals };
     
     if (!newSkipMeals[dateStr]) {
@@ -58,7 +68,8 @@ const MealSkipSelector = ({
   };
 
   const isMealSkipped = (date, mealType) => {
-    const dateStr = date.toISOString().split('T')[0];
+    // Use local date format to match selectedDates format in BookingWizardPage
+    const dateStr = dateToLocalString(date);
     return skipMeals[dateStr]?.[mealType] || false;
   };
 

@@ -24,7 +24,11 @@ import {
   reoptimizeRouteService,
   completeDriverSessionService,
   getMissingGeoLocationsService,
-  updateGeoLocationService
+  updateGeoLocationService,
+  getDriverNextStopMapsService,
+  getDriverRouteOverviewMapsService,
+  checkTrafficService,
+  getRouteOrderService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
@@ -248,24 +252,21 @@ export const predictStartTime = async (req, res, next) => {
  */
 export const startJourney = async (req, res, next) => {
   try {
-    const { route_id, driver_id } = req.body;
-    
-    if (!route_id || !driver_id) {
+    const { driver_id } = req.body;
+    if (!driver_id) {
       return res.status(400).json({
         success: false,
-        message: 'route_id and driver_id are required'
+        message: 'driver_id is required'
       });
     }
     
     const result = await startJourneyService({
-      route_id,
       driver_id
     });
-    
     // Ensure response matches documentation structure
     const responseData = {
       success: result.success !== undefined ? result.success : true,
-      route_id: result.route_id || route_id,
+      route_id: result.route_id || null,
       driver_id: result.driver_id || driver_id,
       executive_name: result.executive_name || result.executive?.name || null,
       whatsapp_number: result.whatsapp_number || result.executive?.whatsapp_number || null,
@@ -275,16 +276,15 @@ export const startJourney = async (req, res, next) => {
     };
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Journey started successfully', {
-      route_id,
       driver_id,
-      journey_id: result.journey_id
+      journey_id: result.journey_id,
+      route_id: result.route_id
     });
     
     res.status(200).json(responseData);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Journey start failed', {
       error: error.message,
-      route_id: req.body?.route_id,
       driver_id: req.body?.driver_id
     });
     next(error);
@@ -292,35 +292,69 @@ export const startJourney = async (req, res, next) => {
 };
 
 /**
- * Stop Reached (NEW API: /api/journey/stop-reached)
+ * Stop Reached / Mark Stop (NEW API: /api/journey/mark-stop or /api/journey/stop-reached)
  * Mark delivery stop as reached/delivered
+ * Supports both old format (user_id, latitude, longitude) and new format (current_location {lat, lng})
  */
 export const stopReached = async (req, res, next) => {
   try {
-    const { user_id, route_id, stop_order, delivery_id, latitude, longitude, status, packages_delivered } = req.body;
+    const { 
+      route_id, 
+      stop_order, 
+      delivery_id, 
+      completed_at,
+      current_location,
+      // Legacy parameters (for backward compatibility)
+      user_id,
+      latitude,
+      longitude,
+      status,
+      packages_delivered
+    } = req.body;
     
-    if (!user_id || !route_id || stop_order === undefined) {
+    // Validate required fields
+    if (!route_id || stop_order === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'user_id, route_id, and stop_order are required'
+        message: 'route_id and stop_order are required'
       });
     }
     
-    const result = await stopReachedService({
-      user_id,
+    // Transform to service format
+    // If new format (current_location) is provided, use it
+    // Otherwise, use legacy format (latitude, longitude)
+    let serviceData = {
       route_id,
       stop_order,
       delivery_id,
-      latitude,
-      longitude,
-      status: status || 'delivered',
-      packages_delivered
-    });
+      completed_at: completed_at || new Date().toISOString()
+    };
+    
+    // Handle location - prefer new format, fallback to legacy
+    if (current_location && current_location.lat && current_location.lng) {
+      serviceData.current_location = {
+        lat: current_location.lat,
+        lng: current_location.lng
+      };
+    } else if (latitude !== undefined && longitude !== undefined) {
+      // Legacy format - convert to new format
+      serviceData.current_location = {
+        lat: latitude,
+        lng: longitude
+      };
+    }
+    
+    // Legacy parameters (for backward compatibility with external API)
+    if (user_id) serviceData.user_id = user_id;
+    if (status) serviceData.status = status;
+    if (packages_delivered !== undefined) serviceData.packages_delivered = packages_delivered;
+    
+    const result = await stopReachedService(serviceData);
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Stop reached marked successfully', {
       route_id,
       stop_order,
-      status
+      completed_at: serviceData.completed_at
     });
     
     res.status(200).json(result);
@@ -376,7 +410,6 @@ export const endJourney = async (req, res, next) => {
 export const getJourneyStatus = async (req, res, next) => {
   try {
     const { routeId } = req.params;
-    
     if (!routeId) {
       return res.status(400).json({
         success: false,
@@ -385,7 +418,6 @@ export const getJourneyStatus = async (req, res, next) => {
     }
     
     const result = await getJourneyStatusService(routeId);
-    
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Get journey status failed', {
@@ -797,7 +829,7 @@ export const getZoneDeliveries = async (req, res, next) => {
 export const reoptimizeRoute = async (req, res, next) => {
   try {
     const { route_id, current_location, delay_minutes, traffic_data, weather_data } = req.body;
-    
+
     if (!route_id) {
       return res.status(400).json({
         success: false,
@@ -823,6 +855,70 @@ export const reoptimizeRoute = async (req, res, next) => {
     logError(LOG_CATEGORIES.SYSTEM, 'Route reoptimization failed', {
       error: error.message,
       route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * Check Traffic and Auto-Reoptimize (NEW API: /api/journey/check-traffic)
+ * Checks traffic on remaining route segments and auto-reoptimizes if heavy traffic detected
+ */
+export const checkTraffic = async (req, res, next) => {
+  try {
+    const { route_id, current_location, check_all_segments } = req.body;
+    
+    if (!route_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_id is required'
+      });
+    }
+    
+    const result = await checkTrafficService({
+      route_id,
+      current_location,
+      check_all_segments: check_all_segments !== false // default to true
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Traffic check completed', {
+      route_id,
+      heavy_traffic_detected: result.heavy_traffic_detected,
+      reoptimized: result.reoptimized
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Traffic check failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Route Order (NEW API: /api/journey/route-order/:route_id)
+ * Get current route order with stop status
+ */
+export const getRouteOrder = async (req, res, next) => {
+  try {
+    const { routeId } = req.params;
+    
+    if (!routeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'routeId is required'
+      });
+    }
+    
+    const result = await getRouteOrderService(routeId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route order failed', {
+      error: error.message,
+      routeId: req.params?.routeId
     });
     next(error);
   }
@@ -885,19 +981,12 @@ export const getMissingGeoLocations = async (req, res, next) => {
  */
 export const updateGeoLocation = async (req, res, next) => {
   try {
-    const { address_id, delivery_item_id, geo_location } = req.body;
+    const { address_id, delivery_item_id, geo_location, order_id, menu_item_id, delivery_date, session } = req.body;
     
     if (!geo_location) {
       return res.status(400).json({
         success: false,
         message: 'geo_location is required (format: "lat,lng")'
-      });
-    }
-    
-    if (!address_id && !delivery_item_id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Either address_id or delivery_item_id is required'
       });
     }
     
@@ -920,14 +1009,102 @@ export const updateGeoLocation = async (req, res, next) => {
       });
     }
     
+    let finalAddressId = address_id;
+    let finalDeliveryItemId = delivery_item_id;
+    
+    // If delivery_item_id or address_id not provided, try to find delivery item using order_id and menu_item_id
+    if (!finalAddressId && !finalDeliveryItemId) {
+      if (order_id && menu_item_id) {
+        try {
+          const prisma = (await import('../config/prisma.js')).default;
+          
+          // Build where clause
+          const whereClause = {
+            orderId: order_id,
+            menuItemId: menu_item_id
+          };
+          
+          // Add delivery_date if provided
+          if (delivery_date) {
+            // Parse the delivery_date (handle GMT format)
+            const dateObj = new Date(delivery_date);
+            if (!isNaN(dateObj.getTime())) {
+              // Set to start of day for comparison
+              const startOfDay = new Date(dateObj);
+              startOfDay.setHours(0, 0, 0, 0);
+              const endOfDay = new Date(dateObj);
+              endOfDay.setHours(23, 59, 59, 999);
+              
+              whereClause.deliveryDate = {
+                gte: startOfDay,
+                lte: endOfDay
+              };
+            }
+          }
+          
+          // Add session/deliveryTimeSlot if provided
+          if (session) {
+            // Map session to deliveryTimeSlot format
+            const sessionMap = {
+              'BREAKFAST': 'BREAKFAST',
+              'LUNCH': 'LUNCH',
+              'DINNER': 'DINNER',
+              'Breakfast': 'BREAKFAST',
+              'Lunch': 'LUNCH',
+              'Dinner': 'DINNER'
+            };
+            const deliveryTimeSlot = sessionMap[session] || session.toUpperCase();
+            whereClause.deliveryTimeSlot = deliveryTimeSlot;
+          }
+          
+          // Find the delivery item
+          const deliveryItem = await prisma.deliveryItem.findFirst({
+            where: whereClause,
+            select: {
+              id: true,
+              addressId: true
+            }
+          });
+          
+          if (deliveryItem) {
+            finalDeliveryItemId = deliveryItem.id;
+            finalAddressId = deliveryItem.addressId;
+          } else {
+            return res.status(404).json({
+              success: false,
+              message: 'Delivery item not found with the provided order_id, menu_item_id, and optional filters'
+            });
+          }
+        } catch (dbError) {
+          logError(LOG_CATEGORIES.SYSTEM, 'Error finding delivery item', {
+            error: dbError.message,
+            order_id,
+            menu_item_id,
+            delivery_date,
+            session
+          });
+          return res.status(500).json({
+            success: false,
+            message: 'Error finding delivery item: ' + dbError.message
+          });
+        }
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Either (address_id or delivery_item_id) or (order_id and menu_item_id) is required'
+        });
+      }
+    }
+    
     const result = await updateGeoLocationService({
-      address_id,
-      delivery_item_id,
+      address_id: finalAddressId,
+      delivery_item_id: finalDeliveryItemId,
       geo_location
     });
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Geo location updated successfully', {
       address_id: result.address_id,
+      delivery_item_id: finalDeliveryItemId,
       geo_location
     });
     
@@ -935,6 +1112,60 @@ export const updateGeoLocation = async (req, res, next) => {
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to update geo location', {
       error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Driver Next Stop Maps
+ * Fetch individual stop map links for drivers
+ */
+export const getDriverNextStopMaps = async (req, res, next) => {
+  try {
+    const { date, session } = req.query;
+    
+    if (!date || !session) {
+      return res.status(400).json({
+        success: false,
+        message: 'date and session query parameters are required'
+      });
+    }
+    
+    const result = await getDriverNextStopMapsService({ date, session });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get driver next stop maps failed', {
+      error: error.message,
+      date: req.query?.date,
+      session: req.query?.session
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Driver Route Overview Maps
+ * Fetch route overview map links for drivers
+ */
+export const getDriverRouteOverviewMaps = async (req, res, next) => {
+  try {
+    const { date, session } = req.query;
+    
+    if (!date || !session) {
+      return res.status(400).json({
+        success: false,
+        message: 'date and session query parameters are required'
+      });
+    }
+    
+    const result = await getDriverRouteOverviewMapsService({ date, session });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get driver route overview maps failed', {
+      error: error.message,
+      date: req.query?.date,
+      session: req.query?.session
     });
     next(error);
   }
