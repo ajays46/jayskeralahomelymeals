@@ -136,7 +136,15 @@ const PaymentWizardPage = () => {
       
       // Initialize selected dates from order data
       if (orderDataFromState.selectedDates && orderDataFromState.selectedDates.length > 0) {
-        const dates = orderDataFromState.selectedDates.map(dateStr => new Date(dateStr));
+        // Parse dates in local timezone to avoid timezone conversion issues
+        const dates = orderDataFromState.selectedDates.map(dateStr => {
+          // Parse date string as YYYY-MM-DD in local timezone
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const date = new Date(year, month - 1, day, 0, 0, 0, 0); // Create in local timezone with time set to midnight
+          return date;
+        });
+        // Sort dates to ensure chronological order
+        dates.sort((a, b) => a.getTime() - b.getTime());
         setSelectedDates(dates);
       } else {
         // Auto-select dates based on menu type if no dates are provided and not skipped
@@ -158,7 +166,15 @@ const PaymentWizardPage = () => {
         
         // Initialize selected dates from saved order data
         if (parsedOrder.selectedDates && parsedOrder.selectedDates.length > 0) {
-          const dates = parsedOrder.selectedDates.map(dateStr => new Date(dateStr));
+          // Parse dates in local timezone to avoid timezone conversion issues
+          const dates = parsedOrder.selectedDates.map(dateStr => {
+            // Parse date string as YYYY-MM-DD in local timezone
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const date = new Date(year, month - 1, day, 0, 0, 0, 0); // month is 0-indexed
+            return date;
+          });
+          // Sort dates to ensure chronological order
+          dates.sort((a, b) => a.getTime() - b.getTime());
           setSelectedDates(dates);
         } else {
           // Auto-select dates based on menu type if no dates are provided and not skipped
@@ -245,9 +261,16 @@ const PaymentWizardPage = () => {
       if (response.data.success) {
         const payment = response.data.data.payment;
         
-        // Get order details to include delivery information
+        // Payment API now includes order with deliveryItems and selectedDates
+        // Use order data from payment response if available, otherwise fetch separately
         let orderDetails = null;
-        if (payment.orderId) {
+        
+        // Check if payment.order already has deliveryItems and selectedDates
+        if (payment.order && payment.order.selectedDates && payment.order.selectedDates.length > 0) {
+          // Use order data from payment response (includes delivery items)
+          orderDetails = payment.order;
+        } else if (payment.orderId) {
+          // Fallback: Fetch order details separately if not included in payment response
           try {
             const orderResponse = await axiosInstance.get(`/orders/${payment.orderId}`);
             if (orderResponse.data.success) {
@@ -258,46 +281,41 @@ const PaymentWizardPage = () => {
           }
         }
         
-        // Create a mock order object for display purposes
-        const mockOrder = {
+        // Create order object for display using real data from payment or order API
+        const orderForDisplay = {
           id: payment.orderId || 'pending',
           customerName: location.state?.customer?.contacts?.[0]?.firstName || 'Customer',
           totalPrice: payment.paymentAmount,
           totalAmount: payment.paymentAmount,
-          menuName: orderDetails?.menuName || 'Payment Receipt Upload',
-          orderDate: payment.createdAt,
+          menuName: orderDetails?.menuName || payment.order?.menuName || 'Payment Receipt Upload',
+          orderDate: payment.order?.orderDate || payment.createdAt,
           paymentMethod: payment.paymentMethod,
-          status: 'Pending',
-          // Include delivery information from order details
-          selectedDates: orderDetails?.selectedDates || [],
-          deliveryAddress: orderDetails?.deliveryAddress || null
+          status: orderDetails?.status || payment.order?.status || 'Pending',
+          // Include delivery information from order details (real data from database)
+          selectedDates: orderDetails?.selectedDates || payment.order?.selectedDates || [],
+          deliveryAddress: orderDetails?.deliveryAddress || payment.order?.deliveryAddress || null
         };
         
-        // If no selectedDates from order API, try to create some default dates for display
-        if (!mockOrder.selectedDates || mockOrder.selectedDates.length === 0) {
-          // Create a default 7-day range starting from tomorrow
-          const defaultDates = [];
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          
-          for (let i = 0; i < 7; i++) {
-            const date = new Date(tomorrow);
-            date.setDate(tomorrow.getDate() + i);
-            defaultDates.push(date.toISOString().split('T')[0]);
-          }
-          
-          mockOrder.selectedDates = defaultDates;
-        }
+        // Don't create fake dates - use only real data from the order
+        // If no selectedDates, it means the order has no delivery items yet
         
-        
-        setOrder(mockOrder);
-        setOrderDetails(mockOrder);
+        setOrder(orderForDisplay);
+        setOrderDetails(orderForDisplay);
         setPaymentAmount(payment.paymentAmount?.toString() || '');
         setPaymentMethod(payment.paymentMethod || '');
         
         // Set selected dates for display
         if (orderDetails?.selectedDates && orderDetails.selectedDates.length > 0) {
-          const dates = orderDetails.selectedDates.map(dateStr => new Date(dateStr));
+          // Parse dates in local timezone to avoid timezone conversion issues
+          const dates = orderDetails.selectedDates.map(dateStr => {
+            // Parse date string as YYYY-MM-DD in local timezone
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const date = new Date(year, month - 1, day); // month is 0-indexed
+            date.setHours(0, 0, 0, 0);
+            return date;
+          });
+          // Sort dates to ensure chronological order
+          dates.sort((a, b) => a.getTime() - b.getTime());
           setSelectedDates(dates);
         }
       } else {

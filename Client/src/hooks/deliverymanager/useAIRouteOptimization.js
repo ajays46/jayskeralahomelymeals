@@ -15,6 +15,9 @@ export const aiRouteKeys = {
   routePlan: (params) => [...aiRouteKeys.all, 'routePlan', params],
   trackingStatus: (routeId) => [...aiRouteKeys.all, 'trackingStatus', routeId],
   allVehicleTracking: () => [...aiRouteKeys.all, 'allVehicleTracking'],
+  // Traffic and Route Order
+  checkTraffic: (routeId) => [...aiRouteKeys.all, 'checkTraffic', routeId],
+  routeOrder: (routeId) => [...aiRouteKeys.all, 'routeOrder', routeId],
   // Weather
   currentWeather: (params) => [...aiRouteKeys.all, 'currentWeather', params],
   weatherForecast: (params) => [...aiRouteKeys.all, 'weatherForecast', params],
@@ -198,10 +201,10 @@ export const useStartJourney = () => {
 
   return useMutation({
     mutationFn: async (journeyData) => {
-      const { route_id, driver_id } = journeyData;
+      const { driver_id } = journeyData;
       
+      // Only send driver_id to the API
       const response = await axiosInstance.post('/ai-routes/journey/start', {
-        route_id,
         driver_id
       });
       
@@ -226,29 +229,81 @@ export const useStartJourney = () => {
 };
 
 /**
- * Stop Reached (Mutation) - NEW API: /api/journey/stop-reached
+ * Stop Reached / Mark Stop (Mutation) - NEW API: /api/journey/mark-stop
  * Mark delivery stop as reached/delivered
+ * Uses new format matching documentation: route_id, stop_order, delivery_id, completed_at, current_location
  */
 export const useStopReached = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (stopData) => {
-      const { user_id, route_id, stop_order, delivery_id, latitude, longitude, status, packages_delivered } = stopData;
-      
-      const response = await axiosInstance.post('/ai-routes/journey/stop-reached', {
+      const { 
+        route_id, 
+        stop_order, 
+        delivery_id, 
+        completed_at,
+        current_location,
+        // Legacy parameters (for backward compatibility)
         user_id,
-        route_id,
-        stop_order,
-        delivery_id,
         latitude,
         longitude,
-        status: status || 'delivered',
+        status,
         packages_delivered
-      });
+      } = stopData;
+      
+      // Build request body according to documentation format
+      const requestBody = {
+        route_id,
+        stop_order,
+        delivery_id
+      };
+      
+      // Add completed_at if provided
+      if (completed_at) {
+        requestBody.completed_at = completed_at;
+      }
+      
+      // Add current_location if available (new format)
+      if (current_location && current_location.lat && current_location.lng) {
+        requestBody.current_location = {
+          lat: current_location.lat,
+          lng: current_location.lng
+        };
+      } else if (latitude !== undefined && longitude !== undefined) {
+        // Legacy format - convert to new format
+        requestBody.current_location = {
+          lat: latitude,
+          lng: longitude
+        };
+      }
+      
+      // Try new endpoint first (matching documentation)
+      let response;
+      try {
+        response = await axiosInstance.post('/ai-routes/journey/mark-stop', requestBody);
+      } catch (newEndpointError) {
+        // Fallback to legacy endpoint if new one doesn't exist
+        if (newEndpointError.response?.status === 404) {
+          // Use legacy format for legacy endpoint
+          const legacyBody = {
+            user_id: user_id || null,
+            route_id,
+            stop_order,
+            delivery_id,
+            latitude: current_location?.lat || latitude,
+            longitude: current_location?.lng || longitude,
+            status: status || 'delivered',
+            packages_delivered: packages_delivered || 1
+          };
+          response = await axiosInstance.post('/ai-routes/journey/stop-reached', legacyBody);
+        } else {
+          throw newEndpointError;
+        }
+      }
       
       if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to mark stop reached');
+        throw new Error(response.data.message || response.data.error || 'Failed to mark stop reached');
       }
       
       return response.data;
@@ -257,6 +312,9 @@ export const useStopReached = () => {
       if (variables.route_id) {
         queryClient.invalidateQueries({ 
           queryKey: aiRouteKeys.trackingStatus(variables.route_id) 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: aiRouteKeys.routeOrder(variables.route_id) 
         });
       }
       queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
@@ -828,6 +886,80 @@ export const useCompleteDriverSession = () => {
 };
 
 /**
+ * Get Driver Next Stop Maps
+ * Fetch individual stop map links for a driver
+ */
+export const useDriverNextStopMaps = (params = {}, options = {}) => {
+  const {
+    date,
+    session
+  } = params;
+  
+  const {
+    enabled = true,
+    staleTime = 5 * 60 * 1000, // 5 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: [...aiRouteKeys.all, 'driverNextStopMaps', { date, session }],
+    queryFn: async () => {
+      const queryParams = {};
+      if (date) queryParams.date = date;
+      if (session) queryParams.session = session;
+      
+      const response = await axiosInstance.get('/drivers/next-stop-maps', { params: queryParams });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch driver next stop maps');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!(date && session),
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Driver Route Overview Maps
+ * Fetch route overview map links for a driver
+ */
+export const useDriverRouteOverviewMaps = (params = {}, options = {}) => {
+  const {
+    date,
+    session
+  } = params;
+  
+  const {
+    enabled = true,
+    staleTime = 5 * 60 * 1000, // 5 minutes
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: [...aiRouteKeys.all, 'driverRouteOverviewMaps', { date, session }],
+    queryFn: async () => {
+      const queryParams = {};
+      if (date) queryParams.date = date;
+      if (session) queryParams.session = session;
+      
+      const response = await axiosInstance.get('/drivers/route-overview-maps', { params: queryParams });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch driver route overview maps');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!(date && session),
+    staleTime,
+    ...queryOptions
+  });
+};
+
+  /**
  * Get Missing Geo Locations
  */
 export const useMissingGeoLocations = (limit = 100, options = {}) => {
@@ -863,11 +995,15 @@ export const useUpdateGeoLocation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ address_id, delivery_item_id, geo_location }) => {
+    mutationFn: async ({ address_id, delivery_item_id, geo_location, order_id, menu_item_id, delivery_date, session }) => {
       const response = await axiosInstance.post('/ai-routes/address/update-geo-location', {
         address_id,
         delivery_item_id,
-        geo_location
+        geo_location,
+        order_id,
+        menu_item_id,
+        delivery_date,
+        session
       });
       
       if (!response.data.success) {
@@ -883,6 +1019,71 @@ export const useUpdateGeoLocation = () => {
     onError: (error) => {
       console.error('Error updating geo location:', error);
     }
+  });
+};
+
+/**
+ * Check Traffic and Auto-Reoptimize (Mutation) ⭐ TRAFFIC REOPTIMIZATION
+ * Checks traffic on remaining route segments and automatically reoptimizes if heavy traffic detected (≥1.5x multiplier)
+ */
+export const useCheckTraffic = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ route_id, current_location, check_all_segments = true }) => {
+      const response = await axiosInstance.post('/ai-routes/journey/check-traffic', {
+        route_id,
+        current_location,
+        check_all_segments
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || response.data.error || 'Failed to check traffic');
+      }
+      
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate related queries when traffic is checked
+      if (variables.route_id) {
+        queryClient.invalidateQueries({ queryKey: aiRouteKeys.routeOrder(variables.route_id) });
+        queryClient.invalidateQueries({ queryKey: aiRouteKeys.trackingStatus(variables.route_id) });
+      }
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
+    },
+    onError: (error) => {
+      console.error('Error checking traffic:', error);
+    }
+  });
+};
+
+/**
+ * Get Route Order
+ * Get current route order with stop status
+ */
+export const useRouteOrder = (routeId, options = {}) => {
+  const {
+    enabled = true,
+    refetchInterval = 30000, // 30 seconds for real-time updates
+    staleTime = 10 * 1000, // 10 seconds
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.routeOrder(routeId),
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/ai-routes/journey/route-order/${routeId}`);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || response.data.error || 'Failed to get route order');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!routeId,
+    refetchInterval,
+    staleTime,
+    ...queryOptions
   });
 };
 

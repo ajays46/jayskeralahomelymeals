@@ -213,10 +213,10 @@ export const predictStartTimeService = async (predictionData) => {
  */
 export const startJourneyService = async (journeyData) => {
   try {
-    const { route_id, driver_id } = journeyData;
+    const { driver_id } = journeyData;
     
+    // Only send driver_id to the external API
     const response = await apiClient.post('/api/journey/start', {
-      route_id,
       driver_id
     });
     const data = response.data;
@@ -226,7 +226,6 @@ export const startJourneyService = async (journeyData) => {
     }
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Journey started', {
-      route_id,
       driver_id,
       journey_id: data.journey_id,
       route_id: data.route_id
@@ -247,23 +246,79 @@ export const startJourneyService = async (journeyData) => {
 };
 
 /**
- * Mark Stop Reached (NEW API: /api/journey/stop-reached)
+ * Mark Stop Reached (NEW API: /api/journey/mark-stop)
  * Mark delivery stop as reached/delivered
+ * Supports both new format (current_location) and legacy format (latitude, longitude)
  */
 export const stopReachedService = async (stopData) => {
   try {
-    const { user_id, route_id, stop_order, delivery_id, latitude, longitude, status, packages_delivered } = stopData;
-    
-    const response = await apiClient.post('/api/journey/stop-reached', {
+    const { 
+      route_id, 
+      stop_order, 
+      delivery_id, 
+      completed_at,
+      current_location,
+      // Legacy parameters (for backward compatibility)
       user_id,
-      route_id,
-      stop_order,
-      delivery_id,
       latitude,
       longitude,
       status,
       packages_delivered
-    });
+    } = stopData;
+    
+    // Build request body according to documentation format
+    const requestBody = {
+      route_id,
+      stop_order,
+      delivery_id
+    };
+    
+    // Add completed_at if provided
+    if (completed_at) {
+      requestBody.completed_at = completed_at;
+    }
+    
+    // Add current_location if available (new format)
+    if (current_location && current_location.lat && current_location.lng) {
+      requestBody.current_location = {
+        lat: current_location.lat,
+        lng: current_location.lng
+      };
+    } else if (latitude !== undefined && longitude !== undefined) {
+      // Legacy format - convert to new format
+      requestBody.current_location = {
+        lat: latitude,
+        lng: longitude
+      };
+    }
+    
+    // Try new endpoint first (matching documentation)
+    let response;
+    try {
+      response = await apiClient.post('/api/journey/mark-stop', requestBody);
+    } catch (newEndpointError) {
+      // Fallback to legacy endpoint if new one doesn't exist
+      if (newEndpointError.response?.status === 404) {
+        logInfo(LOG_CATEGORIES.SYSTEM, 'New endpoint not available, using legacy endpoint', {
+          route_id
+        });
+        // Use legacy format for legacy endpoint
+        const legacyBody = {
+          user_id: user_id || null,
+          route_id,
+          stop_order,
+          delivery_id,
+          latitude: current_location?.lat || latitude,
+          longitude: current_location?.lng || longitude,
+          status: status || 'delivered',
+          packages_delivered: packages_delivered || 1
+        };
+        response = await apiClient.post('/api/journey/stop-reached', legacyBody);
+      } else {
+        throw newEndpointError;
+      }
+    }
+    
     const data = response.data;
     
     if (!data.success) {
@@ -273,7 +328,7 @@ export const stopReachedService = async (stopData) => {
     logInfo(LOG_CATEGORIES.SYSTEM, 'Stop reached marked', {
       route_id,
       stop_order,
-      status
+      completed_at: completed_at || 'current time'
     });
     
     return data;
@@ -335,8 +390,7 @@ export const endJourneyService = async (journeyData) => {
 export const getJourneyStatusService = async (routeId) => {
   try {
     const response = await apiClient.get(`/api/journey/status/${routeId}`);
-    const data = response.data;
-    
+    const data = response.data;    
     if (!data.success) {
       throw new Error(data.error || 'Failed to get journey status');
     }
@@ -781,6 +835,102 @@ export const reoptimizeRouteService = async (reoptimizeData) => {
 };
 
 /**
+ * Check Traffic and Auto-Reoptimize (NEW API: /api/journey/check-traffic)
+ * Checks traffic on remaining route segments and auto-reoptimizes if heavy traffic (≥1.5x) detected
+ */
+export const checkTrafficService = async (trafficData) => {
+  try {
+    const { route_id, current_location, check_all_segments } = trafficData;
+    
+    if (!route_id) {
+      throw new Error('route_id is required');
+    }
+    
+    const response = await apiClient.post('/api/journey/check-traffic', {
+      route_id,
+      current_location,
+      check_all_segments: check_all_segments !== false
+    });
+    
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to check traffic');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Traffic check completed', {
+      route_id,
+      heavy_traffic_detected: data.heavy_traffic_detected,
+      reoptimized: data.reoptimized,
+      max_traffic_multiplier: data.max_traffic_multiplier
+    });
+    
+    return {
+      success: true,
+      traffic_checked: true,
+      heavy_traffic_detected: data.heavy_traffic_detected || false,
+      reoptimized: data.reoptimized || false,
+      max_traffic_multiplier: data.max_traffic_multiplier || null,
+      traffic_segments: data.traffic_segments || [],
+      reoptimization_result: data.reoptimization_result || null,
+      updated_route_order: data.updated_route_order || null,
+      reason: data.reason || null
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Traffic check failed', {
+      error: error.message,
+      route_id: trafficData?.route_id,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to check traffic',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Route Order (NEW API: /api/journey/route-order/:route_id)
+ * Get current route order with stop status
+ */
+export const getRouteOrderService = async (routeId) => {
+  try {
+    if (!routeId) {
+      throw new Error('routeId is required');
+    }
+    
+    const response = await apiClient.get(`/api/journey/route-order/${routeId}`);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to get route order');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route order fetched', {
+      route_id: routeId,
+      stops_count: data.stops?.length || 0
+    });
+    
+    return {
+      success: true,
+      route_id: routeId,
+      stops: data.stops || [],
+      ...data
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route order failed', {
+      error: error.message,
+      routeId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to get route order',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
  * Get Missing Geo Locations
  */
 export const getMissingGeoLocationsService = async (limit = 100) => {
@@ -868,6 +1018,80 @@ export const completeDriverSessionService = async (sessionId, sessionData) => {
     });
     throw new AppError(
       error.response?.data?.error || error.message || 'Failed to complete driver session',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Driver Next Stop Maps
+ * Fetch individual stop map links for drivers
+ */
+export const getDriverNextStopMapsService = async (params) => {
+  try {
+    const { date, session } = params;
+    
+    if (!date || !session) {
+      throw new Error('date and session are required');
+    }
+    
+    const response = await apiClient.get('/api/drivers/next-stop-maps', {
+      params: { date, session }
+    });
+    
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch driver next stop maps');
+    }
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get driver next stop maps failed', {
+      error: error.message,
+      date: params?.date,
+      session: params?.session,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch driver next stop maps',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Driver Route Overview Maps
+ * Fetch route overview map links for drivers
+ */
+export const getDriverRouteOverviewMapsService = async (params) => {
+  try {
+    const { date, session } = params;
+    
+    if (!date || !session) {
+      throw new Error('date and session are required');
+    }
+    
+    const response = await apiClient.get('/api/drivers/route-overview-maps', {
+      params: { date, session }
+    });
+    
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch driver route overview maps');
+    }
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get driver route overview maps failed', {
+      error: error.message,
+      date: params?.date,
+      session: params?.session,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch driver route overview maps',
       error.response?.status || 500
     );
   }

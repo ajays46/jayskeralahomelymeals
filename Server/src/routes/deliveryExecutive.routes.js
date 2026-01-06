@@ -6,7 +6,8 @@ import {
   updateLocation,
   getAllProfiles,
   deleteProfile,
-  getRoutes
+  getRoutes,
+  getRoutesByDriverId
 } from '../controllers/deliveryExecutive.controller.js';
 
 const router = express.Router();
@@ -31,5 +32,8 @@ router.delete('/:userId/profile', deleteProfile);
 
 // Get delivery routes for a phone number
 router.get('/get-routes/:phoneNumber', getRoutes);
+
+// Get delivery routes by driver_id (query parameter)
+router.get('/routes', getRoutesByDriverId);
 
 export default router;

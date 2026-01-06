@@ -219,8 +219,8 @@ const CustomerCard = memo(({
 
           {/* Actions - Mobile */}
           <div className="flex flex-wrap gap-2">
-            {/* Primary Action Button */}
-            {hasDraft ? (
+            {/* Primary Action Buttons - Show all relevant actions */}
+            {hasDraft && (
               <>
                 <button
                   onClick={handleResumeOrder}
@@ -236,21 +236,24 @@ const CustomerCard = memo(({
                   Edit Dates
                 </button>
               </>
-            ) : hasPendingPayments ? (
+            )}
+            
+            {hasPendingPayments && (
               <button
                 onClick={handleUploadReceipt}
                 className="flex-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Upload Receipt
               </button>
-            ) : (
-              <button
-                onClick={handleBookOrder}
-                className="flex-1 px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-              >
-                Book Order
-              </button>
             )}
+            
+            {/* Book Order - Always available */}
+            <button
+              onClick={handleBookOrder}
+              className="flex-1 px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              Book Order
+            </button>
             
             {/* Secondary Actions */}
             <div className="flex gap-1">
@@ -427,9 +430,9 @@ const CustomerCard = memo(({
 
         {/* Actions Column */}
         <div className="col-span-2">
-          <div className="flex items-center gap-1.5">
-            {/* Show appropriate button based on customer status */}
-            {hasDraft ? (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Show all relevant action buttons */}
+            {hasDraft && (
               <>
                 <button
                   onClick={handleResumeOrder}
@@ -446,7 +449,9 @@ const CustomerCard = memo(({
                   Edit Dates
                 </button>
               </>
-            ) : hasPendingPayments ? (
+            )}
+            
+            {hasPendingPayments && (
               <button
                 onClick={handleUploadReceipt}
                 className="px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
@@ -454,15 +459,16 @@ const CustomerCard = memo(({
               >
                 Upload Receipt
               </button>
-            ) : (
-              <button
-                onClick={handleBookOrder}
-                className="px-2.5 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
-                title="Book Order"
-              >
-                Book Order
-              </button>
             )}
+            
+            {/* Book Order - Always available */}
+            <button
+              onClick={handleBookOrder}
+              className="px-2.5 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+              title="Book Order"
+            >
+              Book Order
+            </button>
             
             <button
               onClick={handleViewOrders}

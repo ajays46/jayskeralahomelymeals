@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiLogOut, FiMapPin, FiPlay } from 'react-icons/fi';
 import { MdLocalShipping } from 'react-icons/md';
@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
-import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 /**
@@ -32,6 +32,49 @@ const DeliveryExecutivePage = () => {
   const [selectedSession, setSelectedSession] = useState('breakfast'); // breakfast, lunch, dinner
   const [showAllStops, setShowAllStops] = useState(false);
   
+  // Get user and roles first (before hooks that use them)
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const roles = useAuthStore((state) => state.roles);
+  const logout = useAuthStore((state) => state.logout);
+  
+  // Get current date string (memoized to avoid unnecessary recalculations)
+  const currentDateStr = useMemo(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  }, []); // Only calculate once per day (could add date dependency if needed)
+  
+  // Use React Query hooks for driver maps
+  const isMapsEnabled = !!user?.id && !!selectedSession && routes.sessions && Object.keys(routes.sessions).length > 0;
+  
+  const { data: driverMapsResponse, isLoading: mapsLoading, error: mapsError } = useDriverNextStopMaps(
+    { date: currentDateStr, session: selectedSession.toLowerCase() },
+    { 
+      enabled: isMapsEnabled
+    }
+  );
+  
+  const { data: routeOverviewResponse, isLoading: routeOverviewLoading } = useDriverRouteOverviewMaps(
+    { date: currentDateStr, session: selectedSession.toLowerCase() },
+    { 
+      enabled: isMapsEnabled
+    }
+  );
+  
+  // Debug logging (remove in production)
+  useEffect(() => {
+    if (mapsError) {
+      console.error('Driver Maps API Error:', mapsError);
+    }
+    if (driverMapsResponse) {
+      console.log('Driver Maps Response:', driverMapsResponse);
+    }
+  }, [mapsError, driverMapsResponse]);
+  
+  // Extract driver-specific data from responses
+  const driverMapsData = driverMapsResponse?.drivers?.find(driver => driver.driver_id === user?.id) || null;
+  const routeOverviewData = routeOverviewResponse?.drivers?.find(driver => driver.driver_id === user?.id) || null;
+  
   // Delivery completion state
   const [completingDelivery, setCompletingDelivery] = useState(null); // stop index being completed
   const [completionLocation, setCompletionLocation] = useState(null);
@@ -50,12 +93,6 @@ const DeliveryExecutivePage = () => {
   const [deliveryStatus, setDeliveryStatus] = useState({});
   const [loadingStatus, setLoadingStatus] = useState({});
   
-  // Get user and roles first (before state that uses them)
-  const navigate = useNavigate();
-  const user = useAuthStore((state) => state.user);
-  const roles = useAuthStore((state) => state.roles);
-  const logout = useAuthStore((state) => state.logout);
-  
   // Start Journey state
   const [showStartJourneyModal, setShowStartJourneyModal] = useState(false);
   const [startJourneyData, setStartJourneyData] = useState({
@@ -64,7 +101,11 @@ const DeliveryExecutivePage = () => {
   });
   const [currentLocation, setCurrentLocation] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [activeRouteId, setActiveRouteId] = useState(null); // Track active journey route_id
+  // Load activeRouteId from localStorage on mount to persist journey state
+  const [activeRouteId, setActiveRouteId] = useState(() => {
+    const saved = localStorage.getItem('activeRouteId');
+    return saved || null;
+  }); // Track active journey route_id
   
   // End Session state
   const [showEndSessionModal, setShowEndSessionModal] = useState(false);
@@ -78,6 +119,20 @@ const DeliveryExecutivePage = () => {
   const completeSessionMutation = useCompleteDriverSession();
   const stopReachedMutation = useStopReached();
   const endJourneyMutation = useEndJourney();
+  const checkTrafficMutation = useCheckTraffic();
+  const reoptimizeRouteMutation = useReoptimizeRoute();
+  
+  // Traffic checking state
+  const [trafficData, setTrafficData] = useState(null);
+  const [lastTrafficCheck, setLastTrafficCheck] = useState(null);
+  const [showTrafficAlert, setShowTrafficAlert] = useState(false);
+  const [showReoptimizationSuccess, setShowReoptimizationSuccess] = useState(false);
+  
+  // Get route order for active route (if available)
+  const { data: routeOrderData } = useRouteOrder(activeRouteId, {
+    enabled: !!activeRouteId,
+    refetchInterval: 30000 // Poll every 30 seconds
+  });
 
   // Get display name with fallbacks
   const getDisplayName = () => {
@@ -96,12 +151,61 @@ const DeliveryExecutivePage = () => {
 
   // Auto-fetch routes when component loads if on routes tab
   useEffect(() => {
-    const phoneNumber = getUserPhoneNumber();
+    const driverId = user?.id;
     
-    if (activeTab === 'routes' && phoneNumber && (!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading) {
+    if (activeTab === 'routes' && driverId && (!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading) {
       fetchRoutes();
     }
   }, [activeTab, user]);
+
+  // Update routes state when driver maps data is loaded
+  useEffect(() => {
+    if (driverMapsData && routes.sessions && routes.sessions[selectedSession]) {
+      const updatedStops = routes.sessions[selectedSession].stops.map(stop => {
+        const mapStop = driverMapsData.stops?.find(s => 
+          s.stop_order === stop.Stop_No || 
+          s.delivery_name === stop.Delivery_Name
+        );
+        
+        if (mapStop && mapStop.map_link) {
+          return {
+            ...stop,
+            Map_Link: mapStop.map_link
+          };
+        }
+        return stop;
+      });
+      
+      setRoutes(prev => ({
+        ...prev,
+        sessions: {
+          ...prev.sessions,
+          [selectedSession]: {
+            ...prev.sessions[selectedSession],
+            stops: updatedStops
+          }
+        }
+      }));
+    }
+  }, [driverMapsData, selectedSession, routes.sessions]);
+
+  // Update routes state when route overview data is loaded
+  useEffect(() => {
+    if (routeOverviewData && routes.sessions && routes.sessions[selectedSession]) {
+      setRoutes(prev => ({
+        ...prev,
+        sessions: {
+          ...prev.sessions,
+          [selectedSession]: {
+            ...prev.sessions[selectedSession],
+            map_link: routeOverviewData.route_map_link || prev.sessions[selectedSession].map_link,
+            route_map_link: routeOverviewData.route_map_link,
+            map_view_link: routeOverviewData.map_view_link
+          }
+        }
+      }));
+    }
+  }, [routeOverviewData, selectedSession, routes.sessions]);
 
   // Auto-fetch delivery status when routes are loaded
   useEffect(() => {
@@ -162,23 +266,11 @@ const DeliveryExecutivePage = () => {
         reverseGeocodeCompletion(latitude, longitude);
       },
       (error) => {
-        let errorMessage = 'Unable to retrieve your location.';
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = 'Location access denied. Please enable location services.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location information unavailable.';
-            break;
-          case error.TIMEOUT:
-            errorMessage = 'Location request timed out.';
-            break;
-          default:
-            errorMessage = 'An unknown error occurred.';
-            break;
-        }
-        setCompletionLocationError(errorMessage);
+        // Silently handle location errors without showing error message
+        // Just set loading to false and clear any previous location
         setCompletionLocationLoading(false);
+        setCompletionLocationError(null);
+        // Optionally, you can set a fallback location or just let user try again
       },
       {
         enableHighAccuracy: true,
@@ -562,34 +654,94 @@ const DeliveryExecutivePage = () => {
     return null;
   };
 
+  // Helper function to transform API response to sessions format
+  const transformRoutesToSessions = (routesData) => {
+    // If already in sessions format, return as is
+    if (routesData.sessions) {
+      return routesData;
+    }
+
+    // Transform routes array to sessions format
+    if (routesData.routes && Array.isArray(routesData.routes)) {
+      const sessions = {};
+      
+      routesData.routes.forEach(route => {
+        const sessionName = route.session || 'dinner'; // default to dinner if no session
+        
+        if (!sessions[sessionName]) {
+          sessions[sessionName] = {
+            stops: [],
+            map_link: route.map_link || '',
+            route_id: route.route_id || ''
+          };
+        }
+        
+        // Transform stops to match expected format
+        if (route.stops && Array.isArray(route.stops)) {
+          const transformedStops = route.stops.map(stop => ({
+            Stop_No: stop.stop_order || stop.Stop_No || 0,
+            Delivery_Name: stop.delivery_name || stop.Delivery_Name || 'Unknown',
+            Location: stop.location || stop.Location || '',
+            Packages: stop.packages || stop.Packages || 0,
+            Delivery_Item_ID: stop.delivery_item_id || stop.Delivery_Item_ID || '',
+            Date: stop.date || stop.Date || routesData.date || '',
+            Latitude: stop.latitude || stop.Latitude || 0,
+            Longitude: stop.longitude || stop.Longitude || 0,
+            Map_Link: stop.map_link || stop.Map_Link || '',
+            route_id: stop.route_id || route.route_id || '',
+            // Keep original data for reference
+            _original: stop
+          }));
+          
+          sessions[sessionName].stops = [...sessions[sessionName].stops, ...transformedStops];
+        }
+      });
+      
+      return {
+        ...routesData,
+        sessions: sessions
+      };
+    }
+    
+    return routesData;
+  };
+
+
   // Fetch routes function
   const fetchRoutes = async () => {
-    const phoneNumber = getUserPhoneNumber();
+    // Use driver_id (user.id) instead of phone number
+    const driverId = user?.id;
   
-    
-    
-    if (!phoneNumber) {
-      setRoutesError('Phone number not found for delivery executive');
+    if (!driverId) {
+      setRoutesError('User ID not found for delivery executive');
       return;
     }
     setRoutesLoading(true);
     setRoutesError(null);
 
     try {
-      const apiUrl = `/delivery-executives/get-routes/${phoneNumber}`;
+      const apiUrl = `/delivery-executives/routes?driver_id=${driverId}`;
       
       const response = await axiosInstance.get(apiUrl);
 
       if (response.data && response.data.success) {
         const routesData = response.data.data;
         
+        // Transform the response to sessions format
+        const transformedData = transformRoutesToSessions(routesData);
+        
         // Handle different response structures
-        // Structure 1: Object with sessions property
-        if (routesData && typeof routesData === 'object' && routesData.sessions) {
+        // Structure 1: Object with routes array (new format: { date, driver_id, routes: [...] })
+        if (routesData && typeof routesData === 'object' && routesData.routes && Array.isArray(routesData.routes) && routesData.routes.length > 0) {
+          setRoutes(transformedData);
+          message.success('Routes loaded successfully!');
+        }
+        // Structure 2: Object with sessions property
+        else if (routesData && typeof routesData === 'object' && routesData.sessions) {
           setRoutes(routesData);
           message.success('Routes loaded successfully!');
         }
-        // Structure 2: Array - convert to object with sessions
+        // Structure 3: Array - convert to object with sessions
         else if (Array.isArray(routesData) && routesData.length > 0) {
           // If it's an array, try to structure it
           const structuredRoutes = {
@@ -599,16 +751,38 @@ const DeliveryExecutivePage = () => {
           setRoutes(structuredRoutes);
           message.success('Routes loaded successfully!');
         }
-        // Structure 3: Empty or no data
+        // Structure 4: Empty or no data
         else {
-          setRoutes({ sessions: {} });
+          setRoutes({ sessions: {}, routes: [] });
           message.info('No routes assigned for today');
         }
       } else {
         throw new Error(response.data?.message || 'Failed to fetch routes');
       }
     } catch (apiError) {
-      const errorMessage = apiError.response?.data?.message || apiError.message || 'Failed to fetch routes. Please try again.';
+      let errorMessage = apiError.response?.data?.message || apiError.message || 'Failed to fetch routes. Please try again.';
+      
+      // Sanitize error message to remove driver ID and date for user-friendly display
+      // Check if it's a "no routes" message and clean it up
+      if (errorMessage.toLowerCase().includes('no routes assigned')) {
+        // Remove driver ID (UUID pattern - matches any UUID format)
+        errorMessage = errorMessage
+          .replace(/for driver [a-f0-9-]{8,36}/gi, '') // Remove "for driver <uuid>" (8-36 chars for UUID)
+          .replace(/driver [a-f0-9-]{8,36}/gi, '') // Remove "driver <uuid>" (without "for")
+          .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, '') // Remove any UUID pattern
+          .replace(/on \d{4}-\d{2}-\d{2}/gi, '') // Remove "on YYYY-MM-DD"
+          .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+          .trim();
+        
+        // If message is empty or just whitespace after sanitization, use default message
+        if (!errorMessage || errorMessage.length === 0) {
+          errorMessage = 'No routes assigned for today';
+        } else {
+          // Ensure it starts with proper capitalization
+          errorMessage = errorMessage.charAt(0).toUpperCase() + errorMessage.slice(1);
+        }
+      }
+      
       setRoutesError(errorMessage);
       message.error(errorMessage);
     } finally {
@@ -618,13 +792,13 @@ const DeliveryExecutivePage = () => {
 
   // Handle routes tab click
   const handleRoutesTabClick = () => {
-    const phoneNumber = getUserPhoneNumber();
+    const driverId = user?.id;
     
     setActiveTab('routes');
     setSidebarOpen(false);
     
     // Fetch routes when switching to routes tab
-    if ((!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading && phoneNumber) {
+    if ((!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading && driverId) {
       fetchRoutes();
     }
   };
@@ -650,20 +824,192 @@ const DeliveryExecutivePage = () => {
         showSuccessToast('Location captured successfully!');
       },
       (error) => {
+        // Silently handle location errors without showing toast
         setLocationLoading(false);
-        let errorMsg = 'Unable to get location';
-        if (error.code === error.PERMISSION_DENIED) {
-          errorMsg = 'Location access denied. Please enable location services.';
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          errorMsg = 'Location unavailable';
-        } else if (error.code === error.TIMEOUT) {
-          errorMsg = 'Location request timed out';
-        }
-        showErrorToast(errorMsg);
+        // User can try again if needed
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
+
+  // Get current GPS location for traffic checking (returns Promise)
+  const getCurrentLocationForTraffic = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          // Silently fail - return null instead of rejecting
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+      );
+    });
+  };
+
+  // Helper function to get route_id from routes data
+  const getRouteIdFromRoutes = useCallback(() => {
+    // Check for routes array in the response structure: { routes: [...] }
+    if (routes?.routes && Array.isArray(routes.routes) && routes.routes.length > 0) {
+      return routes.routes[0].route_id || '';
+    } 
+    // Check for nested data structure: { data: { routes: [...] } }
+    else if (routes?.data?.routes && Array.isArray(routes.data.routes) && routes.data.routes.length > 0) {
+      return routes.data.routes[0].route_id || '';
+    }
+    // Check for sessions structure (legacy format)
+    else if (routes?.sessions) {
+      const sessions = routes.sessions;
+      // Try to get route_id from first available session
+      const firstSession = sessions.breakfast || sessions.lunch || sessions.dinner;
+      if (firstSession && firstSession.route_id) {
+        return firstSession.route_id;
+      }
+      // Try from stops
+      if (firstSession && firstSession.stops && firstSession.stops.length > 0) {
+        const firstStop = firstSession.stops.find(stop => stop.route_id || stop.Route_ID);
+        return firstStop?.route_id || firstStop?.Route_ID || '';
+      }
+    }
+    // Use activeRouteId if available
+    return activeRouteId || '';
+  }, [routes, activeRouteId]);
+
+  // Check if routes are available (for button visibility)
+  const hasRoutes = useMemo(() => {
+    return !!(routes?.sessions && Object.keys(routes.sessions).length > 0) || 
+           !!(routes?.routes && routes.routes.length > 0) ||
+           !!(routes?.data?.routes && routes.data.routes.length > 0) ||
+           !!activeRouteId;
+  }, [routes, activeRouteId]);
+
+  // Manual route reoptimization (for delivery executive to manually reroute)
+  const handleReoptimizeRoute = useCallback(async () => {
+    const routeId = getRouteIdFromRoutes();
+    
+    if (!routeId) {
+      showErrorToast('No route found. Please ensure you have an active route.');
+      return;
+    }
+    
+    try {
+      // Get current location for reoptimization
+      const currentLocation = await getCurrentLocationForTraffic();
+      
+      const result = await reoptimizeRouteMutation.mutateAsync({
+        route_id: routeId,
+        current_location: currentLocation
+      });
+      
+      if (result.success) {
+        showSuccessToast('Route reoptimized successfully! The route has been updated.');
+        
+        // Refresh routes to show updated order
+        fetchRoutes();
+      } else {
+        showErrorToast(result.message || 'Failed to reoptimize route');
+      }
+    } catch (error) {
+      if (error.response?.data?.message) {
+        showErrorToast(error.response.data.message);
+      } else {
+        showErrorToast(error.message || 'Failed to reoptimize route. Please try again.');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getRouteIdFromRoutes, reoptimizeRouteMutation]);
+
+  // Check traffic and auto-reoptimize (wrapped in useCallback to avoid dependency issues)
+  const handleCheckTraffic = useCallback(async () => {
+    if (!activeRouteId) {
+      showErrorToast('No active journey. Please start a journey first.');
+      return;
+    }
+    
+    try {
+      const currentLocation = await getCurrentLocationForTraffic();
+      
+      const result = await checkTrafficMutation.mutateAsync({
+        route_id: activeRouteId,
+        current_location: currentLocation,
+        check_all_segments: true
+      });
+      
+      setTrafficData(result);
+      setLastTrafficCheck(new Date());
+      
+      // Show alerts based on result
+      if (result.heavy_traffic_detected) {
+        setShowTrafficAlert(true);
+        // Auto-hide after 10 seconds
+        setTimeout(() => setShowTrafficAlert(false), 10000);
+      }
+      
+      if (result.reoptimized && result.updated_route_order) {
+        setShowReoptimizationSuccess(true);
+        // Auto-hide after 15 seconds
+        setTimeout(() => setShowReoptimizationSuccess(false), 15000);
+        
+        // Show success toast with details
+        const timeSaved = result.reoptimization_result?.time_saved_minutes || 0;
+        const distanceSaved = result.reoptimization_result?.distance_saved_km || 0;
+        showSuccessToast(
+          `Route optimized! Saved ${timeSaved} minutes${distanceSaved > 0 ? ` and ${distanceSaved} km` : ''}`
+        );
+        
+        // Refresh routes to show updated order
+        fetchRoutes();
+      }
+    } catch (error) {
+      // Handle rate limiting errors
+      if (error.rateLimitInfo) {
+        const resetTime = error.rateLimitInfo.resetTime 
+          ? new Date(error.rateLimitInfo.resetTime).toLocaleTimeString()
+          : 'later';
+        showErrorToast(`Rate limit exceeded. Please try again after ${resetTime}`);
+      } else if (error.isApiKeyError) {
+        showErrorToast('API key authentication failed. Please contact support.');
+      } else {
+        // Silently handle other errors - don't interrupt user experience
+        console.error('Traffic check error:', error);
+      }
+    }
+  }, [activeRouteId, checkTrafficMutation]);
+
+  // Use ref to store the latest handleCheckTraffic function
+  const handleCheckTrafficRef = useRef(handleCheckTraffic);
+  useEffect(() => {
+    handleCheckTrafficRef.current = handleCheckTraffic;
+  }, [handleCheckTraffic]);
+
+  // Auto-check traffic every 5 minutes when journey is active
+  // Only depends on activeRouteId to prevent re-creating interval
+  useEffect(() => {
+    if (!activeRouteId) {
+      return; // No active journey, don't check traffic
+    }
+    
+    // Check immediately when journey starts
+    handleCheckTrafficRef.current();
+    
+    // Then check every 5 minutes (300000 ms)
+    const trafficCheckInterval = setInterval(() => {
+      handleCheckTrafficRef.current();
+    }, 5 * 60 * 1000);
+    
+    return () => {
+      clearInterval(trafficCheckInterval);
+    };
+  }, [activeRouteId]); // Only re-run when activeRouteId changes
 
   // Handle Start Journey button click
   const handleStartJourneyClick = () => {
@@ -672,9 +1018,30 @@ const DeliveryExecutivePage = () => {
       return;
     }
     
-    // Set driver_id and open modal for confirmation
+    // Extract route_id from fetched routes
+    let routeId = '';
+    
+    // Check for routes array in the response structure: { routes: [...] }
+    if (routes?.routes && Array.isArray(routes.routes) && routes.routes.length > 0) {
+      routeId = routes.routes[0].route_id || '';
+    } 
+    // Check for nested data structure: { data: { routes: [...] } }
+    else if (routes?.data?.routes && Array.isArray(routes.data.routes) && routes.data.routes.length > 0) {
+      routeId = routes.data.routes[0].route_id || '';
+    }
+    // Check for sessions structure (legacy format)
+    else if (routes?.sessions) {
+      const sessions = routes.sessions;
+      // Try to get route_id from first available session
+      const firstSession = sessions.breakfast || sessions.lunch || sessions.dinner;
+      if (firstSession && firstSession.routes && Array.isArray(firstSession.routes) && firstSession.routes.length > 0) {
+        routeId = firstSession.routes[0].route_id || '';
+      }
+    }
+    
+    // Set driver_id and route_id and open modal for confirmation
     setStartJourneyData({
-      route_id: '',
+      route_id: routeId,
       driver_id: user?.id || ''
     });
     setShowStartJourneyModal(true);
@@ -685,25 +1052,23 @@ const DeliveryExecutivePage = () => {
 
   // Handle Start Journey submission
   const handleStartJourney = async () => {
-    if (!startJourneyData.route_id) {
-      showErrorToast('Route ID is required');
-      return;
-    }
-    
     if (!startJourneyData.driver_id) {
       showErrorToast('Driver ID is required');
       return;
     }
     
     try {
+      // Only send driver_id to the API (not route_id)
       const result = await startJourneyMutation.mutateAsync({
-        route_id: startJourneyData.route_id,
         driver_id: startJourneyData.driver_id
       });
       
-      // Store the route_id for later use
-      if (result.route_id) {
-        setActiveRouteId(result.route_id);
+      // Store the route_id for later use (from result or from startJourneyData)
+      const activeRouteId = result.route_id || startJourneyData.route_id;
+      if (activeRouteId) {
+        setActiveRouteId(activeRouteId);
+        // Persist to localStorage so it survives page refresh
+        localStorage.setItem('activeRouteId', activeRouteId);
       }
       
       showSuccessToast('Journey started successfully!');
@@ -722,10 +1087,28 @@ const DeliveryExecutivePage = () => {
 
   // Handle marking a stop as reached/delivered
   const handleStopReached = async (stop, stopIndex) => {
-    if (!user?.id || !activeRouteId) {
-      showErrorToast('No active journey. Please start a journey first.');
+    if (!user?.id) {
+      showErrorToast('User ID not found. Please log in again.');
       return;
     }
+    
+    // Get route_id from stop, activeRouteId, or routes data
+    let routeId = stop.route_id || stop.Route_ID || activeRouteId;
+    
+    // If still no route_id, try to get it from routes data
+    if (!routeId && routes?.routes && routes.routes.length > 0) {
+      routeId = routes.routes[0].route_id;
+    }
+    
+    if (!routeId) {
+      showErrorToast('Route ID not found. Please ensure you have an active route.');
+      return;
+    }
+    
+    // Prepare stop data
+    const stopOrder = stop.Stop_No || stop.stop_order || stopIndex + 1;
+    const deliveryId = stop.Delivery_Item_ID || stop.delivery_item_id || '';
+    const packagesDelivered = stop.Packages || stop.packages || 1;
     
     try {
       // Get current location
@@ -736,21 +1119,33 @@ const DeliveryExecutivePage = () => {
         });
       });
       
+      // Use new format matching documentation
       await stopReachedMutation.mutateAsync({
-        user_id: user.id,
-        route_id: activeRouteId,
-        stop_order: stop.Stop_No || stopIndex + 1,
-        delivery_id: stop.Delivery_Item_ID,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        status: 'delivered',
-        packages_delivered: stop.Packages || 1
+        route_id: routeId,
+        stop_order: stopOrder,
+        delivery_id: deliveryId,
+        completed_at: new Date().toISOString(),
+        current_location: {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        }
+        // Legacy parameters kept for backward compatibility if needed
+        // user_id: user.id,
+        // status: 'delivered',
+        // packages_delivered: packagesDelivered
       });
       
-      showSuccessToast(`Stop ${stop.Stop_No || stopIndex + 1} marked as delivered!`);
+      showSuccessToast(`Stop ${stopOrder} marked as reached!`);
+      // Refresh routes to update status
       fetchRoutes();
     } catch (error) {
-      showErrorToast(error.message || 'Failed to mark stop as reached');
+      if (error.message.includes('location') || error.code === 1) {
+        showErrorToast('Unable to get your location. Please enable location services.');
+      } else if (error.response?.data?.message) {
+        showErrorToast(error.response.data.message);
+      } else {
+        showErrorToast(error.message || 'Failed to mark stop as reached');
+      }
     }
   };
 
@@ -779,6 +1174,8 @@ const DeliveryExecutivePage = () => {
       
       showSuccessToast('Journey ended successfully!');
       setActiveRouteId(null);
+      // Clear from localStorage when journey ends
+      localStorage.removeItem('activeRouteId');
       fetchRoutes();
     } catch (error) {
       showErrorToast(error.message || 'Failed to end journey');
@@ -805,15 +1202,44 @@ const DeliveryExecutivePage = () => {
       return;
     }
     
+    // Extract route_id from routes data
+    let routeId = '';
+    
+    // Try to get route_id from routes array
+    if (routes?.routes && Array.isArray(routes.routes) && routes.routes.length > 0) {
+      routeId = routes.routes[0].route_id || '';
+    }
+    // Try from data.routes (nested structure)
+    else if (routes?.data?.routes && Array.isArray(routes.data.routes) && routes.data.routes.length > 0) {
+      routeId = routes.data.routes[0].route_id || '';
+    }
+    // Try from selected session stops
+    else if (routes?.sessions?.[selectedSession]?.stops && routes.sessions[selectedSession].stops.length > 0) {
+      const firstStop = routes.sessions[selectedSession].stops.find(stop => stop.route_id || stop.Route_ID);
+      routeId = firstStop?.route_id || firstStop?.Route_ID || '';
+    }
+    // Try from activeRouteId if journey is started
+    else if (activeRouteId) {
+      routeId = activeRouteId;
+    }
+    
+    if (!routeId) {
+      showErrorToast('Route ID not found. Please ensure you have an active route.');
+      return;
+    }
+    
     try {
       await completeSessionMutation.mutateAsync({
         sessionId: endSessionData.sessionId,
-        route_id: routes?.route_id || endSessionData.sessionId,
+        route_id: routeId,
         end_time: new Date().toISOString()
       });
       showSuccessToast(`${endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} session completed successfully!`);
       setShowEndSessionModal(false);
       setEndSessionData({ sessionName: '', sessionId: '' });
+      // Clear active journey state when session ends
+      setActiveRouteId(null);
+      localStorage.removeItem('activeRouteId');
       // Refresh routes after session completion
       fetchRoutes();
     } catch (error) {
@@ -823,40 +1249,9 @@ const DeliveryExecutivePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white">
-        {/* Mobile Layout */}
-        <div className="block sm:hidden">
-          {/* Mobile Header Skeleton */}
-          <div className="bg-gray-800 p-4">
-            <div className="flex items-center justify-between">
-              <div className="h-8 w-32 bg-gray-600 rounded animate-pulse"></div>
-              <div className="h-8 w-8 bg-gray-600 rounded animate-pulse"></div>
-            </div>
-          </div>
-          
-          {/* Mobile Content Skeleton */}
-          <div className="p-4 space-y-4">
-            <SkeletonDashboard />
-          </div>
-        </div>
-
-        {/* Desktop Layout */}
-        <div className="hidden sm:flex">
-          {/* Sidebar Skeleton */}
-          <div className="w-64 bg-gray-800 p-4">
-            <div className="space-y-4">
-              <div className="h-8 bg-gray-600 rounded animate-pulse"></div>
-              <div className="space-y-2">
-                <div className="h-6 bg-gray-600 rounded animate-pulse"></div>
-                <div className="h-6 bg-gray-600 rounded animate-pulse"></div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Main Content Skeleton */}
-          <div className="flex-1 p-6">
-            <SkeletonDashboard />
-          </div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="pt-16 px-4 py-6">
+          <SkeletonDashboard />
         </div>
       </div>
     );
@@ -864,14 +1259,14 @@ const DeliveryExecutivePage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center bg-white rounded-2xl p-8 shadow-lg max-w-md">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold mb-2">Error Loading Profile</h2>
-          <p className="text-gray-400 mb-4">{error}</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Profile</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-md"
           >
             Try Again
           </button>
@@ -881,141 +1276,230 @@ const DeliveryExecutivePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white overflow-x-hidden">
-      {/* Navbar */}
-      <div className="fixed top-0 left-0 w-full h-16 sm:h-20 lg:h-24 bg-gray-800 border-b border-gray-700 z-40 flex items-center px-3 sm:px-4 lg:px-8">
-        <div className="flex items-center gap-2 sm:gap-3">
+    <div className="min-h-screen bg-gray-50 text-gray-900 overflow-x-hidden">
+      {/* Navbar - Swiggy Style */}
+      <div className="fixed top-0 left-0 w-full h-16 sm:h-18 bg-white border-b border-gray-200 shadow-sm z-40 flex items-center px-4 sm:px-6">
+        <div className="flex items-center gap-3 flex-1">
           <button
             onClick={() => navigate('/jkhm')}
-            className="text-gray-400 hover:text-white transition-colors p-1"
+            className="text-gray-600 hover:text-blue-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
             aria-label="Go back to home"
           >
-            <FiArrowLeft size={18} className="sm:w-5 sm:h-5" />
+            <FiArrowLeft size={20} />
           </button>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <MdLocalShipping className="text-xl sm:text-2xl text-blue-500" />
-            <h1 className="text-base sm:text-xl font-bold text-white">Delivery Executive</h1>
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
+              <MdLocalShipping className="text-white text-xl" />
+            </div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Delivery Executive</h1>
+              <p className="text-xs text-gray-500 hidden sm:block">Manage your deliveries</p>
+            </div>
           </div>
         </div>
-        <div className="text-xs sm:text-sm text-gray-400 ml-auto hidden sm:block">
-          <span className="hidden sm:inline">Welcome, </span>
-          <span className="font-medium text-white">{getDisplayName()}</span>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full">
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-semibold">{getDisplayName().charAt(0).toUpperCase()}</span>
+            </div>
+            <span className="text-sm font-medium text-gray-700">{getDisplayName()}</span>
+          </div>
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+            title="Logout"
+          >
+            <FiLogOut size={20} />
+          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="pt-16 sm:pt-20 lg:pt-24">
-        {/* Mobile Sidebar Toggle */}
-        <div className="lg:hidden fixed top-20 sm:top-24 left-3 z-50">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="bg-gray-800 text-white p-2 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors shadow-lg"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Sidebar */}
-        <div className={`fixed left-0 top-16 sm:top-20 lg:top-24 w-64 h-screen bg-gray-800 border-r border-gray-700 z-30 transform transition-transform duration-300 ease-in-out lg:translate-x-0 shadow-xl lg:shadow-none ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}>
-          <div className="p-3 sm:p-4">
-            {/* User Info Section */}
-            <div className="mb-4 sm:mb-6 p-3 bg-gray-700 rounded-lg border border-gray-600">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                  <MdLocalShipping className="text-white text-lg" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {getDisplayName()}
-                  </p>
-                  <p className="text-xs text-gray-400">Delivery Executive</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-base sm:text-lg font-semibold text-white px-2">Navigation</h2>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="lg:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <nav className="space-y-2">
-              <button
-                onClick={handleRoutesTabClick}
-                className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-left transition-colors text-sm sm:text-base ${
-                  activeTab === 'routes'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                </svg>
-                <span>Routes</span>
-              </button>
-
-
-              {/* Logout Button */}
-              <button
-                onClick={() => setShowLogoutConfirm(true)}
-                className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-left transition-colors text-sm sm:text-base text-red-400 hover:text-red-300 hover:bg-red-900/20 mt-4"
-              >
-                <FiLogOut className="text-base sm:text-lg" />
-                <span>Logout</span>
-              </button>
-            </nav>
-          </div>
-        </div>
-
-        {/* Dashboard Content */}
-        <div className="lg:ml-64 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
-          {/* Mobile Backdrop */}
-          {sidebarOpen && (
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
+      <div className="pt-16 sm:pt-18">
+        {/* Dashboard Content - Full Width */}
+        <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto">
 
 
 
           {/* Routes Tab Content */}
           {activeTab === 'routes' && (
-            <div className="space-y-4 sm:space-y-6">
-              {/* Page Header - Hidden on Mobile */}
-              <div className="hidden sm:block bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg border border-gray-700 p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center sm:text-left">
-                  <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
+            <div className="space-y-6">
+              {/* Welcome Header - Standard Style */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 sm:p-8 text-white shadow-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white">Delivery Routes</h2>
-                    <p className="text-indigo-100 text-sm sm:text-base">View and manage your delivery routes</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-2">Today's Deliveries</h2>
+                    <p className="text-blue-50 text-sm sm:text-base">Manage your delivery routes efficiently</p>
                   </div>
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    {activeRouteId ? (
+                      <div className="px-3 sm:px-5 py-2.5 sm:py-3 bg-white/20 text-white rounded-xl font-semibold flex items-center gap-2 border-2 border-white/30">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-sm sm:text-base">Journey Started</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleStartJourneyClick}
+                        disabled={routesLoading}
+                        className="px-3 sm:px-5 py-2.5 sm:py-3 bg-white text-blue-600 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <FiPlay className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="hidden sm:inline">Start Journey</span>
+                        <span className="sm:hidden">Start</span>
+                      </button>
+                    )}
+                    {/* Traffic/Reoptimize Button - Show when routes are available */}
+                    {hasRoutes && (
+                      <button
+                        onClick={handleReoptimizeRoute}
+                        disabled={reoptimizeRouteMutation.isPending}
+                        className="px-3 sm:px-4 py-2.5 sm:py-3 bg-white/20 hover:bg-white/30 text-white rounded-xl font-semibold transition-all disabled:opacity-50 flex items-center gap-2 border border-white/30"
+                        title="Reoptimize route (for wrong way, traffic blocks, etc.)"
+                      >
+                        {reoptimizeRouteMutation.isPending ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-white border-t-transparent"></div>
+                            <span className="hidden sm:inline">Reoptimizing...</span>
+                            <span className="sm:hidden">Optimizing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span className="hidden sm:inline">Reoptimize Route</span>
+                            <span className="sm:hidden">Reoptimize</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                    {/* Refresh Button */}
+                    <button
+                      onClick={fetchRoutes}
+                      disabled={routesLoading}
+                      className="p-2.5 sm:p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center flex-shrink-0"
+                      title="Refresh routes"
+                    >
+                      {routesLoading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-white border-t-transparent"></div>
+                      ) : (
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                    </div>
+                  </div>
+              
+              {/* Traffic Alert - Heavy Traffic Detected */}
+              {showTrafficAlert && trafficData?.heavy_traffic_detected && (
+                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="font-bold text-red-800 text-base">
+                        ⚠️ Heavy Traffic Detected
+                        {trafficData.max_traffic_multiplier && (
+                          <span className="ml-2">({trafficData.max_traffic_multiplier.toFixed(1)}x)</span>
+                        )}
+                      </div>
+                      <div className="text-red-700 text-sm mt-1">
+                        {trafficData.reoptimized 
+                          ? 'Route has been automatically reoptimized to avoid traffic.'
+                          : 'Checking route for optimization...'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowTrafficAlert(false)}
+                    className="text-red-600 hover:text-red-800 p-2"
+                    title="Dismiss"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
-              </div>
+              )}
 
-              {/* Session Overview Cards */}
+              {/* Reoptimization Success Notification */}
+              {showReoptimizationSuccess && trafficData?.reoptimized && trafficData?.reoptimization_result && (
+                <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4 mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="font-bold text-green-800 text-base">✅ Route Optimized!</div>
+                      <div className="text-green-700 text-sm mt-1">
+                        Saved {trafficData.reoptimization_result.time_saved_minutes || 0} minutes
+                        {trafficData.reoptimization_result.distance_saved_km > 0 && (
+                          <span> and {trafficData.reoptimization_result.distance_saved_km.toFixed(1)} km</span>
+                        )}
+                        {trafficData.updated_route_order && (
+                          <span>. New route order available.</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowReoptimizationSuccess(false)}
+                    className="text-green-600 hover:text-green-800 p-2"
+                    title="Dismiss"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {/* Traffic Check Status Indicator */}
+              {activeRouteId && lastTrafficCheck && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-blue-700 text-sm">
+                      Last checked: {(() => {
+                        const minutesAgo = Math.floor((new Date() - lastTrafficCheck) / 60000);
+                        if (minutesAgo < 1) return 'Just now';
+                        if (minutesAgo === 1) return '1 minute ago';
+                        return `${minutesAgo} minutes ago`;
+                      })()}
+                    </span>
+                  </div>
+                  {trafficData?.heavy_traffic_detected && !trafficData?.reoptimized && (
+                    <span className="text-red-600 text-sm font-semibold">⚠️ Heavy traffic detected</span>
+                  )}
+                </div>
+              )}
+
+              {/* Session Overview Cards - Swiggy Style */}
               {routes.sessions && (
-                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="grid grid-cols-3 gap-4 mb-6">
                   {Object.entries(routes.sessions).map(([session, data]) => (
-                    <div key={session} className="bg-gray-800 rounded-lg p-2 sm:p-4 text-center border border-gray-700">
-                      <div className="text-xs sm:text-lg font-bold text-blue-400 capitalize mb-1 sm:mb-2">{session}</div>
-                      <div className="text-lg sm:text-2xl font-bold text-white mb-1">
+                    <div key={session} className="bg-white rounded-xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-shadow border border-gray-100">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{session}</div>
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-0.5">
                         {data.stops.filter(stop => stop.Delivery_Name !== 'Return to Hub').length}
                       </div>
-                      <div className="text-gray-400 text-xs sm:text-sm mb-1">Stops</div>
-                      <div className="text-gray-300 text-xs sm:text-sm">
-                        {data.stops.reduce((total, stop) => total + (stop.Packages || 0), 0)} packages
+                      <div className="text-xs text-gray-600 mb-2">Stops</div>
+                      <div className="flex items-center">
+                        <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                          {data.stops.reduce((total, stop) => total + (stop.Packages || 0), 0)} packages
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -1025,73 +1509,24 @@ const DeliveryExecutivePage = () => {
               {/* Routes Content */}
               <div className="w-full">
                 {/* Today's Routes */}
-                <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
-                    <h3 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
-                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      📅 Today's Routes
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleStartJourneyClick}
-                        disabled={routesLoading || !routes.sessions || Object.keys(routes.sessions).length === 0}
-                        className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-1 font-medium"
-                      >
-                        <FiPlay className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden sm:inline">Start Journey</span>
-                        <span className="sm:hidden">Start</span>
-                      </button>
-                      <button
-                        onClick={fetchRoutes}
-                        disabled={routesLoading}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-1"
-                      >
-                        {routesLoading ? (
-                          <>
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Refresh
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 sm:p-8">
                   
                   {/* Loading State */}
                   {routesLoading && (
-                    <div className="space-y-3 sm:space-y-4">
-                      {/* Session Overview Cards Skeleton */}
-                      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4 mb-6">
                         {Array.from({ length: 3 }).map((_, index) => (
-                          <div key={`session-${index}`} className="bg-gray-700 rounded-lg p-2 sm:p-4 animate-pulse">
-                            <div className="h-3 sm:h-4 bg-gray-500 rounded w-3/4 mb-2"></div>
-                            <div className="h-4 sm:h-6 bg-gray-500 rounded w-1/2 mb-1"></div>
-                            <div className="h-2 sm:h-3 bg-gray-500 rounded w-1/3 mb-1"></div>
-                            <div className="h-2 sm:h-3 bg-gray-500 rounded w-2/3"></div>
+                          <div key={`session-${index}`} className="bg-gray-100 rounded-xl p-6 animate-pulse">
+                            <div className="h-4 bg-gray-300 rounded w-1/2 mb-3"></div>
+                            <div className="h-8 bg-gray-300 rounded w-1/3 mb-2"></div>
+                            <div className="h-3 bg-gray-300 rounded w-2/3"></div>
                           </div>
                         ))}
                       </div>
-                      
-                      {/* Route Cards Skeleton */}
                       {Array.from({ length: 2 }).map((_, index) => (
-                        <div key={`route-${index}`} className="bg-gray-700 rounded-lg p-3 sm:p-4 animate-pulse">
-                          <div className="flex items-center space-x-2 sm:space-x-3 mb-3">
-                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-500 rounded-full"></div>
-                            <div className="flex-1 space-y-2">
-                              <div className="h-3 sm:h-4 bg-gray-500 rounded w-3/4"></div>
-                              <div className="h-2 sm:h-3 bg-gray-500 rounded w-1/2"></div>
-                            </div>
-                            <div className="w-12 sm:w-16 h-4 sm:h-6 bg-gray-500 rounded-full"></div>
-                          </div>
-                          <div className="h-8 sm:h-10 bg-gray-500 rounded w-full sm:w-auto"></div>
+                        <div key={`route-${index}`} className="bg-gray-100 rounded-xl p-6 animate-pulse">
+                          <div className="h-6 bg-gray-300 rounded w-3/4 mb-4"></div>
+                          <div className="h-20 bg-gray-300 rounded"></div>
                         </div>
                       ))}
                     </div>
@@ -1099,12 +1534,12 @@ const DeliveryExecutivePage = () => {
 
                   {/* Error State */}
                   {routesError && (
-                    <div className="text-center py-8">
-                      <div className="text-red-500 text-4xl mb-4">⚠️</div>
-                      <p className="text-red-400 mb-4">{routesError}</p>
+                    <div className="text-center py-12 bg-red-50 rounded-xl border border-red-200">
+                      <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                      <p className="text-red-700 font-medium mb-4">{routesError}</p>
                       <button
                         onClick={fetchRoutes}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors shadow-md"
                       >
                         Try Again
                       </button>
@@ -1113,25 +1548,25 @@ const DeliveryExecutivePage = () => {
 
                   {/* Routes List */}
                   {!routesLoading && !routesError && (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {(!routes.sessions || Object.keys(routes.sessions).length === 0) ? (
-                        <div className="text-center py-8">
-                          <div className="text-gray-400 text-4xl mb-4">📋</div>
-                          <p className="text-gray-400 mb-2">No routes found</p>
-                          <p className="text-gray-500 text-sm">No delivery routes assigned for today</p>
+                        <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                          <div className="text-6xl mb-4">📋</div>
+                          <p className="text-gray-700 font-semibold text-lg mb-2">No routes found</p>
+                          <p className="text-gray-500">No delivery routes assigned for today</p>
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          {/* Session Tabs */}
-                          <div className="flex space-x-2 bg-gray-700 rounded-lg p-1">
+                          {/* Session Tabs - Swiggy Style */}
+                          <div className="flex gap-2 bg-gray-100 rounded-xl p-1.5">
                             {Object.keys(routes.sessions || {}).map((session) => (
                               <button
                                 key={session}
                                 onClick={() => setSelectedSession(session)}
-                                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
                                   selectedSession === session
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-400 hover:text-white hover:bg-gray-600'
+                                    ? 'bg-white text-blue-600 shadow-md'
+                                    : 'text-gray-600 hover:text-gray-900'
                                 }`}
                               >
                                 {session.charAt(0).toUpperCase() + session.slice(1)}
@@ -1141,62 +1576,72 @@ const DeliveryExecutivePage = () => {
 
                           {/* Selected Session Details */}
                           {routes.sessions && routes.sessions[selectedSession] && (
-                            <div className="space-y-4">
-                              {/* Session Header */}
-                              <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-                                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                                  <h4 className="text-lg font-semibold text-white capitalize">
-                                    {selectedSession} Route
-                                  </h4>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="px-3 py-1 bg-green-600 text-white text-xs rounded-full">
-                                      {routes.sessions[selectedSession].stops.length} Stops
-                                    </span>
-                                    <span className="px-3 py-1 bg-blue-600 text-white text-xs rounded-full">
-                                      {routes.sessions[selectedSession].stops.reduce((total, stop) => total + (stop.Packages || 0), 0)} Packages
-                                    </span>
-                                    <button
-                                      onClick={() => handleEndSessionClick(selectedSession)}
-                                      disabled={completeSessionMutation.isPending}
-                                      className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-500 text-white text-xs rounded-full transition-colors flex items-center gap-1 font-medium"
-                                    >
-                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-                                      </svg>
-                                      End Session
-                                    </button>
+                            <div className="space-y-6">
+                              {/* Session Header - Swiggy Style */}
+                              <div className="bg-white rounded-xl p-5 sm:p-6 shadow-sm border border-gray-200">
+                                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                                  <div>
+                                    <h4 className="text-xl font-bold text-gray-900 capitalize mb-1">
+                                      {selectedSession} Route
+                                    </h4>
+                                    <div className="flex items-center gap-3">
+                                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                                        {routes.sessions[selectedSession].stops.length} Stops
+                                      </span>
+                                      <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                                        {routes.sessions[selectedSession].stops.reduce((total, stop) => total + (stop.Packages || 0), 0)} Packages
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                                 
-                                {/* Map Link */}
-                                {routes.sessions[selectedSession].map_link && (
-                                  <div className="mb-4">
-                                    <a
-                                      href={routes.sessions[selectedSession].map_link}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-4 sm:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm sm:text-base font-medium"
-                                    >
-                                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      </svg>
-                                      Open in Google Maps
-                                    </a>
+                                {/* Route Overview Maps - Swiggy Style */}
+                                {(routes.sessions[selectedSession].map_link || routes.sessions[selectedSession].route_map_link || routes.sessions[selectedSession].map_view_link) && (
+                                  <div className="flex flex-col sm:flex-row gap-3">
+                                    {/* Full Route Map Link */}
+                                    {(routes.sessions[selectedSession].route_map_link || routes.sessions[selectedSession].map_link) && (
+                                      <a
+                                        href={routes.sessions[selectedSession].route_map_link || routes.sessions[selectedSession].map_link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex-1 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-semibold"
+                                        title="Full route with all stops as waypoints"
+                                      >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                        </svg>
+                                        Full Route Directions
+                                      </a>
+                                    )}
+                                    
+                                    {/* Map View Link */}
+                                    {routes.sessions[selectedSession].map_view_link && (
+                                      <a
+                                        href={routes.sessions[selectedSession].map_view_link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex-1 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-semibold"
+                                        title="Overview map showing all stops"
+                                      >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        View Overview Map
+                                      </a>
+                                    )}
                                   </div>
                                 )}
-
                               </div>
 
-                              {/* Stops List */}
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="text-md font-semibold text-white">Delivery Stops</h5>
+                              {/* Stops List - Swiggy Style */}
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h5 className="text-lg font-bold text-gray-900">Delivery Stops</h5>
                                   {routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub').length > 2 && (
                                     <button
                                       onClick={() => setShowAllStops(!showAllStops)}
-                                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors"
+                                      className="px-4 py-2 text-blue-600 hover:bg-blue-50 text-sm font-semibold rounded-lg transition-colors"
                                     >
                                       {showAllStops ? 'Show Less' : `Show All (${routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub').length})`}
                                     </button>
@@ -1204,135 +1649,157 @@ const DeliveryExecutivePage = () => {
                                 </div>
                                 
                                 {(showAllStops ? routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub') : routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub').slice(0, 2)).map((stop, index) => (
-                                  <div key={index} className="bg-gray-700 rounded-lg p-3 border border-gray-600">
-                                    <div className="flex items-start justify-between mb-3">
-                                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                                  <div key={index} className="bg-white rounded-xl p-5 shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
+                                    <div className="flex items-start justify-between mb-4">
+                                      <div className="flex items-start gap-4 flex-1 min-w-0">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0 shadow-md">
                                           {stop.Stop_No}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h6 className="text-white font-medium truncate">
+                                          <h6 className="text-gray-900 font-bold text-base mb-1 truncate">
                                             {stop.Delivery_Name || 'Unknown Delivery'}
                                           </h6>
-                                          <p className="text-gray-400 text-xs truncate">
+                                          <p className="text-gray-600 text-sm truncate flex items-center gap-1">
+                                            <FiMapPin className="w-4 h-4 text-gray-400" />
                                             {stop.Location || 'Location not specified'}
                                           </p>
                                         </div>
                                       </div>
                                       {stop.Packages && (
-                                        <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded-full flex-shrink-0 ml-2">
-                                          {stop.Packages}
+                                        <span className="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm font-bold rounded-full flex-shrink-0 ml-2">
+                                          {stop.Packages} pkg
                                         </span>
                                       )}
                                     </div>
 
-                                    {/* Action Buttons */}
-                                    <div className="mt-3">
-                                      {/* All Action Buttons in One Row */}
-                                      <div className="flex flex-col sm:flex-row gap-2">
-                                        {/* Directions Button */}
+                                    {/* Action Buttons - Swiggy Style */}
+                                    <div className="mt-4">
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        {/* Map Button */}
                                         {stop.Map_Link && (
                                           <a
                                             href={stop.Map_Link}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center justify-center gap-2 flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                            className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
+                                            title="Opens Google Maps with directions"
                                           >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            </svg>
-                                            Get Directions
+                                            <FiMapPin className="w-5 h-5" />
+                                            <span>Map</span>
                                           </a>
                                         )}
                                         
-                                        {/* Upload Image Button - Hide if delivered */}
+                                        {/* Mark as Reached Button */}
+                                        <button
+                                          onClick={() => handleStopReached(stop, index)}
+                                          disabled={stopReachedMutation.isPending}
+                                          className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed"
+                                        >
+                                          {stopReachedMutation.isPending ? (
+                                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                                          ) : (
+                                            <>
+                                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                              <span>Mark</span>
+                                            </>
+                                          )}
+                                        </button>
+                                        
+                                        {/* Photo Button */}
                                         {deliveryStatus[index]?.status !== 'Delivered' && (
                                           <button
                                             onClick={() => setUploadingImage(uploadingImage === index ? null : index)}
-                                            className="inline-flex items-center justify-center gap-2 flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
                                           >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
-                                            {uploadingImage === index ? 'Cancel' : 'Upload Photo'}
+                                            <span>Photo</span>
                                           </button>
                                         )}
                                         
-                                        {/* Update Address Button - Always visible */}
+                                        {/* Location/Update Address Button */}
                                         <button
                                           onClick={() => setCompletingDelivery(completingDelivery === index ? null : index)}
-                                          className="inline-flex items-center justify-center gap-2 flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                          className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
                                         >
-                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                           </svg>
-                                          {completingDelivery === index ? 'Cancel' : 'Update Address'}
+                                          <span>Location</span>
                                         </button>
-                                        
                                       </div>
                                     </div>
 
-                                    {/* Delivery Status Display */}
+                                    {/* Delivery Status Display - Swiggy Style */}
                                     {(deliveryStatus[index] || loadingStatus[index]) && (
-                                      <div className={`mt-3 p-3 rounded-lg border ${
+                                      <div className={`mt-4 p-4 rounded-xl border-2 ${
                                         loadingStatus[index] 
-                                          ? 'bg-gray-900/20 border-gray-600'
+                                          ? 'bg-gray-50 border-gray-200'
                                           : deliveryStatus[index].status === 'Delivered' 
-                                          ? 'bg-green-900/20 border-green-600' 
+                                          ? 'bg-green-50 border-green-300' 
                                           : deliveryStatus[index].status === 'Pending'
-                                          ? 'bg-yellow-900/20 border-yellow-600'
+                                          ? 'bg-yellow-50 border-yellow-300'
                                           : deliveryStatus[index].status === 'Confirmed'
-                                          ? 'bg-blue-900/20 border-blue-600'
+                                          ? 'bg-blue-50 border-blue-300'
                                           : deliveryStatus[index].status === 'Cancelled'
-                                          ? 'bg-red-900/20 border-red-600'
-                                          : 'bg-gray-900/20 border-gray-600'
+                                          ? 'bg-red-50 border-red-300'
+                                          : 'bg-gray-50 border-gray-200'
                                       }`}>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-3">
                                           {loadingStatus[index] ? (
                                             <>
-                                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400"></div>
+                                              <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
                                               <div>
-                                                <div className="text-gray-400 font-medium text-sm">Loading Status...</div>
-                                                <div className="text-gray-300 text-xs">Fetching delivery information</div>
+                                                <div className="text-gray-700 font-semibold text-sm">Loading Status...</div>
+                                                <div className="text-gray-500 text-xs">Fetching delivery information</div>
                                               </div>
                                             </>
                                           ) : (
                                             <>
-                                              <svg className={`w-5 h-5 ${
+                                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                                                 deliveryStatus[index].status === 'Delivered' 
-                                                  ? 'text-green-500' 
+                                                  ? 'bg-green-500' 
                                                   : deliveryStatus[index].status === 'Pending'
-                                                  ? 'text-yellow-500'
+                                                  ? 'bg-yellow-500'
                                                   : deliveryStatus[index].status === 'Confirmed'
-                                                  ? 'text-blue-500'
+                                                  ? 'bg-blue-500'
                                                   : deliveryStatus[index].status === 'Cancelled'
-                                                  ? 'text-red-500'
-                                                  : 'text-gray-500'
-                                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  ? 'bg-red-500'
+                                                  : 'bg-gray-500'
+                                              }`}>
                                                 {deliveryStatus[index].status === 'Delivered' ? (
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                  </svg>
                                                 ) : deliveryStatus[index].status === 'Pending' ? (
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                  </svg>
                                                 ) : deliveryStatus[index].status === 'Confirmed' ? (
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                  </svg>
                                                 ) : deliveryStatus[index].status === 'Cancelled' ? (
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                ) : (
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                )}
-                                              </svg>
+                                                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                  </svg>
+                                                ) : null}
+                                              </div>
                                               <div>
-                                                <div className={`font-medium text-sm ${
+                                                <div className={`font-bold text-base ${
                                                   deliveryStatus[index].status === 'Delivered' 
-                                                    ? 'text-green-400' 
+                                                    ? 'text-green-700' 
                                                     : deliveryStatus[index].status === 'Pending'
-                                                    ? 'text-yellow-400'
+                                                    ? 'text-yellow-700'
                                                     : deliveryStatus[index].status === 'Confirmed'
-                                                    ? 'text-blue-400'
+                                                    ? 'text-blue-700'
                                                     : deliveryStatus[index].status === 'Cancelled'
-                                                    ? 'text-red-400'
-                                                    : 'text-gray-400'
+                                                    ? 'text-red-700'
+                                                    : 'text-gray-700'
                                                 }`}>
                                                   {deliveryStatus[index].status === 'Delivered' ? '✅ Delivered' :
                                                    deliveryStatus[index].status === 'Pending' ? '⏳ Pending' :
@@ -1340,17 +1807,7 @@ const DeliveryExecutivePage = () => {
                                                    deliveryStatus[index].status === 'Cancelled' ? '❌ Cancelled' :
                                                    deliveryStatus[index].status}
                                                 </div>
-                                                <div className={`text-xs ${
-                                                  deliveryStatus[index].status === 'Delivered' 
-                                                    ? 'text-green-300' 
-                                                    : deliveryStatus[index].status === 'Pending'
-                                                    ? 'text-yellow-300'
-                                                    : deliveryStatus[index].status === 'Confirmed'
-                                                    ? 'text-blue-300'
-                                                    : deliveryStatus[index].status === 'Cancelled'
-                                                    ? 'text-red-300'
-                                                    : 'text-gray-300'
-                                                }`}>
+                                                <div className="text-gray-600 text-xs mt-1">
                                                   Updated: {new Date(deliveryStatus[index].updatedAt).toLocaleString()}
                                                 </div>
                                               </div>
@@ -1360,37 +1817,37 @@ const DeliveryExecutivePage = () => {
                                       </div>
                                     )}
 
-                                    {/* Action UI - Show only one at a time */}
+                                    {/* Action UI - Swiggy Style */}
                                     {(completingDelivery === index || uploadingImage === index) && (
-                                      <div className="mt-4 p-4 bg-gray-600 rounded-lg border border-gray-500">
+                                      <div className="mt-4 p-5 bg-gray-50 rounded-xl border-2 border-gray-200">
                                         {/* Delivery Completion UI */}
                                         {completingDelivery === index && (
                                           <>
-                                            <h6 className="text-white font-medium mb-3 flex items-center gap-2">
-                                              <FiMapPin className="text-blue-400" />
-                                              📍 Update Delivery Address
+                                            <h6 className="text-gray-900 font-bold mb-4 flex items-center gap-2 text-base">
+                                              <FiMapPin className="text-blue-600" />
+                                              Update Delivery Address
                                             </h6>
                                             
                                             <div className="space-y-4">
                                               {/* GPS Location Capture */}
-                                              <div className="bg-gray-500 rounded-lg p-3 border border-gray-400">
-                                                <h7 className="text-white font-medium text-sm mb-2 flex items-center gap-2">
-                                                  <FiMapPin className="text-blue-400" />
-                                                  📍 GPS Location
+                                              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                                                <h7 className="text-gray-700 font-semibold text-sm mb-3 flex items-center gap-2">
+                                                  <FiMapPin className="text-blue-600" />
+                                                  GPS Location
                                                 </h7>
                                                 <button 
                                                   onClick={getCompletionLocation}
                                                   disabled={completionLocationLoading}
-                                                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                                                  className="w-full px-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                                                 >
                                                   {completionLocationLoading ? (
                                                     <>
-                                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                                                       Getting Location...
                                                     </>
                                                   ) : (
                                                     <>
-                                                      <FiMapPin className="text-base" />
+                                                      <FiMapPin className="w-5 h-5" />
                                                       Get Current Location
                                                     </>
                                                   )}
@@ -1402,17 +1859,17 @@ const DeliveryExecutivePage = () => {
                                                 <div className="text-center">
                                                   <button 
                                                     onClick={clearCompletionLocation}
-                                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
+                                                    className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-md"
                                                   >
-                                                    🗑️ Clear All
+                                                    Clear All
                                                   </button>
                                                 </div>
                                               )}
 
-                                              {/* Error Display */}
-                                              {completionLocationError && (
-                                                <div className="bg-red-900/20 border border-red-500 rounded-lg p-2">
-                                                  <p className="text-red-400 text-sm">{completionLocationError}</p>
+                                              {/* Error Display - Hidden to avoid showing errors */}
+                                              {false && completionLocationError && (
+                                                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3">
+                                                  <p className="text-red-700 text-sm font-medium">{completionLocationError}</p>
                                                 </div>
                                               )}
 
@@ -1421,23 +1878,23 @@ const DeliveryExecutivePage = () => {
                                                 <button
                                                   onClick={() => handleCompleteDelivery(index)}
                                                   disabled={!completionLocation || completionLoading}
-                                                  className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                                                  className={`w-full px-5 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
                                                     completionLocation && !completionLoading
                                                       ? 'bg-green-600 hover:bg-green-700 text-white'
-                                                      : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                                                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                                   }`}
                                                 >
                                                   {completionLoading ? (
                                                     <>
-                                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                                                       Completing...
                                                     </>
                                                   ) : (
                                                     <>
-                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                       </svg>
-                                                      ✅ Complete This Delivery
+                                                      Complete This Delivery
                                                     </>
                                                   )}
                                                 </button>
@@ -1449,17 +1906,17 @@ const DeliveryExecutivePage = () => {
                                         {/* Image Upload UI */}
                                         {uploadingImage === index && (
                                           <>
-                                            <h6 className="text-white font-medium mb-3 flex items-center gap-2">
-                                              <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <h6 className="text-gray-900 font-bold mb-4 flex items-center gap-2 text-base">
+                                              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                               </svg>
-                                              📸 Upload Delivery Photo
+                                              Upload Delivery Photo
                                             </h6>
                                             
                                             <div className="space-y-4">
-                                              {/* File Input - Compact */}
-                                              <div className="bg-gray-500 rounded-lg p-2 border border-gray-400">
-                                                <label className="block">
+                                              {/* File Input */}
+                                              <div className="bg-white rounded-xl p-4 border-2 border-dashed border-gray-300">
+                                                <label className="block cursor-pointer">
                                                   <input
                                                     type="file"
                                                     accept="image/*"
@@ -1467,30 +1924,28 @@ const DeliveryExecutivePage = () => {
                                                     className="hidden"
                                                     id={`image-upload-${index}`}
                                                   />
-                                                  <div className="flex items-center justify-center w-full h-16 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer hover:border-purple-400 transition-colors">
-                                                    <div className="text-center">
-                                                      <svg className="w-4 h-4 text-gray-400 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                      </svg>
-                                                      <p className="text-gray-300 text-xs">
-                                                        {selectedImage ? 'Change Image' : 'Select Image'}
-                                                      </p>
-                                                      <p className="text-gray-400 text-xs">Max 5MB</p>
-                                                    </div>
+                                                  <div className="flex flex-col items-center justify-center py-6">
+                                                    <svg className="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                    </svg>
+                                                    <p className="text-gray-700 font-semibold text-sm mb-1">
+                                                      {selectedImage ? 'Change Image' : 'Select Image'}
+                                                    </p>
+                                                    <p className="text-gray-500 text-xs">Max 5MB</p>
                                                   </div>
                                                 </label>
                                               </div>
 
-                                              {/* Image Preview - Compact */}
+                                              {/* Image Preview */}
                                               {imagePreview && (
-                                                <div className="bg-gray-500 rounded-lg p-2 border border-gray-400">
-                                                  <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-white font-medium text-xs">Preview:</span>
+                                                <div className="bg-white rounded-xl p-4 border border-gray-200">
+                                                  <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-gray-700 font-semibold text-sm">Preview:</span>
                                                     <button
                                                       onClick={clearImageUpload}
-                                                      className="bg-red-600 hover:bg-red-700 text-white rounded-full p-1 transition-colors"
+                                                      className="bg-red-600 hover:bg-red-700 text-white rounded-lg p-2 transition-colors"
                                                     >
-                                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                       </svg>
                                                     </button>
@@ -1499,7 +1954,7 @@ const DeliveryExecutivePage = () => {
                                                     <img
                                                       src={imagePreview}
                                                       alt="Preview"
-                                                      className="w-full h-24 object-cover rounded-lg border border-gray-400"
+                                                      className="w-full h-32 object-cover rounded-xl border border-gray-200"
                                                     />
                                                   </div>
                                                 </div>
@@ -1507,8 +1962,8 @@ const DeliveryExecutivePage = () => {
 
                                               {/* Error Display */}
                                               {imageUploadError && (
-                                                <div className="bg-red-900/20 border border-red-500 rounded-lg p-2">
-                                                  <p className="text-red-400 text-sm">{imageUploadError}</p>
+                                                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3">
+                                                  <p className="text-red-700 text-sm font-medium">{imageUploadError}</p>
                                                 </div>
                                               )}
 
@@ -1517,23 +1972,23 @@ const DeliveryExecutivePage = () => {
                                                 <button
                                                   onClick={() => handleImageUpload(index)}
                                                   disabled={!selectedImage || imageUploadLoading}
-                                                  className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                                                  className={`w-full px-5 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
                                                     selectedImage && !imageUploadLoading
-                                                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                                                      : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                                                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                                   }`}
                                                 >
                                                   {imageUploadLoading ? (
                                                     <>
-                                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                                                       Uploading...
                                                     </>
                                                   ) : (
                                                     <>
-                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                                       </svg>
-                                                      📤 Upload Photo
+                                                      Upload Photo
                                                     </>
                                                   )}
                                                 </button>
@@ -1547,29 +2002,49 @@ const DeliveryExecutivePage = () => {
                                 ))}
                               </div>
 
-                              {/* Fixed Return to Hub Component */}
-                              <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-600 rounded-lg">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                                    <span className="text-yellow-400 text-sm font-medium">Return to Hub</span>
-                                  </div>
-                                  <span className="text-yellow-300 text-xs">End of Route</span>
-                                </div>
-                                <div className="mt-2">
-                                  <a
-                                    href={routes.sessions[selectedSession].map_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium transition-colors"
+                              {/* Fixed Return to Hub Component - Standard Style */}
+                              <div className="mt-6 p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl shadow-md">
+                                {/* End Session Button - Moved to top */}
+                                <div className="mb-4">
+                                  <button
+                                    onClick={() => handleEndSessionClick(selectedSession)}
+                                    disabled={completeSessionMutation.isPending}
+                                    className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white rounded-xl transition-colors flex items-center justify-center gap-2 font-semibold shadow-md"
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                                     </svg>
-                                    Return Directions
-                                  </a>
+                                    End Session
+                                  </button>
                                 </div>
+                                
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center shadow-md">
+                                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-900 font-bold text-base block">Return to Hub</span>
+                                      <span className="text-gray-600 text-xs">End of Route</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <a
+                                  href={routes.sessions[selectedSession].route_map_link || routes.sessions[selectedSession].map_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg"
+                                  title="Opens Google Maps with directions back to hub"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  Get Return Directions
+                                </a>
                               </div>
                             </div>
                           )}
@@ -1586,34 +2061,34 @@ const DeliveryExecutivePage = () => {
         </div>
       </div>
 
-      {/* Logout Confirmation Modal */}
+      {/* Logout Confirmation Modal - Swiggy Style */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 max-w-md w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <FiLogOut className="w-5 h-5 text-red-600" />
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <FiLogOut className="w-6 h-6 text-red-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Confirm Logout</h3>
-                <p className="text-gray-400 text-sm">Are you sure you want to logout?</p>
+                <h3 className="text-xl font-bold text-gray-900">Confirm Logout</h3>
+                <p className="text-gray-600 text-sm">Are you sure you want to logout?</p>
               </div>
             </div>
             
-            <p className="text-gray-300 text-sm mb-6">
+            <p className="text-gray-700 text-sm mb-6 pl-16">
               You will be redirected to the home page and all your session data will be cleared.
             </p>
             
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-md"
               >
                 Logout
               </button>
@@ -1622,40 +2097,35 @@ const DeliveryExecutivePage = () => {
         </div>
       )}
 
-      {/* Start Journey Confirmation Modal */}
+      {/* Start Journey Confirmation Modal - Swiggy Style */}
       {showStartJourneyModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 max-w-md w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <FiPlay className="w-5 h-5 text-green-600" />
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <FiPlay className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Start Journey</h3>
-                <p className="text-gray-400 text-sm">Ready to start your delivery journey?</p>
+                <h3 className="text-xl font-bold text-gray-900">Start Journey</h3>
+                <p className="text-gray-600 text-sm">Ready to start your delivery journey?</p>
               </div>
             </div>
             
             <div className="space-y-4 mb-6">
-              {/* Route ID */}
               <div>
-                <label className="block text-gray-400 text-sm mb-1">Route ID *</label>
-                <input
-                  type="text"
-                  value={startJourneyData.route_id}
-                  onChange={(e) => setStartJourneyData(prev => ({ ...prev, route_id: e.target.value }))}
-                  placeholder="Enter route ID"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white text-sm"
-                />
+                <label className="block text-gray-700 font-semibold text-sm mb-2">Route ID</label>
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-gray-900 font-mono text-sm">{startJourneyData.route_id || 'No route assigned'}</p>
+                </div>
+                <p className="text-gray-500 text-xs mt-2">Auto-filled from your assigned routes</p>
               </div>
               
-              {/* Driver ID */}
               <div>
-                <label className="block text-gray-400 text-sm mb-1">Driver ID *</label>
-                <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
-                  <p className="text-white font-mono text-sm">{startJourneyData.driver_id || user?.id || 'N/A'}</p>
+                <label className="block text-gray-700 font-semibold text-sm mb-2">Driver ID *</label>
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-gray-900 font-mono text-sm">{startJourneyData.driver_id || user?.id || 'N/A'}</p>
                 </div>
-                <p className="text-gray-500 text-xs mt-1">Auto-filled from your account</p>
+                <p className="text-gray-500 text-xs mt-2">Auto-filled from your account</p>
               </div>
             </div>
             
@@ -1665,23 +2135,23 @@ const DeliveryExecutivePage = () => {
                   setShowStartJourneyModal(false);
                   setCurrentLocation(null);
                 }}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleStartJourney}
-                disabled={startJourneyMutation.isPending || !startJourneyData.route_id || !startJourneyData.driver_id}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                disabled={startJourneyMutation.isPending || !startJourneyData.driver_id}
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {startJourneyMutation.isPending ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                     Starting...
                   </>
                 ) : (
                   <>
-                    <FiPlay className="w-4 h-4" />
+                    <FiPlay className="w-5 h-5" />
                     Start Journey
                   </>
                 )}
@@ -1691,38 +2161,38 @@ const DeliveryExecutivePage = () => {
         </div>
       )}
 
-      {/* End Session Confirmation Modal */}
+      {/* End Session Confirmation Modal - Swiggy Style */}
       {showEndSessionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 max-w-md w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">End {endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} Session</h3>
-                <p className="text-gray-400 text-sm">Are you sure you want to end this session?</p>
+                <h3 className="text-xl font-bold text-gray-900">End {endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} Session</h3>
+                <p className="text-gray-600 text-sm">Are you sure you want to end this session?</p>
               </div>
             </div>
             
             <div className="mb-6">
-              <p className="text-gray-300 text-sm mb-2">
-                This will mark the <span className="font-semibold text-white capitalize">{endSessionData.sessionName}</span> session as completed.
+              <p className="text-gray-700 text-sm mb-3">
+                This will mark the <span className="font-bold text-gray-900 capitalize">{endSessionData.sessionName}</span> session as completed.
               </p>
-              <div className="bg-gray-700 rounded-lg p-3 border border-gray-600">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">Session:</span>
-                  <span className="text-white capitalize font-medium">{endSessionData.sessionName}</span>
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-gray-600 font-medium">Session:</span>
+                  <span className="text-gray-900 capitalize font-bold">{endSessionData.sessionName}</span>
                 </div>
-                <div className="flex items-center justify-between text-sm mt-2">
-                  <span className="text-gray-400">End Time:</span>
-                  <span className="text-white font-mono">{new Date().toLocaleTimeString()}</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 font-medium">End Time:</span>
+                  <span className="text-gray-900 font-mono font-semibold">{new Date().toLocaleTimeString()}</span>
                 </div>
               </div>
-              <p className="text-yellow-400 text-xs mt-2">
+              <p className="text-amber-600 text-xs mt-3 font-semibold bg-amber-50 p-2 rounded-lg">
                 ⚠️ This action will trigger reinforcement learning and cannot be undone.
               </p>
             </div>
@@ -1733,23 +2203,23 @@ const DeliveryExecutivePage = () => {
                   setShowEndSessionModal(false);
                   setEndSessionData({ sessionName: '', sessionId: '' });
                 }}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEndSession}
                 disabled={completeSessionMutation.isPending}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {completeSessionMutation.isPending ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                     Completing...
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     End Session
