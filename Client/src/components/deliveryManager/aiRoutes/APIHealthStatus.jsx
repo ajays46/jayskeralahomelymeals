@@ -24,11 +24,6 @@ const APIHealthStatus = ({ apiHealth, onRefresh }) => {
             API Status: {apiHealth?.status || 'Checking...'}
           </span>
         </div>
-        {apiHealth?.status === 'OK' && (
-          <span className="text-xs text-gray-400">
-            {apiHealth?.service} - Port {apiHealth?.port}
-          </span>
-        )}
         <button
           onClick={onRefresh}
           className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"

@@ -153,13 +153,32 @@ export const usePlanRoute = () => {
 
   return useMutation({
     mutationFn: async (routeData) => {
-      const response = await axiosInstance.post('/ai-routes/route/plan', routeData);
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to plan route');
+      try {
+        const response = await axiosInstance.post('/ai-routes/route/plan', routeData);
+        
+        if (!response.data.success) {
+          // Create error with warnings if available
+          const error = new Error(response.data.message || 'Failed to plan route');
+          error.warnings = response.data.warnings || [];
+          error.responseData = response.data; // Preserve full response for warnings
+          throw error;
+        }
+        
+        return response.data;
+      } catch (error) {
+        // If it's an axios error with response data, preserve warnings
+        if (error.response?.data) {
+          const customError = new Error(
+            error.response.data.message || error.message || 'Failed to plan route'
+          );
+          customError.warnings = error.response.data.warnings || [];
+          customError.responseData = error.response.data;
+          customError.status = error.response.status;
+          throw customError;
+        }
+        // Re-throw if it's already our custom error or if no response data
+        throw error;
       }
-      
-      return response.data;
     },
     onSuccess: (data, variables) => {
       // Invalidate and refetch related queries
@@ -242,6 +261,7 @@ export const useStopReached = () => {
         route_id, 
         stop_order, 
         delivery_id, 
+        driver_id,
         completed_at,
         current_location,
         // Legacy parameters (for backward compatibility)
@@ -258,6 +278,14 @@ export const useStopReached = () => {
         stop_order,
         delivery_id
       };
+      
+      // Add driver_id if provided (required by external API)
+      if (driver_id) {
+        requestBody.driver_id = driver_id;
+      } else if (user_id) {
+        // Fallback to user_id if driver_id not provided
+        requestBody.driver_id = user_id;
+      }
       
       // Add completed_at if provided
       if (completed_at) {

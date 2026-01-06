@@ -6,7 +6,7 @@ import {
   FiBarChart2,
   FiAlertCircle
 } from 'react-icons/fi';
-import { showSuccessToast, showErrorToast } from '../../utils/toastConfig.jsx';
+import { showSuccessToast, showErrorToast, showWarningToast } from '../../utils/toastConfig.jsx';
 import RoutePlanningTab from './aiRoutes/RoutePlanningTab';
 import DeliveryDataTab from './aiRoutes/DeliveryDataTab';
 import TrackingTab from './aiRoutes/TrackingTab';
@@ -129,12 +129,66 @@ const AIRouteOptimization = () => {
         console.error('Error saving route plan to localStorage:', error);
       }
       
-      showSuccessToast(`Route planned successfully! ${result.num_drivers} driver(s) assigned.`);
+      // Show success message
+      const successMessage = `Route planned successfully! ${result.num_drivers || 0} driver(s) assigned.`;
+      showSuccessToast(successMessage);
+      
+      // Show warnings if they exist (even on success)
+      if (result.warnings && Array.isArray(result.warnings) && result.warnings.length > 0) {
+        const warningsText = result.warnings.join('; ');
+        showWarningToast(warningsText, 'Route Planning Warnings');
+      }
     } catch (error) {
-      showErrorToast(error.message || 'Route planning failed');
+      // Build error message
+      let errorMessage = error.message || 'Route planning failed';
+      
+      // Check if error has warnings from the API response
+      let warnings = null;
+      if (error.warnings && Array.isArray(error.warnings) && error.warnings.length > 0) {
+        warnings = error.warnings;
+      } else if (error.responseData?.warnings && Array.isArray(error.responseData.warnings) && error.responseData.warnings.length > 0) {
+        // Fallback: check responseData for warnings
+        warnings = error.responseData.warnings;
+      }
+      
+      // Show error message
+      showErrorToast(errorMessage, 'Route Planning Failed');
+      
+      // Show warnings separately if they exist
+      if (warnings && warnings.length > 0) {
+        const warningsText = warnings.join('; ');
+        showWarningToast(warningsText, 'Route Planning Warnings');
+      }
     }
   };
   
+  // Helper function to format time for toast messages
+  const formatTimeForToast = (timeValue) => {
+    if (!timeValue) return 'N/A';
+    
+    // If it's already a time string (HH:MM:SS), format it
+    if (typeof timeValue === 'string' && timeValue.match(/^\d{2}:\d{2}:\d{2}$/)) {
+      const [hours, minutes] = timeValue.split(':');
+      const hour12 = parseInt(hours) % 12 || 12;
+      const ampm = parseInt(hours) >= 12 ? 'PM' : 'AM';
+      return `${hour12}:${minutes} ${ampm}`;
+    }
+    
+    // If it's a datetime string, parse it
+    try {
+      const date = new Date(timeValue);
+      if (isNaN(date.getTime())) {
+        return timeValue; // Return as-is if invalid date
+      }
+      return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } catch (error) {
+      return timeValue; // Return as-is if parsing fails
+    }
+  };
+
   // Handle Predict Start Time
   const handlePredictStartTime = async () => {
     if (!deliveryDate || !deliverySession) {
@@ -159,7 +213,11 @@ const AIRouteOptimization = () => {
         console.error('Error saving predicted start time to localStorage:', error);
       }
       
-      showSuccessToast(`Predicted start time: ${new Date(result.predicted_start_time).toLocaleTimeString()}`);
+      // Get the best available time value (prioritize datetime over time string)
+      const startTime = result.predicted_start_datetime || result.predicted_start_time || null;
+      const formattedTime = formatTimeForToast(startTime);
+      
+      showSuccessToast(`Predicted start time: ${formattedTime}`);
     } catch (error) {
       showErrorToast(error.message || 'Failed to predict start time');
     }
@@ -302,11 +360,6 @@ const AIRouteOptimization = () => {
 
   return (
     <div className="space-y-4">
-      {/* Debug: Component is rendering - Always visible for testing */}
-      <div className="p-2 bg-blue-900/20 border border-blue-500/30 rounded text-xs text-blue-300">
-        ✓ AI Route Optimization Component Loaded Successfully
-      </div>
-      
       {/* API Health Status */}
       <APIHealthStatus 
         apiHealth={apiHealth} 

@@ -256,6 +256,7 @@ export const stopReachedService = async (stopData) => {
       route_id, 
       stop_order, 
       delivery_id, 
+      driver_id,
       completed_at,
       current_location,
       // Legacy parameters (for backward compatibility)
@@ -272,6 +273,14 @@ export const stopReachedService = async (stopData) => {
       stop_order,
       delivery_id
     };
+    
+    // Add driver_id if provided (required by external API to auto-detect driver)
+    if (driver_id) {
+      requestBody.driver_id = driver_id;
+    } else if (user_id) {
+      // Fallback to user_id if driver_id not provided
+      requestBody.driver_id = user_id;
+    }
     
     // Add completed_at if provided
     if (completed_at) {

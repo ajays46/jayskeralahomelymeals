@@ -1124,6 +1124,7 @@ const DeliveryExecutivePage = () => {
         route_id: routeId,
         stop_order: stopOrder,
         delivery_id: deliveryId,
+        driver_id: user.id, // Add driver_id (required by external API)
         completed_at: new Date().toISOString(),
         current_location: {
           lat: position.coords.latitude,

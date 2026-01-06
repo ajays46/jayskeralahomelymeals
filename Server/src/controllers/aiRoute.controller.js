@@ -187,7 +187,11 @@ export const planRoute = async (req, res, next) => {
           };
         })
       },
-      route_comparison: result.route_comparison // Include comparison data if exists
+      route_comparison: result.route_comparison, // Include comparison data if exists
+      // Include warnings and messages from external API if present
+      warnings: result.warnings || result.warning || null,
+      messages: result.messages || result.message || null,
+      message: result.message || null
     };
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Route planned successfully', {
@@ -302,6 +306,7 @@ export const stopReached = async (req, res, next) => {
       route_id, 
       stop_order, 
       delivery_id, 
+      driver_id,
       completed_at,
       current_location,
       // Legacy parameters (for backward compatibility)
@@ -329,6 +334,14 @@ export const stopReached = async (req, res, next) => {
       delivery_id,
       completed_at: completed_at || new Date().toISOString()
     };
+    
+    // Add driver_id if provided (required by external API)
+    if (driver_id) {
+      serviceData.driver_id = driver_id;
+    } else if (user_id) {
+      // Fallback to user_id if driver_id not provided
+      serviceData.driver_id = user_id;
+    }
     
     // Handle location - prefer new format, fallback to legacy
     if (current_location && current_location.lat && current_location.lng) {
