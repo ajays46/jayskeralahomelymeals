@@ -306,29 +306,8 @@ export const useStopReached = () => {
         };
       }
       
-      // Try new endpoint first (matching documentation)
-      let response;
-      try {
-        response = await axiosInstance.post('/ai-routes/journey/mark-stop', requestBody);
-      } catch (newEndpointError) {
-        // Fallback to legacy endpoint if new one doesn't exist
-        if (newEndpointError.response?.status === 404) {
-          // Use legacy format for legacy endpoint
-          const legacyBody = {
-            user_id: user_id || null,
-            route_id,
-            stop_order,
-            delivery_id,
-            latitude: current_location?.lat || latitude,
-            longitude: current_location?.lng || longitude,
-            status: status || 'delivered',
-            packages_delivered: packages_delivered || 1
-          };
-          response = await axiosInstance.post('/ai-routes/journey/stop-reached', legacyBody);
-        } else {
-          throw newEndpointError;
-        }
-      }
+      // Use only the mark-stop endpoint (no fallback)
+      const response = await axiosInstance.post('/ai-routes/journey/mark-stop', requestBody);
       
       if (!response.data.success) {
         throw new Error(response.data.message || response.data.error || 'Failed to mark stop reached');

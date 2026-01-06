@@ -301,32 +301,8 @@ export const stopReachedService = async (stopData) => {
       };
     }
     
-    // Try new endpoint first (matching documentation)
-    let response;
-    try {
-      response = await apiClient.post('/api/journey/mark-stop', requestBody);
-    } catch (newEndpointError) {
-      // Fallback to legacy endpoint if new one doesn't exist
-      if (newEndpointError.response?.status === 404) {
-        logInfo(LOG_CATEGORIES.SYSTEM, 'New endpoint not available, using legacy endpoint', {
-          route_id
-        });
-        // Use legacy format for legacy endpoint
-        const legacyBody = {
-          user_id: user_id || null,
-          route_id,
-          stop_order,
-          delivery_id,
-          latitude: current_location?.lat || latitude,
-          longitude: current_location?.lng || longitude,
-          status: status || 'delivered',
-          packages_delivered: packages_delivered || 1
-        };
-        response = await apiClient.post('/api/journey/stop-reached', legacyBody);
-      } else {
-        throw newEndpointError;
-      }
-    }
+    // Use only the mark-stop endpoint (no fallback)
+    const response = await apiClient.post('/api/journey/mark-stop', requestBody);
     
     const data = response.data;
     

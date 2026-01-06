@@ -51,7 +51,7 @@ router.post('/route/predict-start-time', checkRole('DELIVERY_MANAGER'), predictS
 // Journey management (NEW APIs matching documentation)
 // Allow both DELIVERY_MANAGER and DELIVERY_EXECUTIVE for journey operations
 router.post('/journey/start', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), startJourney);
-router.post('/journey/stop-reached', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), stopReached); // Legacy endpoint
+// router.post('/journey/stop-reached', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), stopReached); // Legacy endpoint
 router.post('/journey/mark-stop', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), stopReached); // New endpoint matching documentation
 router.post('/journey/end',checkRole('DELIVERY_EXECUTIVE'), endJourney);
 router.get('/journey/status/:routeId', checkRole('DELIVERY_EXECUTIVE'), getJourneyStatus);

@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
-import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 /**
@@ -93,6 +93,9 @@ const DeliveryExecutivePage = () => {
   const [deliveryStatus, setDeliveryStatus] = useState({});
   const [loadingStatus, setLoadingStatus] = useState({});
   
+  // Track marked stops (using route_id + stop_order as key)
+  const [markedStops, setMarkedStops] = useState(new Set());
+  
   // Start Journey state
   const [showStartJourneyModal, setShowStartJourneyModal] = useState(false);
   const [startJourneyData, setStartJourneyData] = useState({
@@ -116,6 +119,7 @@ const DeliveryExecutivePage = () => {
   
   // React Query hooks
   const startJourneyMutation = useStartJourney();
+  const updateGeoLocationMutation = useUpdateGeoLocation();
   const completeSessionMutation = useCompleteDriverSession();
   const stopReachedMutation = useStopReached();
   const endJourneyMutation = useEndJourney();
@@ -246,14 +250,15 @@ const DeliveryExecutivePage = () => {
     setCompletionLocationError(null);
     
     if (!navigator.geolocation) {
-      setCompletionLocationError('Geolocation is not supported by this browser.');
+      const errorMsg = 'Geolocation is not supported by this browser. Please use a different browser or device.';
+      setCompletionLocationError(errorMsg);
       setCompletionLocationLoading(false);
+      showErrorToast(errorMsg);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        
         const { latitude, longitude } = position.coords;
         setCompletionLocation({
           latitude,
@@ -261,21 +266,41 @@ const DeliveryExecutivePage = () => {
           timestamp: new Date().toISOString()
         });
         setCompletionLocationLoading(false);
+        setCompletionLocationError(null);
+        
+        // Show success message
+        showSuccessToast(`Location captured: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
         
         // Reverse geocoding to get address
         reverseGeocodeCompletion(latitude, longitude);
       },
       (error) => {
-        // Silently handle location errors without showing error message
-        // Just set loading to false and clear any previous location
+        // Handle location errors with proper error messages
         setCompletionLocationLoading(false);
-        setCompletionLocationError(null);
-        // Optionally, you can set a fallback location or just let user try again
+        let errorMsg = 'Unable to get your location. ';
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMsg += 'Location access denied. Please enable location permissions in your browser settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMsg += 'Location information is unavailable. Please check your GPS or network connection.';
+            break;
+          case error.TIMEOUT:
+            errorMsg += 'Location request timed out. Please try again.';
+            break;
+          default:
+            errorMsg += 'An unknown error occurred. Please try again.';
+            break;
+        }
+        
+        setCompletionLocationError(errorMsg);
+        showErrorToast(errorMsg);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
+        timeout: 15000, // Increased timeout to 15 seconds
+        maximumAge: 0 // Always get fresh location
       }
     );
   };
@@ -501,9 +526,10 @@ const DeliveryExecutivePage = () => {
   };
 
   const handleCompleteDelivery = async (stopIndex) => {
-
     if (!completionLocation) {
-      setCompletionLocationError('Please capture your current location first.');
+      const errorMsg = 'Please capture your current location first. Click "Get Current Location" button.';
+      setCompletionLocationError(errorMsg);
+      showErrorToast(errorMsg);
       return;
     }
 
@@ -514,13 +540,112 @@ const DeliveryExecutivePage = () => {
       // Get the current stop data
       const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
       
-      // Use the real Delivery_Item_ID from the route data
-      const deliveryItemId = currentStop?.Delivery_Item_ID;
+      // Debug: Log the stop object to see what fields are available
+      console.log('Current stop data:', currentStop);
+      console.log('Stop index:', stopIndex);
+      console.log('Selected session:', selectedSession);
       
+      // Try multiple ways to get delivery_item_id
+      const deliveryItemId = 
+        (currentStop?.Delivery_Item_ID && currentStop.Delivery_Item_ID !== '') ? currentStop.Delivery_Item_ID :
+        (currentStop?.delivery_item_id && currentStop.delivery_item_id !== '') ? currentStop.delivery_item_id :
+        (currentStop?._original?.delivery_item_id && currentStop._original.delivery_item_id !== '') ? currentStop._original.delivery_item_id :
+        (currentStop?._original?.Delivery_Item_ID && currentStop._original.Delivery_Item_ID !== '') ? currentStop._original.Delivery_Item_ID :
+        null;
+      
+      // If delivery_item_id is not found, try using order_id and menu_item_id as fallback
       if (!deliveryItemId) {
-        setCompletionLocationError('No delivery item ID found for this delivery stop.');
+        // Try to get order_id and menu_item_id from stop data
+        const orderId = currentStop?.order_id || 
+                       currentStop?.Order_ID || 
+                       currentStop?._original?.order_id || 
+                       currentStop?._original?.Order_ID;
+        
+        const menuItemId = currentStop?.menu_item_id || 
+                          currentStop?.Menu_Item_ID || 
+                          currentStop?._original?.menu_item_id || 
+                          currentStop?._original?.Menu_Item_ID;
+        
+        const deliveryDate = currentStop?.Date || 
+                            currentStop?.date || 
+                            currentStop?._original?.date || 
+                            currentStop?._original?.Date;
+        
+        const session = selectedSession || 
+                       currentStop?.session || 
+                       currentStop?._original?.session;
+        
+        // If we have order_id and menu_item_id, use the updateGeoLocation endpoint
+        if (orderId && menuItemId) {
+          console.log('Using fallback: order_id and menu_item_id to update address');
+          console.log('Order ID:', orderId, 'Menu Item ID:', menuItemId);
+          
+          const geoLocationString = `${completionLocation.latitude},${completionLocation.longitude}`;
+          
+          const mutationPayload = {
+            geo_location: geoLocationString,
+            order_id: orderId,
+            menu_item_id: menuItemId
+          };
+          
+          if (deliveryDate) {
+            mutationPayload.delivery_date = deliveryDate;
+          }
+          if (session) {
+            mutationPayload.session = session;
+          }
+          
+          await updateGeoLocationMutation.mutateAsync(mutationPayload);
+          
+          // Show success toast
+          toast.success(
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <div className="font-semibold text-green-800 text-base">✅ Address Updated Successfully!</div>
+                <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated using order and menu item IDs.</div>
+              </div>
+            </div>,
+            {
+              position: "top-right",
+              autoClose: 4000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "light",
+              style: {
+                background: "#f0f9ff",
+                border: "1px solid #10b981",
+                borderRadius: "12px",
+                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
+              },
+            }
+          );
+          
+          // Clear completion state
+          setCompletingDelivery(null);
+          clearCompletionLocation();
+          setCompletionLoading(false);
+          return;
+        }
+        
+        // Log all available fields for debugging
+        console.error('Stop object keys:', Object.keys(currentStop || {}));
+        console.error('Stop _original keys:', Object.keys(currentStop?._original || {}));
+        console.error('Stop data:', JSON.stringify(currentStop, null, 2));
+        
+        const errorMsg = `No delivery item ID found for this delivery stop. Stop: ${currentStop?.Delivery_Name || 'Unknown'}. Please check the route data.`;
+        setCompletionLocationError(errorMsg);
+        showErrorToast(errorMsg);
+        setCompletionLoading(false);
         return;
       }
+      
+      console.log('Updating address for delivery item:', deliveryItemId, 'with location:', completionLocation);
       
       const requestData = {
         latitude: completionLocation.latitude,
@@ -1092,18 +1217,18 @@ const DeliveryExecutivePage = () => {
       return;
     }
     
-    // Get route_id from stop, activeRouteId, or routes data
-    let routeId = stop.route_id || stop.Route_ID || activeRouteId;
-    
-    // If still no route_id, try to get it from routes data
-    if (!routeId && routes?.routes && routes.routes.length > 0) {
-      routeId = routes.routes[0].route_id;
-    }
-    
-    if (!routeId) {
-      showErrorToast('Route ID not found. Please ensure you have an active route.');
+    // IMPORTANT: Use activeRouteId first (the route_id from started journey)
+    // The external API requires the route_id to match the one returned when starting the journey
+    if (!activeRouteId) {
+      showErrorToast('Please start the journey first before marking stops. Click "Start Journey" button.');
       return;
     }
+    
+    // Use the activeRouteId (from started journey) - this is the correct route_id
+    const routeId = activeRouteId;
+    
+    // Log for debugging (can be removed in production)
+    console.log('Marking stop with route_id from started journey:', routeId);
     
     // Prepare stop data
     const stopOrder = stop.Stop_No || stop.stop_order || stopIndex + 1;
@@ -1137,6 +1262,11 @@ const DeliveryExecutivePage = () => {
       });
       
       showSuccessToast(`Stop ${stopOrder} marked as reached!`);
+      
+      // Mark this stop as reached in local state
+      const stopKey = `${routeId}-${stopOrder}`;
+      setMarkedStops(prev => new Set(prev).add(stopKey));
+      
       // Refresh routes to update status
       fetchRoutes();
     } catch (error) {
@@ -1691,22 +1821,44 @@ const DeliveryExecutivePage = () => {
                                         )}
                                         
                                         {/* Mark as Reached Button */}
-                                        <button
-                                          onClick={() => handleStopReached(stop, index)}
-                                          disabled={stopReachedMutation.isPending}
-                                          className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed"
-                                        >
-                                          {stopReachedMutation.isPending ? (
-                                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                                          ) : (
-                                            <>
-                                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                              </svg>
-                                              <span>Mark</span>
-                                            </>
-                                          )}
-                                        </button>
+                                        {(() => {
+                                          const stopOrder = stop.Stop_No || stop.stop_order || index + 1;
+                                          const routeId = activeRouteId || stop.route_id || stop.Route_ID || '';
+                                          const stopKey = `${routeId}-${stopOrder}`;
+                                          const isMarked = markedStops.has(stopKey);
+                                          
+                                          return (
+                                            <button
+                                              onClick={() => handleStopReached(stop, index)}
+                                              disabled={stopReachedMutation.isPending || isMarked}
+                                              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed ${
+                                                isMarked
+                                                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                  : stopReachedMutation.isPending
+                                                  ? 'bg-gray-300 text-white'
+                                                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                              }`}
+                                            >
+                                              {stopReachedMutation.isPending ? (
+                                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                                              ) : isMarked ? (
+                                                <>
+                                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                  </svg>
+                                                  <span>Marked</span>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                  </svg>
+                                                  <span>Mark</span>
+                                                </>
+                                              )}
+                                            </button>
+                                          );
+                                        })()}
                                         
                                         {/* Photo Button */}
                                         {deliveryStatus[index]?.status !== 'Delivered' && (
@@ -1723,7 +1875,20 @@ const DeliveryExecutivePage = () => {
                                         
                                         {/* Location/Update Address Button */}
                                         <button
-                                          onClick={() => setCompletingDelivery(completingDelivery === index ? null : index)}
+                                          onClick={() => {
+                                            if (completingDelivery === index) {
+                                              // Close if already open
+                                              setCompletingDelivery(null);
+                                              clearCompletionLocation();
+                                            } else {
+                                              // Open and auto-get location
+                                              setCompletingDelivery(index);
+                                              // Auto-get location when opening
+                                              setTimeout(() => {
+                                                getCompletionLocation();
+                                              }, 100);
+                                            }
+                                          }}
                                           className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
                                         >
                                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1867,10 +2032,37 @@ const DeliveryExecutivePage = () => {
                                                 </div>
                                               )}
 
-                                              {/* Error Display - Hidden to avoid showing errors */}
-                                              {false && completionLocationError && (
+                                              {/* Error Display */}
+                                              {completionLocationError && (
                                                 <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3">
-                                                  <p className="text-red-700 text-sm font-medium">{completionLocationError}</p>
+                                                  <div className="flex items-start gap-2">
+                                                    <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <p className="text-red-700 text-sm font-medium">{completionLocationError}</p>
+                                                  </div>
+                                                </div>
+                                              )}
+                                              
+                                              {/* Location Display */}
+                                              {completionLocation && !completionLocationError && (
+                                                <div className="bg-green-50 border-2 border-green-300 rounded-xl p-3">
+                                                  <div className="flex items-start gap-2">
+                                                    <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    <div className="flex-1">
+                                                      <p className="text-green-700 text-sm font-medium mb-1">Location Captured Successfully!</p>
+                                                      <p className="text-green-600 text-xs">
+                                                        Coordinates: {completionLocation.latitude.toFixed(6)}, {completionLocation.longitude.toFixed(6)}
+                                                      </p>
+                                                      {completionLocation.address && (
+                                                        <p className="text-green-600 text-xs mt-1">
+                                                          Address: {completionLocation.address}
+                                                        </p>
+                                                      )}
+                                                    </div>
+                                                  </div>
                                                 </div>
                                               )}
 
