@@ -1983,115 +1983,71 @@ const DeliveryExecutivePage = () => {
                                       </div>
                                     )}
 
-                                    {/* Action UI - Swiggy Style */}
+                                    {/* Action UI - Compact Style */}
                                     {(completingDelivery === index || uploadingImage === index) && (
-                                      <div className="mt-4 p-5 bg-gray-50 rounded-xl border-2 border-gray-200">
+                                      <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
                                         {/* Delivery Completion UI */}
                                         {completingDelivery === index && (
                                           <>
-                                            <h6 className="text-gray-900 font-bold mb-4 flex items-center gap-2 text-base">
-                                              <FiMapPin className="text-blue-600" />
-                                              Update Delivery Address
-                                            </h6>
-                                            
-                                            <div className="space-y-4">
-                                              {/* GPS Location Capture */}
-                                              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                                                <h7 className="text-gray-700 font-semibold text-sm mb-3 flex items-center gap-2">
-                                                  <FiMapPin className="text-blue-600" />
-                                                  GPS Location
-                                                </h7>
-                                                <button 
-                                                  onClick={getCompletionLocation}
-                                                  disabled={completionLocationLoading}
-                                                  className="w-full px-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                                                >
-                                                  {completionLocationLoading ? (
-                                                    <>
-                                                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                                                      Getting Location...
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      <FiMapPin className="w-5 h-5" />
-                                                      Get Current Location
-                                                    </>
-                                                  )}
-                                                </button>
+                                            {/* Loading State */}
+                                            {completionLocationLoading && (
+                                              <div className="flex items-center justify-center gap-2 py-3">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                                                <span className="text-gray-600 text-xs">Detecting location...</span>
                                               </div>
+                                            )}
 
-                                              {/* Clear Button */}
-                                              {completionLocation && (
-                                                <div className="text-center">
-                                                  <button 
-                                                    onClick={clearCompletionLocation}
-                                                    className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-md"
-                                                  >
-                                                    Clear All
-                                                  </button>
+                                            {/* Error Display */}
+                                            {completionLocationError && (
+                                              <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                                                <div className="flex items-center gap-2">
+                                                  <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                  </svg>
+                                                  <p className="text-red-600 text-xs">{completionLocationError}</p>
                                                 </div>
-                                              )}
+                                              </div>
+                                            )}
 
-                                              {/* Error Display */}
-                                              {completionLocationError && (
-                                                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3">
-                                                  <div className="flex items-start gap-2">
-                                                    <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
-                                                    <p className="text-red-700 text-sm font-medium">{completionLocationError}</p>
-                                                  </div>
-                                                </div>
-                                              )}
-                                              
-                                              {/* Location Display */}
+                                            {/* Action Buttons Row */}
+                                            <div className="flex items-center gap-2">
+                                              {/* Clear/Retry Button - Only show when location is captured */}
                                               {completionLocation && !completionLocationError && (
-                                                <div className="bg-green-50 border-2 border-green-300 rounded-xl p-3">
-                                                  <div className="flex items-start gap-2">
-                                                    <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <button 
+                                                  onClick={clearCompletionLocation}
+                                                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5"
+                                                >
+                                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                  </svg>
+                                                  Clear
+                                                </button>
+                                              )}
+
+                                              {/* Complete Button - Compact */}
+                                              <button
+                                                onClick={() => handleCompleteDelivery(index)}
+                                                disabled={!completionLocation || completionLoading}
+                                                className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                                                  completionLocation && !completionLoading
+                                                    ? 'bg-green-500 hover:bg-green-600 text-white shadow-sm'
+                                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                }`}
+                                              >
+                                                {completionLoading ? (
+                                                  <>
+                                                    <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                                                    <span>Completing...</span>
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                     </svg>
-                                                    <div className="flex-1">
-                                                      <p className="text-green-700 text-sm font-medium mb-1">Location Captured Successfully!</p>
-                                                      <p className="text-green-600 text-xs">
-                                                        Coordinates: {completionLocation.latitude.toFixed(6)}, {completionLocation.longitude.toFixed(6)}
-                                                      </p>
-                                                      {completionLocation.address && (
-                                                        <p className="text-green-600 text-xs mt-1">
-                                                          Address: {completionLocation.address}
-                                                        </p>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                              )}
-
-                                              {/* Complete Button */}
-                                              <div className="pt-2">
-                                                <button
-                                                  onClick={() => handleCompleteDelivery(index)}
-                                                  disabled={!completionLocation || completionLoading}
-                                                  className={`w-full px-5 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
-                                                    completionLocation && !completionLoading
-                                                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                                                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                  }`}
-                                                >
-                                                  {completionLoading ? (
-                                                    <>
-                                                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                                                      Completing...
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                      </svg>
-                                                      Complete This Delivery
-                                                    </>
-                                                  )}
-                                                </button>
-                                              </div>
+                                                    <span>Complete Delivery</span>
+                                                  </>
+                                                )}
+                                              </button>
                                             </div>
                                           </>
                                         )}
