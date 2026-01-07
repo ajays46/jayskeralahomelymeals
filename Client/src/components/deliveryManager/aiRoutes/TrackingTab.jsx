@@ -7,7 +7,7 @@ import { useGetAllVehicleTracking } from '../../../hooks/deliverymanager/useAIRo
  * TrackingTab - Component for journey tracking
  * Handles start/stop journey functionality, vehicle tracking, and tracking status
  */
-const TrackingTab = ({ onStartJourneyClick, onVehicleTracking, vehicleTrackingLoading }) => {
+const TrackingTab = ({ onVehicleTracking, vehicleTrackingLoading }) => {
   const [isTracking, setIsTracking] = useState(false);
   const [trackingPoints, setTrackingPoints] = useState([]);
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -155,18 +155,9 @@ const TrackingTab = ({ onStartJourneyClick, onVehicleTracking, vehicleTrackingLo
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <FiNavigation className="text-blue-400 text-xl" />
-          <h2 className="text-xl font-bold text-white">Journey Tracking</h2>
-        </div>
-        <button
-          onClick={onStartJourneyClick}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-        >
-          <FiPlay className="w-4 h-4" />
-          <span>Start New Journey</span>
-        </button>
+      <div className="flex items-center gap-2 mb-4">
+        <FiNavigation className="text-blue-400 text-xl" />
+        <h2 className="text-xl font-bold text-white">Journey Tracking</h2>
       </div>
 
       {/* Tracking Configuration */}
