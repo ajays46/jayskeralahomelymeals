@@ -1,6 +1,7 @@
 import AppError from '../utils/AppError.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import axios from 'axios';
+import prisma from '../config/prisma.js';
 
 /**
  * AI Route Service
@@ -980,9 +981,17 @@ export const updateGeoLocationService = async (updateData) => {
 /**
  * Complete Driver Session
  */
-export const completeDriverSessionService = async (sessionId, sessionData) => {
+export const completeDriverSessionService = async (sessionData) => {
   try {
-    const response = await apiClient.post(`/api/driver-session/${sessionId}/complete`, sessionData);
+    const { route_id } = sessionData;
+    
+    // External API requires sessionId in URL path, use 0 as default placeholder
+    // The external API will handle the session completion based on route_id
+    const sessionId = 0;
+    
+    const response = await apiClient.post(`/api/driver-session/${sessionId}/complete`, {
+      route_id
+    });
     const data = response.data;
     
     if (!data.success) {
@@ -990,15 +999,15 @@ export const completeDriverSessionService = async (sessionId, sessionData) => {
     }
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Driver session completed', {
-      session_id: sessionId,
-      route_id: sessionData.route_id
+      route_id,
+      session_id: sessionId
     });
     
     return data;
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Driver session completion failed', {
       error: error.message,
-      session_id: sessionId,
+      route_id: sessionData?.route_id,
       response: error.response?.data
     });
     throw new AppError(
@@ -1078,6 +1087,160 @@ export const getDriverRouteOverviewMapsService = async (params) => {
     throw new AppError(
       error.response?.data?.error || error.message || 'Failed to fetch driver route overview maps',
       error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Route Status from Actual Route Stops
+ * Checks actual_route_stops table to determine journey status, marked stops, and completed sessions
+ * Uses raw SQL queries since these tables are marked with @@ignore in Prisma schema
+ */
+export const getRouteStatusFromActualStopsService = async (routeId, driverId = null, date = null) => {
+  try {
+    const today = date ? new Date(date) : new Date();
+    const todayStr = today.toISOString().split('T')[0]; // 'YYYY-MM-DD' format
+    
+    // Check if journey is started (any record with start_time IS NOT NULL)
+    const journeyStartedQuery = driverId
+      ? prisma.$queryRaw`
+          SELECT id FROM actual_route_stops 
+          WHERE route_id = ${routeId} 
+            AND DATE(date) = DATE(${todayStr})
+            AND start_time IS NOT NULL
+            AND user_id = ${driverId}
+          LIMIT 1
+        `
+      : prisma.$queryRaw`
+          SELECT id FROM actual_route_stops 
+          WHERE route_id = ${routeId} 
+            AND DATE(date) = DATE(${todayStr})
+            AND start_time IS NOT NULL
+          LIMIT 1
+        `;
+    
+    const journeyStartedResult = await journeyStartedQuery;
+    const journeyStarted = journeyStartedResult && journeyStartedResult.length > 0;
+    
+    // Get marked/completed stops
+    const markedStopsQuery = driverId
+      ? prisma.$queryRaw`
+          SELECT stop_order, delivery_status, actual_completion_time, session
+          FROM actual_route_stops 
+          WHERE route_id = ${routeId} 
+            AND DATE(date) = DATE(${todayStr})
+            AND (actual_completion_time IS NOT NULL OR delivery_status = 'delivered')
+            AND user_id = ${driverId}
+          ORDER BY stop_order ASC
+        `
+      : prisma.$queryRaw`
+          SELECT stop_order, delivery_status, actual_completion_time, session
+          FROM actual_route_stops 
+          WHERE route_id = ${routeId} 
+            AND DATE(date) = DATE(${todayStr})
+            AND (actual_completion_time IS NOT NULL OR delivery_status = 'delivered')
+          ORDER BY stop_order ASC
+        `;
+    
+    const markedStops = await markedStopsQuery;
+    
+    // Get all stops for each session from planned_route_stops to determine completion
+    const allStopsQuery = prisma.$queryRaw`
+      SELECT stop_order, session
+      FROM planned_route_stops 
+      WHERE route_id = ${routeId} 
+        AND DATE(date) = DATE(${todayStr})
+        AND delivery_name != 'Return to Hub'
+    `;
+    
+    const allStops = await allStopsQuery;
+    
+    // Group by session and check completion
+    const sessionStats = {};
+    allStops.forEach(stop => {
+      const session = stop.session;
+      if (!sessionStats[session]) {
+        sessionStats[session] = { total: 0, completed: 0 };
+      }
+      sessionStats[session].total++;
+    });
+    
+    markedStops.forEach(stop => {
+      if (stop.session && sessionStats[stop.session]) {
+        sessionStats[stop.session].completed++;
+      }
+    });
+    
+    // Determine completed sessions (all stops for that session are completed)
+    const completedSessions = Object.keys(sessionStats).filter(
+      session => sessionStats[session].total > 0 && 
+                 sessionStats[session].total === sessionStats[session].completed
+    );
+    
+    // Also check route_journey_summary for actual_end_time to confirm session completion
+    // This is the primary source for session completion when "End Session" is clicked
+    const journeySummariesQuery = driverId
+      ? prisma.$queryRaw`
+          SELECT session, actual_end_time
+          FROM route_journey_summary 
+          WHERE route_id = ${routeId} 
+            AND DATE(date) = DATE(${todayStr})
+            AND actual_end_time IS NOT NULL
+            AND driver_id = ${driverId}
+        `
+      : prisma.$queryRaw`
+          SELECT session, actual_end_time
+          FROM route_journey_summary 
+          WHERE route_id = ${routeId} 
+            AND DATE(date) = DATE(${todayStr})
+            AND actual_end_time IS NOT NULL
+        `;
+    
+    const journeySummaries = await journeySummariesQuery;
+    
+    // Normalize session names to lowercase for comparison
+    const normalizedCompletedSessions = completedSessions.map(s => s?.toLowerCase());
+    
+    // Add sessions from journey_summary that have actual_end_time
+    // This ensures sessions marked as completed via "End Session" button persist after refresh
+    journeySummaries.forEach(summary => {
+      if (summary.session) {
+        const normalizedSession = summary.session.toLowerCase();
+        // Check if not already in completed sessions (case-insensitive)
+        if (!normalizedCompletedSessions.includes(normalizedSession)) {
+          completedSessions.push(normalizedSession);
+          normalizedCompletedSessions.push(normalizedSession);
+        }
+      }
+    });
+    
+    // Remove duplicates and ensure all session names are lowercase
+    const uniqueCompletedSessions = [...new Set(completedSessions.map(s => s?.toLowerCase()))];
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route status retrieved from actual_route_stops', {
+      route_id: routeId,
+      is_journey_started: journeyStarted,
+      marked_stops_count: markedStops.length,
+      completed_sessions: completedSessions
+    });
+    
+    return {
+      success: true,
+      route_id: routeId,
+      is_journey_started: journeyStarted,
+      marked_stops: markedStops,
+      completed_sessions: uniqueCompletedSessions, // Use normalized unique sessions
+      sessions_data: sessionStats
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route status from actual_route_stops failed', {
+      error: error.message,
+      route_id: routeId,
+      driver_id: driverId
+    });
+    throw new AppError(
+      error.message || 'Failed to get route status',
+      500
     );
   }
 };

@@ -28,7 +28,8 @@ import {
   getDriverNextStopMapsService,
   getDriverRouteOverviewMapsService,
   checkTrafficService,
-  getRouteOrderService
+  getRouteOrderService,
+  getRouteStatusFromActualStopsService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
@@ -942,23 +943,20 @@ export const getRouteOrder = async (req, res, next) => {
  */
 export const completeDriverSession = async (req, res, next) => {
   try {
-    const { sessionId } = req.params;
-    const { route_id, end_time } = req.body;
+    const { route_id } = req.body;
     
-    if (!sessionId) {
+    if (!route_id) {
       return res.status(400).json({
         success: false,
-        message: 'sessionId is required'
+        message: 'route_id is required'
       });
     }
     
-    const result = await completeDriverSessionService(sessionId, {
-      route_id,
-      end_time: end_time || new Date().toISOString()
+    const result = await completeDriverSessionService({
+      route_id
     });
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Driver session completed', {
-      session_id: sessionId,
       route_id
     });
     
@@ -966,7 +964,7 @@ export const completeDriverSession = async (req, res, next) => {
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Driver session completion failed', {
       error: error.message,
-      session_id: req.params?.sessionId
+      route_id: req.body?.route_id
     });
     next(error);
   }
@@ -1179,6 +1177,41 @@ export const getDriverRouteOverviewMaps = async (req, res, next) => {
       error: error.message,
       date: req.query?.date,
       session: req.query?.session
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Route Status from Actual Route Stops
+ * Returns journey status, marked stops, and completed sessions from actual_route_stops table
+ */
+export const getRouteStatusFromActualStops = async (req, res, next) => {
+  try {
+    const { routeId } = req.params;
+    const { driver_id, date } = req.query;
+    
+    if (!routeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'routeId is required'
+      });
+    }
+    
+    const result = await getRouteStatusFromActualStopsService(routeId, driver_id || null, date || null);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route status retrieved', {
+      route_id: routeId,
+      is_journey_started: result.is_journey_started,
+      marked_stops_count: result.marked_stops?.length || 0,
+      completed_sessions_count: result.completed_sessions?.length || 0
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route status failed', {
+      error: error.message,
+      routeId: req.params?.routeId
     });
     next(error);
   }

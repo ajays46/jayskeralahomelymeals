@@ -18,6 +18,7 @@ export const aiRouteKeys = {
   // Traffic and Route Order
   checkTraffic: (routeId) => [...aiRouteKeys.all, 'checkTraffic', routeId],
   routeOrder: (routeId) => [...aiRouteKeys.all, 'routeOrder', routeId],
+  routeStatus: (routeId) => [...aiRouteKeys.all, 'routeStatus', routeId],
   // Weather
   currentWeather: (params) => [...aiRouteKeys.all, 'currentWeather', params],
   weatherForecast: (params) => [...aiRouteKeys.all, 'weatherForecast', params],
@@ -871,10 +872,9 @@ export const useCompleteDriverSession = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ sessionId, route_id, end_time }) => {
-      const response = await axiosInstance.post(`/ai-routes/driver-session/${sessionId}/complete`, {
-        route_id,
-        end_time: end_time || new Date().toISOString()
+    mutationFn: async ({ route_id }) => {
+      const response = await axiosInstance.post(`/ai-routes/driver-session/complete`, {
+        route_id
       });
       
       if (!response.data.success) {
@@ -1088,6 +1088,34 @@ export const useRouteOrder = (routeId, options = {}) => {
       return response.data;
     },
     enabled: enabled && !!routeId,
+    refetchInterval,
+    staleTime,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Route Status from Actual Route Stops
+ * Fetches journey status, marked stops, and completed sessions from actual_route_stops table
+ */
+export const useRouteStatusFromActualStops = (routeId, options = {}) => {
+  const {
+    enabled = true,
+    refetchInterval = 30000, // Refetch every 30 seconds to stay updated
+    staleTime = 10 * 1000, // 10 seconds
+    ...queryOptions
+  } = options;
+
+  return useQuery({
+    queryKey: aiRouteKeys.routeStatus(routeId),
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/ai-routes/route/${routeId}/status`);
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get route status');
+      }
+      return response.data;
+    },
+    enabled: !!routeId && enabled,
     refetchInterval,
     staleTime,
     ...queryOptions

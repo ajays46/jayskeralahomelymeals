@@ -29,7 +29,8 @@ import {
   getMissingGeoLocations,
   updateGeoLocation,
   checkTraffic,
-  getRouteOrder
+  getRouteOrder,
+  getRouteStatusFromActualStops
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();
@@ -61,6 +62,9 @@ router.post('/journey/check-traffic', checkRole('DELIVERY_MANAGER', 'DELIVERY_EX
 // Get route order - Allow both DELIVERY_MANAGER and DELIVERY_EXECUTIVE
 router.get('/journey/route-order/:routeId', checkRole('DELIVERY_MANAGER', 'DELIVERY_EXECUTIVE'), getRouteOrder);
 
+// Get route status from actual_route_stops - DELIVERY_EXECUTIVE only
+router.get('/route/:routeId/status', checkRole('DELIVERY_EXECUTIVE'), getRouteStatusFromActualStops);
+
 // Vehicle tracking - DELIVERY_MANAGER only
 router.post('/vehicle-tracking', checkRole('DELIVERY_MANAGER'), vehicleTracking);
 router.get('/vehicle/tracking/all', checkRole('DELIVERY_MANAGER'), getAllVehicleTracking);
@@ -82,8 +86,8 @@ router.get('/zones/:zoneId/deliveries', checkRole('DELIVERY_MANAGER'), getZoneDe
 // Route re-optimization - DELIVERY_MANAGER only
 router.post('/route/reoptimize', checkRole('DELIVERY_EXECUTIVE'), reoptimizeRoute);
 
-// Driver session completion - DELIVERY_MANAGER only
-router.post('/driver-session/:sessionId/complete', checkRole('DELIVERY_EXECUTIVE'), completeDriverSession);
+// Driver session completion - DELIVERY_EXECUTIVE only
+router.post('/driver-session/complete', checkRole('DELIVERY_EXECUTIVE'), completeDriverSession);
 
 // Address geo-location management - DELIVERY_MANAGER only
 router.get('/address/get-missing-geo-locations', checkRole('DELIVERY_MANAGER'), getMissingGeoLocations);

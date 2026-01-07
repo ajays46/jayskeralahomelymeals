@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
-import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 /**
@@ -66,10 +66,7 @@ const DeliveryExecutivePage = () => {
     if (mapsError) {
       console.error('Driver Maps API Error:', mapsError);
     }
-    if (driverMapsResponse) {
-      console.log('Driver Maps Response:', driverMapsResponse);
-    }
-  }, [mapsError, driverMapsResponse]);
+  }, [mapsError]);
   
   // Extract driver-specific data from responses
   const driverMapsData = driverMapsResponse?.drivers?.find(driver => driver.driver_id === user?.id) || null;
@@ -116,6 +113,8 @@ const DeliveryExecutivePage = () => {
     sessionName: '',
     sessionId: ''
   });
+  // Track completed sessions
+  const [completedSessions, setCompletedSessions] = useState(new Set());
   
   // React Query hooks
   const startJourneyMutation = useStartJourney();
@@ -136,6 +135,39 @@ const DeliveryExecutivePage = () => {
   const { data: routeOrderData } = useRouteOrder(activeRouteId, {
     enabled: !!activeRouteId,
     refetchInterval: 30000 // Poll every 30 seconds
+  });
+
+  // Get route_id for status check (computed inline)
+  const routeIdForStatus = useMemo(() => {
+    // Check for routes array in the response structure: { routes: [...] }
+    if (routes?.routes && Array.isArray(routes.routes) && routes.routes.length > 0) {
+      return routes.routes[0].route_id || '';
+    } 
+    // Check for nested data structure: { data: { routes: [...] } }
+    else if (routes?.data?.routes && Array.isArray(routes.data.routes) && routes.data.routes.length > 0) {
+      return routes.data.routes[0].route_id || '';
+    }
+    // Check for sessions structure (legacy format)
+    else if (routes?.sessions) {
+      const sessions = routes.sessions;
+      // Try to get route_id from first available session
+      const firstSession = sessions.breakfast || sessions.lunch || sessions.dinner;
+      if (firstSession && firstSession.route_id) {
+        return firstSession.route_id;
+      }
+      // Try from stops
+      if (firstSession && firstSession.stops && firstSession.stops.length > 0) {
+        const firstStop = firstSession.stops.find(stop => stop.route_id || stop.Route_ID);
+        return firstStop?.route_id || firstStop?.Route_ID || '';
+      }
+    }
+    // Use activeRouteId if available
+    return activeRouteId || '';
+  }, [routes, activeRouteId]);
+
+  // Get route status from actual_route_stops table
+  const { data: routeStatus } = useRouteStatusFromActualStops(routeIdForStatus, {
+    enabled: !!routeIdForStatus && !!user?.id
   });
 
   // Get display name with fallbacks
@@ -165,51 +197,75 @@ const DeliveryExecutivePage = () => {
   // Update routes state when driver maps data is loaded
   useEffect(() => {
     if (driverMapsData && routes.sessions && routes.sessions[selectedSession]) {
-      const updatedStops = routes.sessions[selectedSession].stops.map(stop => {
+      const currentStops = routes.sessions[selectedSession].stops;
+      
+      // Check if any stop needs updating (has map_link in driverMapsData but not in current stops)
+      const needsUpdate = currentStops.some(stop => {
         const mapStop = driverMapsData.stops?.find(s => 
           s.stop_order === stop.Stop_No || 
           s.delivery_name === stop.Delivery_Name
         );
-        
-        if (mapStop && mapStop.map_link) {
-          return {
-            ...stop,
-            Map_Link: mapStop.map_link
-          };
-        }
-        return stop;
+        return mapStop && mapStop.map_link && !stop.Map_Link;
       });
       
-      setRoutes(prev => ({
-        ...prev,
-        sessions: {
-          ...prev.sessions,
-          [selectedSession]: {
-            ...prev.sessions[selectedSession],
-            stops: updatedStops
+      // Only update if there are changes to avoid infinite loop
+      if (needsUpdate) {
+        const updatedStops = currentStops.map(stop => {
+          const mapStop = driverMapsData.stops?.find(s => 
+            s.stop_order === stop.Stop_No || 
+            s.delivery_name === stop.Delivery_Name
+          );
+          
+          if (mapStop && mapStop.map_link) {
+            return {
+              ...stop,
+              Map_Link: mapStop.map_link
+            };
           }
-        }
-      }));
+          return stop;
+        });
+        
+        setRoutes(prev => ({
+          ...prev,
+          sessions: {
+            ...prev.sessions,
+            [selectedSession]: {
+              ...prev.sessions[selectedSession],
+              stops: updatedStops
+            }
+          }
+        }));
+      }
     }
-  }, [driverMapsData, selectedSession, routes.sessions]);
+  }, [driverMapsData, selectedSession]); // Removed routes.sessions from dependencies
 
   // Update routes state when route overview data is loaded
   useEffect(() => {
     if (routeOverviewData && routes.sessions && routes.sessions[selectedSession]) {
-      setRoutes(prev => ({
-        ...prev,
-        sessions: {
-          ...prev.sessions,
-          [selectedSession]: {
-            ...prev.sessions[selectedSession],
-            map_link: routeOverviewData.route_map_link || prev.sessions[selectedSession].map_link,
-            route_map_link: routeOverviewData.route_map_link,
-            map_view_link: routeOverviewData.map_view_link
+      const currentSession = routes.sessions[selectedSession];
+      
+      // Check if update is needed (data has changed)
+      const needsUpdate = 
+        routeOverviewData.route_map_link !== currentSession.route_map_link ||
+        routeOverviewData.map_view_link !== currentSession.map_view_link;
+      
+      // Only update if there are changes to avoid infinite loop
+      if (needsUpdate) {
+        setRoutes(prev => ({
+          ...prev,
+          sessions: {
+            ...prev.sessions,
+            [selectedSession]: {
+              ...prev.sessions[selectedSession],
+              map_link: routeOverviewData.route_map_link || prev.sessions[selectedSession].map_link,
+              route_map_link: routeOverviewData.route_map_link,
+              map_view_link: routeOverviewData.map_view_link
+            }
           }
-        }
-      }));
+        }));
+      }
     }
-  }, [routeOverviewData, selectedSession, routes.sessions]);
+  }, [routeOverviewData, selectedSession]); // Removed routes.sessions from dependencies
 
   // Auto-fetch delivery status when routes are loaded
   useEffect(() => {
@@ -234,6 +290,37 @@ const DeliveryExecutivePage = () => {
       }));
     }
   }, [user?.id]);
+
+  // Restore state from routeStatus API response
+  useEffect(() => {
+    if (routeStatus?.success) {
+      // Restore marked stops
+      const marked = new Set();
+      routeStatus.marked_stops?.forEach(stop => {
+        const stopKey = `${routeStatus.route_id}-${stop.stop_order}`;
+        marked.add(stopKey);
+      });
+      setMarkedStops(marked);
+      
+      // Restore completed sessions (normalize to lowercase for consistent comparison)
+      const completed = new Set(
+        (routeStatus.completed_sessions || []).map(s => s?.toLowerCase())
+      );
+      setCompletedSessions(completed);
+      
+      // Restore active journey state
+      if (routeStatus.is_journey_started) {
+        setActiveRouteId(routeStatus.route_id);
+        localStorage.setItem('activeRouteId', routeStatus.route_id);
+      } else {
+        // Only clear if we don't have activeRouteId from localStorage
+        // This prevents clearing if journey was just started but not yet in DB
+        if (!localStorage.getItem('activeRouteId')) {
+          setActiveRouteId(null);
+        }
+      }
+    }
+  }, [routeStatus]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Recently';
@@ -1328,11 +1415,6 @@ const DeliveryExecutivePage = () => {
 
   // Handle End Session submission
   const handleEndSession = async () => {
-    if (!endSessionData.sessionId) {
-      showErrorToast('Session ID is required');
-      return;
-    }
-    
     // Extract route_id from routes data
     let routeId = '';
     
@@ -1361,10 +1443,10 @@ const DeliveryExecutivePage = () => {
     
     try {
       await completeSessionMutation.mutateAsync({
-        sessionId: endSessionData.sessionId,
-        route_id: routeId,
-        end_time: new Date().toISOString()
+        route_id: routeId
       });
+      // Mark this session as completed (normalize to lowercase)
+      setCompletedSessions(prev => new Set(prev).add(selectedSession.toLowerCase()));
       showSuccessToast(`${endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} session completed successfully!`);
       setShowEndSessionModal(false);
       setEndSessionData({ sessionName: '', sessionId: '' });
@@ -1463,7 +1545,7 @@ const DeliveryExecutivePage = () => {
                     <p className="text-blue-50 text-sm sm:text-base">Manage your delivery routes efficiently</p>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                    {activeRouteId ? (
+                    {(activeRouteId || routeStatus?.is_journey_started) ? (
                       <div className="px-3 sm:px-5 py-2.5 sm:py-3 bg-white/20 text-white rounded-xl font-semibold flex items-center gap-2 border-2 border-white/30">
                         <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -2155,17 +2237,38 @@ const DeliveryExecutivePage = () => {
                               <div className="mt-6 p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl shadow-md">
                                 {/* End Session Button - Moved to top */}
                                 <div className="mb-4">
-                                  <button
-                                    onClick={() => handleEndSessionClick(selectedSession)}
-                                    disabled={completeSessionMutation.isPending}
-                                    className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white rounded-xl transition-colors flex items-center justify-center gap-2 font-semibold shadow-md"
-                                  >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-                                    </svg>
-                                    End Session
-                                  </button>
+                                  {completedSessions.has(selectedSession.toLowerCase()) ? (
+                                    <button
+                                      disabled
+                                      className="w-full px-4 py-3 bg-green-600 text-white rounded-xl transition-colors flex items-center justify-center gap-2 font-semibold shadow-md cursor-not-allowed"
+                                    >
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                      Session Completed
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleEndSessionClick(selectedSession)}
+                                      disabled={completeSessionMutation.isPending}
+                                      className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white rounded-xl transition-colors flex items-center justify-center gap-2 font-semibold shadow-md"
+                                    >
+                                      {completeSessionMutation.isPending ? (
+                                        <>
+                                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                                          Completing...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                          </svg>
+                                          End Session
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
                                 </div>
                                 
                                 <div className="flex items-center justify-between mb-3">
