@@ -115,7 +115,38 @@ export const uploadDeliveryExecutiveImage = async (userId, imageData) => {
 // Update delivery executive location
 export const updateDeliveryExecutiveLocation = async (userId, locationData) => {
   try {
-    const { location, latitude, longitude } = locationData;
+    const { location, latitude, longitude, address_id } = locationData;
+
+    // If address_id is provided, update the Address table's geo_location
+    if (address_id) {
+      if (latitude === undefined || longitude === undefined) {
+        throw new Error('Latitude and longitude are required when updating address');
+      }
+
+      // Import Prisma to update address
+      const prisma = (await import('../config/prisma.js')).default;
+
+      // Update the address geo_location
+      const updatedAddress = await prisma.address.update({
+        where: { id: address_id },
+        data: {
+          geoLocation: `${latitude},${longitude}`,
+          googleMapsUrl: `https://maps.google.com/?q=${latitude},${longitude}`,
+          updatedAt: new Date()
+        }
+      });
+
+      return { 
+        success: true, 
+        data: { address: updatedAddress }, 
+        message: 'Address geo_location updated successfully' 
+      };
+    }
+
+    // Original behavior: Update delivery executive profile location
+    if (!location || latitude === undefined || longitude === undefined) {
+      throw new Error('Location, latitude, and longitude are required');
+    }
 
     // Update profile with new location
     const updatedProfile = await createOrUpdateDeliveryExecutive(userId, {

@@ -151,7 +151,7 @@ export const uploadImage = async (req, res) => {
 export const updateLocation = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { location, latitude, longitude } = req.body;
+    const { location, latitude, longitude, address_id } = req.body;
 
     if (!userId) {
       return res.status(400).json({
@@ -160,6 +160,33 @@ export const updateLocation = async (req, res) => {
       });
     }
 
+    // If address_id is provided, update the address geo_location
+    if (address_id) {
+      if (latitude === undefined || longitude === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: 'Latitude and longitude are required when updating address'
+        });
+      }
+
+      const result = await updateDeliveryExecutiveLocation(userId, {
+        location,
+        latitude,
+        longitude,
+        address_id
+      });
+
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Address geo_location updated successfully', {
+        userId: userId,
+        address_id: address_id,
+        latitude: latitude,
+        longitude: longitude
+      });
+
+      return res.status(200).json(result);
+    }
+
+    // Original behavior: Update delivery executive profile location
     if (!location || latitude === undefined || longitude === undefined) {
       return res.status(400).json({
         success: false,
@@ -192,7 +219,7 @@ export const updateLocation = async (req, res) => {
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Delivery executive location update failed', {
-      userId: userId,
+      userId: req.params?.userId,
       error: error.message,
       stack: error.stack
     });
@@ -411,16 +438,138 @@ export const getRoutesByDriverId = async (req, res) => {
         error: data
       });
     } else {
-      // Success case - ensure proper response structure
+      // Success case - process data to add address_id to stops
+      const routesData = data.data || data;
+      
+      // Import Prisma to fetch address_id from delivery items
+      const prisma = (await import('../config/prisma.js')).default;
+      
+      // Helper function to get address_id for a stop
+      const getAddressIdForStop = async (stop, date, session) => {
+        try {
+          // Parse the date from stop (handle GMT format)
+          const stopDate = stop.date ? new Date(stop.date) : (date ? new Date(date) : null);
+          if (!stopDate || isNaN(stopDate.getTime())) {
+            return null;
+          }
+          
+          // Set to start of day for comparison
+          const startOfDay = new Date(stopDate);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(stopDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          
+          // Map session to deliveryTimeSlot format
+          const sessionMap = {
+            'BREAKFAST': 'BREAKFAST',
+            'LUNCH': 'LUNCH',
+            'DINNER': 'DINNER',
+            'breakfast': 'BREAKFAST',
+            'lunch': 'LUNCH',
+            'dinner': 'DINNER'
+          };
+          const deliveryTimeSlot = sessionMap[session] || session?.toUpperCase() || stop.session?.toUpperCase();
+          
+          // Try to find delivery item by matching delivery_name with user name
+          // First, try to find user by name (delivery_name is usually the customer name)
+          const deliveryName = stop.delivery_name || stop.deliveryName || stop.Delivery_Name;
+          if (!deliveryName) {
+            return null;
+          }
+          
+          // Find user by name (check firstName, lastName, or name field)
+          const user = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { firstName: { contains: deliveryName, mode: 'insensitive' } },
+                { lastName: { contains: deliveryName, mode: 'insensitive' } },
+                { name: { contains: deliveryName, mode: 'insensitive' } }
+              ]
+            },
+            select: { id: true }
+          });
+          
+          if (user) {
+            // Find delivery item for this user, date, and session
+            const deliveryItem = await prisma.deliveryItem.findFirst({
+              where: {
+                userId: user.id,
+                deliveryDate: {
+                  gte: startOfDay,
+                  lte: endOfDay
+                },
+                deliveryTimeSlot: deliveryTimeSlot
+              },
+              select: { addressId: true },
+              orderBy: { createdAt: 'desc' }
+            });
+            
+            if (deliveryItem && deliveryItem.addressId) {
+              return deliveryItem.addressId;
+            }
+          }
+          
+          return null;
+        } catch (error) {
+          // Silently fail - return null if can't fetch
+          console.warn(`Could not fetch address_id for stop:`, error.message);
+          return null;
+        }
+      };
+      
+      // Process routes to add address_id to stops
+      const processRoutesWithAddressId = async (routesData) => {
+        if (!routesData || !routesData.routes || !Array.isArray(routesData.routes)) {
+          return routesData;
+        }
+        
+        const processedRoutes = await Promise.all(
+          routesData.routes.map(async (route) => {
+            if (!route.stops || !Array.isArray(route.stops)) {
+              return route;
+            }
+            
+            const processedStops = await Promise.all(
+              route.stops.map(async (stop) => {
+                const addressId = await getAddressIdForStop(
+                  stop,
+                  routesData.date || route.date,
+                  route.session || stop.session
+                );
+                
+                return {
+                  ...stop,
+                  address_id: addressId || stop.address_id || stop.Address_ID || stop.addressId || null
+                };
+              })
+            );
+            
+            return {
+              ...route,
+              stops: processedStops
+            };
+          })
+        );
+        
+        return {
+          ...routesData,
+          routes: processedRoutes
+        };
+      };
+      
+      // Process the routes data
+      const processedData = await processRoutesWithAddressId(routesData);
+      
+      // Ensure proper response structure
       const responseData = {
         success: true,
         message: 'Routes fetched successfully',
-        data: data.data || data
+        data: processedData
       };
       
       logInfo(LOG_CATEGORIES.SYSTEM, 'Routes fetched successfully from external API by driver_id', {
         driver_id: driver_id,
-        routeCount: Array.isArray(responseData.data) ? responseData.data.length : (responseData.data?.routes?.length || 0)
+        routeCount: Array.isArray(processedData.routes) ? processedData.routes.length : (processedData?.routes?.length || 0)
       });
       
       return res.json(responseData);

@@ -221,12 +221,20 @@ export const useStartJourney = () => {
 
   return useMutation({
     mutationFn: async (journeyData) => {
-      const { driver_id } = journeyData;
+      const { driver_id, route_id } = journeyData;
       
-      // Only send driver_id to the API
-      const response = await axiosInstance.post('/ai-routes/journey/start', {
+      // Build request body - include route_id if provided
+      const requestBody = {
         driver_id
-      });
+      };
+      
+      // Include route_id if provided (required for session-specific routes)
+      if (route_id) {
+        requestBody.route_id = route_id;
+      }
+      
+      // Send driver_id and route_id to the API
+      const response = await axiosInstance.post('/ai-routes/journey/start', requestBody);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to start journey');

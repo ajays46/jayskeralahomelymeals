@@ -47,14 +47,14 @@ const DeliveryExecutivePage = () => {
   // Use React Query hooks for driver maps
   const isMapsEnabled = !!user?.id && !!selectedSession && routes.sessions && Object.keys(routes.sessions).length > 0;
   
-  const { data: driverMapsResponse, isLoading: mapsLoading, error: mapsError } = useDriverNextStopMaps(
+  const { data: driverMapsResponse, isLoading: mapsLoading, error: mapsError, refetch: refetchDriverMaps } = useDriverNextStopMaps(
     { date: currentDateStr, session: selectedSession.toLowerCase() },
     { 
       enabled: isMapsEnabled
     }
   );
   
-  const { data: routeOverviewResponse, isLoading: routeOverviewLoading } = useDriverRouteOverviewMaps(
+  const { data: routeOverviewResponse, isLoading: routeOverviewLoading, refetch: refetchRouteOverview } = useDriverRouteOverviewMaps(
     { date: currentDateStr, session: selectedSession.toLowerCase() },
     { 
       enabled: isMapsEnabled
@@ -121,6 +121,7 @@ const DeliveryExecutivePage = () => {
   const [selectedStopForStatus, setSelectedStopForStatus] = useState(null);
   const [selectedStopIndex, setSelectedStopIndex] = useState(null);
   const [selectedStopStatus, setSelectedStopStatus] = useState('Delivered'); // Default to 'Delivered'
+  const [gettingLocation, setGettingLocation] = useState(false); // Track geolocation loading state
   
   // React Query hooks
   const startJourneyMutation = useStartJourney();
@@ -143,9 +144,63 @@ const DeliveryExecutivePage = () => {
     refetchInterval: 30000 // Poll every 30 seconds
   });
 
-  // Get route_id for status check (computed inline)
+  // Helper function to get route_id from currently selected session (defined early for use in useMemo)
+  const getRouteIdFromSelectedSession = useCallback(() => {
+    if (!routes || !selectedSession) {
+      return '';
+    }
+    
+    // Normalize selected session to lowercase for matching
+    const normalizedSession = selectedSession.toLowerCase();
+    
+    // First, try to get from sessions object
+    if (routes.sessions && routes.sessions[normalizedSession]) {
+      const currentSession = routes.sessions[normalizedSession];
+      
+      // Try to get route_id from session object (this is the primary source)
+      if (currentSession.route_id) {
+        return currentSession.route_id;
+      }
+      
+      // Try from stops in the session
+      if (currentSession.stops && currentSession.stops.length > 0) {
+        const firstStop = currentSession.stops.find(stop => stop.route_id || stop.Route_ID);
+        return firstStop?.route_id || firstStop?.Route_ID || '';
+      }
+    }
+    
+    // Fallback: Try to find route from routes array by matching session
+    if (routes.routes && Array.isArray(routes.routes)) {
+      const matchingRoute = routes.routes.find(route => 
+        route.session && route.session.toLowerCase() === normalizedSession
+      );
+      if (matchingRoute && matchingRoute.route_id) {
+        return matchingRoute.route_id;
+      }
+    }
+    
+    // Also check data.routes structure
+    if (routes.data && routes.data.routes && Array.isArray(routes.data.routes)) {
+      const matchingRoute = routes.data.routes.find(route => 
+        route.session && route.session.toLowerCase() === normalizedSession
+      );
+      if (matchingRoute && matchingRoute.route_id) {
+        return matchingRoute.route_id;
+      }
+    }
+    
+    return '';
+  }, [routes, selectedSession]);
+
+  // Get route_id for status check - use currently selected session's route_id
   const routeIdForStatus = useMemo(() => {
-    // Check for routes array in the response structure: { routes: [...] }
+    // First, try to get route_id from currently selected session (most accurate)
+    const currentSessionRouteId = getRouteIdFromSelectedSession();
+    if (currentSessionRouteId) {
+      return currentSessionRouteId;
+    }
+    
+    // Fallback: Check for routes array in the response structure: { routes: [...] }
     if (routes?.routes && Array.isArray(routes.routes) && routes.routes.length > 0) {
       return routes.routes[0].route_id || '';
     } 
@@ -169,7 +224,7 @@ const DeliveryExecutivePage = () => {
     }
     // Use activeRouteId if available
     return activeRouteId || '';
-  }, [routes, activeRouteId]);
+  }, [routes, activeRouteId, selectedSession, getRouteIdFromSelectedSession]);
 
   // Get route status from actual_route_stops table
   const { data: routeStatus } = useRouteStatusFromActualStops(routeIdForStatus, {
@@ -209,7 +264,8 @@ const DeliveryExecutivePage = () => {
       const needsUpdate = currentStops.some(stop => {
         const mapStop = driverMapsData.stops?.find(s => 
           s.stop_order === stop.Stop_No || 
-          s.delivery_name === stop.Delivery_Name
+          s.delivery_name === stop.Delivery_Name ||
+          (s.delivery_name && stop.Delivery_Name && s.delivery_name.toLowerCase() === stop.Delivery_Name.toLowerCase())
         );
         return mapStop && mapStop.map_link && !stop.Map_Link;
       });
@@ -219,7 +275,8 @@ const DeliveryExecutivePage = () => {
         const updatedStops = currentStops.map(stop => {
           const mapStop = driverMapsData.stops?.find(s => 
             s.stop_order === stop.Stop_No || 
-            s.delivery_name === stop.Delivery_Name
+            s.delivery_name === stop.Delivery_Name ||
+            (s.delivery_name && stop.Delivery_Name && s.delivery_name.toLowerCase() === stop.Delivery_Name.toLowerCase())
           );
           
           if (mapStop && mapStop.map_link) {
@@ -243,7 +300,7 @@ const DeliveryExecutivePage = () => {
         }));
       }
     }
-  }, [driverMapsData, selectedSession]); // Removed routes.sessions from dependencies
+  }, [driverMapsData, selectedSession, routes.sessions]); // Added routes.sessions to ensure it runs when routes change
 
   // Update routes state when route overview data is loaded
   useEffect(() => {
@@ -300,33 +357,58 @@ const DeliveryExecutivePage = () => {
   // Restore state from routeStatus API response
   useEffect(() => {
     if (routeStatus?.success) {
-      // Restore marked stops
-      const marked = new Set();
-      routeStatus.marked_stops?.forEach(stop => {
-        const stopKey = `${routeStatus.route_id}-${stop.stop_order}`;
-        marked.add(stopKey);
-      });
-      setMarkedStops(marked);
+      // Get current session's route_id to verify this status is for the correct session
+      const currentSessionRouteId = getRouteIdFromSelectedSession();
       
-      // Restore completed sessions (normalize to lowercase for consistent comparison)
-      const completed = new Set(
-        (routeStatus.completed_sessions || []).map(s => s?.toLowerCase())
-      );
-      setCompletedSessions(completed);
-      
-      // Restore active journey state
-      if (routeStatus.is_journey_started) {
-        setActiveRouteId(routeStatus.route_id);
-        localStorage.setItem('activeRouteId', routeStatus.route_id);
-      } else {
-        // Only clear if we don't have activeRouteId from localStorage
-        // This prevents clearing if journey was just started but not yet in DB
-        if (!localStorage.getItem('activeRouteId')) {
-          setActiveRouteId(null);
+      // Only restore state if the route_id matches the current session's route_id
+      // This prevents restoring state from a different session when switching tabs
+      if (routeStatus.route_id === currentSessionRouteId || !currentSessionRouteId) {
+        // Restore marked stops (include session to make it unique across sessions)
+        const marked = new Set();
+        routeStatus.marked_stops?.forEach(stop => {
+          // Include session in stopKey to prevent conflicts across sessions
+          // Use stop.session from backend, fallback to selectedSession if not available
+          const session = (stop.session || selectedSession).toLowerCase();
+          const stopKey = `${routeStatus.route_id}-${session}-${stop.stop_order}`;
+          marked.add(stopKey);
+        });
+        // Merge with existing marked stops instead of replacing (in case multiple sessions are active)
+        setMarkedStops(prev => {
+          const merged = new Set(prev);
+          marked.forEach(key => merged.add(key));
+          return merged;
+        });
+        
+        // Restore completed sessions (normalize to lowercase for consistent comparison)
+        // Merge with existing completed sessions to handle multiple routes
+        setCompletedSessions(prev => {
+          const newCompleted = new Set(prev);
+          (routeStatus.completed_sessions || []).forEach(s => {
+            newCompleted.add(s?.toLowerCase());
+          });
+          return newCompleted;
+        });
+        
+        // Restore active journey state only if it matches current session
+        if (routeStatus.is_journey_started) {
+          // Only update activeRouteId if it matches the current session's route_id
+          if (routeStatus.route_id === currentSessionRouteId || !currentSessionRouteId) {
+            setActiveRouteId(routeStatus.route_id);
+            localStorage.setItem('activeRouteId', routeStatus.route_id);
+          }
+        } else {
+          // Only clear if the route_id matches current session
+          if (routeStatus.route_id === currentSessionRouteId) {
+            // Only clear if we don't have activeRouteId from localStorage
+            // This prevents clearing if journey was just started but not yet in DB
+            if (!localStorage.getItem('activeRouteId')) {
+              setActiveRouteId(null);
+            }
+          }
         }
       }
     }
-  }, [routeStatus]);
+  }, [routeStatus, selectedSession, getRouteIdFromSelectedSession]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Recently';
@@ -638,6 +720,65 @@ const DeliveryExecutivePage = () => {
       console.log('Stop index:', stopIndex);
       console.log('Selected session:', selectedSession);
       
+      // First, try to get address_id from stop (preferred method)
+      const addressId = 
+        (currentStop?.address_id && currentStop.address_id !== '') ? currentStop.address_id :
+        (currentStop?.Address_ID && currentStop.Address_ID !== '') ? currentStop.Address_ID :
+        (currentStop?.addressId && currentStop.addressId !== '') ? currentStop.addressId :
+        (currentStop?._original?.address_id && currentStop._original.address_id !== '') ? currentStop._original.address_id :
+        (currentStop?._original?.Address_ID && currentStop._original.Address_ID !== '') ? currentStop._original.Address_ID :
+        (currentStop?._original?.addressId && currentStop._original.addressId !== '') ? currentStop._original.addressId :
+        null;
+      
+      // If address_id is available, use it to update address geo_location directly
+      if (addressId) {
+        // Use delivery executive location endpoint to update address
+        const response = await axiosInstance.put(`/delivery-executives/${user.id}/location`, {
+          address_id: addressId,
+          latitude: completionLocation.latitude,
+          longitude: completionLocation.longitude
+        });
+        
+        if (response.data.success) {
+          // Show success toast
+          toast.success(
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <div className="font-semibold text-green-800 text-base">✅ Address Updated Successfully!</div>
+                <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated using address ID.</div>
+              </div>
+            </div>,
+            {
+              position: "top-right",
+              autoClose: 4000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "light",
+              style: {
+                background: "#f0f9ff",
+                border: "1px solid #10b981",
+                borderRadius: "12px",
+                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
+              },
+            }
+          );
+          
+          // Clear completion state
+          setCompletingDelivery(null);
+          clearCompletionLocation();
+          setCompletionLoading(false);
+          return;
+        } else {
+          throw new Error(response.data.message || 'Failed to update address');
+        }
+      }
+      
       // Try multiple ways to get delivery_item_id
       const deliveryItemId = 
         (currentStop?.Delivery_Item_ID && currentStop.Delivery_Item_ID !== '') ? currentStop.Delivery_Item_ID :
@@ -879,18 +1020,27 @@ const DeliveryExecutivePage = () => {
       return routesData;
     }
 
+    // Handle nested data structure: { data: { routes: [...] } }
+    let routesArray = routesData.routes;
+    if (!routesArray && routesData.data && routesData.data.routes) {
+      routesArray = routesData.data.routes;
+    }
+
     // Transform routes array to sessions format
-    if (routesData.routes && Array.isArray(routesData.routes)) {
+    if (routesArray && Array.isArray(routesArray)) {
       const sessions = {};
       
-      routesData.routes.forEach(route => {
-        const sessionName = route.session || 'dinner'; // default to dinner if no session
+      routesArray.forEach(route => {
+        // Normalize session name to lowercase for consistent matching
+        const sessionName = (route.session || 'dinner').toLowerCase();
         
         if (!sessions[sessionName]) {
           sessions[sessionName] = {
             stops: [],
             map_link: route.map_link || '',
-            route_id: route.route_id || ''
+            route_id: route.route_id || '', // Store route_id at session level
+            route_map_link: route.route_map_link || route.map_link || '',
+            map_view_link: route.map_view_link || ''
           };
         }
         
@@ -902,11 +1052,11 @@ const DeliveryExecutivePage = () => {
             Location: stop.location || stop.Location || '',
             Packages: stop.packages || stop.Packages || 0,
             Delivery_Item_ID: stop.delivery_item_id || stop.Delivery_Item_ID || '',
-            Date: stop.date || stop.Date || routesData.date || '',
+            Date: stop.date || stop.Date || routesData.date || routesData.data?.date || '',
             Latitude: stop.latitude || stop.Latitude || 0,
             Longitude: stop.longitude || stop.Longitude || 0,
             Map_Link: stop.map_link || stop.Map_Link || '',
-            route_id: stop.route_id || route.route_id || '',
+            route_id: stop.route_id || route.route_id || '', // Ensure route_id is in each stop
             // Keep original data for reference
             _original: stop
           }));
@@ -917,7 +1067,8 @@ const DeliveryExecutivePage = () => {
       
       return {
         ...routesData,
-        sessions: sessions
+        sessions: sessions,
+        routes: routesArray // Keep original routes array for reference
       };
     }
     
@@ -948,31 +1099,115 @@ const DeliveryExecutivePage = () => {
         // Transform the response to sessions format
         const transformedData = transformRoutesToSessions(routesData);
         
+        // Preserve existing Map_Link data when updating routes
+        const preserveMapLinks = (newRoutes, oldRoutes) => {
+          // If no old routes or no sessions, just return new routes
+          if (!oldRoutes?.sessions || Object.keys(oldRoutes.sessions).length === 0) {
+            return newRoutes;
+          }
+          
+          if (!newRoutes?.sessions) {
+            return newRoutes;
+          }
+          
+          // Merge map links from old routes into new routes
+          const mergedSessions = { ...newRoutes.sessions };
+          
+          Object.keys(oldRoutes.sessions).forEach(sessionName => {
+            const oldSession = oldRoutes.sessions[sessionName];
+            const newSession = mergedSessions[sessionName];
+            
+            // Only merge if both sessions exist
+            if (oldSession && newSession) {
+              // Preserve map links at session level
+              mergedSessions[sessionName] = {
+                ...newSession,
+                map_link: newSession.map_link || oldSession.map_link || '',
+                route_map_link: newSession.route_map_link || oldSession.route_map_link || '',
+                map_view_link: newSession.map_view_link || oldSession.map_view_link || ''
+              };
+              
+              // Preserve Map_Link for each stop
+              if (oldSession.stops && Array.isArray(oldSession.stops) && 
+                  newSession.stops && Array.isArray(newSession.stops)) {
+                mergedSessions[sessionName].stops = newSession.stops.map(newStop => {
+                  // Try to find matching old stop by multiple criteria
+                  const oldStop = oldSession.stops.find(os => {
+                    const stopNoMatch = (os.Stop_No === newStop.Stop_No) || 
+                                       (os.stop_order === newStop.stop_order) ||
+                                       (os.Stop_No === newStop.stop_order) ||
+                                       (os.stop_order === newStop.Stop_No);
+                    const nameMatch = (os.Delivery_Name === newStop.Delivery_Name) ||
+                                     (os.delivery_name === newStop.delivery_name) ||
+                                     (os.Delivery_Name === newStop.delivery_name) ||
+                                     (os.delivery_name === newStop.Delivery_Name) ||
+                                     (os.Delivery_Name && newStop.Delivery_Name && 
+                                      os.Delivery_Name.toLowerCase() === newStop.Delivery_Name.toLowerCase());
+                    return stopNoMatch && nameMatch;
+                  });
+                  
+                  // Preserve Map_Link if old stop has it and new stop doesn't
+                  if (oldStop && oldStop.Map_Link && !newStop.Map_Link) {
+                    return {
+                      ...newStop,
+                      Map_Link: oldStop.Map_Link
+                    };
+                  }
+                  return newStop;
+                });
+              }
+            }
+          });
+          
+          return {
+            ...newRoutes,
+            sessions: mergedSessions
+          };
+        };
+        
         // Handle different response structures
-        // Structure 1: Object with routes array (new format: { date, driver_id, routes: [...] })
+        // Structure 1: Object with data.routes (new format: { data: { date, driver_id, routes: [...] } })
+        // This matches the actual API response structure
         if (routesData && typeof routesData === 'object' && routesData.routes && Array.isArray(routesData.routes) && routesData.routes.length > 0) {
-          setRoutes(transformedData);
+          const mergedData = preserveMapLinks(transformedData, routes);
+          setRoutes(mergedData);
           message.success('Routes loaded successfully!');
         }
-        // Structure 2: Object with sessions property
+        // Structure 2: Object with sessions property (already transformed)
+        else if (transformedData && transformedData.sessions && Object.keys(transformedData.sessions).length > 0) {
+          const mergedData = preserveMapLinks(transformedData, routes);
+          setRoutes(mergedData);
+          message.success('Routes loaded successfully!');
+        }
+        // Structure 3: Object with sessions property (legacy)
         else if (routesData && typeof routesData === 'object' && routesData.sessions) {
-          setRoutes(routesData);
+          const mergedData = preserveMapLinks(routesData, routes);
+          setRoutes(mergedData);
           message.success('Routes loaded successfully!');
         }
-        // Structure 3: Array - convert to object with sessions
+        // Structure 4: Array - convert to object with sessions
         else if (Array.isArray(routesData) && routesData.length > 0) {
           // If it's an array, try to structure it
           const structuredRoutes = {
             sessions: routesData[0]?.sessions || {},
             ...routesData[0]
           };
-          setRoutes(structuredRoutes);
+          const mergedData = preserveMapLinks(structuredRoutes, routes);
+          setRoutes(mergedData);
           message.success('Routes loaded successfully!');
         }
-        // Structure 4: Empty or no data
+        // Structure 5: Empty or no data
         else {
           setRoutes({ sessions: {}, routes: [] });
           message.info('No routes assigned for today');
+        }
+        
+        // Refetch map data after routes are updated to ensure map links are populated
+        if (isMapsEnabled) {
+          setTimeout(() => {
+            refetchDriverMaps();
+            refetchRouteOverview();
+          }, 500);
         }
       } else {
         throw new Error(response.data?.message || 'Failed to fetch routes');
@@ -1076,6 +1311,12 @@ const DeliveryExecutivePage = () => {
 
   // Helper function to get route_id from routes data
   const getRouteIdFromRoutes = useCallback(() => {
+    // First, try to get route_id from currently selected session
+    const sessionRouteId = getRouteIdFromSelectedSession();
+    if (sessionRouteId) {
+      return sessionRouteId;
+    }
+    
     // Check for routes array in the response structure: { routes: [...] }
     if (routes?.routes && Array.isArray(routes.routes) && routes.routes.length > 0) {
       return routes.routes[0].route_id || '';
@@ -1100,7 +1341,7 @@ const DeliveryExecutivePage = () => {
     }
     // Use activeRouteId if available
     return activeRouteId || '';
-  }, [routes, activeRouteId]);
+  }, [routes, activeRouteId, getRouteIdFromSelectedSession]);
 
   // Check if routes are available (for button visibility)
   const hasRoutes = useMemo(() => {
@@ -1236,24 +1477,27 @@ const DeliveryExecutivePage = () => {
       return;
     }
     
-    // Extract route_id from fetched routes
-    let routeId = '';
+    // Get route_id from currently selected session (preferred)
+    let routeId = getRouteIdFromSelectedSession();
     
-    // Check for routes array in the response structure: { routes: [...] }
-    if (routes?.routes && Array.isArray(routes.routes) && routes.routes.length > 0) {
-      routeId = routes.routes[0].route_id || '';
-    } 
-    // Check for nested data structure: { data: { routes: [...] } }
-    else if (routes?.data?.routes && Array.isArray(routes.data.routes) && routes.data.routes.length > 0) {
-      routeId = routes.data.routes[0].route_id || '';
-    }
-    // Check for sessions structure (legacy format)
-    else if (routes?.sessions) {
-      const sessions = routes.sessions;
-      // Try to get route_id from first available session
-      const firstSession = sessions.breakfast || sessions.lunch || sessions.dinner;
-      if (firstSession && firstSession.routes && Array.isArray(firstSession.routes) && firstSession.routes.length > 0) {
-        routeId = firstSession.routes[0].route_id || '';
+    // Fallback: Extract route_id from fetched routes if session doesn't have one
+    if (!routeId) {
+      // Check for routes array in the response structure: { routes: [...] }
+      if (routes?.routes && Array.isArray(routes.routes) && routes.routes.length > 0) {
+        routeId = routes.routes[0].route_id || '';
+      } 
+      // Check for nested data structure: { data: { routes: [...] } }
+      else if (routes?.data?.routes && Array.isArray(routes.data.routes) && routes.data.routes.length > 0) {
+        routeId = routes.data.routes[0].route_id || '';
+      }
+      // Check for sessions structure (legacy format)
+      else if (routes?.sessions) {
+        const sessions = routes.sessions;
+        // Try to get route_id from first available session
+        const firstSession = sessions.breakfast || sessions.lunch || sessions.dinner;
+        if (firstSession && firstSession.routes && Array.isArray(firstSession.routes) && firstSession.routes.length > 0) {
+          routeId = firstSession.routes[0].route_id || '';
+        }
       }
     }
     
@@ -1276,20 +1520,31 @@ const DeliveryExecutivePage = () => {
     }
     
     try {
-      // Only send driver_id to the API (not route_id)
+      // Get the current session's route_id (this is the correct one to use)
+      const currentSessionRouteId = getRouteIdFromSelectedSession();
+      
+      if (!currentSessionRouteId) {
+        showErrorToast('Route ID not found for current session. Please ensure routes are loaded.');
+        return;
+      }
+      
+      // Send both driver_id and route_id to the API
+      // This ensures the external API knows which route to start the journey for
       const result = await startJourneyMutation.mutateAsync({
-        driver_id: startJourneyData.driver_id
+        driver_id: startJourneyData.driver_id,
+        route_id: currentSessionRouteId // Send the route_id for the current session
       });
       
-      // Store the route_id for later use (from result or from startJourneyData)
-      const activeRouteId = result.route_id || startJourneyData.route_id;
+      // Use the route_id we sent (current session's route_id) or API response
+      const activeRouteId = result.route_id || currentSessionRouteId;
+      
       if (activeRouteId) {
         setActiveRouteId(activeRouteId);
         // Persist to localStorage so it survives page refresh
         localStorage.setItem('activeRouteId', activeRouteId);
       }
       
-      showSuccessToast('Journey started successfully!');
+      showSuccessToast(`${selectedSession.charAt(0).toUpperCase() + selectedSession.slice(1)} journey started successfully!`);
       setShowStartJourneyModal(false);
       setStartJourneyData({
         route_id: '',
@@ -1297,7 +1552,15 @@ const DeliveryExecutivePage = () => {
       });
       
       // Refresh routes after starting journey
-      fetchRoutes();
+      fetchRoutes().then(() => {
+        // Refetch map data to ensure map links are available after routes are loaded
+        if (isMapsEnabled) {
+          setTimeout(() => {
+            refetchDriverMaps();
+            refetchRouteOverview();
+          }, 500);
+        }
+      });
     } catch (error) {
       showErrorToast(error.message || 'Failed to start journey');
     }
@@ -1311,6 +1574,7 @@ const DeliveryExecutivePage = () => {
     setShowStatusModal(true);
   };
 
+
   // Handle marking a stop as reached/delivered with status
   const handleStopReached = async (stop, stopIndex, status = 'Delivered') => {
     if (!user?.id) {
@@ -1318,10 +1582,13 @@ const DeliveryExecutivePage = () => {
       return;
     }
     
-    // IMPORTANT: Use activeRouteId first (the route_id from started journey)
-    // The external API requires the route_id to match the one returned when starting the journey
-    if (!activeRouteId) {
-      showErrorToast('Please start the journey first before marking stops. Click "Start Journey" button.');
+    // Get route_id from currently selected session
+    const currentSessionRouteId = getRouteIdFromSelectedSession();
+    
+    // Check if session is completed
+    const isSessionCompleted = completedSessions.has(selectedSession.toLowerCase());
+    if (isSessionCompleted) {
+      showErrorToast('This session is already completed. Cannot mark stops for completed sessions.');
       return;
     }
     
@@ -1333,48 +1600,139 @@ const DeliveryExecutivePage = () => {
     const deliveryId = stop.Delivery_Item_ID || stop.delivery_item_id || '';
     const packagesDelivered = stop.Packages || stop.packages || 1;
     
+    // Set loading state for geolocation
+    setGettingLocation(true);
+    
     try {
-      // Get current location
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000
-        });
-      });
+      // Get current location with better error handling and timeout
+      let position = null;
+      let locationError = null;
       
-      // Use new format matching documentation with status
-      await stopReachedMutation.mutateAsync({
+      try {
+        position = await new Promise((resolve, reject) => {
+          // Set a timeout for the geolocation call
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Location request timed out. Please try again.'));
+          }, 8000); // Reduced from 10s to 8s for faster feedback
+          
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              clearTimeout(timeoutId);
+              resolve(pos);
+            },
+            (err) => {
+              clearTimeout(timeoutId);
+              reject(err);
+            },
+            {
+              enableHighAccuracy: false, // Changed to false for faster response
+              timeout: 7000, // 7 seconds timeout
+              maximumAge: 30000 // Accept location up to 30 seconds old (faster)
+            }
+          );
+        });
+      } catch (geoError) {
+        locationError = geoError;
+        // If geolocation fails, we'll proceed without location (optional)
+        console.warn('Geolocation failed, proceeding without location:', geoError);
+      }
+      
+      // Prepare request data
+      const requestData = {
         route_id: routeId,
         stop_order: stopOrder,
         delivery_id: deliveryId,
-        driver_id: user.id, // Add driver_id (required by external API)
+        driver_id: user.id,
         completed_at: new Date().toISOString(),
-        current_location: {
+        status: status
+      };
+      
+      // Add location if available (make it optional)
+      if (position && position.coords) {
+        requestData.current_location = {
           lat: position.coords.latitude,
           lng: position.coords.longitude
-        },
-        status: status // Add delivery status (Delivered or CUSTOMER_UNAVAILABLE)
-      });
+        };
+      }
+      
+      // Use new format matching documentation with status
+      await stopReachedMutation.mutateAsync(requestData);
       
       const statusMessage = status === 'CUSTOMER_UNAVAILABLE' 
         ? `Stop ${stopOrder} marked as Customer Unavailable!`
         : `Stop ${stopOrder} marked as Delivered!`;
       showSuccessToast(statusMessage);
       
-      // Mark this stop as reached in local state
-      const stopKey = `${routeId}-${stopOrder}`;
+      // Mark this stop as reached in local state (include session to make it unique across sessions)
+      const session = selectedSession.toLowerCase();
+      const stopKey = `${routeId}-${session}-${stopOrder}`;
       setMarkedStops(prev => new Set(prev).add(stopKey));
       
       // Close modal if open
       setShowStatusModal(false);
       setSelectedStopForStatus(null);
       setSelectedStopIndex(null);
+      setGettingLocation(false);
       
-      // Refresh routes to update status
-      fetchRoutes();
+      // Refresh routes to update status (but don't wait for it - make it non-blocking)
+      // Use setTimeout to make it non-blocking
+      setTimeout(async () => {
+        await fetchRoutes();
+        // Refetch map data to ensure map links are available after marking stop
+        if (isMapsEnabled) {
+          setTimeout(() => {
+            refetchDriverMaps();
+            refetchRouteOverview();
+          }, 500);
+        }
+      }, 100);
+      
     } catch (error) {
-      if (error.message.includes('location') || error.code === 1) {
-        showErrorToast('Unable to get your location. Please enable location services.');
+      setGettingLocation(false);
+      
+      // Better error handling
+      if (error.code === 1) {
+        showErrorToast('Location access denied. Please enable location permissions in your browser settings.');
+      } else if (error.code === 2) {
+        showErrorToast('Location unavailable. Please check your GPS or network connection.');
+      } else if (error.code === 3 || error.message?.includes('timeout')) {
+        showErrorToast('Location request timed out. The stop was marked without location data.');
+        // Try to proceed without location
+        try {
+          await stopReachedMutation.mutateAsync({
+            route_id: routeId,
+            stop_order: stopOrder,
+            delivery_id: deliveryId,
+            driver_id: user.id,
+            completed_at: new Date().toISOString(),
+            status: status
+            // No location - API should handle this
+          });
+          
+          const statusMessage = status === 'CUSTOMER_UNAVAILABLE' 
+            ? `Stop ${stopOrder} marked as Customer Unavailable!`
+            : `Stop ${stopOrder} marked as Delivered!`;
+          showSuccessToast(statusMessage);
+          
+          // Mark this stop as reached in local state (include session to make it unique across sessions)
+          const session = selectedSession.toLowerCase();
+          const stopKey = `${routeId}-${session}-${stopOrder}`;
+          setMarkedStops(prev => new Set(prev).add(stopKey));
+          
+          setShowStatusModal(false);
+          setSelectedStopForStatus(null);
+          setSelectedStopIndex(null);
+          
+          setTimeout(() => {
+            fetchRoutes();
+          }, 100);
+        } catch (retryError) {
+          if (retryError.response?.data?.message) {
+            showErrorToast(retryError.response.data.message);
+          } else {
+            showErrorToast(retryError.message || 'Failed to mark stop as reached');
+          }
+        }
       } else if (error.response?.data?.message) {
         showErrorToast(error.response.data.message);
       } else {
@@ -1561,24 +1919,67 @@ const DeliveryExecutivePage = () => {
                     <p className="text-blue-50 text-sm sm:text-base">Manage your delivery routes efficiently</p>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                    {(activeRouteId || routeStatus?.is_journey_started) ? (
-                      <div className="px-3 sm:px-5 py-2.5 sm:py-3 bg-white/20 text-white rounded-xl font-semibold flex items-center gap-2 border-2 border-white/30">
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-sm sm:text-base">Journey Started</span>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={handleStartJourneyClick}
-                        disabled={routesLoading}
-                        className="px-3 sm:px-5 py-2.5 sm:py-3 bg-white text-blue-600 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        <FiPlay className="w-4 h-4 sm:w-5 sm:h-5" />
-                        <span className="hidden sm:inline">Start Journey</span>
-                        <span className="sm:hidden">Start</span>
-                      </button>
-                    )}
+                    {(() => {
+                      const currentSessionRouteId = getRouteIdFromSelectedSession();
+                      const isCurrentSessionActive = currentSessionRouteId === activeRouteId;
+                      const isSessionCompleted = completedSessions.has(selectedSession.toLowerCase());
+                      
+                      // If mutation is pending, show loading state regardless of other conditions
+                      if (startJourneyMutation.isPending) {
+                        return (
+                          <button
+                            disabled
+                            className="px-3 sm:px-5 py-2.5 sm:py-3 bg-white/20 text-white rounded-xl font-semibold flex items-center gap-2 border-2 border-white/30 opacity-75 cursor-not-allowed"
+                          >
+                            <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-white border-t-transparent"></div>
+                            <span className="text-sm sm:text-base">Starting Journey...</span>
+                          </button>
+                        );
+                      }
+                      
+                      // Show "Journey Started" only if activeRouteId matches current session's route_id
+                      if (isCurrentSessionActive && (activeRouteId || routeStatus?.is_journey_started)) {
+                        return (
+                          <div className="px-3 sm:px-5 py-2.5 sm:py-3 bg-white/20 text-white rounded-xl font-semibold flex items-center gap-2 border-2 border-white/30">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className="text-sm sm:text-base">Journey Started ({selectedSession})</span>
+                          </div>
+                        );
+                      }
+                      
+                      // Show "Start Journey" if:
+                      // 1. Session is not completed
+                      // 2. Current session route doesn't match active route (or no active route)
+                      if (!isSessionCompleted && (!isCurrentSessionActive || !activeRouteId)) {
+                        return (
+                          <button
+                            onClick={handleStartJourneyClick}
+                            disabled={routesLoading}
+                            className="px-3 sm:px-5 py-2.5 sm:py-3 bg-white text-blue-600 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            <FiPlay className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <span className="hidden sm:inline">Start Journey</span>
+                            <span className="sm:hidden">Start</span>
+                          </button>
+                        );
+                      }
+                      
+                      // If session is completed, show completed badge
+                      if (isSessionCompleted) {
+                        return (
+                          <div className="px-3 sm:px-5 py-2.5 sm:py-3 bg-green-500/20 text-white rounded-xl font-semibold flex items-center gap-2 border-2 border-green-300/30">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className="text-sm sm:text-base">{selectedSession.charAt(0).toUpperCase() + selectedSession.slice(1)} Completed</span>
+                          </div>
+                        );
+                      }
+                      
+                      return null;
+                    })()}
                     {/* Traffic/Reoptimize Button - Show when routes are available */}
                     {hasRoutes && (
                       <button
@@ -1788,19 +2189,40 @@ const DeliveryExecutivePage = () => {
                         <div className="space-y-6">
                           {/* Session Tabs - Swiggy Style */}
                           <div className="flex gap-2 bg-gray-100 rounded-xl p-1.5">
-                            {Object.keys(routes.sessions || {}).map((session) => (
-                              <button
-                                key={session}
-                                onClick={() => setSelectedSession(session)}
-                                className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
-                                  selectedSession === session
-                                    ? 'bg-white text-blue-600 shadow-md'
-                                    : 'text-gray-600 hover:text-gray-900'
-                                }`}
-                              >
-                                {session.charAt(0).toUpperCase() + session.slice(1)}
-                              </button>
-                            ))}
+                            {Object.keys(routes.sessions || {}).map((session) => {
+                              const sessionRouteId = routes.sessions[session]?.route_id || 
+                                routes.sessions[session]?.stops?.[0]?.route_id || 
+                                routes.sessions[session]?.stops?.[0]?.Route_ID || '';
+                              const isSessionCompleted = completedSessions.has(session.toLowerCase());
+                              const isActiveRoute = sessionRouteId === activeRouteId;
+                              
+                              return (
+                                <button
+                                  key={session}
+                                  onClick={() => setSelectedSession(session)}
+                                  className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all relative ${
+                                    selectedSession === session
+                                      ? 'bg-white text-blue-600 shadow-md'
+                                      : 'text-gray-600 hover:text-gray-900'
+                                  }`}
+                                  title={
+                                    isSessionCompleted 
+                                      ? `${session.charAt(0).toUpperCase() + session.slice(1)} - Completed`
+                                      : isActiveRoute
+                                      ? `${session.charAt(0).toUpperCase() + session.slice(1)} - Journey Active`
+                                      : `${session.charAt(0).toUpperCase() + session.slice(1)} - Click to view`
+                                  }
+                                >
+                                  {session.charAt(0).toUpperCase() + session.slice(1)}
+                                  {isSessionCompleted && (
+                                    <span className="ml-1 text-green-600">✓</span>
+                                  )}
+                                  {!isSessionCompleted && isActiveRoute && (
+                                    <span className="ml-1 text-blue-600">●</span>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
 
                           {/* Selected Session Details */}
@@ -1922,7 +2344,9 @@ const DeliveryExecutivePage = () => {
                                         {(() => {
                                           const stopOrder = stop.Stop_No || stop.stop_order || index + 1;
                                           const routeId = activeRouteId || stop.route_id || stop.Route_ID || '';
-                                          const stopKey = `${routeId}-${stopOrder}`;
+                                          // Include session in stopKey to prevent conflicts across sessions
+                                          const session = selectedSession.toLowerCase();
+                                          const stopKey = `${routeId}-${session}-${stopOrder}`;
                                           const isMarked = markedStops.has(stopKey);
                                           
                                           return (
@@ -2450,12 +2874,21 @@ const DeliveryExecutivePage = () => {
                 Stop: <span className="font-bold text-gray-900">{selectedStopForStatus.Delivery_Name || 'Unknown'}</span>
               </p>
               
+              {/* Location fetching indicator */}
+              {gettingLocation && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                  <p className="text-blue-700 text-xs font-medium">Getting your current location...</p>
+                </div>
+              )}
+              
               <div className="space-y-3">
                 <label className="block text-gray-700 font-semibold text-sm mb-2">Delivery Status *</label>
                 <select
                   value={selectedStopStatus}
                   onChange={(e) => setSelectedStopStatus(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={gettingLocation || stopReachedMutation.isPending}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="Delivered">Delivered</option>
                   <option value="CUSTOMER_UNAVAILABLE">Customer Unavailable</option>
@@ -2478,20 +2911,22 @@ const DeliveryExecutivePage = () => {
                   setSelectedStopForStatus(null);
                   setSelectedStopIndex(null);
                   setSelectedStopStatus('Delivered');
+                  setGettingLocation(false);
                 }}
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
+                disabled={stopReachedMutation.isPending}
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleStopReached(selectedStopForStatus, selectedStopIndex, selectedStopStatus)}
-                disabled={stopReachedMutation.isPending}
+                disabled={stopReachedMutation.isPending || gettingLocation}
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {stopReachedMutation.isPending ? (
+                {(stopReachedMutation.isPending || gettingLocation) ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                    Marking...
+                    {gettingLocation ? 'Getting location...' : 'Marking...'}
                   </>
                 ) : (
                   <>

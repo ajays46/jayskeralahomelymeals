@@ -214,25 +214,41 @@ export const predictStartTimeService = async (predictionData) => {
  */
 export const startJourneyService = async (journeyData) => {
   try {
-    const { driver_id } = journeyData;
+    const { driver_id, route_id } = journeyData;
     
-    // Only send driver_id to the external API
-    const response = await apiClient.post('/api/journey/start', {
+    // Build request body - include route_id if provided
+    const requestBody = {
       driver_id
-    });
+    };
+    
+    // Include route_id if provided (required for session-specific routes)
+    if (route_id) {
+      requestBody.route_id = route_id;
+    }
+    
+    // Send driver_id and route_id to the external API
+    const response = await apiClient.post('/api/journey/start', requestBody);
     const data = response.data;
     
     if (!data.success) {
       throw new Error(data.error || 'Failed to start journey');
     }
     
+    // Use the route_id from request if API doesn't return one, or use API's route_id
+    const finalRouteId = data.route_id || route_id;
+    
     logInfo(LOG_CATEGORIES.SYSTEM, 'Journey started', {
       driver_id,
+      route_id: finalRouteId,
       journey_id: data.journey_id,
-      route_id: data.route_id
+      api_route_id: data.route_id
     });
     
-    return data;
+    // Ensure route_id is in the response
+    return {
+      ...data,
+      route_id: finalRouteId
+    };
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Journey start failed', {
       error: error.message,

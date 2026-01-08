@@ -170,16 +170,26 @@ export const planRoute = async (req, res, next) => {
             vehicle_number: executiveData.vehicle_number || null
           };
           
+          // Process stops to ensure all fields are preserved, including address_id
+          const processedStops = (route.stops || []).map(stop => {
+            // Preserve all existing stop fields, ensuring address_id is included
+            return {
+              ...stop,
+              // Explicitly ensure address_id is preserved (handle different case variations)
+              address_id: stop.address_id || stop.Address_ID || stop.addressId || null
+            };
+          });
+          
           // Ensure route has all necessary fields
           return {
             route_id: route.route_id || `${result.route_id}-${index + 1}`,
             driver_id: route.driver_id || `driver_${index + 1}`,
             executive: executive,
-            stops: route.stops || [],
+            stops: processedStops,
             estimated_time_hours: route.estimated_time_hours,
             total_distance_km: route.total_distance_km || route.distance_km || 0,
             // Keep additional fields for backward compatibility
-            num_stops: route.num_stops || route.stops?.length || 0,
+            num_stops: route.num_stops || processedStops.length || 0,
             confidence: route.confidence,
             confidence_interval: route.confidence_interval,
             risk_level: route.risk_level,
@@ -257,7 +267,7 @@ export const predictStartTime = async (req, res, next) => {
  */
 export const startJourney = async (req, res, next) => {
   try {
-    const { driver_id } = req.body;
+    const { driver_id, route_id } = req.body;
     if (!driver_id) {
       return res.status(400).json({
         success: false,
@@ -266,7 +276,8 @@ export const startJourney = async (req, res, next) => {
     }
     
     const result = await startJourneyService({
-      driver_id
+      driver_id,
+      route_id // Include route_id if provided
     });
     // Ensure response matches documentation structure
     const responseData = {
