@@ -116,6 +116,12 @@ const DeliveryExecutivePage = () => {
   // Track completed sessions
   const [completedSessions, setCompletedSessions] = useState(new Set());
   
+  // Status selection modal state
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedStopForStatus, setSelectedStopForStatus] = useState(null);
+  const [selectedStopIndex, setSelectedStopIndex] = useState(null);
+  const [selectedStopStatus, setSelectedStopStatus] = useState('Delivered'); // Default to 'Delivered'
+  
   // React Query hooks
   const startJourneyMutation = useStartJourney();
   const updateGeoLocationMutation = useUpdateGeoLocation();
@@ -1297,8 +1303,16 @@ const DeliveryExecutivePage = () => {
     }
   };
 
-  // Handle marking a stop as reached/delivered
-  const handleStopReached = async (stop, stopIndex) => {
+  // Handle opening status selection modal
+  const handleOpenStatusModal = (stop, stopIndex) => {
+    setSelectedStopForStatus(stop);
+    setSelectedStopIndex(stopIndex);
+    setSelectedStopStatus('Delivered'); // Reset to default
+    setShowStatusModal(true);
+  };
+
+  // Handle marking a stop as reached/delivered with status
+  const handleStopReached = async (stop, stopIndex, status = 'Delivered') => {
     if (!user?.id) {
       showErrorToast('User ID not found. Please log in again.');
       return;
@@ -1314,9 +1328,6 @@ const DeliveryExecutivePage = () => {
     // Use the activeRouteId (from started journey) - this is the correct route_id
     const routeId = activeRouteId;
     
-    // Log for debugging (can be removed in production)
-    console.log('Marking stop with route_id from started journey:', routeId);
-    
     // Prepare stop data
     const stopOrder = stop.Stop_No || stop.stop_order || stopIndex + 1;
     const deliveryId = stop.Delivery_Item_ID || stop.delivery_item_id || '';
@@ -1331,7 +1342,7 @@ const DeliveryExecutivePage = () => {
         });
       });
       
-      // Use new format matching documentation
+      // Use new format matching documentation with status
       await stopReachedMutation.mutateAsync({
         route_id: routeId,
         stop_order: stopOrder,
@@ -1341,18 +1352,23 @@ const DeliveryExecutivePage = () => {
         current_location: {
           lat: position.coords.latitude,
           lng: position.coords.longitude
-        }
-        // Legacy parameters kept for backward compatibility if needed
-        // user_id: user.id,
-        // status: 'delivered',
-        // packages_delivered: packagesDelivered
+        },
+        status: status // Add delivery status (Delivered or CUSTOMER_UNAVAILABLE)
       });
       
-      showSuccessToast(`Stop ${stopOrder} marked as reached!`);
+      const statusMessage = status === 'CUSTOMER_UNAVAILABLE' 
+        ? `Stop ${stopOrder} marked as Customer Unavailable!`
+        : `Stop ${stopOrder} marked as Delivered!`;
+      showSuccessToast(statusMessage);
       
       // Mark this stop as reached in local state
       const stopKey = `${routeId}-${stopOrder}`;
       setMarkedStops(prev => new Set(prev).add(stopKey));
+      
+      // Close modal if open
+      setShowStatusModal(false);
+      setSelectedStopForStatus(null);
+      setSelectedStopIndex(null);
       
       // Refresh routes to update status
       fetchRoutes();
@@ -1911,7 +1927,7 @@ const DeliveryExecutivePage = () => {
                                           
                                           return (
                                             <button
-                                              onClick={() => handleStopReached(stop, index)}
+                                              onClick={() => handleOpenStatusModal(stop, index)}
                                               disabled={stopReachedMutation.isPending || isMarked}
                                               className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed ${
                                                 isMarked
@@ -2405,6 +2421,84 @@ const DeliveryExecutivePage = () => {
                   <>
                     <FiPlay className="w-5 h-5" />
                     Start Journey
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delivery Status Selection Modal - Swiggy Style */}
+      {showStatusModal && selectedStopForStatus && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Mark Stop</h3>
+                <p className="text-gray-600 text-sm">Select delivery status</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700 text-sm mb-4">
+                Stop: <span className="font-bold text-gray-900">{selectedStopForStatus.Delivery_Name || 'Unknown'}</span>
+              </p>
+              
+              <div className="space-y-3">
+                <label className="block text-gray-700 font-semibold text-sm mb-2">Delivery Status *</label>
+                <select
+                  value={selectedStopStatus}
+                  onChange={(e) => setSelectedStopStatus(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="Delivered">Delivered</option>
+                  <option value="CUSTOMER_UNAVAILABLE">Customer Unavailable</option>
+                </select>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                  <p className="text-blue-700 text-xs">
+                    {selectedStopStatus === 'Delivered' 
+                      ? '✅ Package successfully delivered to customer'
+                      : '⚠️ Customer was not available at the delivery location'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowStatusModal(false);
+                  setSelectedStopForStatus(null);
+                  setSelectedStopIndex(null);
+                  setSelectedStopStatus('Delivered');
+                }}
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleStopReached(selectedStopForStatus, selectedStopIndex, selectedStopStatus)}
+                disabled={stopReachedMutation.isPending}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {stopReachedMutation.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    Marking...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Mark Stop
                   </>
                 )}
               </button>

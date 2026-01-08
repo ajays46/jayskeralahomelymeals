@@ -293,6 +293,11 @@ export const useStopReached = () => {
         requestBody.completed_at = completed_at;
       }
       
+      // Add status if provided (Delivered or CUSTOMER_UNAVAILABLE)
+      if (status) {
+        requestBody.status = status;
+      }
+      
       // Add current_location if available (new format)
       if (current_location && current_location.lat && current_location.lng) {
         requestBody.current_location = {

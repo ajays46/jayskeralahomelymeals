@@ -288,6 +288,11 @@ export const stopReachedService = async (stopData) => {
       requestBody.completed_at = completed_at;
     }
     
+    // Add status if provided (Delivered or CUSTOMER_UNAVAILABLE)
+    if (status) {
+      requestBody.status = status;
+    }
+    
     // Add current_location if available (new format)
     if (current_location && current_location.lat && current_location.lng) {
       requestBody.current_location = {
@@ -1123,13 +1128,19 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
     const journeyStarted = journeyStartedResult && journeyStartedResult.length > 0;
     
     // Get marked/completed stops
+    // A stop is considered marked if:
+    // 1. It has actual_completion_time set (stop was reached/completed)
+    // 2. OR delivery_status is 'delivered' (successfully delivered)
+    // 3. OR delivery_status is 'arrived' (arrived at location)
+    // Note: CUSTOMER_UNAVAILABLE might be stored in a different field or handled by the external API
     const markedStopsQuery = driverId
       ? prisma.$queryRaw`
           SELECT stop_order, delivery_status, actual_completion_time, session
           FROM actual_route_stops 
           WHERE route_id = ${routeId} 
             AND DATE(date) = DATE(${todayStr})
-            AND (actual_completion_time IS NOT NULL OR delivery_status = 'delivered')
+            AND (actual_completion_time IS NOT NULL 
+                 OR delivery_status IN ('delivered', 'arrived'))
             AND user_id = ${driverId}
           ORDER BY stop_order ASC
         `
@@ -1138,7 +1149,8 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
           FROM actual_route_stops 
           WHERE route_id = ${routeId} 
             AND DATE(date) = DATE(${todayStr})
-            AND (actual_completion_time IS NOT NULL OR delivery_status = 'delivered')
+            AND (actual_completion_time IS NOT NULL 
+                 OR delivery_status IN ('delivered', 'arrived'))
           ORDER BY stop_order ASC
         `;
     
