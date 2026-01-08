@@ -78,6 +78,7 @@ const DeliveryExecutivePage = () => {
   const [completionLocationLoading, setCompletionLocationLoading] = useState(false);
   const [completionLocationError, setCompletionLocationError] = useState(null);
   const [completionLoading, setCompletionLoading] = useState(false);
+  const [locationUpdated, setLocationUpdated] = useState(false); // Track if location was successfully updated
   
   // Image upload state
   const [uploadingImage, setUploadingImage] = useState(null); // stop index being uploaded
@@ -526,6 +527,7 @@ const DeliveryExecutivePage = () => {
   const clearCompletionLocation = () => {
     setCompletionLocation(null);
     setCompletionLocationError(null);
+    setLocationUpdated(false);
   };
 
   // Image upload functions
@@ -715,11 +717,6 @@ const DeliveryExecutivePage = () => {
       // Get the current stop data
       const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
       
-      // Debug: Log the stop object to see what fields are available
-      console.log('Current stop data:', currentStop);
-      console.log('Stop index:', stopIndex);
-      console.log('Selected session:', selectedSession);
-      
       // First, try to get address_id from stop (preferred method)
       const addressId = 
         (currentStop?.address_id && currentStop.address_id !== '') ? currentStop.address_id :
@@ -740,6 +737,9 @@ const DeliveryExecutivePage = () => {
         });
         
         if (response.data.success) {
+          // Mark location as updated
+          setLocationUpdated(true);
+          
           // Show success toast
           toast.success(
             <div className="flex items-center gap-3">
@@ -747,7 +747,7 @@ const DeliveryExecutivePage = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <div className="font-semibold text-green-800 text-base">✅ Address Updated Successfully!</div>
+                <div className="font-semibold text-green-800 text-base">✅ Location Updated Successfully!</div>
                 <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated using address ID.</div>
               </div>
             </div>,
@@ -769,9 +769,7 @@ const DeliveryExecutivePage = () => {
             }
           );
           
-          // Clear completion state
-          setCompletingDelivery(null);
-          clearCompletionLocation();
+          // Don't clear completion state - keep location visible
           setCompletionLoading(false);
           return;
         } else {
@@ -811,9 +809,6 @@ const DeliveryExecutivePage = () => {
         
         // If we have order_id and menu_item_id, use the updateGeoLocation endpoint
         if (orderId && menuItemId) {
-          console.log('Using fallback: order_id and menu_item_id to update address');
-          console.log('Order ID:', orderId, 'Menu Item ID:', menuItemId);
-          
           const geoLocationString = `${completionLocation.latitude},${completionLocation.longitude}`;
           
           const mutationPayload = {
@@ -831,6 +826,9 @@ const DeliveryExecutivePage = () => {
           
           await updateGeoLocationMutation.mutateAsync(mutationPayload);
           
+          // Mark location as updated
+          setLocationUpdated(true);
+          
           // Show success toast
           toast.success(
             <div className="flex items-center gap-3">
@@ -838,7 +836,7 @@ const DeliveryExecutivePage = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <div className="font-semibold text-green-800 text-base">✅ Address Updated Successfully!</div>
+                <div className="font-semibold text-green-800 text-base">✅ Location Updated Successfully!</div>
                 <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated using order and menu item IDs.</div>
               </div>
             </div>,
@@ -860,9 +858,7 @@ const DeliveryExecutivePage = () => {
             }
           );
           
-          // Clear completion state
-          setCompletingDelivery(null);
-          clearCompletionLocation();
+          // Don't clear completion state - keep location visible
           setCompletionLoading(false);
           return;
         }
@@ -879,8 +875,6 @@ const DeliveryExecutivePage = () => {
         return;
       }
       
-      console.log('Updating address for delivery item:', deliveryItemId, 'with location:', completionLocation);
-      
       const requestData = {
         latitude: completionLocation.latitude,
         longitude: completionLocation.longitude
@@ -889,6 +883,8 @@ const DeliveryExecutivePage = () => {
       const response = await axiosInstance.put(`/api/delivery-items/${deliveryItemId}/address`, requestData);
 
       if (response.data.success) {
+        // Mark location as updated
+        setLocationUpdated(true);
         
         // Show toastify success popup
         toast.success(
@@ -897,7 +893,7 @@ const DeliveryExecutivePage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <div className="font-semibold text-green-800 text-base">✅ Address Updated Successfully!</div>
+              <div className="font-semibold text-green-800 text-base">✅ Location Updated Successfully!</div>
               <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated for this delivery location.</div>
             </div>
           </div>,
@@ -919,9 +915,7 @@ const DeliveryExecutivePage = () => {
           }
         );
         
-        // Clear completion state
-        setCompletingDelivery(null);
-        clearCompletionLocation();
+        // Don't clear completion state - keep location visible
       } else {
         throw new Error(response.data.message || 'Failed to update delivery address');
       }
@@ -2405,6 +2399,7 @@ const DeliveryExecutivePage = () => {
                                             } else {
                                               // Open and auto-get location
                                               setCompletingDelivery(index);
+                                              setLocationUpdated(false); // Reset update status when opening
                                               // Auto-get location when opening
                                               setTimeout(() => {
                                                 getCompletionLocation();
@@ -2519,6 +2514,26 @@ const DeliveryExecutivePage = () => {
                                               </div>
                                             )}
 
+                                            {/* Success Message - Show when location is updated */}
+                                            {locationUpdated && completionLocation && !completionLocationError && (
+                                              <div className="mb-3 p-2.5 bg-green-50 border border-green-200 rounded-lg">
+                                                <div className="flex items-center gap-2">
+                                                  <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                  </svg>
+                                                  <p className="text-green-700 text-xs font-medium">✅ Location Updated Successfully!</p>
+                                                </div>
+                                                {completionLocation.address && (
+                                                  <p className="text-green-600 text-xs mt-1 ml-6">{completionLocation.address}</p>
+                                                )}
+                                                {completionLocation.latitude && completionLocation.longitude && (
+                                                  <p className="text-green-600 text-xs mt-0.5 ml-6">
+                                                    Coordinates: {completionLocation.latitude.toFixed(6)}, {completionLocation.longitude.toFixed(6)}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            )}
+
                                             {/* Error Display */}
                                             {completionLocationError && (
                                               <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-lg">
@@ -2531,9 +2546,30 @@ const DeliveryExecutivePage = () => {
                                               </div>
                                             )}
 
+                                            {/* Location Display - Show when location is captured */}
+                                            {completionLocation && !completionLocationError && !locationUpdated && (
+                                              <div className="mb-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                  <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                  </svg>
+                                                  <p className="text-blue-700 text-xs font-medium">Location Captured</p>
+                                                </div>
+                                                {completionLocation.address && (
+                                                  <p className="text-blue-600 text-xs ml-6">{completionLocation.address}</p>
+                                                )}
+                                                {completionLocation.latitude && completionLocation.longitude && (
+                                                  <p className="text-blue-600 text-xs mt-0.5 ml-6">
+                                                    {completionLocation.latitude.toFixed(6)}, {completionLocation.longitude.toFixed(6)}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            )}
+
                                             {/* Action Buttons Row */}
                                             <div className="flex items-center gap-2">
-                                              {/* Clear/Retry Button - Only show when location is captured */}
+                                              {/* Clear Button - Show when location is captured */}
                                               {completionLocation && !completionLocationError && (
                                                 <button 
                                                   onClick={clearCompletionLocation}
@@ -2546,30 +2582,49 @@ const DeliveryExecutivePage = () => {
                                                 </button>
                                               )}
 
-                                              {/* Complete Button - Compact */}
-                                              <button
-                                                onClick={() => handleCompleteDelivery(index)}
-                                                disabled={!completionLocation || completionLoading}
-                                                className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                                                  completionLocation && !completionLoading
-                                                    ? 'bg-green-500 hover:bg-green-600 text-white shadow-sm'
-                                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                }`}
-                                              >
-                                                {completionLoading ? (
-                                                  <>
-                                                    <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
-                                                    <span>Completing...</span>
-                                                  </>
-                                                ) : (
-                                                  <>
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                    <span>Complete Delivery</span>
-                                                  </>
-                                                )}
-                                              </button>
+                                              {/* Update Again Button - Show when location is already updated */}
+                                              {locationUpdated && completionLocation && !completionLocationError && (
+                                                <button
+                                                  onClick={() => {
+                                                    setLocationUpdated(false);
+                                                    handleCompleteDelivery(index);
+                                                  }}
+                                                  disabled={completionLoading}
+                                                  className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                  </svg>
+                                                  Update Again
+                                                </button>
+                                              )}
+
+                                              {/* Complete Delivery Button - Show when location is captured but not updated yet */}
+                                              {completionLocation && !completionLocationError && !locationUpdated && (
+                                                <button
+                                                  onClick={() => handleCompleteDelivery(index)}
+                                                  disabled={!completionLocation || completionLoading}
+                                                  className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                                                    completionLocation && !completionLoading
+                                                      ? 'bg-green-500 hover:bg-green-600 text-white shadow-sm'
+                                                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                  }`}
+                                                >
+                                                  {completionLoading ? (
+                                                    <>
+                                                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                                                      <span>Updating...</span>
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                      </svg>
+                                                      <span>Update Location</span>
+                                                    </>
+                                                  )}
+                                                </button>
+                                              )}
                                             </div>
                                           </>
                                         )}
