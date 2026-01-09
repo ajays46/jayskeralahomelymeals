@@ -460,20 +460,13 @@ const CustomerOrdersPage = () => {
 
   // Check if user has access (allow both USER and SELLER roles)
   // USER: Customers viewing their own orders
-  // SELLER: Sellers viewing customer orders
-  if (!user || (!roles?.includes('USER') && !roles?.includes('SELLER'))) {
+  if (!user || (!roles?.includes('USER') )) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center">
         <div className="text-center">
           <MdPerson className="text-6xl text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-4">You don't have permission to view customer orders.</p>
-          <button
-            onClick={() => navigate('/jkhm')}
-            className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Go to Home
-          </button>
         </div>
       </div>
     );
