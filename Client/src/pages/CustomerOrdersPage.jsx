@@ -69,11 +69,18 @@ const CustomerOrdersPage = () => {
 
   // Fetch customer orders on component mount
   useEffect(() => {
-    // Only for USER role: fetch their own orders using user.id
-    if (user && roles?.includes('USER')) {
-      fetchCustomerOrders(user.id);
+    // For USER role: fetch their own orders using user.id
+    // For SELLER role: fetch customer orders using customer.id
+    if (user) {
+      if (roles?.includes('USER') && !customer) {
+        // Customer viewing their own orders - use logged-in user's ID
+        fetchCustomerOrders(user.id);
+      } else if (customer?.id && (roles?.includes('SELLER') || roles?.includes('USER'))) {
+        // Seller viewing customer orders OR customer with customer data
+        fetchCustomerOrders(customer.id);
+      }
     }
-  }, [user, roles]);
+  }, [customer, user, roles]);
 
   // Apply filters whenever orders or filters change
   useEffect(() => {
@@ -335,7 +342,11 @@ const CustomerOrdersPage = () => {
 
   // Handle back navigation
   const handleBack = () => {
-    navigate('/jkhm');
+    if (roles?.includes('SELLER')) {
+      navigate('/jkhm/seller/customers');
+    } else {
+      navigate('/jkhm');
+    }
   };
 
   // Handle cancel order
@@ -459,8 +470,10 @@ const CustomerOrdersPage = () => {
     }
   };
 
-  // Check if user has access - only USER role allowed
-  if (!user || !roles?.includes('USER')) {
+  // Check if user has access (allow both USER and SELLER roles)
+  // USER: Customers viewing their own orders
+  // SELLER: Sellers viewing customer orders
+  if (!user || (!roles?.includes('USER') && !roles?.includes('SELLER'))) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center">
         <div className="text-center">
@@ -472,6 +485,26 @@ const CustomerOrdersPage = () => {
             className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
           >
             Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if customer data is available (only required for SELLER role)
+  // USER role can view their own orders without customer in state
+  if (!customer && roles?.includes('SELLER')) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <MdPerson className="text-6xl text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Customer Not Found</h2>
+          <p className="text-gray-600 mb-4">No customer data available.</p>
+          <button
+            onClick={handleBack}
+            className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Back to Customers
           </button>
         </div>
       </div>
@@ -493,8 +526,12 @@ const CustomerOrdersPage = () => {
                 <MdArrowBack className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">My Orders</h1>
-                <p className="text-xs sm:text-sm text-gray-600 truncate">View all your orders</p>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">
+                  {roles?.includes('USER') && !customer ? 'My Orders' : 'Customer Orders'}
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">
+                  {roles?.includes('USER') && !customer ? 'View all your orders' : 'View all orders for this customer'}
+                </p>
               </div>
             </div>
             
