@@ -8,6 +8,95 @@ import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CAT
  * Features: Company management, product management, menu management, user management, inventory tracking
  */
 
+/**
+ * Get or create a system user for company addresses
+ * This ensures we have a valid user_id for addresses that belong to companies
+ */
+const getOrCreateSystemUser = async () => {
+  const systemUserId = '00000000-0000-0000-0000-000000000000';
+  
+  // First, try to find an existing admin user
+  const adminUser = await prisma.user.findFirst({
+    where: {
+      userRoles: {
+        some: {
+          name: 'ADMIN'
+        }
+      }
+    },
+    select: { id: true }
+  });
+  
+  if (adminUser) {
+    return adminUser.id;
+  }
+  
+  // If no admin user exists, try to find the system user
+  let systemUser = await prisma.user.findUnique({
+    where: { id: systemUserId },
+    select: { id: true }
+  });
+  
+  // If system user doesn't exist, create it
+  if (!systemUser) {
+    try {
+      // Create auth record for system user
+      const systemAuth = await prisma.auth.create({
+        data: {
+          email: 'system@company.local',
+          password: 'system', // This won't be used for login
+          phoneNumber: '0000000000',
+          apiKey: 'SYSTEM_KEY',
+          status: 'ACTIVE'
+        }
+      });
+      
+      // Create system user
+      systemUser = await prisma.user.create({
+        data: {
+          id: systemUserId,
+          authId: systemAuth.id,
+          status: 'ACTIVE'
+        }
+      });
+      
+      // Create ADMIN role for system user
+      await prisma.userRole.create({
+        data: {
+          userId: systemUserId,
+          name: 'ADMIN'
+        }
+      });
+      
+      logInfo(LOG_CATEGORIES.SYSTEM, 'System user created for company addresses', {
+        userId: systemUserId
+      });
+    } catch (error) {
+      // If creation fails (e.g., due to unique constraints), try to find it again
+      systemUser = await prisma.user.findUnique({
+        where: { id: systemUserId },
+        select: { id: true }
+      });
+      
+      if (!systemUser) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Failed to create system user, using first available user', {
+          error: error.message
+        });
+        // Last resort: use the first user in the system
+        const firstUser = await prisma.user.findFirst({
+          select: { id: true }
+        });
+        if (firstUser) {
+          return firstUser.id;
+        }
+        throw new Error('No users found in system. Please create at least one user before creating companies.');
+      }
+    }
+  }
+  
+  return systemUser.id;
+};
+
 export const createCompanyService = async ({ name, address }) => {
   // Check if a company with the same name exists
   const existing = await prisma.company.findFirst({
@@ -17,9 +106,8 @@ export const createCompanyService = async ({ name, address }) => {
     return existing;
   }
 
-  // Create a system user ID for company addresses
-  // This is a placeholder - in a real system you might want to create a system user
-  const systemUserId = '00000000-0000-0000-0000-000000000000';
+  // Get or create a system user for company addresses
+  const systemUserId = await getOrCreateSystemUser();
   
   // First create the address
   const newAddress = await prisma.address.create({
@@ -40,6 +128,12 @@ export const createCompanyService = async ({ name, address }) => {
       name,
       address_id: newAddress.id,
     }
+  });
+
+  logInfo(LOG_CATEGORIES.SYSTEM, 'Company created successfully', {
+    companyId: newCompany.id,
+    companyName: name,
+    addressId: newAddress.id
   });
 
   // Return company with address details
