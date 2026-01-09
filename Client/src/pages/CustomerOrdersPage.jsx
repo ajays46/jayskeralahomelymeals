@@ -69,24 +69,25 @@ const CustomerOrdersPage = () => {
 
   // Fetch customer orders on component mount
   useEffect(() => {
-    if (customer?.id && user && roles?.includes('USER')) {
-      fetchCustomerOrders();
+    // Only for USER role: fetch their own orders using user.id
+    if (user && roles?.includes('USER')) {
+      fetchCustomerOrders(user.id);
     }
-  }, [customer, user, roles]);
+  }, [user, roles]);
 
   // Apply filters whenever orders or filters change
   useEffect(() => {
     applyFilters();
   }, [orders, filters]);
 
-  const fetchCustomerOrders = async () => {
-    if (!customer?.id) return;
+  const fetchCustomerOrders = async (customerId) => {
+    if (!customerId) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const result = await getUserOrders(customer.id);
+      const result = await getUserOrders(customerId);
       setOrders(result || []);
     } catch (error) {
       console.error('Error fetching customer orders:', error);
@@ -334,7 +335,7 @@ const CustomerOrdersPage = () => {
 
   // Handle back navigation
   const handleBack = () => {
-    navigate('/jkhm/seller/customers');
+    navigate('/jkhm');
   };
 
   // Handle cancel order
@@ -458,33 +459,19 @@ const CustomerOrdersPage = () => {
     }
   };
 
-  // Check if user has access (allow both USER and SELLER roles)
-  // USER: Customers viewing their own orders
-  if (!user || (!roles?.includes('USER') )) {
+  // Check if user has access - only USER role allowed
+  if (!user || !roles?.includes('USER')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center">
         <div className="text-center">
           <MdPerson className="text-6xl text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-4">You don't have permission to view customer orders.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if customer data is available
-  if (!customer) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <MdPerson className="text-6xl text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Customer Not Found</h2>
-          <p className="text-gray-600 mb-4">No customer data available.</p>
           <button
-            onClick={handleBack}
-            className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
+            onClick={() => navigate('/jkhm')}
+            className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
           >
-            Back to Customers
+            Go to Home
           </button>
         </div>
       </div>
@@ -506,8 +493,8 @@ const CustomerOrdersPage = () => {
                 <MdArrowBack className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">Customer Orders</h1>
-                <p className="text-xs sm:text-sm text-gray-600 truncate">View all orders for this customer</p>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">My Orders</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">View all your orders</p>
               </div>
             </div>
             
