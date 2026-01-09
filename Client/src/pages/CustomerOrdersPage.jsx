@@ -69,7 +69,7 @@ const CustomerOrdersPage = () => {
 
   // Fetch customer orders on component mount
   useEffect(() => {
-    if (customer?.id && user && roles?.includes('SELLER')) {
+    if (customer?.id && user && roles?.includes('USER')) {
       fetchCustomerOrders();
     }
   }, [customer, user, roles]);
@@ -458,8 +458,10 @@ const CustomerOrdersPage = () => {
     }
   };
 
-  // Check if user has access
-  if (!user || !roles?.includes('SELLER')) {
+  // Check if user has access (allow both USER and SELLER roles)
+  // USER: Customers viewing their own orders
+  // SELLER: Sellers viewing customer orders
+  if (!user || (!roles?.includes('USER') && !roles?.includes('SELLER'))) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center">
         <div className="text-center">
