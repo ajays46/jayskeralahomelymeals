@@ -10,4 +10,20 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Ensure service worker is served correctly
+  publicDir: 'public',
+  server: {
+    // Allow service worker to work in dev mode
+    headers: {
+      'Service-Worker-Allowed': '/'
+    }
+  },
+  build: {
+    // Ensure service worker is included in build
+    rollupOptions: {
+      // Service worker from public folder is automatically copied
+    },
+    // Copy public folder contents (including sw.js) to dist
+    copyPublicDir: true
+  }
 })
