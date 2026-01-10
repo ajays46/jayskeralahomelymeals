@@ -12,7 +12,22 @@
   href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap" 
   rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=League+Spartan&display=swap" rel="stylesheet">
-
+  
+  <!-- Register Service Worker early for offline support -->
+  <!-- IMPORTANT: This only works when page loads successfully (online) -->
+  <script>
+    if ('serviceWorker' in navigator && window.location.protocol !== 'chrome-error:') {
+      // Register service worker immediately when page loads
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(function(registration) {
+          console.log('✅ Service Worker registered (from HTML):', registration.scope);
+        })
+        .catch(function(error) {
+          console.error('❌ Service Worker registration failed (from HTML):', error);
+          console.error('Make sure you are ONLINE and the page loaded successfully');
+        });
+    }
+  </script>
 </head>
 
 <body>

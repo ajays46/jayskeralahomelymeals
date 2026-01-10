@@ -9,6 +9,7 @@ import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
 import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import offlineService from '../services/offlineService';
 
 /**
  * DeliveryExecutivePage - Delivery executive dashboard with route and order management
@@ -124,6 +125,10 @@ const DeliveryExecutivePage = () => {
   const [selectedStopIndex, setSelectedStopIndex] = useState(null);
   const [selectedStopStatus, setSelectedStopStatus] = useState('Delivered'); // Default to 'Delivered'
   const [gettingLocation, setGettingLocation] = useState(false); // Track geolocation loading state
+  
+  // Offline state
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [syncStatus, setSyncStatus] = useState({ queueLength: 0, syncInProgress: false });
   
   // React Query hooks
   const startJourneyMutation = useStartJourney();
@@ -248,12 +253,65 @@ const DeliveryExecutivePage = () => {
     setTimeout(() => setLoading(false), 1000);
   }, [user, roles, navigate]);
 
+  // Initialize offline service and network status listener
+  useEffect(() => {
+    const unsubscribe = offlineService.onNetworkChange((status) => {
+      setIsOffline(status === 'offline');
+      const statusInfo = offlineService.getSyncStatus();
+      setSyncStatus(statusInfo);
+      
+      if (status === 'online') {
+        // Network restored - trigger auto-sync
+        handleAutoSync();
+      }
+    });
+    
+    // Set initial status
+    setIsOffline(!offlineService.checkOnline());
+    const initialStatus = offlineService.getSyncStatus();
+    setSyncStatus(initialStatus);
+    
+    return unsubscribe;
+  }, []);
+
+  // Load cached routes on mount if offline
+  useEffect(() => {
+    if (!offlineService.checkOnline()) {
+      const cachedRoutes = offlineService.getCachedRoutes();
+      if (cachedRoutes) {
+        // Transform cached data if needed
+        if (cachedRoutes.sessions && Object.keys(cachedRoutes.sessions).length > 0) {
+          setRoutes(cachedRoutes);
+          message.info('Loaded routes from cache (offline mode)');
+        }
+      }
+    }
+  }, []);
+
+  // Update sync status periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const status = offlineService.getSyncStatus();
+      setSyncStatus(status);
+    }, 2000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   // Auto-fetch routes when component loads if on routes tab
   useEffect(() => {
     const driverId = user?.id;
     
     if (activeTab === 'routes' && driverId && (!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading) {
-      fetchRoutes();
+      // Only fetch if online, otherwise use cached data
+      if (offlineService.checkOnline()) {
+        fetchRoutes();
+      } else {
+        const cachedRoutes = offlineService.getCachedRoutes();
+        if (cachedRoutes && cachedRoutes.sessions && Object.keys(cachedRoutes.sessions).length > 0) {
+          setRoutes(cachedRoutes);
+        }
+      }
     }
   }, [activeTab, user]);
 
@@ -738,7 +796,69 @@ const DeliveryExecutivePage = () => {
       
       // If address_id is available, use it to update address geo_location directly
       if (addressId) {
-        // Use delivery executive location endpoint to update address
+        // Check if offline - queue action if offline
+        if (!offlineService.checkOnline()) {
+          // Queue the location update action
+          const actionId = offlineService.queueAction({
+            type: 'update_location',
+            data: {
+              driver_id: user.id,
+              address_id: addressId,
+              latitude: completionLocation.latitude,
+              longitude: completionLocation.longitude
+            }
+          });
+          
+          if (actionId) {
+            // Mark location as updated for this stop (optimistically)
+            setLocationUpdated(true);
+            setUpdatedLocationStops(prev => new Set(prev).add(stopIndex));
+            
+            // Show success toast
+            toast.success(
+              <div className="flex items-center gap-3">
+                <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <div className="font-semibold text-green-800 text-base">✅ Location Updated! (Queued for sync)</div>
+                  <div className="text-sm text-green-700 mt-1">GPS coordinates will be synced when network is restored.</div>
+                </div>
+              </div>,
+              {
+                position: "top-right",
+                autoClose: 4000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "light",
+                style: {
+                  background: "#f0f9ff",
+                  border: "1px solid #10b981",
+                  borderRadius: "12px",
+                  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
+                },
+              }
+            );
+            
+            // Update sync status
+            setSyncStatus(offlineService.getSyncStatus());
+            
+            // Close the location UI after successful update (but keep updatedLocationStops)
+            setCompletingDelivery(null);
+            setCompletionLocation(null);
+            setCompletionLocationError(null);
+            setLocationUpdated(false);
+            setCompletionLoading(false);
+            return;
+          } else {
+            throw new Error('Failed to queue location update');
+          }
+        }
+        
+        // Online - proceed with normal API call
         const response = await axiosInstance.put(`/delivery-executives/${user.id}/location`, {
           address_id: addressId,
           latitude: completionLocation.latitude,
@@ -838,6 +958,64 @@ const DeliveryExecutivePage = () => {
             mutationPayload.session = session;
           }
           
+          // Check if offline - queue action if offline
+          if (!offlineService.checkOnline()) {
+            // Queue the location update action
+            const actionId = offlineService.queueAction({
+              type: 'update_location',
+              data: mutationPayload
+            });
+            
+            if (actionId) {
+              // Mark location as updated for this stop (optimistically)
+              setLocationUpdated(true);
+              setUpdatedLocationStops(prev => new Set(prev).add(stopIndex));
+              
+              // Show success toast
+              toast.success(
+                <div className="flex items-center gap-3">
+                  <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <div className="font-semibold text-green-800 text-base">✅ Location Updated! (Queued for sync)</div>
+                    <div className="text-sm text-green-700 mt-1">GPS coordinates will be synced when network is restored.</div>
+                  </div>
+                </div>,
+                {
+                  position: "top-right",
+                  autoClose: 4000,
+                  hideProgressBar: false,
+                  closeOnClick: true,
+                  pauseOnHover: true,
+                  draggable: true,
+                  progress: undefined,
+                  theme: "light",
+                  style: {
+                    background: "#f0f9ff",
+                    border: "1px solid #10b981",
+                    borderRadius: "12px",
+                    boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
+                  },
+                }
+              );
+              
+              // Update sync status
+              setSyncStatus(offlineService.getSyncStatus());
+              
+              // Close the location UI
+              setCompletingDelivery(null);
+              setCompletionLocation(null);
+              setCompletionLocationError(null);
+              setLocationUpdated(false);
+              setCompletionLoading(false);
+              return;
+            } else {
+              throw new Error('Failed to queue location update');
+            }
+          }
+          
+          // Online - proceed with normal API call
           await updateGeoLocationMutation.mutateAsync(mutationPayload);
           
           // Mark location as updated for this stop
@@ -1184,24 +1362,20 @@ const DeliveryExecutivePage = () => {
         };
         
         // Handle different response structures
+        let finalRoutes = null;
+        
         // Structure 1: Object with data.routes (new format: { data: { date, driver_id, routes: [...] } })
         // This matches the actual API response structure
         if (routesData && typeof routesData === 'object' && routesData.routes && Array.isArray(routesData.routes) && routesData.routes.length > 0) {
-          const mergedData = preserveMapLinks(transformedData, routes);
-          setRoutes(mergedData);
-          message.success('Routes loaded successfully!');
+          finalRoutes = preserveMapLinks(transformedData, routes);
         }
         // Structure 2: Object with sessions property (already transformed)
         else if (transformedData && transformedData.sessions && Object.keys(transformedData.sessions).length > 0) {
-          const mergedData = preserveMapLinks(transformedData, routes);
-          setRoutes(mergedData);
-          message.success('Routes loaded successfully!');
+          finalRoutes = preserveMapLinks(transformedData, routes);
         }
         // Structure 3: Object with sessions property (legacy)
         else if (routesData && typeof routesData === 'object' && routesData.sessions) {
-          const mergedData = preserveMapLinks(routesData, routes);
-          setRoutes(mergedData);
-          message.success('Routes loaded successfully!');
+          finalRoutes = preserveMapLinks(routesData, routes);
         }
         // Structure 4: Array - convert to object with sessions
         else if (Array.isArray(routesData) && routesData.length > 0) {
@@ -1210,12 +1384,26 @@ const DeliveryExecutivePage = () => {
             sessions: routesData[0]?.sessions || {},
             ...routesData[0]
           };
-          const mergedData = preserveMapLinks(structuredRoutes, routes);
-          setRoutes(mergedData);
-          message.success('Routes loaded successfully!');
+          finalRoutes = preserveMapLinks(structuredRoutes, routes);
         }
         // Structure 5: Empty or no data
         else {
+          finalRoutes = { sessions: {}, routes: [] };
+        }
+        
+        if (finalRoutes) {
+          setRoutes(finalRoutes);
+          
+          // Cache routes for offline use (including map links)
+          const cacheData = {
+            ...finalRoutes,
+            driver_id: driverId,
+            cached_at: new Date().toISOString()
+          };
+          offlineService.cacheRoutes(cacheData);
+          
+          message.success('Routes loaded successfully!');
+        } else {
           setRoutes({ sessions: {}, routes: [] });
           message.info('No routes assigned for today');
         }
@@ -1231,6 +1419,17 @@ const DeliveryExecutivePage = () => {
         throw new Error(response.data?.message || 'Failed to fetch routes');
       }
     } catch (apiError) {
+      // If offline and we have cached routes, use them instead of showing error
+      if (!offlineService.checkOnline()) {
+        const cachedRoutes = offlineService.getCachedRoutes();
+        if (cachedRoutes && cachedRoutes.sessions && Object.keys(cachedRoutes.sessions).length > 0) {
+          setRoutes(cachedRoutes);
+          message.info('Using cached routes (offline mode)');
+          setRoutesLoading(false);
+          return;
+        }
+      }
+      
       let errorMessage = apiError.response?.data?.message || apiError.message || 'Failed to fetch routes. Please try again.';
       
       // Sanitize error message to remove driver ID and date for user-friendly display
@@ -1546,12 +1745,43 @@ const DeliveryExecutivePage = () => {
         return;
       }
       
+      const journeyData = {
+        driver_id: startJourneyData.driver_id,
+        route_id: currentSessionRouteId
+      };
+      
+      // Check if offline - queue action if offline
+      if (!offlineService.checkOnline()) {
+        // Queue the start journey action
+        const actionId = offlineService.queueAction({
+          type: 'start_journey',
+          data: journeyData
+        });
+        
+        if (actionId) {
+          // Optimistically set active route (will be confirmed when synced)
+          setActiveRouteId(currentSessionRouteId);
+          localStorage.setItem('activeRouteId', currentSessionRouteId);
+          
+          showSuccessToast(`${selectedSession.charAt(0).toUpperCase() + selectedSession.slice(1)} journey started! (Queued for sync)`);
+          setShowStartJourneyModal(false);
+          setStartJourneyData({
+            route_id: '',
+            driver_id: user?.id || ''
+          });
+          
+          // Update sync status
+          setSyncStatus(offlineService.getSyncStatus());
+          return;
+        } else {
+          throw new Error('Failed to queue start journey action');
+        }
+      }
+      
+      // Online - proceed with normal API call
       // Send both driver_id and route_id to the API
       // This ensures the external API knows which route to start the journey for
-      const result = await startJourneyMutation.mutateAsync({
-        driver_id: startJourneyData.driver_id,
-        route_id: currentSessionRouteId // Send the route_id for the current session
-      });
+      const result = await startJourneyMutation.mutateAsync(journeyData);
       
       // Use the route_id we sent (current session's route_id) or API response
       const activeRouteId = result.route_id || currentSessionRouteId;
@@ -1673,7 +1903,40 @@ const DeliveryExecutivePage = () => {
         };
       }
       
-      // Use new format matching documentation with status
+      // Check if offline - queue action if offline
+      if (!offlineService.checkOnline()) {
+        // Queue the action for later sync
+        const actionId = offlineService.queueAction({
+          type: 'mark_stop',
+          data: requestData
+        });
+        
+        if (actionId) {
+          const statusMessage = status === 'CUSTOMER_UNAVAILABLE' 
+            ? `Stop ${stopOrder} marked as Customer Unavailable! (Queued for sync)`
+            : `Stop ${stopOrder} marked as Delivered! (Queued for sync)`;
+          showSuccessToast(statusMessage);
+          
+          // Mark this stop as reached in local state (include session to make it unique across sessions)
+          const session = selectedSession.toLowerCase();
+          const stopKey = `${routeId}-${session}-${stopOrder}`;
+          setMarkedStops(prev => new Set(prev).add(stopKey));
+          
+          // Update sync status
+          setSyncStatus(offlineService.getSyncStatus());
+        } else {
+          showErrorToast('Failed to queue action. Please try again.');
+        }
+        
+        // Close modal if open
+        setShowStatusModal(false);
+        setSelectedStopForStatus(null);
+        setSelectedStopIndex(null);
+        setGettingLocation(false);
+        return;
+      }
+      
+      // Online - proceed with normal API call
       await stopReachedMutation.mutateAsync(requestData);
       
       const statusMessage = status === 'CUSTOMER_UNAVAILABLE' 
@@ -1759,6 +2022,94 @@ const DeliveryExecutivePage = () => {
     }
   };
 
+  // Auto-sync function - syncs queued actions when network is restored
+  const handleAutoSync = async () => {
+    if (!offlineService.checkOnline()) {
+      return;
+    }
+
+    const queue = offlineService.getQueuedActions();
+    if (queue.length === 0) {
+      return;
+    }
+
+    setSyncStatus(prev => ({ ...prev, syncInProgress: true }));
+
+    try {
+      const result = await offlineService.processSyncQueue(async (action) => {
+        if (action.type === 'mark_stop') {
+          // Sync mark stop action
+          await stopReachedMutation.mutateAsync(action.data);
+          return { success: true };
+        } else if (action.type === 'update_location') {
+          // Sync location update action
+          if (action.data.address_id) {
+            // Update address location
+            const response = await axiosInstance.put(`/delivery-executives/${user.id}/location`, {
+              address_id: action.data.address_id,
+              latitude: action.data.latitude,
+              longitude: action.data.longitude
+            });
+            return response.data;
+          } else if (action.data.geo_location) {
+            // Update geo location using mutation
+            await updateGeoLocationMutation.mutateAsync(action.data);
+            return { success: true };
+          }
+          return { success: false };
+        } else if (action.type === 'start_journey') {
+          // Sync start journey action
+          const result = await startJourneyMutation.mutateAsync({
+            driver_id: action.data.driver_id,
+            route_id: action.data.route_id
+          });
+          // Update active route ID if needed
+          const activeRouteId = result.route_id || action.data.route_id;
+          if (activeRouteId) {
+            setActiveRouteId(activeRouteId);
+            localStorage.setItem('activeRouteId', activeRouteId);
+          }
+          return { success: true, route_id: activeRouteId };
+        } else if (action.type === 'end_session') {
+          // Sync end session action
+          await completeSessionMutation.mutateAsync({
+            route_id: action.data.route_id
+          });
+          // Mark session as completed
+          const sessionName = action.data.sessionName || selectedSession;
+          setCompletedSessions(prev => new Set(prev).add(sessionName.toLowerCase()));
+          // Clear active journey state
+          setActiveRouteId(null);
+          localStorage.removeItem('activeRouteId');
+          return { success: true };
+        }
+        return { success: false };
+      });
+
+      if (result.synced > 0) {
+        showSuccessToast(`${result.synced} action(s) synced successfully!`);
+        // Refresh routes after sync
+        if (offlineService.checkOnline()) {
+          setTimeout(() => {
+            fetchRoutes();
+          }, 500);
+        }
+      }
+
+      if (result.failed > 0) {
+        showErrorToast(`${result.failed} action(s) failed to sync. Will retry later.`);
+      }
+
+      // Update sync status
+      setSyncStatus(offlineService.getSyncStatus());
+    } catch (error) {
+      console.error('Error during auto-sync:', error);
+      showErrorToast('Error syncing actions. Will retry later.');
+    } finally {
+      setSyncStatus(prev => ({ ...prev, syncInProgress: false }));
+    }
+  };
+
   // Handle ending the journey
   const handleEndJourney = async () => {
     if (!user?.id || !activeRouteId) {
@@ -1833,10 +2184,42 @@ const DeliveryExecutivePage = () => {
       return;
     }
     
-    try {
-      await completeSessionMutation.mutateAsync({
-        route_id: routeId
+    const sessionData = {
+      route_id: routeId,
+      sessionName: endSessionData.sessionName || selectedSession
+    };
+    
+    // Check if offline - queue action if offline
+    if (!offlineService.checkOnline()) {
+      // Queue the end session action
+      const actionId = offlineService.queueAction({
+        type: 'end_session',
+        data: sessionData
       });
+      
+      if (actionId) {
+        // Optimistically mark session as completed (will be confirmed when synced)
+        setCompletedSessions(prev => new Set(prev).add(selectedSession.toLowerCase()));
+        
+        showSuccessToast(`${endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} session completed! (Queued for sync)`);
+        setShowEndSessionModal(false);
+        setEndSessionData({ sessionName: '', sessionId: '' });
+        
+        // Clear active journey state when session ends
+        setActiveRouteId(null);
+        localStorage.removeItem('activeRouteId');
+        
+        // Update sync status
+        setSyncStatus(offlineService.getSyncStatus());
+        return;
+      } else {
+        throw new Error('Failed to queue end session action');
+      }
+    }
+    
+    // Online - proceed with normal API call
+    try {
+      await completeSessionMutation.mutateAsync(sessionData);
       // Mark this session as completed (normalize to lowercase)
       setCompletedSessions(prev => new Set(prev).add(selectedSession.toLowerCase()));
       showSuccessToast(`${endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} session completed successfully!`);
@@ -1903,6 +2286,22 @@ const DeliveryExecutivePage = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Offline Indicator */}
+          {isOffline && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-300 rounded-full">
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+              <span className="text-xs sm:text-sm font-medium text-orange-700">Offline</span>
+            </div>
+          )}
+          
+          {/* Sync Status Indicator - Only show when syncing */}
+          {syncStatus.syncInProgress && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 border border-blue-300 rounded-full">
+              <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent"></div>
+              <span className="text-xs sm:text-sm font-medium text-blue-700">Syncing...</span>
+            </div>
+          )}
+          
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full">
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-semibold">{getDisplayName().charAt(0).toUpperCase()}</span>
