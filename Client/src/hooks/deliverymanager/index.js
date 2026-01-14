@@ -19,3 +19,7 @@ export {
   useAssignVehicle,
   useUnassignVehicle
 } from './useVehicles';
+
+export {
+  useUploadDeliveryPhoto
+} from './useDeliveryPhotoUpload';
