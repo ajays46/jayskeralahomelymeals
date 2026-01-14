@@ -8,6 +8,7 @@ import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
 import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useUploadDeliveryPhoto } from '../hooks/deliverymanager/useDeliveryPhotoUpload';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 /**
@@ -79,14 +80,36 @@ const DeliveryExecutivePage = () => {
   const [completionLocationError, setCompletionLocationError] = useState(null);
   const [completionLoading, setCompletionLoading] = useState(false);
   const [locationUpdated, setLocationUpdated] = useState(false); // Track if location was successfully updated
-  const [updatedLocationStops, setUpdatedLocationStops] = useState(new Set()); // Track which stops have updated locations
+  // Load updated locations from localStorage on mount
+  const [updatedLocationStops, setUpdatedLocationStops] = useState(() => {
+    try {
+      const saved = localStorage.getItem('updatedLocationStops');
+      if (saved) {
+        return new Set(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading updated locations from localStorage:', error);
+    }
+    return new Set();
+  }); // Track which stops have updated locations
   
   // Image upload state
   const [uploadingImage, setUploadingImage] = useState(null); // stop index being uploaded
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [imageUploadLoading, setImageUploadLoading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState(null);
+  // Track uploaded photos (persist in localStorage)
+  const [uploadedPhotos, setUploadedPhotos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('uploadedPhotos');
+      if (saved) {
+        return new Set(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading uploaded photos from localStorage:', error);
+    }
+    return new Set();
+  });
   
   // Delivery status state
   const [deliveryStatus, setDeliveryStatus] = useState({});
@@ -133,6 +156,10 @@ const DeliveryExecutivePage = () => {
   const endJourneyMutation = useEndJourney();
   const checkTrafficMutation = useCheckTraffic();
   const reoptimizeRouteMutation = useReoptimizeRoute();
+  const uploadPhotoMutation = useUploadDeliveryPhoto();
+  
+  // Use mutation loading state instead of local state
+  const imageUploadLoading = uploadPhotoMutation.isPending;
   
   // Traffic checking state
   const [trafficData, setTrafficData] = useState(null);
@@ -549,9 +576,9 @@ const DeliveryExecutivePage = () => {
         return;
       }
       
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setImageUploadError('Image size should be less than 5MB.');
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setImageUploadError('Image size should be less than 10MB.');
         return;
       }
       
@@ -602,77 +629,122 @@ const DeliveryExecutivePage = () => {
       return;
     }
 
-    setImageUploadLoading(true);
-    setImageUploadError(null);
-
     try {
-      // Get the current stop data
-      const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
-      const deliveryItemId = currentStop?.Delivery_Item_ID;
-      const deliveryDate = currentStop?.Date;
+      // Validate routes and session data
+      if (!routes?.sessions?.[selectedSession]) {
+        setImageUploadError('Route session data not found.');
+        return;
+      }
       
-      if (!deliveryItemId) {
-        setImageUploadError('No delivery item ID found for this delivery stop.');
+      // Get the current stop data
+      const stops = routes.sessions[selectedSession].stops?.filter(stop => stop.Delivery_Name !== 'Return to Hub') || [];
+      const currentStop = stops[stopIndex];
+      
+      if (!currentStop) {
+        setImageUploadError('Stop data not found.');
+        return;
+      }
+      
+      // Get address_id from stop (try multiple possible field names)
+      const addressId =
+        (currentStop?.address_id && currentStop.address_id !== '') ? currentStop.address_id :
+        (currentStop?.Address_ID && currentStop.Address_ID !== '') ? currentStop.Address_ID :
+        (currentStop?.addressId && currentStop.addressId !== '') ? currentStop.addressId :
+        (currentStop?._original?.address_id && currentStop._original.address_id !== '') ? currentStop._original.address_id :
+        (currentStop?._original?.Address_ID && currentStop._original.Address_ID !== '') ? currentStop._original.Address_ID :
+        (currentStop?._original?.addressId && currentStop._original.addressId !== '') ? currentStop._original.addressId :
+        null;
+      
+      if (!addressId) {
+        setImageUploadError('No address ID found for this delivery stop. Please check the route data.');
         return;
       }
 
-      if (!deliveryDate) {
-        setImageUploadError('No delivery date found for this stop.');
-        return;
-      }
-
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('image', selectedImage);
-      formData.append('delivery_item_id', deliveryItemId);
-      formData.append('session', selectedSession.charAt(0).toUpperCase() + selectedSession.slice(1)); // Breakfast, Lunch, Dinner
-      formData.append('date', deliveryDate); // Use the Date from the specific stop
-
-      const response = await axiosInstance.post('/api/delivery-items/upload-image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      // Use the mutation hook to upload the photo
+      await uploadPhotoMutation.mutateAsync({
+        image: selectedImage,
+        address_id: addressId,
+        session: selectedSession
       });
 
-      if (response.data.success) {
-        // Fetch updated delivery status from database
-        await fetchDeliveryStatus(deliveryItemId, stopIndex);
-        
-        // Show success toast
-        toast.success(
-          <div className="flex items-center gap-3">
-            <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <div>
-              <div className="font-semibold text-green-800 text-base">✅ Delivery Completed!</div>
-              <div className="text-sm text-green-700 mt-1">Photo uploaded and delivery marked as completed.</div>
-            </div>
-          </div>,
-          {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "light",
-            style: {
-              background: "#f0f9ff",
-              border: "1px solid #10b981",
-              borderRadius: "12px",
-              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
-            },
-          }
-        );
-        
-        // Clear upload state
-        clearImageUpload();
-      } else {
-        throw new Error(response.data.message || 'Failed to upload image');
-      }
+      // Mark this stop as having uploaded a photo
+      // Use route_id + session + stopIndex to create unique key
+      const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+      const stopKey = `${routeId}-${selectedSession}-${stopIndex}`;
+      setUploadedPhotos(prev => {
+        const newSet = new Set(prev).add(stopKey);
+        // Save to localStorage
+        try {
+          localStorage.setItem('uploadedPhotos', JSON.stringify(Array.from(newSet)));
+        } catch (error) {
+          console.error('Error saving uploaded photos to localStorage:', error);
+        }
+        return newSet;
+      });
+
+      // Show success toast
+      toast.success(
+        <div className="flex items-center gap-3">
+          <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <div>
+            <div className="font-semibold text-green-800 text-base">✅ Photo Uploaded!</div>
+            <div className="text-sm text-green-700 mt-1">Delivery photo uploaded successfully to external API.</div>
+          </div>
+        </div>,
+        {
+          position: "top-right",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          style: {
+            background: "#f0f9ff",
+            border: "1px solid #10b981",
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
+          },
+        }
+      );
+      
+      // Clear upload state
+      clearImageUpload();
+      setImageUploadError(null);
     } catch (apiError) {
+      // Extract user-friendly error message
+      let errorMessage = 'Failed to upload image. Please try again.';
+      
+      // Handle network errors (common in production)
+      if (apiError.code === 'ECONNABORTED' || apiError.message?.includes('timeout')) {
+        errorMessage = 'Upload timeout. The image may be too large or network is slow. Please try again with a smaller image.';
+      } else if (apiError.code === 'ERR_NETWORK' || apiError.message?.includes('Network Error') || !apiError.response) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (apiError.response?.data?.error) {
+        const errorText = apiError.response.data.error;
+        // Check for file size errors
+        if (errorText.includes('413') || errorText.includes('Request Entity Too Large') || errorText.includes('too large')) {
+          errorMessage = 'Image file is too large. Please use an image smaller than 2MB. You can compress the image using an online tool.';
+        } else if (apiError.response.data.message) {
+          errorMessage = apiError.response.data.message;
+        }
+      } else if (apiError.response?.data?.message) {
+        errorMessage = apiError.response.data.message;
+      } else if (apiError.message) {
+        errorMessage = apiError.message;
+      }
+      
+      // Log detailed error for debugging
+      console.error('Photo upload error details:', {
+        message: apiError.message,
+        code: apiError.code,
+        response: apiError.response?.data,
+        status: apiError.response?.status,
+        config: apiError.config
+      });
       
       // Show error toast
       toast.error(
@@ -682,14 +754,12 @@ const DeliveryExecutivePage = () => {
           </svg>
           <div>
             <div className="font-semibold text-red-800 text-base">❌ Upload Failed</div>
-            <div className="text-sm text-red-700 mt-1">
-              {apiError.response?.data?.message || apiError.message || 'Failed to upload image. Please try again.'}
-            </div>
+            <div className="text-sm text-red-700 mt-1">{errorMessage}</div>
           </div>
         </div>,
         {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 6000,
           hideProgressBar: false,
           closeOnClick: true,
           pauseOnHover: true,
@@ -705,9 +775,7 @@ const DeliveryExecutivePage = () => {
         }
       );
       
-      setImageUploadError(apiError.response?.data?.message || apiError.message || 'Failed to upload image. Please try again.');
-    } finally {
-      setImageUploadLoading(false);
+      setImageUploadError(errorMessage);
     }
   };
 
@@ -748,7 +816,20 @@ const DeliveryExecutivePage = () => {
         if (response.data.success) {
           // Mark location as updated for this stop
           setLocationUpdated(true);
-          setUpdatedLocationStops(prev => new Set(prev).add(stopIndex));
+          // Get current stop to create unique key
+          const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
+          const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+          const locationKey = `${routeId}-${selectedSession}-${stopIndex}`;
+          setUpdatedLocationStops(prev => {
+            const newSet = new Set(prev).add(locationKey);
+            // Save to localStorage
+            try {
+              localStorage.setItem('updatedLocationStops', JSON.stringify(Array.from(newSet)));
+            } catch (error) {
+              console.error('Error saving updated locations to localStorage:', error);
+            }
+            return newSet;
+          });
           
           // Show success toast
           toast.success(
@@ -842,7 +923,20 @@ const DeliveryExecutivePage = () => {
           
           // Mark location as updated for this stop
           setLocationUpdated(true);
-          setUpdatedLocationStops(prev => new Set(prev).add(stopIndex));
+          // Get current stop to create unique key
+          const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
+          const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+          const locationKey = `${routeId}-${selectedSession}-${stopIndex}`;
+          setUpdatedLocationStops(prev => {
+            const newSet = new Set(prev).add(locationKey);
+            // Save to localStorage
+            try {
+              localStorage.setItem('updatedLocationStops', JSON.stringify(Array.from(newSet)));
+            } catch (error) {
+              console.error('Error saving updated locations to localStorage:', error);
+            }
+            return newSet;
+          });
           
           // Show success toast
           toast.success(
@@ -904,7 +998,20 @@ const DeliveryExecutivePage = () => {
       if (response.data.success) {
         // Mark location as updated for this stop
         setLocationUpdated(true);
-        setUpdatedLocationStops(prev => new Set(prev).add(stopIndex));
+        // Get current stop to create unique key
+        const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
+        const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+        const locationKey = `${routeId}-${selectedSession}-${stopIndex}`;
+        setUpdatedLocationStops(prev => {
+          const newSet = new Set(prev).add(locationKey);
+          // Save to localStorage
+          try {
+            localStorage.setItem('updatedLocationStops', JSON.stringify(Array.from(newSet)));
+          } catch (error) {
+            console.error('Error saving updated locations to localStorage:', error);
+          }
+          return newSet;
+        });
         
         // Show toastify success popup
         toast.success(
@@ -2401,47 +2508,99 @@ const DeliveryExecutivePage = () => {
                                         })()}
                                         
                                         {/* Photo Button */}
-                                        {deliveryStatus[index]?.status !== 'Delivered' && (
-                                          <button
-                                            onClick={() => setUploadingImage(uploadingImage === index ? null : index)}
-                                            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
-                                          >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                            </svg>
-                                            <span>Photo</span>
-                                          </button>
-                                        )}
+                                        {deliveryStatus[index]?.status !== 'Delivered' && routes?.sessions?.[selectedSession] && (() => {
+                                          try {
+                                            // Check if photo has been uploaded for this stop
+                                            const currentStop = routes.sessions[selectedSession].stops?.filter(stop => stop.Delivery_Name !== 'Return to Hub')?.[index];
+                                            const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+                                            const photoKey = `${routeId}-${selectedSession}-${index}`;
+                                            const isPhotoUploaded = uploadedPhotos?.has(photoKey) || false;
+                                            
+                                            return (
+                                              <button
+                                                onClick={() => {
+                                                  if (uploadingImage === index) {
+                                                    // Close if already open
+                                                    setUploadingImage(null);
+                                                    clearImageUpload();
+                                                  } else {
+                                                    // Open for this stop and clear previous selection
+                                                    clearImageUpload();
+                                                    setUploadingImage(index);
+                                                  }
+                                                }}
+                                                disabled={isPhotoUploaded}
+                                                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all ${
+                                                  isPhotoUploaded
+                                                    ? 'bg-green-600 hover:bg-green-700 text-white cursor-default'
+                                                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                }`}
+                                              >
+                                                {isPhotoUploaded ? (
+                                                  <>
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    <span>Uploaded</span>
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    <span>Photo</span>
+                                                  </>
+                                                )}
+                                              </button>
+                                            );
+                                          } catch (error) {
+                                            console.error('Error rendering photo button:', error);
+                                            return null;
+                                          }
+                                        })()}
                                         
                                         {/* Location/Update Address Button */}
-                                        <button
-                                          onClick={() => {
-                                            if (completingDelivery === index) {
-                                              // Close if already open
-                                              setCompletingDelivery(null);
-                                              clearCompletionLocation();
-                                            } else {
-                                              // Open and auto-get location
-                                              setCompletingDelivery(index);
-                                              setLocationUpdated(false); // Reset update status when opening
-                                              // Auto-get location when opening
-                                              setTimeout(() => {
-                                                getCompletionLocation();
-                                              }, 100);
-                                            }
-                                          }}
-                                          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all ${
-                                            updatedLocationStops.has(index)
-                                              ? 'bg-green-600 hover:bg-green-700 text-white'
-                                              : 'bg-purple-600 hover:bg-purple-700 text-white'
-                                          }`}
-                                        >
-                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                          </svg>
-                                          <span>{updatedLocationStops.has(index) ? 'Located' : 'Location'}</span>
-                                        </button>
+                                        {(() => {
+                                          // Check if location has been updated for this stop
+                                          const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[index];
+                                          const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+                                          const locationKey = `${routeId}-${selectedSession}-${index}`;
+                                          const isLocationUpdated = updatedLocationStops.has(locationKey);
+                                          
+                                          return (
+                                            <button
+                                              onClick={() => {
+                                                if (!isLocationUpdated) {
+                                                  if (completingDelivery === index) {
+                                                    // Close if already open
+                                                    setCompletingDelivery(null);
+                                                    clearCompletionLocation();
+                                                  } else {
+                                                    // Open and auto-get location
+                                                    setCompletingDelivery(index);
+                                                    setLocationUpdated(false); // Reset update status when opening
+                                                    // Auto-get location when opening
+                                                    setTimeout(() => {
+                                                      getCompletionLocation();
+                                                    }, 100);
+                                                  }
+                                                }
+                                              }}
+                                              disabled={isLocationUpdated}
+                                              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all ${
+                                                isLocationUpdated
+                                                  ? 'bg-green-600 hover:bg-green-700 text-white cursor-default'
+                                                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                              }`}
+                                            >
+                                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              </svg>
+                                              <span>{isLocationUpdated ? 'Located' : 'Location'}</span>
+                                            </button>
+                                          );
+                                        })()}
                                       </div>
                                     </div>
 
@@ -2611,25 +2770,41 @@ const DeliveryExecutivePage = () => {
                                             
                                             <div className="space-y-4">
                                               {/* File Input */}
-                                              <div className="bg-white rounded-xl p-4 border-2 border-dashed border-gray-300">
-                                                <label className="block cursor-pointer">
-                                                  <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={handleImageSelect}
-                                                    className="hidden"
-                                                    id={`image-upload-${index}`}
-                                                  />
-                                                  <div className="flex flex-col items-center justify-center py-6">
-                                                    <svg className="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                    </svg>
-                                                    <p className="text-gray-700 font-semibold text-sm mb-1">
-                                                      {selectedImage ? 'Change Image' : 'Select Image'}
-                                                    </p>
-                                                    <p className="text-gray-500 text-xs">Max 5MB</p>
-                                                  </div>
+                                              <div className="bg-white rounded-xl p-4 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors">
+                                                <input
+                                                  type="file"
+                                                  accept="image/*"
+                                                  onChange={handleImageSelect}
+                                                  className="hidden"
+                                                  id={`image-upload-${index}`}
+                                                />
+                                                <label 
+                                                  htmlFor={`image-upload-${index}`}
+                                                  className="flex flex-col items-center justify-center py-6 cursor-pointer"
+                                                >
+                                                  <svg className="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                  </svg>
+                                                  <p className="text-gray-700 font-semibold text-sm mb-1">
+                                                    {selectedImage ? 'Change Image' : 'Click to Select Image'}
+                                                  </p>
+                                                  <p className="text-gray-500 text-xs">Max 10MB (JPG, PNG, etc.)</p>
                                                 </label>
+                                                {/* Fallback button to trigger file input */}
+                                                <div className="flex justify-center mt-2">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const fileInput = document.getElementById(`image-upload-${index}`);
+                                                      if (fileInput) {
+                                                        fileInput.click();
+                                                      }
+                                                    }}
+                                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                                  >
+                                                    Browse Files
+                                                  </button>
+                                                </div>
                                               </div>
 
                                               {/* Image Preview */}

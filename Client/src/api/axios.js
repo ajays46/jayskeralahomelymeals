@@ -30,6 +30,12 @@ axiosInstance.interceptors.request.use(
       config.headers['X-API-Key'] = apiKey;
     }
     
+    // If the data is FormData, remove Content-Type to let axios set it automatically with boundary
+    // This is critical for file uploads to work correctly in production
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    
     return config;
   },
   error => Promise.reject(error)
