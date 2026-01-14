@@ -1,5 +1,8 @@
 import prisma from '../models/index.js';
 import { saveBase64Image } from './imageUpload.service.js';
+import fetch from 'node-fetch';
+import FormData from 'form-data';
+import sharp from 'sharp';
 
 /**
  * Delivery Executive Service - Handles delivery executive profile and operations
@@ -205,5 +208,156 @@ export const deleteDeliveryExecutiveProfile = async (userId) => {
   } catch (error) {
     console.error('Error in deleteDeliveryExecutiveProfile:', error);
     throw new Error('Failed to delete profile: ' + error.message);
+  }
+};
+
+// Upload delivery photo to external API
+export const uploadDeliveryPhotoService = async (imageFile, addressId, session) => {
+  try {
+    if (!imageFile) {
+      throw new Error('Image file is required');
+    }
+
+    if (!addressId) {
+      throw new Error('Address ID is required');
+    }
+
+    if (!session) {
+      throw new Error('Session is required');
+    }
+
+    // Convert session to uppercase (BREAKFAST, LUNCH, DINNER)
+    const sessionUpper = session.toUpperCase();
+
+    // Compress image if it's larger than 1.5MB to avoid external API 413 errors
+    // External API nginx limit is around 2MB, so we compress to be safe
+    const MAX_SIZE_FOR_EXTERNAL_API = 1.5 * 1024 * 1024; // 1.5MB
+    let processedBuffer = imageFile.buffer;
+    let processedMimeType = imageFile.mimetype;
+    let processedFilename = imageFile.originalname;
+
+    if (imageFile.size > MAX_SIZE_FOR_EXTERNAL_API) {
+      try {
+        console.log(`Compressing image from ${(imageFile.size / 1024 / 1024).toFixed(2)}MB...`);
+        
+        // Use sharp to compress the image
+        // Resize if needed (max width 1920px, maintain aspect ratio)
+        // Compress JPEG quality to 85% or PNG to reduce size
+        let sharpInstance = sharp(imageFile.buffer);
+        
+        // Get image metadata
+        const metadata = await sharpInstance.metadata();
+        
+        // Resize if image is very large (max 1920px width)
+        if (metadata.width && metadata.width > 1920) {
+          sharpInstance = sharpInstance.resize(1920, null, {
+            withoutEnlargement: true,
+            fit: 'inside'
+          });
+        }
+        
+        // Compress based on image type
+        if (imageFile.mimetype === 'image/jpeg' || imageFile.mimetype === 'image/jpg') {
+          processedBuffer = await sharpInstance
+            .jpeg({ quality: 85, mozjpeg: true })
+            .toBuffer();
+          processedMimeType = 'image/jpeg';
+          processedFilename = imageFile.originalname.replace(/\.(png|gif|webp)$/i, '.jpg');
+        } else if (imageFile.mimetype === 'image/png') {
+          processedBuffer = await sharpInstance
+            .png({ quality: 85, compressionLevel: 9 })
+            .toBuffer();
+          processedMimeType = 'image/png';
+        } else {
+          // For other formats, convert to JPEG
+          processedBuffer = await sharpInstance
+            .jpeg({ quality: 85, mozjpeg: true })
+            .toBuffer();
+          processedMimeType = 'image/jpeg';
+          processedFilename = imageFile.originalname.replace(/\.[^.]+$/, '.jpg');
+        }
+        
+        // If still too large, reduce quality further
+        if (processedBuffer.length > MAX_SIZE_FOR_EXTERNAL_API) {
+          console.log(`Image still too large (${(processedBuffer.length / 1024 / 1024).toFixed(2)}MB), reducing quality further...`);
+          sharpInstance = sharp(imageFile.buffer);
+          
+          if (metadata.width && metadata.width > 1280) {
+            sharpInstance = sharpInstance.resize(1280, null, {
+              withoutEnlargement: true,
+              fit: 'inside'
+            });
+          }
+          
+          processedBuffer = await sharpInstance
+            .jpeg({ quality: 75, mozjpeg: true })
+            .toBuffer();
+          processedMimeType = 'image/jpeg';
+          processedFilename = imageFile.originalname.replace(/\.[^.]+$/, '.jpg');
+        }
+        
+        console.log(`Image compressed to ${(processedBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+      } catch (compressError) {
+        console.error('Error compressing image, using original:', compressError);
+        // If compression fails, use original (might still fail at external API)
+        processedBuffer = imageFile.buffer;
+      }
+    }
+
+    // Create FormData for external API using processed buffer
+    const formData = new FormData();
+    formData.append('image', processedBuffer, {
+      filename: processedFilename,
+      contentType: processedMimeType
+    });
+    formData.append('address_id', addressId);
+    formData.append('session', sessionUpper);
+
+    // Send to external API using fetch (port 5003)
+    const externalApiUrl = `${process.env.AI_ROUTE_API_THIRD}/upload_delivery_pic`;
+    const response = await fetch(externalApiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer mysecretkey123',
+        ...formData.getHeaders()
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      // Try to get error details from response body
+      let errorDetails = '';
+      try {
+        const errorText = await response.text();
+        errorDetails = errorText;
+      } catch (e) {
+        // Could not read error response body
+      }
+      
+      throw new Error(`External API returned ${response.status}: ${response.statusText}. Details: ${errorDetails}`);
+    }
+
+    const responseData = await response.json();
+    
+    if (responseData && responseData.success) {
+      return {
+        success: true,
+        message: 'Photo uploaded successfully to external API',
+        externalResponse: responseData,
+        fileInfo: {
+          originalName: imageFile.originalname,
+          size: imageFile.size,
+          mimeType: imageFile.mimetype
+        }
+      };
+    } else {
+      throw new Error('External API returned unsuccessful response');
+    }
+  } catch (error) {
+    console.error('Error in uploadDeliveryPhotoService:', error);
+    if (error.message) {
+      throw new Error('Failed to upload photo: ' + error.message);
+    }
+    throw new Error('Failed to upload photo to external API');
   }
 };

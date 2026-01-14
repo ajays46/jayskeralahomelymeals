@@ -8,6 +8,7 @@ import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
 import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useUploadDeliveryPhoto } from '../hooks/deliverymanager/useDeliveryPhotoUpload';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 /**
@@ -79,14 +80,36 @@ const DeliveryExecutivePage = () => {
   const [completionLocationError, setCompletionLocationError] = useState(null);
   const [completionLoading, setCompletionLoading] = useState(false);
   const [locationUpdated, setLocationUpdated] = useState(false); // Track if location was successfully updated
-  const [updatedLocationStops, setUpdatedLocationStops] = useState(new Set()); // Track which stops have updated locations
+  // Load updated locations from localStorage on mount
+  const [updatedLocationStops, setUpdatedLocationStops] = useState(() => {
+    try {
+      const saved = localStorage.getItem('updatedLocationStops');
+      if (saved) {
+        return new Set(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading updated locations from localStorage:', error);
+    }
+    return new Set();
+  }); // Track which stops have updated locations
   
   // Image upload state
   const [uploadingImage, setUploadingImage] = useState(null); // stop index being uploaded
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [imageUploadLoading, setImageUploadLoading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState(null);
+  // Load uploaded photos from localStorage on mount
+  const [uploadedPhotos, setUploadedPhotos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('uploadedPhotos');
+      if (saved) {
+        return new Set(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading uploaded photos from localStorage:', error);
+    }
+    return new Set();
+  }); // Track which stops have uploaded photos
   
   // Delivery status state
   const [deliveryStatus, setDeliveryStatus] = useState({});
@@ -115,8 +138,18 @@ const DeliveryExecutivePage = () => {
     sessionName: '',
     sessionId: ''
   });
-  // Track completed sessions
-  const [completedSessions, setCompletedSessions] = useState(new Set());
+  // Track completed sessions - load from localStorage to persist user's explicit session completions
+  const [completedSessions, setCompletedSessions] = useState(() => {
+    try {
+      const saved = localStorage.getItem('completedSessions');
+      if (saved) {
+        return new Set(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading completed sessions from localStorage:', error);
+    }
+    return new Set();
+  });
   
   // Status selection modal state
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -133,6 +166,10 @@ const DeliveryExecutivePage = () => {
   const endJourneyMutation = useEndJourney();
   const checkTrafficMutation = useCheckTraffic();
   const reoptimizeRouteMutation = useReoptimizeRoute();
+  const uploadPhotoMutation = useUploadDeliveryPhoto();
+  
+  // Use mutation loading state instead of local state
+  const imageUploadLoading = uploadPhotoMutation.isPending;
   
   // Traffic checking state
   const [trafficData, setTrafficData] = useState(null);
@@ -232,6 +269,30 @@ const DeliveryExecutivePage = () => {
   const { data: routeStatus } = useRouteStatusFromActualStops(routeIdForStatus, {
     enabled: !!routeIdForStatus && !!user?.id
   });
+
+  // Helper function to check if a session is completed
+  // Checks both API data (routeStatus.completed_sessions) and localStorage (manual completions)
+  const checkSessionCompleted = useCallback((sessionName) => {
+    const normalizedSession = sessionName?.toLowerCase();
+    if (!normalizedSession) return false;
+    
+    // Check localStorage first (manual completions)
+    if (completedSessions.has(normalizedSession)) {
+      return true;
+    }
+    
+    // Check API data (from database)
+    if (routeStatus?.success && routeStatus.completed_sessions) {
+      const apiCompleted = routeStatus.completed_sessions.some(s => 
+        s?.toLowerCase() === normalizedSession
+      );
+      if (apiCompleted) {
+        return true;
+      }
+    }
+    
+    return false;
+  }, [completedSessions, routeStatus]);
 
   // Get display name with fallbacks
   const getDisplayName = () => {
@@ -381,15 +442,9 @@ const DeliveryExecutivePage = () => {
           return merged;
         });
         
-        // Restore completed sessions (normalize to lowercase for consistent comparison)
-        // Merge with existing completed sessions to handle multiple routes
-        setCompletedSessions(prev => {
-          const newCompleted = new Set(prev);
-          (routeStatus.completed_sessions || []).forEach(s => {
-            newCompleted.add(s?.toLowerCase());
-          });
-          return newCompleted;
-        });
+        // Don't automatically restore completed sessions from backend
+        // Sessions should only be marked as completed when user explicitly clicks "End Session"
+        // This prevents automatic session completion when all stops are marked
         
         // Restore active journey state only if it matches current session
         if (routeStatus.is_journey_started) {
@@ -549,9 +604,11 @@ const DeliveryExecutivePage = () => {
         return;
       }
       
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setImageUploadError('Image size should be less than 5MB.');
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        setImageUploadError(`Image size (${fileSizeMB}MB) exceeds the 10MB limit. Please compress or resize the image.`);
         return;
       }
       
@@ -572,6 +629,16 @@ const DeliveryExecutivePage = () => {
     setImagePreview(null);
     setImageUploadError(null);
     setUploadingImage(null);
+  };
+
+  // Function to clear uploaded photos (optional - can be used if needed)
+  const clearUploadedPhotos = () => {
+    setUploadedPhotos(new Set());
+    try {
+      localStorage.removeItem('uploadedPhotos');
+    } catch (error) {
+      console.error('Error clearing uploaded photos from localStorage:', error);
+    }
   };
 
   // Fetch delivery status for a specific delivery item
@@ -602,77 +669,96 @@ const DeliveryExecutivePage = () => {
       return;
     }
 
-    setImageUploadLoading(true);
-    setImageUploadError(null);
-
     try {
       // Get the current stop data
       const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
-      const deliveryItemId = currentStop?.Delivery_Item_ID;
-      const deliveryDate = currentStop?.Date;
       
-      if (!deliveryItemId) {
-        setImageUploadError('No delivery item ID found for this delivery stop.');
+      // Get address_id from stop (try multiple possible field names)
+      const addressId =
+        (currentStop?.address_id && currentStop.address_id !== '') ? currentStop.address_id :
+        (currentStop?.Address_ID && currentStop.Address_ID !== '') ? currentStop.Address_ID :
+        (currentStop?.addressId && currentStop.addressId !== '') ? currentStop.addressId :
+        (currentStop?._original?.address_id && currentStop._original.address_id !== '') ? currentStop._original.address_id :
+        (currentStop?._original?.Address_ID && currentStop._original.Address_ID !== '') ? currentStop._original.Address_ID :
+        (currentStop?._original?.addressId && currentStop._original.addressId !== '') ? currentStop._original.addressId :
+        null;
+      
+      if (!addressId) {
+        setImageUploadError('No address ID found for this delivery stop.');
         return;
       }
 
-      if (!deliveryDate) {
-        setImageUploadError('No delivery date found for this stop.');
-        return;
-      }
-
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('image', selectedImage);
-      formData.append('delivery_item_id', deliveryItemId);
-      formData.append('session', selectedSession.charAt(0).toUpperCase() + selectedSession.slice(1)); // Breakfast, Lunch, Dinner
-      formData.append('date', deliveryDate); // Use the Date from the specific stop
-
-      const response = await axiosInstance.post('/api/delivery-items/upload-image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      // Use the mutation hook to upload the photo
+      await uploadPhotoMutation.mutateAsync({
+        image: selectedImage,
+        address_id: addressId,
+        session: selectedSession
       });
 
-      if (response.data.success) {
-        // Fetch updated delivery status from database
-        await fetchDeliveryStatus(deliveryItemId, stopIndex);
-        
-        // Show success toast
-        toast.success(
-          <div className="flex items-center gap-3">
-            <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <div>
-              <div className="font-semibold text-green-800 text-base">✅ Delivery Completed!</div>
-              <div className="text-sm text-green-700 mt-1">Photo uploaded and delivery marked as completed.</div>
-            </div>
-          </div>,
-          {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "light",
-            style: {
-              background: "#f0f9ff",
-              border: "1px solid #10b981",
-              borderRadius: "12px",
-              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
-            },
-          }
-        );
-        
-        // Clear upload state
-        clearImageUpload();
-      } else {
-        throw new Error(response.data.message || 'Failed to upload image');
-      }
+      // Mark this stop as having uploaded a photo
+      // Use route_id + session + stopIndex to create unique key
+      const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+      const stopKey = `${routeId}-${selectedSession}-${stopIndex}`;
+      setUploadedPhotos(prev => {
+        const newSet = new Set(prev).add(stopKey);
+        // Save to localStorage
+        try {
+          localStorage.setItem('uploadedPhotos', JSON.stringify(Array.from(newSet)));
+        } catch (error) {
+          console.error('Error saving uploaded photos to localStorage:', error);
+        }
+        return newSet;
+      });
+
+      // Show success toast
+      toast.success(
+        <div className="flex items-center gap-3">
+          <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <div>
+            <div className="font-semibold text-green-800 text-base">✅ Photo Uploaded!</div>
+            <div className="text-sm text-green-700 mt-1">Delivery photo uploaded successfully to external API.</div>
+          </div>
+        </div>,
+        {
+          position: "top-right",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          style: {
+            background: "#f0f9ff",
+            border: "1px solid #10b981",
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(16, 185, 129, 0.15)",
+          },
+        }
+      );
+      
+      // Clear upload state but keep the uploaded status
+      clearImageUpload();
+      setImageUploadError(null);
     } catch (apiError) {
+      // Extract user-friendly error message
+      let errorMessage = 'Failed to upload image. Please try again.';
+      
+      if (apiError.response?.data?.error) {
+        const errorText = apiError.response.data.error;
+        // Check for file size errors
+        if (errorText.includes('413') || errorText.includes('Request Entity Too Large') || errorText.includes('too large')) {
+          errorMessage = 'Image file is too large. Please use an image smaller than 2MB. You can compress the image using an online tool.';
+        } else if (apiError.response.data.message) {
+          errorMessage = apiError.response.data.message;
+        }
+      } else if (apiError.response?.data?.message) {
+        errorMessage = apiError.response.data.message;
+      } else if (apiError.message) {
+        errorMessage = apiError.message;
+      }
       
       // Show error toast
       toast.error(
@@ -682,14 +768,12 @@ const DeliveryExecutivePage = () => {
           </svg>
           <div>
             <div className="font-semibold text-red-800 text-base">❌ Upload Failed</div>
-            <div className="text-sm text-red-700 mt-1">
-              {apiError.response?.data?.message || apiError.message || 'Failed to upload image. Please try again.'}
-            </div>
+            <div className="text-sm text-red-700 mt-1">{errorMessage}</div>
           </div>
         </div>,
         {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 6000,
           hideProgressBar: false,
           closeOnClick: true,
           pauseOnHover: true,
@@ -705,9 +789,7 @@ const DeliveryExecutivePage = () => {
         }
       );
       
-      setImageUploadError(apiError.response?.data?.message || apiError.message || 'Failed to upload image. Please try again.');
-    } finally {
-      setImageUploadLoading(false);
+      setImageUploadError(errorMessage);
     }
   };
 
@@ -748,7 +830,20 @@ const DeliveryExecutivePage = () => {
         if (response.data.success) {
           // Mark location as updated for this stop
           setLocationUpdated(true);
-          setUpdatedLocationStops(prev => new Set(prev).add(stopIndex));
+          // Get current stop to create unique key
+          const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
+          const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+          const locationKey = `${routeId}-${selectedSession}-${stopIndex}`;
+          setUpdatedLocationStops(prev => {
+            const newSet = new Set(prev).add(locationKey);
+            // Save to localStorage
+            try {
+              localStorage.setItem('updatedLocationStops', JSON.stringify(Array.from(newSet)));
+            } catch (error) {
+              console.error('Error saving updated locations to localStorage:', error);
+            }
+            return newSet;
+          });
           
           // Show success toast
           toast.success(
@@ -842,7 +937,20 @@ const DeliveryExecutivePage = () => {
           
           // Mark location as updated for this stop
           setLocationUpdated(true);
-          setUpdatedLocationStops(prev => new Set(prev).add(stopIndex));
+          // Get current stop to create unique key
+          const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
+          const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+          const locationKey = `${routeId}-${selectedSession}-${stopIndex}`;
+          setUpdatedLocationStops(prev => {
+            const newSet = new Set(prev).add(locationKey);
+            // Save to localStorage
+            try {
+              localStorage.setItem('updatedLocationStops', JSON.stringify(Array.from(newSet)));
+            } catch (error) {
+              console.error('Error saving updated locations to localStorage:', error);
+            }
+            return newSet;
+          });
           
           // Show success toast
           toast.success(
@@ -1603,9 +1711,8 @@ const DeliveryExecutivePage = () => {
     // Get route_id from currently selected session
     const currentSessionRouteId = getRouteIdFromSelectedSession();
     
-    // Check if session is completed
-    const isSessionCompleted = completedSessions.has(selectedSession.toLowerCase());
-    if (isSessionCompleted) {
+    // Check if session is completed (using helper function that checks both API and localStorage)
+    if (checkSessionCompleted(selectedSession)) {
       showErrorToast('This session is already completed. Cannot mark stops for completed sessions.');
       return;
     }
@@ -1837,8 +1944,18 @@ const DeliveryExecutivePage = () => {
       await completeSessionMutation.mutateAsync({
         route_id: routeId
       });
-      // Mark this session as completed (normalize to lowercase)
-      setCompletedSessions(prev => new Set(prev).add(selectedSession.toLowerCase()));
+      // Mark this session as completed (normalize to lowercase) and save to localStorage
+      const sessionKey = selectedSession.toLowerCase();
+      setCompletedSessions(prev => {
+        const newSet = new Set(prev).add(sessionKey);
+        // Save to localStorage
+        try {
+          localStorage.setItem('completedSessions', JSON.stringify(Array.from(newSet)));
+        } catch (error) {
+          console.error('Error saving completed sessions to localStorage:', error);
+        }
+        return newSet;
+      });
       showSuccessToast(`${endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} session completed successfully!`);
       setShowEndSessionModal(false);
       setEndSessionData({ sessionName: '', sessionId: '' });
@@ -1940,7 +2057,7 @@ const DeliveryExecutivePage = () => {
                     {(() => {
                       const currentSessionRouteId = getRouteIdFromSelectedSession();
                       const isCurrentSessionActive = currentSessionRouteId === activeRouteId;
-                      const isSessionCompleted = completedSessions.has(selectedSession.toLowerCase());
+                      const isSessionCompleted = checkSessionCompleted(selectedSession);
                       
                       // If mutation is pending, show loading state regardless of other conditions
                       if (startJourneyMutation.isPending) {
@@ -2211,7 +2328,7 @@ const DeliveryExecutivePage = () => {
                               const sessionRouteId = routes.sessions[session]?.route_id || 
                                 routes.sessions[session]?.stops?.[0]?.route_id || 
                                 routes.sessions[session]?.stops?.[0]?.Route_ID || '';
-                              const isSessionCompleted = completedSessions.has(session.toLowerCase());
+                              const isSessionCompleted = checkSessionCompleted(session);
                               const isActiveRoute = sessionRouteId === activeRouteId;
                               
                               return (
@@ -2401,47 +2518,88 @@ const DeliveryExecutivePage = () => {
                                         })()}
                                         
                                         {/* Photo Button */}
-                                        {deliveryStatus[index]?.status !== 'Delivered' && (
-                                          <button
-                                            onClick={() => setUploadingImage(uploadingImage === index ? null : index)}
-                                            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
-                                          >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                            </svg>
-                                            <span>Photo</span>
-                                          </button>
-                                        )}
+                                        {deliveryStatus[index]?.status !== 'Delivered' && (() => {
+                                          // Check if photo has been uploaded for this stop
+                                          const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[index];
+                                          const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+                                          const stopKey = `${routeId}-${selectedSession}-${index}`;
+                                          const isPhotoUploaded = uploadedPhotos.has(stopKey);
+                                          
+                                          return (
+                                            <button
+                                              onClick={() => {
+                                                if (!isPhotoUploaded) {
+                                                  setUploadingImage(uploadingImage === index ? null : index);
+                                                }
+                                              }}
+                                              disabled={isPhotoUploaded}
+                                              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all ${
+                                                isPhotoUploaded
+                                                  ? 'bg-green-600 hover:bg-green-700 text-white cursor-default'
+                                                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                              }`}
+                                            >
+                                              {isPhotoUploaded ? (
+                                                <>
+                                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                  </svg>
+                                                  <span>Uploaded</span>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                  </svg>
+                                                  <span>Photo</span>
+                                                </>
+                                              )}
+                                            </button>
+                                          );
+                                        })()}
                                         
                                         {/* Location/Update Address Button */}
-                                        <button
-                                          onClick={() => {
-                                            if (completingDelivery === index) {
-                                              // Close if already open
-                                              setCompletingDelivery(null);
-                                              clearCompletionLocation();
-                                            } else {
-                                              // Open and auto-get location
-                                              setCompletingDelivery(index);
-                                              setLocationUpdated(false); // Reset update status when opening
-                                              // Auto-get location when opening
-                                              setTimeout(() => {
-                                                getCompletionLocation();
-                                              }, 100);
-                                            }
-                                          }}
-                                          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all ${
-                                            updatedLocationStops.has(index)
-                                              ? 'bg-green-600 hover:bg-green-700 text-white'
-                                              : 'bg-purple-600 hover:bg-purple-700 text-white'
-                                          }`}
-                                        >
-                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                          </svg>
-                                          <span>{updatedLocationStops.has(index) ? 'Located' : 'Location'}</span>
-                                        </button>
+                                        {(() => {
+                                          // Check if location has been updated for this stop
+                                          const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[index];
+                                          const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+                                          const locationKey = `${routeId}-${selectedSession}-${index}`;
+                                          const isLocationUpdated = updatedLocationStops.has(locationKey);
+                                          
+                                          return (
+                                            <button
+                                              onClick={() => {
+                                                if (!isLocationUpdated) {
+                                                  if (completingDelivery === index) {
+                                                    // Close if already open
+                                                    setCompletingDelivery(null);
+                                                    clearCompletionLocation();
+                                                  } else {
+                                                    // Open and auto-get location
+                                                    setCompletingDelivery(index);
+                                                    setLocationUpdated(false); // Reset update status when opening
+                                                    // Auto-get location when opening
+                                                    setTimeout(() => {
+                                                      getCompletionLocation();
+                                                    }, 100);
+                                                  }
+                                                }
+                                              }}
+                                              disabled={isLocationUpdated}
+                                              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all ${
+                                                isLocationUpdated
+                                                  ? 'bg-green-600 hover:bg-green-700 text-white cursor-default'
+                                                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                              }`}
+                                            >
+                                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              </svg>
+                                              <span>{isLocationUpdated ? 'Located' : 'Location'}</span>
+                                            </button>
+                                          );
+                                        })()}
                                       </div>
                                     </div>
 
@@ -2665,29 +2823,48 @@ const DeliveryExecutivePage = () => {
 
                                               {/* Upload Button */}
                                               <div className="pt-2">
-                                                <button
-                                                  onClick={() => handleImageUpload(index)}
-                                                  disabled={!selectedImage || imageUploadLoading}
-                                                  className={`w-full px-5 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
-                                                    selectedImage && !imageUploadLoading
-                                                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                  }`}
-                                                >
-                                                  {imageUploadLoading ? (
-                                                    <>
-                                                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                                                      Uploading...
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                                      </svg>
-                                                      Upload Photo
-                                                    </>
-                                                  )}
-                                                </button>
+                                                {(() => {
+                                                  // Get route_id from current stop for unique key
+                                                  const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[index];
+                                                  const routeId = currentStop?.route_id || currentStop?.Route_ID || '';
+                                                  const stopKey = `${routeId}-${selectedSession}-${index}`;
+                                                  const isUploaded = uploadedPhotos.has(stopKey);
+                                                  
+                                                  return (
+                                                    <button
+                                                      onClick={() => handleImageUpload(index)}
+                                                      disabled={isUploaded || (!selectedImage || imageUploadLoading)}
+                                                      className={`w-full px-5 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
+                                                        isUploaded
+                                                          ? 'bg-green-600 hover:bg-green-700 text-white cursor-default'
+                                                          : selectedImage && !imageUploadLoading
+                                                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                      }`}
+                                                    >
+                                                      {imageUploadLoading ? (
+                                                        <>
+                                                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                                                          Uploading...
+                                                        </>
+                                                      ) : isUploaded ? (
+                                                        <>
+                                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                          </svg>
+                                                          Uploaded
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                          </svg>
+                                                          Upload Photo
+                                                        </>
+                                                      )}
+                                                    </button>
+                                                  );
+                                                })()}
                                               </div>
                                             </div>
                                           </>
@@ -2702,7 +2879,7 @@ const DeliveryExecutivePage = () => {
                               <div className="mt-6 p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl shadow-md">
                                 {/* End Session Button - Moved to top */}
                                 <div className="mb-4">
-                                  {completedSessions.has(selectedSession.toLowerCase()) ? (
+                                  {checkSessionCompleted(selectedSession) ? (
                                     <button
                                       disabled
                                       className="w-full px-4 py-3 bg-green-600 text-white rounded-xl transition-colors flex items-center justify-center gap-2 font-semibold shadow-md cursor-not-allowed"
