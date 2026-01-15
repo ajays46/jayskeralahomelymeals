@@ -30,7 +30,8 @@ import {
   updateGeoLocation,
   checkTraffic,
   getRouteOrder,
-  getRouteStatusFromActualStops
+  getRouteStatusFromActualStops,
+  getLiveVehicleTracking
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();
@@ -68,6 +69,7 @@ router.get('/route/:routeId/status', checkRole('DELIVERY_EXECUTIVE'), getRouteSt
 // Vehicle tracking - DELIVERY_MANAGER only
 router.post('/vehicle-tracking', checkRole('DELIVERY_MANAGER'), vehicleTracking);
 router.get('/vehicle/tracking/all', checkRole('DELIVERY_MANAGER'), getAllVehicleTracking);
+router.get('/vehicle-tracking/live-all', checkRole('DELIVERY_MANAGER'), getLiveVehicleTracking);
 
 // Weather - DELIVERY_MANAGER only
 router.get('/weather/current', checkRole('DELIVERY_MANAGER'), getCurrentWeather);

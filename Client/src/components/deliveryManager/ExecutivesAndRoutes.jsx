@@ -1,22 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { FiUsers, FiMapPin, FiZap, FiMaximize2, FiMinimize2, FiCloud } from 'react-icons/fi';
-import IndividualExecutiveLocation from './IndividualExecutiveLocation';
-import AllExecutivesLocation from './AllExecutivesLocation';
+import { FiUsers, FiZap, FiMaximize2, FiMinimize2, FiCloud } from 'react-icons/fi';
 import AIRouteOptimization from './AIRouteOptimization';
 import WeatherTab from './WeatherTab';
 
 /**
  * ExecutivesAndRoutes Component
- * Main component for managing delivery executives and their locations
+ * Main component for managing delivery executives and routes
  * Features:
  * - Tabbed interface for different views
- * - Individual executive location tracking
- * - All executives location overview
  * - AI Route Optimization
+ * - Weather information
  * - Fullscreen mode
  */
 const ExecutivesAndRoutes = ({ isFullscreen = false, onToggleFullscreen }) => {
-  const [activeViewTab, setActiveViewTab] = useState('ai-routes'); // 'individual', 'all', 'ai-routes', or 'weather'
+  const [activeViewTab, setActiveViewTab] = useState('ai-routes'); // 'ai-routes' or 'weather'
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Handle tab change with animation
@@ -115,32 +112,6 @@ const ExecutivesAndRoutes = ({ isFullscreen = false, onToggleFullscreen }) => {
             }`} />
             <span className="text-xs sm:text-sm">Weather</span>
           </button>
-          <button
-            onClick={() => handleTabChange('individual')}
-            className={`relative flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-out ${
-              activeViewTab === 'individual'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-400 hover:text-white hover:bg-gray-600/50'
-            }`}
-          >
-            <FiUsers className={`text-sm transition-all duration-200 ${
-              activeViewTab === 'individual' ? 'text-white' : ''
-            }`} />
-            <span className="text-xs sm:text-sm">Individual Executive</span>
-          </button>
-          <button
-            onClick={() => handleTabChange('all')}
-            className={`relative flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-out ${
-              activeViewTab === 'all'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-400 hover:text-white hover:bg-gray-600/50'
-            }`}
-          >
-            <FiMapPin className={`text-sm transition-all duration-200 ${
-              activeViewTab === 'all' ? 'text-white' : ''
-            }`} />
-            <span className="text-xs sm:text-sm">All Executives</span>
-          </button>
         </div>
       </div>
 
@@ -161,8 +132,6 @@ const ExecutivesAndRoutes = ({ isFullscreen = false, onToggleFullscreen }) => {
             </React.Suspense>
           )}
           {activeViewTab === 'weather' && <WeatherTab />}
-          {activeViewTab === 'individual' && <IndividualExecutiveLocation />}
-          {activeViewTab === 'all' && <AllExecutivesLocation />}
         </div>
       </div>
     </div>

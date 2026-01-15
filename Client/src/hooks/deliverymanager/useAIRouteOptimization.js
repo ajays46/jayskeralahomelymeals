@@ -15,6 +15,7 @@ export const aiRouteKeys = {
   routePlan: (params) => [...aiRouteKeys.all, 'routePlan', params],
   trackingStatus: (routeId) => [...aiRouteKeys.all, 'trackingStatus', routeId],
   allVehicleTracking: () => [...aiRouteKeys.all, 'allVehicleTracking'],
+  liveVehicleTracking: (params) => [...aiRouteKeys.all, 'liveVehicleTracking', params],
   // Traffic and Route Order
   checkTraffic: (routeId) => [...aiRouteKeys.all, 'checkTraffic', routeId],
   routeOrder: (routeId) => [...aiRouteKeys.all, 'routeOrder', routeId],
@@ -503,6 +504,67 @@ export const useGetAllVehicleTracking = (options = {}) => {
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch all vehicle tracking');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    refetchInterval,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Live Vehicle Tracking
+ * Fetch live vehicle tracking data with optional filters
+ * @param {Object} params - Query parameters: active_only, status, driver_id
+ * @param {Object} options - React Query options
+ */
+export const useLiveVehicleTracking = (params = {}, options = {}) => {
+  const {
+    active_only,
+    status,
+    driver_id,
+    ...otherParams
+  } = params;
+
+  const {
+    enabled = true,
+    refetchInterval = 10000, // Refetch every 10 seconds for real-time updates
+    refetchOnWindowFocus = true,
+    staleTime = 5 * 1000, // 5 seconds
+    cacheTime = 2 * 60 * 1000, // 2 minutes
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = options;
+
+  // Build query parameters
+  const queryParams = {};
+  if (active_only !== undefined) {
+    queryParams.active_only = active_only === true || active_only === 'true';
+  }
+  if (status) {
+    queryParams.status = status;
+  }
+  if (driver_id) {
+    queryParams.driver_id = driver_id;
+  }
+
+  return useQuery({
+    queryKey: aiRouteKeys.liveVehicleTracking({ active_only, status, driver_id }),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/vehicle-tracking/live-all', {
+        params: queryParams
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || response.data.error || 'Failed to fetch live vehicle tracking');
       }
       
       return response.data;
