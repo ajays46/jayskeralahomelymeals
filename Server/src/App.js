@@ -32,7 +32,6 @@ import './models/index.js'; // Import models to ensure associations are loaded
 import prisma from './config/prisma.js';
 
 dotenv.config();
-
 const app = express();
 
 // Serve static files with proper fallback handling
