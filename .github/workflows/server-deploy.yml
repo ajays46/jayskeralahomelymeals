@@ -59,9 +59,8 @@ jobs:
           # Navigate to project directory
           cd "$PROJECT_DIR" || { echo "Error: Project directory not found"; exit 1; }
 
-          # Safe Git sync
-          git fetch origin || { echo "Error: Git fetch failed"; exit 1; }
-          git reset --hard origin/main || { echo "Error: Git reset failed"; exit 1; }
+          # Pull latest changes
+          git pull origin main || { echo "Error: Git pull failed"; exit 1; }
 
           # Install dependencies
           npm ci || { echo "Error: npm ci failed"; exit 1; }
