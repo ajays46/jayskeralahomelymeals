@@ -60,7 +60,7 @@ jobs:
           cd "$PROJECT_DIR" || { echo "Error: Project directory not found"; exit 1; }
 
           # Safe Git sync
-          git fetch origin
+          git fetch origin || { echo "Error: Git fetch failed"; exit 1; }
           git reset --hard origin/main || { echo "Error: Git reset failed"; exit 1; }
 
           # Install dependencies
