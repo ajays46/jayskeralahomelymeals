@@ -10,9 +10,7 @@ import useAuthStore from '../stores/Zustand.store';
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_NODE_ENV === 'development'  ? import.meta.env.VITE_DEV_API_URL: import.meta.env.VITE_PROD_API_URL,
   withCredentials: true, // This is important for cookies
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  // Don't set Content-Type in default headers - it will be set conditionally in interceptor
 });
 
 axiosInstance.interceptors.request.use(
@@ -30,11 +28,16 @@ axiosInstance.interceptors.request.use(
       config.headers['X-API-Key'] = apiKey;
     }
     
-    // If the data is FormData, remove Content-Type to let axios set it automatically with boundary
-    // This is critical for file uploads to work correctly in production
-    if (config.data instanceof FormData) {
-      delete config.headers['Content-Type'];
+    // Set Content-Type only for non-FormData requests
+    // For FormData, axios will automatically set multipart/form-data with boundary
+    // This prevents CORS issues and ensures FormData is sent correctly
+    if (!(config.data instanceof FormData)) {
+      // Only set if not already set and if there's data
+      if (!config.headers['Content-Type'] && config.data !== undefined) {
+        config.headers['Content-Type'] = 'application/json';
+      }
     }
+    // For FormData, don't set Content-Type - let axios handle it automatically
     
     return config;
   },
