@@ -29,7 +29,8 @@ import {
   getDriverRouteOverviewMapsService,
   checkTrafficService,
   getRouteOrderService,
-  getRouteStatusFromActualStopsService
+  getRouteStatusFromActualStopsService,
+  getLiveVehicleTrackingService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
@@ -549,6 +550,39 @@ export const getAllVehicleTracking = async (req, res, next) => {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch all vehicle tracking', {
       error: error.message
     });
+    next(error);
+  }
+};
+
+/**
+ * Get Live Vehicle Tracking
+ * Fetches live vehicle tracking data with optional filters
+ * Query params: active_only (boolean), status (string), driver_id (string)
+ */
+export const getLiveVehicleTracking = async (req, res, next) => {
+  try {
+    const { active_only, status, driver_id } = req.query;
+    
+    const result = await getLiveVehicleTrackingService({
+      active_only,
+      status,
+      driver_id
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Live vehicle tracking fetched', {
+      active_only,
+      status,
+      driver_id,
+      vehiclesCount: result?.vehicles?.length || result?.data?.length || 0
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch live vehicle tracking', {
+      error: error.message,
+      query: req.query
+    });
+    next(error);
   }
 };
 
