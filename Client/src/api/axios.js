@@ -22,6 +22,12 @@ axiosInstance.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${accessToken}`;
     }
     
+    // Add API Key if available (for AI Route Optimization API)
+    const apiKey = import.meta.env.VITE_API_KEY;
+    if (apiKey) {
+      config.headers['X-API-Key'] = apiKey;
+    }
+    
     // Set Content-Type only for non-FormData requests
     // For FormData, axios will automatically set multipart/form-data with boundary
     // This prevents CORS issues and ensures FormData is sent correctly
@@ -77,8 +83,18 @@ axiosInstance.interceptors.response.use(
       });
     }
 
-    // Handle token expiration (401)
+    // Handle API key authentication errors (401)
     if (error.response?.status === 401) {
+      // Check if it's an API key error (not token expiration)
+      if (error.response?.data?.error?.includes('API key') || error.response?.data?.message?.includes('API key')) {
+        console.error('API key authentication failed:', error.response.data);
+        return Promise.reject({
+          ...error,
+          isApiKeyError: true,
+          message: error.response?.data?.error || error.response?.data?.message || 'API key authentication failed'
+        });
+      }
+      
       // Only retry once and avoid infinite loops (for token refresh)
       if (!originalRequest._retry && error.response?.data?.expired) {
         originalRequest._retry = true;
