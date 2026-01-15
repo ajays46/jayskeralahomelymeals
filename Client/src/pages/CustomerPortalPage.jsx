@@ -55,71 +55,88 @@ const CustomerPortalPage = () => {
 
     // Store token in sessionStorage and remove from URL for security
     sessionStorage.setItem('customerPortalToken', urlToken);
-    setToken(urlToken);
     
-    // Remove token from URL without page reload
+    // Remove token from URL without page reload (do this first to prevent re-triggering)
     const url = new URL(window.location);
     url.searchParams.delete('token');
     window.history.replaceState({}, document.title, url.pathname);
+    
+    // Set token after URL is cleaned (prevents race condition)
+    setToken(urlToken);
   }, [searchParams]);
 
-  // Fetch customer data
+  // Fetch customer data - only when token is available
   useEffect(() => {
     if (!token) {
       return;
     }
 
-    fetchCustomerData();
+    // Small delay to ensure token is fully set and prevent race conditions
+    const timer = setTimeout(() => {
+      fetchCustomerData();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [token]);
 
-  // Cleanup sessionStorage on component unmount
-  useEffect(() => {
-    return () => {
-      sessionStorage.removeItem('customerPortalToken');
-    };
-  }, []);
+  // Note: We don't clear sessionStorage on unmount to allow page refreshes
+  // The token will be cleared when the user closes the browser tab/window
 
   const fetchCustomerData = async () => {
+    // Ensure token is available before making requests
+    if (!token) {
+      setError('Access token is missing. Please use a valid link.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       // First validate token and check password status
-      const baseURL = import.meta.env.VITE_PROD_API_URL 
+      const baseURL = import.meta.env.VITE_PROD_API_URL || import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000';
       
       // Validate token and get customer info
-      const validateResponse = await axios.get(`${baseURL}/customer-portal/validate-token?token=${token}`);
+      const validateResponse = await axios.get(`${baseURL}/customer-portal/validate-token?token=${encodeURIComponent(token)}`);
       
-      if (validateResponse.data.success) {
-        const customerData = validateResponse.data.data;
-        
-        // Check if password setup is needed
-        if (customerData.needsPasswordSetup) {
-          // Redirect to password setup page
-          navigate(`/customer-password-setup?token=${token}`);
-          return;
-        }
-        
-        setCustomerInfo(customerData);
+      if (!validateResponse.data.success) {
+        throw new Error(validateResponse.data.message || 'Token validation failed');
       }
+
+      const customerData = validateResponse.data.data;
+      
+      // Check if password setup is needed
+      if (customerData.needsPasswordSetup) {
+        // Redirect to password setup page
+        navigate(`/customer-password-setup?token=${encodeURIComponent(token)}`);
+        return;
+      }
+      
+      setCustomerInfo(customerData);
 
       // Fetch orders and addresses
       const [ordersResponse, addressesResponse] = await Promise.all([
-        axios.get(`${baseURL}/customer-portal/orders?token=${token}`),
-        axios.get(`${baseURL}/customer-portal/addresses?token=${token}`)
+        axios.get(`${baseURL}/customer-portal/orders?token=${encodeURIComponent(token)}`),
+        axios.get(`${baseURL}/customer-portal/addresses?token=${encodeURIComponent(token)}`)
       ]);
 
       if (ordersResponse.data.success) {
-        setOrders(ordersResponse.data.data.orders);
-        setCustomerInfo(ordersResponse.data.data.customer);
+        setOrders(ordersResponse.data.data.orders || []);
+        // Update customer info from orders response if available
+        if (ordersResponse.data.data.customer) {
+          setCustomerInfo(ordersResponse.data.data.customer);
+        }
+      } else {
+        throw new Error(ordersResponse.data.message || 'Failed to fetch orders');
       }
 
       if (addressesResponse.data.success) {
-        setAddresses(addressesResponse.data.data.addresses);
+        setAddresses(addressesResponse.data.data.addresses || []);
       }
 
       // Calculate summary from orders
-      if (ordersResponse.data.success) {
+      if (ordersResponse.data.success && ordersResponse.data.data.orders) {
         const orders = ordersResponse.data.data.orders;
         const summary = {
           totalOrders: orders.length,
@@ -136,8 +153,25 @@ const CustomerPortalPage = () => {
 
     } catch (error) {
       console.error('Error fetching customer data:', error);
-      setError(error.response?.data?.message || 'Failed to load customer data');
-      showErrorToast('Failed to load customer data');
+      
+      // Better error handling
+      let errorMessage = 'Failed to load customer data';
+      
+      if (error.response) {
+        // Server responded with error
+        errorMessage = error.response.data?.error?.message || 
+                      error.response.data?.message || 
+                      `Server error: ${error.response.status}`;
+      } else if (error.request) {
+        // Request made but no response
+        errorMessage = 'Unable to connect to server. Please check your internet connection.';
+      } else {
+        // Error in request setup
+        errorMessage = error.message || 'An unexpected error occurred';
+      }
+      
+      setError(errorMessage);
+      showErrorToast(errorMessage);
     } finally {
       setLoading(false);
     }
