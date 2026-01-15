@@ -537,6 +537,58 @@ export const getAllVehicleTrackingService = async () => {
 };
 
 /**
+ * Get Live Vehicle Tracking
+ * Fetches live vehicle tracking data with optional filters
+ * @param {Object} params - Query parameters: active_only, status, driver_id
+ */
+export const getLiveVehicleTrackingService = async (params = {}) => {
+  try {
+    const { active_only, status, driver_id } = params;
+    
+    // Build query parameters
+    const queryParams = {};
+    if (active_only !== undefined) {
+      queryParams.active_only = active_only === true || active_only === 'true';
+    }
+    if (status) {
+      queryParams.status = status;
+    }
+    if (driver_id) {
+      queryParams.driver_id = driver_id;
+    }
+    
+    const response = await apiClient.get('/api/vehicle-tracking/live-all', {
+      params: queryParams
+    });
+    
+    const data = response.data;
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Live vehicle tracking fetched', {
+      active_only: queryParams.active_only,
+      status: queryParams.status,
+      driver_id: queryParams.driver_id,
+      vehiclesCount: data?.vehicles?.length || data?.data?.length || 0
+    });
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch live vehicle tracking');
+    }
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch live vehicle tracking', {
+      error: error.message,
+      params,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch live vehicle tracking',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
  * Get Current Weather
  */
 export const getCurrentWeatherService = async (params) => {
