@@ -33,7 +33,9 @@ import {
   updateGeoLocation,
   checkTraffic,
   getRouteOrder,
-  getRouteStatusFromActualStops
+  getRouteStatusFromActualStops,
+  getLiveVehicleTracking,
+  updateDeliveryComment
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();

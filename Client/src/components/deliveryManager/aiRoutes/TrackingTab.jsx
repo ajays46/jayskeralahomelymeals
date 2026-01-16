@@ -2,6 +2,17 @@ import React, { useState } from 'react';
 import { FiTruck, FiExternalLink, FiUsers, FiRefreshCw, FiSearch, FiMapPin, FiNavigation } from 'react-icons/fi';
 import { useGetAllVehicleTracking, useLiveVehicleTracking } from '../../../hooks/deliverymanager/useAIRouteOptimization';
 import { useActiveExecutives } from '../../../hooks/deliverymanager';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default marker icons in Leaflet with Vite
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 /**
  * TrackingTab - Component for live vehicle tracking
@@ -797,6 +808,35 @@ const VehicleTrackingCard = ({ vehicle }) => {
     return 'text-gray-400 bg-gray-500/20 border-gray-500/30';
   };
 
+  // Get marker icon color based on status
+  const getMarkerIcon = (status) => {
+    let iconColor = 'blue'; // default
+    if (status === 'moving') iconColor = 'green';
+    else if (status === 'stopped') iconColor = 'orange';
+    else if (status === 'no_data') iconColor = 'red';
+    
+    try {
+      return new L.Icon({
+        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${iconColor}.png`,
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+      });
+    } catch (error) {
+      // Fallback to default icon if colored marker fails
+      return L.icon({
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+      });
+    }
+  };
+
   // Extract nested data from API response
   const location = vehicle.location || {};
   const driver = vehicle.driver || {};
@@ -859,13 +899,72 @@ const VehicleTrackingCard = ({ vehicle }) => {
         </div>
       </div>
 
-      {/* Current Location */}
+      {/* Current Location with Map */}
       {(latitude && longitude) && (
         <div className="bg-gray-700/50 rounded p-3 mb-3">
           <div className="text-xs text-gray-400 mb-2 flex items-center gap-1">
             <FiMapPin className="text-green-400" />
             Current Location
           </div>
+          
+          {/* Leaflet Map */}
+          <div className="w-full h-64 rounded-lg overflow-hidden border border-gray-600 mb-3">
+            <MapContainer
+              center={[latitude, longitude]}
+              zoom={15}
+              style={{ height: '100%', width: '100%', zIndex: 0 }}
+              scrollWheelZoom={false}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <Marker 
+                position={[latitude, longitude]}
+                icon={getMarkerIcon(vehicle.status)}
+              >
+                <Popup>
+                  <div className="text-sm text-gray-100">
+                    <div className="font-semibold mb-1 text-white">
+                      {vehicle.vehicle_number || deviceDetails.registration_number || 'Vehicle'}
+                    </div>
+                    {driver.name && (
+                      <div className="text-gray-300">Driver: <span className="text-white">{driver.name}</span></div>
+                    )}
+                    {driver.phone && (
+                      <div className="text-gray-300 text-xs">Phone: <span className="text-white">{driver.phone}</span></div>
+                    )}
+                    {address && (
+                      <div className="text-gray-300 text-xs mt-1 max-w-xs">{address}</div>
+                    )}
+                    {speed !== undefined && speed !== null && (
+                      <div className="text-gray-300 text-xs">Speed: <span className="text-white">{speed.toFixed(1)} km/h</span></div>
+                    )}
+                    {heading !== undefined && heading !== null && (
+                      <div className="text-gray-300 text-xs">Heading: <span className="text-white">{heading.toFixed(1)}°</span></div>
+                    )}
+                    {vehicle.status && (
+                      <div className="mt-1">
+                        <span className={`px-2 py-0.5 text-xs rounded-full capitalize ${
+                          vehicle.status === 'moving' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                          vehicle.status === 'stopped' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                          'bg-red-500/20 text-red-300 border border-red-500/30'
+                        }`}>
+                          {vehicle.status}
+                        </span>
+                      </div>
+                    )}
+                    {vehicle.last_update && (
+                      <div className="text-gray-400 text-xs mt-1">
+                        Updated: {new Date(vehicle.last_update).toLocaleTimeString()}
+                      </div>
+                    )}
+                  </div>
+                </Popup>
+              </Marker>
+            </MapContainer>
+          </div>
+
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
               <span className="text-gray-400">Lat:</span>
