@@ -4,7 +4,8 @@ import {
   uploadDeliveryExecutiveImage, 
   updateDeliveryExecutiveLocation,
   getAllDeliveryExecutives,
-  deleteDeliveryExecutiveProfile
+  deleteDeliveryExecutiveProfile,
+  uploadDeliveryPhotoService
 } from '../services/deliveryExecutive.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
@@ -584,6 +585,58 @@ export const getRoutesByDriverId = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch routes',
+      error: error.message
+    });
+  }
+};
+
+// Upload delivery photo to external API
+export const uploadDeliveryPhoto = async (req, res) => {
+  try {
+    const { address_id, session } = req.body;
+    const imageFile = req.file;
+
+    if (!imageFile) {
+      return res.status(400).json({
+        success: false,
+        message: 'Image file is required'
+      });
+    }
+
+    if (!address_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Address ID is required'
+      });
+    }
+
+    if (!session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session is required (BREAKFAST, LUNCH, or DINNER)'
+      });
+    }
+
+    const result = await uploadDeliveryPhotoService(imageFile, address_id, session);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery photo uploaded successfully to external API', {
+      address_id: address_id,
+      session: session,
+      fileName: imageFile.originalname,
+      fileSize: imageFile.size
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery photo upload failed', {
+      address_id: req.body?.address_id,
+      session: req.body?.session,
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload delivery photo',
       error: error.message
     });
   }

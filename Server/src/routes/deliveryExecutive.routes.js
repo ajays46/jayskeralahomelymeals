@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import {
   createOrUpdateProfile,
   getProfile,
@@ -7,10 +8,26 @@ import {
   getAllProfiles,
   deleteProfile,
   getRoutes,
-  getRoutesByDriverId
+  getRoutesByDriverId,
+  uploadDeliveryPhoto
 } from '../controllers/deliveryExecutive.controller.js';
 
 const router = express.Router();
+
+// Configure multer for memory storage (for delivery photo uploads)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
 // Create or update delivery executive profile
 router.put('/:userId/profile', createOrUpdateProfile);
@@ -35,5 +52,8 @@ router.get('/get-routes/:phoneNumber', getRoutes);
 
 // Get delivery routes by driver_id (query parameter)
 router.get('/routes', getRoutesByDriverId);
+
+// Upload delivery photo to external API
+router.post('/upload-delivery-photo', upload.single('image'), uploadDeliveryPhoto);
 
 export default router;
