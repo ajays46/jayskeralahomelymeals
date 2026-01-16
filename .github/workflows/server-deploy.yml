@@ -59,8 +59,14 @@ jobs:
           # Navigate to project directory
           cd "$PROJECT_DIR" || { echo "Error: Project directory not found"; exit 1; }
 
-          # Pull latest changes
-          git pull origin main || { echo "Error: Git pull failed"; exit 1; }
+          # Fetch latest changes
+          git fetch origin main || { echo "Error: Git fetch failed"; exit 1; }
+          
+          # Reset to match remote exactly (discard any local changes)
+          git reset --hard origin/main || { echo "Error: Git reset failed"; exit 1; }
+          
+          # Clean any untracked files
+          git clean -fd || { echo "Error: Git clean failed"; exit 1; }
 
           # Install dependencies
           npm ci || { echo "Error: npm ci failed"; exit 1; }
