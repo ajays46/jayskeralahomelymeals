@@ -115,7 +115,7 @@ const CustomerLoginPage = () => {
         
         // Redirect to customer orders page
         setTimeout(() => {
-          navigate('/customer-orders');
+          navigate('/customer-portal');
         }, 1500);
       }
     } catch (error) {

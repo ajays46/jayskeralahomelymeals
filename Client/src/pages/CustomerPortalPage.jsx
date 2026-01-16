@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   MdPerson,
@@ -48,9 +48,16 @@ const CustomerPortalPage = () => {
         return;
       }
       
-      setError('No access token provided. Please use a valid link.');
-      setLoading(false);
-      return;
+      // Don't set error immediately - wait a bit in case token is being set
+      const timer = setTimeout(() => {
+        const finalToken = sessionStorage.getItem('customerPortalToken');
+        if (!finalToken) {
+          setError('No access token provided. Please use a valid link.');
+          setLoading(false);
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
 
     // Store token in sessionStorage and remove from URL for security
@@ -62,31 +69,23 @@ const CustomerPortalPage = () => {
     window.history.replaceState({}, document.title, url.pathname);
     
     // Set token after URL is cleaned (prevents race condition)
-    setToken(urlToken);
+    // Use a small delay to ensure state is properly set
+    setTimeout(() => {
+      setToken(urlToken);
+    }, 50);
   }, [searchParams]);
-
-  // Fetch customer data - only when token is available
-  useEffect(() => {
-    if (!token) {
-      return;
-    }
-
-    // Small delay to ensure token is fully set and prevent race conditions
-    const timer = setTimeout(() => {
-      fetchCustomerData();
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [token]);
 
   // Note: We don't clear sessionStorage on unmount to allow page refreshes
   // The token will be cleared when the user closes the browser tab/window
 
-  const fetchCustomerData = async () => {
+  const fetchCustomerData = useCallback(async () => {
     // Ensure token is available before making requests
-    if (!token) {
-      setError('Access token is missing. Please use a valid link.');
-      setLoading(false);
+    // Check both state and sessionStorage as fallback
+    const currentToken = token || sessionStorage.getItem('customerPortalToken');
+    
+    if (!currentToken) {
+      // Don't set error immediately - might be a timing issue
+      console.warn('Token not available yet, waiting...');
       return;
     }
 
@@ -98,7 +97,7 @@ const CustomerPortalPage = () => {
       const baseURL = import.meta.env.VITE_PROD_API_URL || import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000';
       
       // Validate token and get customer info
-      const validateResponse = await axios.get(`${baseURL}/customer-portal/validate-token?token=${encodeURIComponent(token)}`);
+      const validateResponse = await axios.get(`${baseURL}/customer-portal/validate-token?token=${encodeURIComponent(currentToken)}`);
       
       if (!validateResponse.data.success) {
         throw new Error(validateResponse.data.message || 'Token validation failed');
@@ -109,7 +108,7 @@ const CustomerPortalPage = () => {
       // Check if password setup is needed
       if (customerData.needsPasswordSetup) {
         // Redirect to password setup page
-        navigate(`/customer-password-setup?token=${encodeURIComponent(token)}`);
+        navigate(`/customer-password-setup?token=${encodeURIComponent(currentToken)}`);
         return;
       }
       
@@ -117,8 +116,8 @@ const CustomerPortalPage = () => {
 
       // Fetch orders and addresses
       const [ordersResponse, addressesResponse] = await Promise.all([
-        axios.get(`${baseURL}/customer-portal/orders?token=${encodeURIComponent(token)}`),
-        axios.get(`${baseURL}/customer-portal/addresses?token=${encodeURIComponent(token)}`)
+        axios.get(`${baseURL}/customer-portal/orders?token=${encodeURIComponent(currentToken)}`),
+        axios.get(`${baseURL}/customer-portal/addresses?token=${encodeURIComponent(currentToken)}`)
       ]);
 
       if (ordersResponse.data.success) {
@@ -175,7 +174,24 @@ const CustomerPortalPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, navigate]);
+
+  // Fetch customer data - only when token is available
+  useEffect(() => {
+    // Check both state and sessionStorage for token
+    const currentToken = token || sessionStorage.getItem('customerPortalToken');
+    
+    if (!currentToken) {
+      return;
+    }
+
+    // Small delay to ensure token is fully set and prevent race conditions
+    const timer = setTimeout(() => {
+      fetchCustomerData();
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [token, fetchCustomerData]);
 
   // Format date
   const formatDate = (dateString) => {
@@ -255,12 +271,6 @@ const CustomerPortalPage = () => {
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-orange-500 text-white px-6 py-3 rounded-md hover:bg-orange-600 transition-colors font-medium"
-          >
-            Go to Home
-          </button>
         </div>
       </div>
     );

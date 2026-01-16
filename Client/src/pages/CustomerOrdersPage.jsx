@@ -69,8 +69,16 @@ const CustomerOrdersPage = () => {
 
   // Fetch customer orders on component mount
   useEffect(() => {
-    if (customer?.id && user && roles?.includes('SELLER')) {
-      fetchCustomerOrders();
+    // For USER role: fetch their own orders using user.id
+    // For SELLER role: fetch customer orders using customer.id
+    if (user) {
+      if (roles?.includes('USER') && !customer) {
+        // Customer viewing their own orders - use logged-in user's ID
+        fetchCustomerOrders(user.id);
+      } else if (customer?.id && (roles?.includes('SELLER') || roles?.includes('USER'))) {
+        // Seller viewing customer orders OR customer with customer data
+        fetchCustomerOrders(customer.id);
+      }
     }
   }, [customer, user, roles]);
 
@@ -79,14 +87,14 @@ const CustomerOrdersPage = () => {
     applyFilters();
   }, [orders, filters]);
 
-  const fetchCustomerOrders = async () => {
-    if (!customer?.id) return;
+  const fetchCustomerOrders = async (customerId) => {
+    if (!customerId) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const result = await getUserOrders(customer.id);
+      const result = await getUserOrders(customerId);
       setOrders(result || []);
     } catch (error) {
       console.error('Error fetching customer orders:', error);
@@ -334,7 +342,11 @@ const CustomerOrdersPage = () => {
 
   // Handle back navigation
   const handleBack = () => {
-    navigate('/jkhm/seller/customers');
+    if (roles?.includes('SELLER')) {
+      navigate('/jkhm/seller/customers');
+    } else {
+      navigate('/jkhm');
+    }
   };
 
   // Handle cancel order
@@ -458,8 +470,10 @@ const CustomerOrdersPage = () => {
     }
   };
 
-  // Check if user has access
-  if (!user || !roles?.includes('SELLER')) {
+  // Check if user has access (allow both USER and SELLER roles)
+  // USER: Customers viewing their own orders
+  // SELLER: Sellers viewing customer orders
+  if (!user || (!roles?.includes('USER') && !roles?.includes('SELLER'))) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center">
         <div className="text-center">
@@ -477,8 +491,9 @@ const CustomerOrdersPage = () => {
     );
   }
 
-  // Check if customer data is available
-  if (!customer) {
+  // Check if customer data is available (only required for SELLER role)
+  // USER role can view their own orders without customer in state
+  if (!customer && roles?.includes('SELLER')) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -511,8 +526,12 @@ const CustomerOrdersPage = () => {
                 <MdArrowBack className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">Customer Orders</h1>
-                <p className="text-xs sm:text-sm text-gray-600 truncate">View all orders for this customer</p>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">
+                  {roles?.includes('USER') && !customer ? 'My Orders' : 'Customer Orders'}
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">
+                  {roles?.includes('USER') && !customer ? 'View all your orders' : 'View all orders for this customer'}
+                </p>
               </div>
             </div>
             
