@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import useAuthStore from '../stores/Zustand.store';
 import AppHeader from '../components/AppHeader';
+import axiosInstance from '../api/axios';
 
 /**
  * ManagementDashboardPage - Executive dashboard for CEO and CFO roles
@@ -35,25 +36,42 @@ const ManagementDashboardPage = () => {
     systemHealth: 'Good'
   });
 
-  // Mock data - replace with actual API calls
+  // Fetch real dashboard data from API
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        setIsLoading(true);
+        const response = await axiosInstance.get('/management-dashboard/summary');
         
-        setDashboardData({
-          totalRevenue: 1250000,
-          totalUsers: 2500,
-          totalOrders: 8500,
-          activeDeliveryExecutives: 45,
-          pendingOrders: 120,
-          completedOrders: 8380,
-          monthlyGrowth: 15.5,
-          systemHealth: 'Good'
-        });
+        if (response.data.success) {
+          setDashboardData(response.data.data);
+        } else {
+          console.error('API returned error:', response.data.message);
+          // Set default values on error
+          setDashboardData({
+            totalRevenue: 0,
+            totalUsers: 0,
+            totalOrders: 0,
+            activeDeliveryExecutives: 0,
+            pendingOrders: 0,
+            completedOrders: 0,
+            monthlyGrowth: 0,
+            systemHealth: 'Warning'
+          });
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        // Set default values on error
+        setDashboardData({
+          totalRevenue: 0,
+          totalUsers: 0,
+          totalOrders: 0,
+          activeDeliveryExecutives: 0,
+          pendingOrders: 0,
+          completedOrders: 0,
+          monthlyGrowth: 0,
+          systemHealth: 'Warning'
+        });
       } finally {
         setIsLoading(false);
       }
@@ -230,39 +248,6 @@ const ManagementDashboardPage = () => {
               </div>
             ))}
         </div>
-
-        {/* Additional Metrics for CFO */}
-        {isCFO && (
-          <div className="mt-8">
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Financial Overview</h3>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(dashboardData.totalRevenue * 0.8)}
-                    </p>
-                    <p className="text-sm text-gray-500">Net Profit</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600">
-                      {formatCurrency(dashboardData.totalRevenue * 0.15)}
-                    </p>
-                    <p className="text-sm text-gray-500">Operating Expenses</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-600">
-                      {formatCurrency(dashboardData.totalRevenue * 0.05)}
-                    </p>
-                    <p className="text-sm text-gray-500">Taxes</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Logout Confirmation Modal */}
         {showLogoutModal && (

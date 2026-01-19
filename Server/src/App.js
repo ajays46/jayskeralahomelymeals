@@ -23,6 +23,7 @@ import sellerPerformanceRoutes from './routes/sellerPerformance.routes.js';
 import customerAccessRoutes from './routes/customerAccess.routes.js';
 import aiRouteRoutes from './routes/aiRoute.routes.js';
 import driverMapsRoutes from './routes/driverMaps.routes.js';
+import managementDashboardRoutes from './routes/managementDashboard.routes.js';
 import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
 import logRotationManager from './utils/logRotationManager.js';
 import { logInfo, logError, LOG_CATEGORIES } from './utils/criticalLogger.js';
@@ -143,6 +144,7 @@ app.use('/api/seller-performance', sellerPerformanceRoutes);
 app.use('/api/customer-portal', customerAccessRoutes);
 app.use('/api/ai-routes', aiRouteRoutes);
 app.use('/api/drivers', driverMapsRoutes); // Mount driver maps APIs at /api/drivers
+app.use('/api/management-dashboard', managementDashboardRoutes);
 
 // Error logging middleware (should be after routes but before error handler)
 app.use(errorLogger);
