@@ -3,7 +3,7 @@ import {
   MdRestaurant, MdRestaurantMenu, MdHelp,
   MdPerson, MdShoppingCart, MdSearch,
   MdAdminPanelSettings, MdDashboard, MdLogout, MdStore, MdCalendarToday,
-  MdClose, MdMenu, MdLocalShipping
+  MdClose, MdMenu, MdLocalShipping, MdEmail, MdPhone
 } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
 import useAuthStore from '../stores/Zustand.store';
@@ -129,8 +129,34 @@ const Navbar = ({ onSignInClick }) => {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -10, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl py-2 z-50 border border-gray-100"
+                      className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl py-2 z-50 border border-gray-100"
                     >
+                      {/* User Info Section */}
+                      <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-orange-100/50">
+                        <div className="flex items-center gap-2">
+                          <FaUserCircle className="text-2xl text-[#FE8C00] flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-800 text-sm truncate">
+                              {user?.name || user?.contacts?.[0]?.firstName 
+                                ? `${user?.contacts?.[0]?.firstName || ''} ${user?.contacts?.[0]?.lastName || ''}`.trim() || user?.name || 'User'
+                                : 'User'}
+                            </div>
+                            {user?.email && (
+                              <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-1">
+                                <MdEmail className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{user.email}</span>
+                              </div>
+                            )}
+                            {user?.phone && (
+                              <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-0.5">
+                                <MdPhone className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{user.phone}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
                       {/* User Profile Options */}
                       <a href="/jkhm/profile" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
                         <MdPerson className="text-xl" /> Profile
@@ -375,6 +401,32 @@ const Navbar = ({ onSignInClick }) => {
                             {/* User Section */}
               {user ? (
                 <div className="border-t border-gray-100 p-4 bg-gradient-to-b from-orange-50/50 to-white">
+                  {/* User Info in Mobile Menu */}
+                  <div className="mb-4 pb-3 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <FaUserCircle className="text-2xl text-[#FE8C00] flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-800 text-sm truncate">
+                          {user?.name || user?.contacts?.[0]?.firstName 
+                            ? `${user?.contacts?.[0]?.firstName || ''} ${user?.contacts?.[0]?.lastName || ''}`.trim() || user?.name || 'User'
+                            : 'User'}
+                        </div>
+                        {user?.email && (
+                          <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-1">
+                            <MdEmail className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{user.email}</span>
+                          </div>
+                        )}
+                        {user?.phone && (
+                          <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-0.5">
+                            <MdPhone className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{user.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                     <MdPerson className="text-base" />
                     My Account
