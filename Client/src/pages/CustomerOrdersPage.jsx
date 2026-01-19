@@ -25,7 +25,12 @@ import {
   MdSearch,
   MdClear,
   MdVisibility,
-  MdOpenInNew
+  MdOpenInNew,
+  MdNote,
+  MdEdit,
+  MdSave,
+  MdClose,
+  MdArrowForward
 } from 'react-icons/md';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
@@ -35,7 +40,7 @@ const CustomerOrdersPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, roles } = useAuthStore();
-  const { getUserOrders, cancelOrder, cancelDeliveryItem } = useSeller();
+  const { getUserOrders, cancelOrder, cancelDeliveryItem, updateDeliveryNote, updateDeliveryItemsNoteByDate, updateDeliveryItemsNoteByDateRange } = useSeller();
   
   // Get customer data from navigation state
   const customer = location.state?.customer;
@@ -66,6 +71,28 @@ const CustomerOrdersPage = () => {
   const [showCancelItemModal, setShowCancelItemModal] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState(null);
   const [itemToCancel, setItemToCancel] = useState(null);
+  
+  // Delivery note modal state
+  const [showDeliveryNoteModal, setShowDeliveryNoteModal] = useState(false);
+  const [selectedOrderNote, setSelectedOrderNote] = useState(null);
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [editedNote, setEditedNote] = useState('');
+  
+  // Delivery items note by date modal state
+  const [showDeliveryItemsNoteModal, setShowDeliveryItemsNoteModal] = useState(false);
+  const [selectedOrderForDateNote, setSelectedOrderForDateNote] = useState(null);
+  const [selectedDateForNote, setSelectedDateForNote] = useState(null);
+  const [isEditingDateNote, setIsEditingDateNote] = useState(false);
+  const [editedDateNote, setEditedDateNote] = useState('');
+  
+  // Calendar and date range state
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [selectedOrderForCalendar, setSelectedOrderForCalendar] = useState(null);
+  const [selectedSession, setSelectedSession] = useState('all'); // 'all', 'Breakfast', 'Lunch', 'Dinner'
+  const [selectedDateRange, setSelectedDateRange] = useState({ from: null, to: null });
+  const [calendarCurrentDate, setCalendarCurrentDate] = useState(new Date());
+  const [calendarNote, setCalendarNote] = useState('');
+  const [isEditingCalendarNote, setIsEditingCalendarNote] = useState(false);
 
   // Fetch customer orders on component mount
   useEffect(() => {
@@ -431,6 +458,370 @@ const CustomerOrdersPage = () => {
     if (receiptUrl) {
       window.open(`http://localhost:5000${receiptUrl}`, '_blank', 'noopener,noreferrer');
     }
+  };
+
+  // Handle view delivery note
+  const handleViewDeliveryNote = (order) => {
+    setSelectedOrderNote({
+      orderId: order.id,
+      deliveryNote: order.deliveryNote,
+      orderDate: order.orderDate
+    });
+    setEditedNote(order.deliveryNote || '');
+    // If there's no note, open in edit mode automatically
+    setIsEditingNote(!order.deliveryNote);
+    setShowDeliveryNoteModal(true);
+  };
+
+  // Handle edit delivery note
+  const handleEditNote = () => {
+    setIsEditingNote(true);
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setEditedNote(selectedOrderNote?.deliveryNote || '');
+    setIsEditingNote(false);
+  };
+
+  // Handle save delivery note
+  const handleSaveNote = async () => {
+    if (!selectedOrderNote) return;
+    
+    setLoading(true);
+    try {
+      await updateDeliveryNote(selectedOrderNote.orderId, editedNote);
+      
+      // Update the order in the local state
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === selectedOrderNote.orderId
+            ? { ...order, deliveryNote: editedNote || null }
+            : order
+        )
+      );
+      
+      // Update selected order note
+      setSelectedOrderNote(prev => ({
+        ...prev,
+        deliveryNote: editedNote || null
+      }));
+      
+      setIsEditingNote(false);
+      showSuccessToast('Delivery note updated successfully');
+    } catch (error) {
+      console.error('Error updating delivery note:', error);
+      showErrorToast(error.message || 'Failed to update delivery note');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Group delivery items by date
+  const groupDeliveryItemsByDate = (deliveryItems) => {
+    if (!deliveryItems || deliveryItems.length === 0) return {};
+    
+    const grouped = {};
+    deliveryItems.forEach(item => {
+      const dateKey = item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : 'unknown';
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(item);
+    });
+    
+    return grouped;
+  };
+
+  // Get dates with delivery items filtered by session
+  const getDatesBySession = (deliveryItems, session) => {
+    if (!deliveryItems || deliveryItems.length === 0) return new Set();
+    
+    const dateSet = new Set();
+    deliveryItems.forEach(item => {
+      // Map database values to frontend values
+      const itemSession = item.deliveryTimeSlot === 'BREAKFAST' ? 'Breakfast' :
+                         item.deliveryTimeSlot === 'LUNCH' ? 'Lunch' :
+                         item.deliveryTimeSlot === 'DINNER' ? 'Dinner' : item.deliveryTimeSlot;
+      
+      if (session === 'all' || itemSession === session) {
+        const dateKey = item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : null;
+        if (dateKey) {
+          dateSet.add(dateKey);
+        }
+      }
+    });
+    
+    return dateSet;
+  };
+
+  // Generate calendar dates (month view)
+  const generateCalendarDates = (startDate) => {
+    const dates = [];
+    const year = startDate.getFullYear();
+    const month = startDate.getMonth();
+    
+    // First day of the month
+    const firstDay = new Date(year, month, 1);
+    // Last day of the month
+    const lastDay = new Date(year, month + 1, 0);
+    
+    // Start from the first day of the week that contains the first day of the month
+    const startDateCal = new Date(firstDay);
+    startDateCal.setDate(startDateCal.getDate() - startDateCal.getDay());
+    
+    // Generate 42 days (6 weeks)
+    for (let i = 0; i < 42; i++) {
+      const date = new Date(startDateCal);
+      date.setDate(startDateCal.getDate() + i);
+      dates.push(date);
+    }
+    
+    return dates;
+  };
+
+  // Check if date has delivery items for selected session
+  const dateHasItems = (date, deliveryItems, session) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return deliveryItems.some(item => {
+      const itemDate = item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : null;
+      if (itemDate !== dateStr) return false;
+      
+      if (session === 'all') return true;
+      
+      const itemSession = item.deliveryTimeSlot === 'BREAKFAST' ? 'Breakfast' :
+                         item.deliveryTimeSlot === 'LUNCH' ? 'Lunch' :
+                         item.deliveryTimeSlot === 'DINNER' ? 'Dinner' : item.deliveryTimeSlot;
+      return itemSession === session;
+    });
+  };
+
+  // Check if date is in selected range
+  const isDateInRange = (date, fromDate, toDate) => {
+    if (!fromDate || !toDate) return false;
+    const dateStr = date.toISOString().split('T')[0];
+    const fromStr = fromDate.toISOString().split('T')[0];
+    const toStr = toDate.toISOString().split('T')[0];
+    return dateStr >= fromStr && dateStr <= toStr;
+  };
+
+  // Handle calendar date click
+  const handleCalendarDateClick = (date) => {
+    if (!selectedOrderForCalendar) return;
+    
+    const dateStr = date.toISOString().split('T')[0];
+    
+    // Check if date has items for selected session
+    if (!dateHasItems(date, selectedOrderForCalendar.deliveryItems, selectedSession)) {
+      return;
+    }
+    
+    // If no range selected, set as from date
+    if (!selectedDateRange.from) {
+      setSelectedDateRange({ from: date, to: null });
+      setCalendarNote('');
+      setIsEditingCalendarNote(false);
+    } else if (!selectedDateRange.to) {
+      // If from date is set, set as to date
+      let newFrom = selectedDateRange.from;
+      let newTo = date;
+      
+      if (date < selectedDateRange.from) {
+        newFrom = date;
+        newTo = selectedDateRange.from;
+      }
+      
+      setSelectedDateRange({ from: newFrom, to: newTo });
+      
+      // Load existing note for the range
+      loadNoteForDateRange(newFrom, newTo);
+    } else {
+      // Reset and set new from date
+      setSelectedDateRange({ from: date, to: null });
+      setCalendarNote('');
+      setIsEditingCalendarNote(false);
+    }
+  };
+
+  // Load existing note for date range
+  const loadNoteForDateRange = (fromDate, toDate) => {
+    if (!selectedOrderForCalendar) return;
+    
+    const fromStr = fromDate.toISOString().split('T')[0];
+    const toStr = toDate.toISOString().split('T')[0];
+    
+    // Find items in the range with the selected session
+    const itemsInRange = selectedOrderForCalendar.deliveryItems.filter(item => {
+      const itemDate = item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : null;
+      if (!itemDate || itemDate < fromStr || itemDate > toStr) return false;
+      
+      if (selectedSession !== 'all') {
+        const itemSession = item.deliveryTimeSlot === 'BREAKFAST' ? 'Breakfast' :
+                           item.deliveryTimeSlot === 'LUNCH' ? 'Lunch' :
+                           item.deliveryTimeSlot === 'DINNER' ? 'Dinner' : item.deliveryTimeSlot;
+        return itemSession === selectedSession;
+      }
+      return true;
+    });
+    
+    // Get note from first item (all should have same note)
+    const existingNote = itemsInRange[0]?.deliveryNote || '';
+    setCalendarNote(existingNote);
+    setIsEditingCalendarNote(false);
+  };
+
+  // Handle open calendar modal
+  const handleOpenCalendarModal = (order) => {
+    setSelectedOrderForCalendar(order);
+    setSelectedSession('all');
+    setSelectedDateRange({ from: null, to: null });
+    setCalendarNote('');
+    setIsEditingCalendarNote(false);
+    
+    // Set calendar to show first delivery date
+    if (order.deliveryItems && order.deliveryItems.length > 0) {
+      const firstDate = new Date(order.deliveryItems[0].deliveryDate);
+      setCalendarCurrentDate(new Date(firstDate.getFullYear(), firstDate.getMonth(), 1));
+    }
+    
+    setShowCalendarModal(true);
+  };
+
+  // Handle save calendar note (date range)
+  const handleSaveCalendarNote = async () => {
+    if (!selectedOrderForCalendar || !selectedDateRange.from) return;
+    
+    // If only from date is selected, use it as both from and to
+    const fromDate = selectedDateRange.from;
+    const toDate = selectedDateRange.to || selectedDateRange.from;
+    
+    setLoading(true);
+    try {
+      await updateDeliveryItemsNoteByDateRange(
+        selectedOrderForCalendar.id,
+        fromDate.toISOString().split('T')[0],
+        toDate.toISOString().split('T')[0],
+        calendarNote,
+        selectedSession !== 'all' ? selectedSession : null
+      );
+      
+      // Update the order in the local state
+      setOrders(prevOrders => 
+        prevOrders.map(order => {
+          if (order.id === selectedOrderForCalendar.id) {
+            const updatedItems = order.deliveryItems.map(item => {
+              const itemDate = item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : null;
+              const fromStr = fromDate.toISOString().split('T')[0];
+              const toStr = toDate.toISOString().split('T')[0];
+              
+              if (itemDate && itemDate >= fromStr && itemDate <= toStr) {
+                // Check session filter
+                if (selectedSession !== 'all') {
+                  const itemSession = item.deliveryTimeSlot === 'BREAKFAST' ? 'Breakfast' :
+                                     item.deliveryTimeSlot === 'LUNCH' ? 'Lunch' :
+                                     item.deliveryTimeSlot === 'DINNER' ? 'Dinner' : item.deliveryTimeSlot;
+                  if (itemSession === selectedSession) {
+                    return { ...item, deliveryNote: calendarNote || null };
+                  }
+                } else {
+                  return { ...item, deliveryNote: calendarNote || null };
+                }
+              }
+              return item;
+            });
+            return { ...order, deliveryItems: updatedItems };
+          }
+          return order;
+        })
+      );
+      
+      setIsEditingCalendarNote(false);
+      setSelectedDateRange({ from: null, to: null });
+      setCalendarNote('');
+      showSuccessToast('Delivery note updated successfully for selected date range');
+    } catch (error) {
+      console.error('Error updating delivery note:', error);
+      showErrorToast(error.message || 'Failed to update delivery note');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle view/add delivery note for a specific date
+  const handleViewDateDeliveryNote = (order, deliveryDate) => {
+    const dateStr = deliveryDate instanceof Date 
+      ? deliveryDate.toISOString().split('T')[0] 
+      : new Date(deliveryDate).toISOString().split('T')[0];
+    
+    // Find delivery items for this date
+    const itemsForDate = order.deliveryItems?.filter(item => {
+      const itemDate = item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : null;
+      return itemDate === dateStr;
+    }) || [];
+    
+    // Get the note from the first item (all items for same date should have same note)
+    const existingNote = itemsForDate[0]?.deliveryNote || '';
+    
+    setSelectedOrderForDateNote(order);
+    setSelectedDateForNote(dateStr);
+    setEditedDateNote(existingNote);
+    setIsEditingDateNote(false);
+    setShowDeliveryItemsNoteModal(true);
+  };
+
+  // Handle save delivery note for date
+  const handleSaveDateNote = async () => {
+    if (!selectedOrderForDateNote || !selectedDateForNote) return;
+    
+    setLoading(true);
+    try {
+      await updateDeliveryItemsNoteByDate(
+        selectedOrderForDateNote.id, 
+        selectedDateForNote, 
+        editedDateNote
+      );
+      
+      // Update the order in the local state
+      setOrders(prevOrders => 
+        prevOrders.map(order => {
+          if (order.id === selectedOrderForDateNote.id) {
+            const updatedItems = order.deliveryItems.map(item => {
+              const itemDate = item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : null;
+              if (itemDate === selectedDateForNote) {
+                return { ...item, deliveryNote: editedDateNote || null };
+              }
+              return item;
+            });
+            return { ...order, deliveryItems: updatedItems };
+          }
+          return order;
+        })
+      );
+      
+      setIsEditingDateNote(false);
+      showSuccessToast('Delivery note updated successfully for this date');
+    } catch (error) {
+      console.error('Error updating delivery note:', error);
+      showErrorToast(error.message || 'Failed to update delivery note');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle edit date note
+  const handleEditDateNote = () => {
+    setIsEditingDateNote(true);
+  };
+
+  // Handle cancel edit date note
+  const handleCancelEditDateNote = () => {
+    const itemsForDate = selectedOrderForDateNote?.deliveryItems?.filter(item => {
+      const itemDate = item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : null;
+      return itemDate === selectedDateForNote;
+    }) || [];
+    const existingNote = itemsForDate[0]?.deliveryNote || '';
+    setEditedDateNote(existingNote);
+    setIsEditingDateNote(false);
   };
 
 
@@ -813,7 +1204,7 @@ const CustomerOrdersPage = () => {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {order.deliveryItems && order.deliveryItems.length > 0 && (
                             <button
                               onClick={() => {
@@ -824,6 +1215,27 @@ const CustomerOrdersPage = () => {
                               className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg hover:bg-gray-200 transition-colors font-medium"
                             >
                               {expandedOrders[order.id] ? 'Hide Details' : 'View Details'}
+                            </button>
+                          )}
+                          
+                          {/* View/Add Delivery Note Button */}
+                          {order.deliveryNote ? (
+                            <button
+                              onClick={() => handleViewDeliveryNote(order)}
+                              className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1 shadow-sm"
+                              title="View Delivery Note"
+                            >
+                              <MdNote className="w-3 h-3" />
+                              <span className="hidden sm:inline">Note</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleViewDeliveryNote(order)}
+                              className="px-3 py-1.5 bg-purple-500 text-white text-xs rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-1 shadow-sm border border-purple-400"
+                              title="Add Delivery Note"
+                            >
+                              <MdNote className="w-3 h-3" />
+                              <span className="hidden sm:inline">Add Note</span>
                             </button>
                           )}
                           
@@ -936,7 +1348,28 @@ const CustomerOrdersPage = () => {
 
                         {/* Actions Column */}
                         <div className="col-span-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* View/Add Delivery Note Button */}
+                            {order.deliveryNote ? (
+                              <button
+                                onClick={() => handleViewDeliveryNote(order)}
+                                className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1 shadow-sm"
+                                title="View Delivery Note"
+                              >
+                                <MdNote className="w-3 h-3" />
+                                Note
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleViewDeliveryNote(order)}
+                                className="px-3 py-1.5 bg-purple-500 text-white text-xs rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-1 shadow-sm border border-purple-400"
+                                title="Add Delivery Note"
+                              >
+                                <MdNote className="w-3 h-3" />
+                                Add Note
+                              </button>
+                            )}
+                            
                             {/* View Receipts Button */}
                             {order.payments && order.payments.length > 0 && 
                              order.payments.some(payment => 
@@ -971,27 +1404,43 @@ const CustomerOrdersPage = () => {
                       {/* Expanded Delivery Items Section */}
                       {expandedOrders[order.id] && order.deliveryItems && order.deliveryItems.length > 0 && (
                         <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
-                            <h4 className="text-xs sm:text-sm font-semibold text-gray-800 flex items-center gap-1 sm:gap-2">
-                              <MdLocalShipping className="w-3 h-3 sm:w-4 sm:h-4" />
-                              Delivery Items ({order.deliveryItems.length})
-                            </h4>
+                          <div className="flex flex-col gap-3 mb-3 sm:mb-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+                              <h4 className="text-xs sm:text-sm font-semibold text-gray-800 flex items-center gap-1 sm:gap-2">
+                                <MdLocalShipping className="w-3 h-3 sm:w-4 sm:h-4" />
+                                Delivery Items ({order.deliveryItems.length})
+                              </h4>
+                              
+                              {/* Delivery Items Filter Toggle */}
+                              <button
+                                onClick={() => {
+                                  const currentFilters = deliveryItemFilters[order.id];
+                                  if (currentFilters?.showFilters) {
+                                    clearDeliveryItemFilters(order.id);
+                                  } else {
+                                    handleDeliveryItemFilterChange(order.id, 'showFilters', true);
+                                  }
+                                }}
+                                className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm w-full sm:w-auto"
+                              >
+                                <MdFilterList className="w-3 h-3 sm:w-4 sm:h-4" />
+                                {deliveryItemFilters[order.id]?.showFilters ? 'Hide Filters' : 'Show Filters'}
+                              </button>
+                            </div>
                             
-                            {/* Delivery Items Filter Toggle */}
-                            <button
-                              onClick={() => {
-                                const currentFilters = deliveryItemFilters[order.id];
-                                if (currentFilters?.showFilters) {
-                                  clearDeliveryItemFilters(order.id);
-                                } else {
-                                  handleDeliveryItemFilterChange(order.id, 'showFilters', true);
-                                }
-                              }}
-                              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm w-full sm:w-auto"
-                            >
-                              <MdFilterList className="w-3 h-3 sm:w-4 sm:h-4" />
-                              {deliveryItemFilters[order.id]?.showFilters ? 'Hide Filters' : 'Show Filters'}
-                            </button>
+                            {/* Delivery Dates Calendar Button */}
+                            {order.deliveryItems && order.deliveryItems.length > 0 && (
+                              <div className="p-2 bg-blue-50 rounded-lg border border-blue-200">
+                                <button
+                                  onClick={() => handleOpenCalendarModal(order)}
+                                  className="flex items-center gap-2 px-3 py-2 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors text-xs sm:text-sm font-medium w-full sm:w-auto"
+                                  title="Open calendar to add delivery notes by date range and session"
+                                >
+                                  <MdCalendarToday className="w-4 h-4" />
+                                  <span>Add Delivery Notes by Date Range</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         
                           {/* Delivery Items Filters */}
@@ -1141,6 +1590,19 @@ const CustomerOrdersPage = () => {
                                           </div>
                                         </div>
 
+                                        {/* Delivery Note */}
+                                        {item.deliveryNote && (
+                                          <div className="bg-purple-50 rounded-lg p-2 sm:p-3 border border-purple-200">
+                                            <div className="flex items-center gap-1 text-xs text-gray-600 mb-1 sm:mb-2">
+                                              <MdNote className="w-3 h-3 text-purple-600 flex-shrink-0" />
+                                              <span className="font-medium text-purple-700">Delivery Note</span>
+                                            </div>
+                                            <div className="text-xs text-gray-800 leading-relaxed whitespace-pre-wrap">
+                                              {item.deliveryNote}
+                                            </div>
+                                          </div>
+                                        )}
+
                                         {/* Actions */}
                                         {item.status !== 'Cancelled' && item.status !== 'Completed' && (
                                           <div className="flex justify-end">
@@ -1217,6 +1679,19 @@ const CustomerOrdersPage = () => {
                                                 <div className="text-gray-400 italic">No address specified</div>
                                               )}
                                             </div>
+                                            
+                                            {/* Delivery Note - Desktop */}
+                                            {item.deliveryNote && (
+                                              <div className="mt-3 bg-purple-50 rounded-lg p-2 border border-purple-200 text-left">
+                                                <div className="flex items-center gap-1 text-xs text-gray-600 mb-1">
+                                                  <MdNote className="w-3 h-3 text-purple-600" />
+                                                  <span className="font-medium text-purple-700">Delivery Note</span>
+                                                </div>
+                                                <div className="text-xs text-gray-800 leading-relaxed whitespace-pre-wrap">
+                                                  {item.deliveryNote}
+                                                </div>
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-3">
@@ -1302,6 +1777,451 @@ const CustomerOrdersPage = () => {
         style={{ maxWidth: '400px' }}
       >
         <p className="text-sm sm:text-base">Are you sure you want to cancel this delivery item? This action cannot be undone.</p>
+      </Modal>
+
+      {/* Delivery Note Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <MdNote className="w-5 h-5 text-purple-600" />
+            <span>Delivery Note</span>
+          </div>
+        }
+        open={showDeliveryNoteModal}
+        onCancel={() => {
+          setShowDeliveryNoteModal(false);
+          setSelectedOrderNote(null);
+          setIsEditingNote(false);
+          setEditedNote('');
+        }}
+        footer={null}
+        width="90%"
+        style={{ maxWidth: '600px' }}
+      >
+        {selectedOrderNote && (
+          <div className="space-y-4">
+            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <MdNote className="w-5 h-5 text-purple-600" />
+                  <h3 className="text-sm font-semibold text-purple-900">Delivery Instructions</h3>
+                </div>
+                {!isEditingNote && (
+                  <button
+                    onClick={handleEditNote}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors"
+                    title="Edit Delivery Note"
+                  >
+                    <MdEdit className="w-3 h-3" />
+                    Edit
+                  </button>
+                )}
+              </div>
+              
+              {isEditingNote ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={editedNote}
+                    onChange={(e) => setEditedNote(e.target.value)}
+                    placeholder="Enter delivery instructions, special requests, or any notes for the delivery team..."
+                    rows={6}
+                    maxLength={500}
+                    className="w-full px-3 py-2 text-sm border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  />
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-gray-500">
+                      {editedNote.length}/500 characters
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={loading}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white text-xs rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
+                      >
+                        <MdClose className="w-3 h-3" />
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveNote}
+                        disabled={loading}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                      >
+                        <MdSave className="w-3 h-3" />
+                        {loading ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                  {selectedOrderNote.deliveryNote || 'No delivery note available.'}
+                </div>
+              )}
+            </div>
+            
+            {!isEditingNote && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowDeliveryNoteModal(false);
+                    setSelectedOrderNote(null);
+                    setIsEditingNote(false);
+                    setEditedNote('');
+                  }}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Calendar Modal for Date Range Delivery Notes */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <MdCalendarToday className="w-5 h-5 text-blue-600" />
+            <span>Delivery Notes Calendar</span>
+          </div>
+        }
+        open={showCalendarModal}
+        onCancel={() => {
+          setShowCalendarModal(false);
+          setSelectedOrderForCalendar(null);
+          setSelectedSession('all');
+          setSelectedDateRange({ from: null, to: null });
+          setCalendarNote('');
+          setIsEditingCalendarNote(false);
+        }}
+        footer={null}
+        width="95%"
+        style={{ maxWidth: '650px' }}
+      >
+        {selectedOrderForCalendar && (
+          <div className="space-y-3">
+            {/* Session Filter */}
+            <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-200">
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Filter by Session</label>
+              <div className="flex flex-wrap gap-1.5">
+                {['all', 'Breakfast', 'Lunch', 'Dinner'].map(session => (
+                  <button
+                    key={session}
+                    onClick={() => {
+                      setSelectedSession(session);
+                      setSelectedDateRange({ from: null, to: null });
+                    }}
+                    className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                      selectedSession === session
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {session === 'all' ? 'All Sessions' : session}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Calendar */}
+            <div className="bg-white rounded-lg border border-gray-200 p-3">
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  onClick={() => {
+                    const newDate = new Date(calendarCurrentDate);
+                    newDate.setMonth(newDate.getMonth() - 1);
+                    setCalendarCurrentDate(newDate);
+                  }}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <MdArrowBack className="w-4 h-4" />
+                </button>
+                <h3 className="text-base font-semibold text-gray-900">
+                  {calendarCurrentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h3>
+                <button
+                  onClick={() => {
+                    const newDate = new Date(calendarCurrentDate);
+                    newDate.setMonth(newDate.getMonth() + 1);
+                    setCalendarCurrentDate(newDate);
+                  }}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <MdArrowForward className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {/* Day Headers */}
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="text-center text-xs font-semibold text-gray-600 py-1.5">
+                    {day}
+                  </div>
+                ))}
+
+                {/* Calendar Dates */}
+                {generateCalendarDates(calendarCurrentDate).map((date, index) => {
+                  const dateStr = date.toISOString().split('T')[0];
+                  const hasItems = dateHasItems(date, selectedOrderForCalendar.deliveryItems, selectedSession);
+                  const isInRange = isDateInRange(date, selectedDateRange.from, selectedDateRange.to);
+                  const isFromDate = selectedDateRange.from && dateStr === selectedDateRange.from.toISOString().split('T')[0];
+                  const isToDate = selectedDateRange.to && dateStr === selectedDateRange.to.toISOString().split('T')[0];
+                  const isCurrentMonth = date.getMonth() === calendarCurrentDate.getMonth();
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const isToday = dateStr === today.toISOString().split('T')[0];
+
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => hasItems && handleCalendarDateClick(date)}
+                      disabled={!hasItems || !isCurrentMonth}
+                      className={`aspect-square rounded-md border transition-all text-xs font-medium flex items-center justify-center ${
+                        !isCurrentMonth
+                          ? 'text-gray-300 border-gray-100 cursor-not-allowed'
+                          : !hasItems
+                          ? 'text-gray-400 border-gray-200 cursor-not-allowed bg-gray-50'
+                          : isFromDate || isToDate
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
+                          : isInRange
+                          ? 'bg-blue-100 border-blue-300 text-blue-700'
+                          : isToday
+                          ? 'bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100'
+                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-300'
+                      }`}
+                      title={hasItems ? `Click to select date range` : 'No delivery items for this date'}
+                    >
+                      {date.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected Range Display */}
+              {selectedDateRange.from && (
+                <div className="mt-3 p-2.5 bg-blue-50 rounded-md border border-blue-200">
+                  <div className="text-xs font-medium text-blue-900 mb-1">Selected Date Range:</div>
+                  <div className="text-xs text-blue-700">
+                    {formatDate(selectedDateRange.from.toISOString().split('T')[0])}
+                    {selectedDateRange.to && (
+                      <> to {formatDate(selectedDateRange.to.toISOString().split('T')[0])}</>
+                    )}
+                    {selectedSession !== 'all' && (
+                      <span className="ml-2">({selectedSession})</span>
+                    )}
+                  </div>
+                  {selectedDateRange.from && (
+                    <button
+                      onClick={() => setSelectedDateRange({ from: null, to: null })}
+                      className="mt-1.5 text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Clear Selection
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Delivery Note Input */}
+            {selectedDateRange.from && (
+              <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <MdNote className="w-4 h-4 text-purple-600" />
+                    <h3 className="text-xs font-semibold text-purple-900">Delivery Note</h3>
+                  </div>
+                  {!isEditingCalendarNote && (
+                    <button
+                      onClick={() => setIsEditingCalendarNote(true)}
+                      className="flex items-center gap-1 px-2.5 py-1 bg-purple-600 text-white text-xs rounded-md hover:bg-purple-700 transition-colors"
+                    >
+                      <MdEdit className="w-3 h-3" />
+                      {calendarNote ? 'Edit' : 'Add Note'}
+                    </button>
+                  )}
+                </div>
+
+                {isEditingCalendarNote ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={calendarNote}
+                      onChange={(e) => setCalendarNote(e.target.value)}
+                      placeholder="Enter delivery instructions for the selected date range..."
+                      rows={3}
+                      maxLength={500}
+                      className="w-full px-2.5 py-1.5 text-xs border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    />
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-500">
+                        {calendarNote.length}/500
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => {
+                            setIsEditingCalendarNote(false);
+                            setCalendarNote('');
+                          }}
+                          disabled={loading}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50"
+                        >
+                          <MdClose className="w-3 h-3" />
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveCalendarNote}
+                          disabled={loading}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-purple-600 text-white text-xs rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
+                        >
+                          <MdSave className="w-3 h-3" />
+                          {loading ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {calendarNote || 'No delivery note set for this range. Click "Add Note" to add one.'}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Close Button */}
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => {
+                  setShowCalendarModal(false);
+                  setSelectedOrderForCalendar(null);
+                  setSelectedSession('all');
+                  setSelectedDateRange({ from: null, to: null });
+                  setCalendarNote('');
+                  setIsEditingCalendarNote(false);
+                }}
+                className="px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-xs"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delivery Items Note by Date Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <MdNote className="w-5 h-5 text-purple-600" />
+            <span>Delivery Note for Date</span>
+          </div>
+        }
+        open={showDeliveryItemsNoteModal}
+        onCancel={() => {
+          setShowDeliveryItemsNoteModal(false);
+          setSelectedOrderForDateNote(null);
+          setSelectedDateForNote(null);
+          setIsEditingDateNote(false);
+          setEditedDateNote('');
+        }}
+        footer={null}
+        width="90%"
+        style={{ maxWidth: '600px' }}
+      >
+        {selectedOrderForDateNote && selectedDateForNote && (
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div className="text-xs text-gray-600 mb-1">Delivery Date</div>
+              <div className="text-sm font-semibold text-gray-900">{formatDate(selectedDateForNote)}</div>
+              <div className="text-xs text-gray-600 mt-2 mb-1">Items for this date</div>
+              <div className="text-sm text-gray-700">
+                {(() => {
+                  const itemsForDate = selectedOrderForDateNote.deliveryItems?.filter(item => {
+                    const itemDate = item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : null;
+                    return itemDate === selectedDateForNote;
+                  }) || [];
+                  return `${itemsForDate.length} delivery item${itemsForDate.length !== 1 ? 's' : ''}`;
+                })()}
+              </div>
+            </div>
+            
+            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <MdNote className="w-5 h-5 text-purple-600" />
+                  <h3 className="text-sm font-semibold text-purple-900">Delivery Instructions for this Date</h3>
+                </div>
+                {!isEditingDateNote && (
+                  <button
+                    onClick={handleEditDateNote}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors"
+                    title="Edit Delivery Note"
+                  >
+                    <MdEdit className="w-3 h-3" />
+                    {editedDateNote ? 'Edit' : 'Add Note'}
+                  </button>
+                )}
+              </div>
+              
+              {isEditingDateNote ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={editedDateNote}
+                    onChange={(e) => setEditedDateNote(e.target.value)}
+                    placeholder="Enter delivery instructions, special requests, or any notes for the delivery team for this specific date..."
+                    rows={6}
+                    maxLength={500}
+                    className="w-full px-3 py-2 text-sm border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  />
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-gray-500">
+                      {editedDateNote.length}/500 characters
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCancelEditDateNote}
+                        disabled={loading}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white text-xs rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
+                      >
+                        <MdClose className="w-3 h-3" />
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveDateNote}
+                        disabled={loading}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                      >
+                        <MdSave className="w-3 h-3" />
+                        {loading ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                  {editedDateNote || 'No delivery note available for this date.'}
+                </div>
+              )}
+            </div>
+            
+            {!isEditingDateNote && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowDeliveryItemsNoteModal(false);
+                    setSelectedOrderForDateNote(null);
+                    setSelectedDateForNote(null);
+                    setIsEditingDateNote(false);
+                    setEditedDateNote('');
+                  }}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
     </div>

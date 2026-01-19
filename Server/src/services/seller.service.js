@@ -411,6 +411,7 @@ export const getUserOrders = async (userId, sellerId) => {
             deliveryTimeSlot: true,
             status: true,
             quantity: true,
+            deliveryNote: true,
             menuItem: {
               select: {
                 id: true,
@@ -445,6 +446,200 @@ export const getUserOrders = async (userId, sellerId) => {
     return orders;
   } catch (error) {
     throw new AppError('Failed to fetch user orders: ' + error.message, 500);
+  }
+};
+
+// Update delivery note for an order
+export const updateOrderDeliveryNote = async (orderId, sellerId, deliveryNote) => {
+  try {
+    // First verify that the order belongs to a user created by the seller
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderId
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            createdBy: true
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      throw new AppError('Order not found', 404);
+    }
+
+    // Verify that the user was created by this seller
+    if (order.user.createdBy !== sellerId) {
+      throw new AppError('Order not accessible by this seller', 403);
+    }
+
+    // Update the delivery note
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: { 
+        deliveryNote: deliveryNote || null
+      }
+    });
+
+    return updatedOrder;
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to update delivery note: ' + error.message, 500);
+  }
+};
+
+// Update delivery note for delivery items by date
+export const updateDeliveryItemsNoteByDate = async (orderId, deliveryDate, sellerId, deliveryNote) => {
+  try {
+    // First verify that the order belongs to a user created by the seller
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderId
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            createdBy: true
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      throw new AppError('Order not found', 404);
+    }
+
+    // Verify that the user was created by this seller
+    if (order.user.createdBy !== sellerId) {
+      throw new AppError('Order not accessible by this seller', 403);
+    }
+
+    // Parse the delivery date
+    const dateObj = new Date(deliveryDate);
+    const startOfDay = new Date(dateObj.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(dateObj.setHours(23, 59, 59, 999));
+
+    // Update all delivery items for this order and date
+    const updatedItems = await prisma.deliveryItem.updateMany({
+      where: {
+        orderId: orderId,
+        deliveryDate: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      },
+      data: {
+        deliveryNote: deliveryNote || null
+      }
+    });
+
+    // Get updated delivery items
+    const deliveryItems = await prisma.deliveryItem.findMany({
+      where: {
+        orderId: orderId,
+        deliveryDate: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      }
+    });
+
+    return {
+      updatedCount: updatedItems.count,
+      deliveryItems: deliveryItems
+    };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to update delivery items note: ' + error.message, 500);
+  }
+};
+
+// Update delivery note for delivery items by date range and session
+export const updateDeliveryItemsNoteByDateRange = async (orderId, fromDate, toDate, sellerId, deliveryNote, deliveryTimeSlot = null) => {
+  try {
+    // First verify that the order belongs to a user created by the seller
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderId
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            createdBy: true
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      throw new AppError('Order not found', 404);
+    }
+
+    // Verify that the user was created by this seller
+    if (order.user.createdBy !== sellerId) {
+      throw new AppError('Order not accessible by this seller', 403);
+    }
+
+    // Parse the dates
+    const fromDateObj = new Date(fromDate);
+    fromDateObj.setHours(0, 0, 0, 0);
+    const toDateObj = new Date(toDate);
+    toDateObj.setHours(23, 59, 59, 999);
+
+    // Build where clause
+    const whereClause = {
+      orderId: orderId,
+      deliveryDate: {
+        gte: fromDateObj,
+        lte: toDateObj
+      }
+    };
+
+    // Add session filter if provided
+    if (deliveryTimeSlot) {
+      // Map frontend session names to database values
+      const sessionMap = {
+        'Breakfast': 'BREAKFAST',
+        'Lunch': 'LUNCH',
+        'Dinner': 'DINNER',
+        'BREAKFAST': 'BREAKFAST',
+        'LUNCH': 'LUNCH',
+        'DINNER': 'DINNER'
+      };
+      whereClause.deliveryTimeSlot = sessionMap[deliveryTimeSlot] || deliveryTimeSlot;
+    }
+
+    // Update all delivery items matching the criteria
+    const updatedItems = await prisma.deliveryItem.updateMany({
+      where: whereClause,
+      data: {
+        deliveryNote: deliveryNote || null
+      }
+    });
+
+    // Get updated delivery items
+    const deliveryItems = await prisma.deliveryItem.findMany({
+      where: whereClause
+    });
+
+    return {
+      updatedCount: updatedItems.count,
+      deliveryItems: deliveryItems
+    };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to update delivery items note: ' + error.message, 500);
   }
 };
 

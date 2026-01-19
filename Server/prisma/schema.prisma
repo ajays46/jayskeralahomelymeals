@@ -213,6 +213,7 @@ model Order {
   orderTimes             String         @map("order_times")
   totalPrice             Int            @map("total_price")
   deliveryAddressId      String?        @map("delivery_address_id") @db.VarChar(36)
+  deliveryNote           String?        @map("delivery_note") @db.Text
   createdAt              DateTime       @default(now()) @map("created_at")
   updatedAt              DateTime       @updatedAt @map("updated_at")
   deliveryAddress        Address?       @relation(fields: [deliveryAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -232,6 +233,7 @@ model DeliveryItem {
   deliveryTimeSlot delivery_items_delivery_time_slot @map("delivery_time_slot")
   addressId        String                            @map("address_id") @db.VarChar(36)
   status           OrderStatus                       @default(Pending)
+  deliveryNote     String?                           @map("delivery_note") @db.Text
   createdAt        DateTime                          @default(now()) @map("created_at")
   updatedAt        DateTime                          @updatedAt @map("updated_at")
   userId           String                            @map("user_id") @db.VarChar(36)

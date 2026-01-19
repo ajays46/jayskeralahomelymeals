@@ -47,7 +47,8 @@ import {
   DateSelector, 
   MenuSelector, 
   OrderSummary,
-  MealSkipSelector
+  MealSkipSelector,
+  DeliveryNote
 } from '../components/booking';
 import axiosInstance from '../api/axios.js';
 
@@ -181,6 +182,7 @@ const BookingWizardPage = () => {
   
   // Meal skipping state
   const [skipMeals, setSkipMeals] = useState({});
+  const [deliveryNote, setDeliveryNote] = useState('');
   
   // Daily Flexible Plan - Store menu selection for each date
   const [dateMenuSelections, setDateMenuSelections] = useState({});
@@ -1682,6 +1684,17 @@ const BookingWizardPage = () => {
               </div>
             )}
 
+            {/* Delivery Note */}
+            {selectedDates.length > 0 && (
+              <div className="mt-4">
+                <DeliveryNote
+                  deliveryNote={deliveryNote}
+                  onDeliveryNoteChange={setDeliveryNote}
+                  isMobile={isMobile}
+                />
+              </div>
+            )}
+
 
           </div>
         );
@@ -1727,6 +1740,7 @@ const BookingWizardPage = () => {
       dateMenuSelections,
       orderMode,
       dietaryPreference,
+      deliveryNote: deliveryNote || null,
       customerName: selectedUser ? 
         `${selectedUser.contacts?.[0]?.firstName || ''}`.trim() :
         `${user?.contacts?.[0]?.firstName || ''}`.trim() || user?.auth?.email || 'N/A'
@@ -1761,6 +1775,7 @@ const BookingWizardPage = () => {
     setDateMenuSelections(draft.dateMenuSelections || {});
     setOrderMode(draft.orderMode || 'multiple');
     setDietaryPreference(draft.dietaryPreference || 'veg');
+    setDeliveryNote(draft.deliveryNote || '');
     setDraftId(draft.id);
     setIsDraftMode(true);
     
@@ -2029,6 +2044,7 @@ const BookingWizardPage = () => {
         menuId: selectedMenu.menuId,
         menuName: selectedMenu.name,
         skipMeals: skipMeals,
+        deliveryNote: deliveryNote || null,
 
         userId: selectedUser?.id || user?.id,
         // Include customer name for display

@@ -13,7 +13,10 @@ import {
   cancelOrderController,
   deleteUserController,
   updateCustomerController,
-  generateCustomerLinkController
+  generateCustomerLinkController,
+  updateOrderDeliveryNoteController,
+  updateDeliveryItemsNoteByDateController,
+  updateDeliveryItemsNoteByDateRangeController
 } from '../controllers/seller.controller.js';
 
 const router = express.Router();
@@ -34,6 +37,9 @@ router.delete('/users/:userId/addresses/:addressId', deleteUserAddressController
 router.get('/users/:userId/orders', getUserOrdersController);
 router.put('/users/:userId', updateCustomerController);
 router.put('/orders/:orderId/cancel', cancelOrderController);
+router.put('/orders/:orderId/delivery-note', updateOrderDeliveryNoteController);
+router.put('/orders/:orderId/delivery-items-note', updateDeliveryItemsNoteByDateController);
+router.put('/orders/:orderId/delivery-items-note-range', updateDeliveryItemsNoteByDateRangeController);
 router.put('/delivery-items/:deliveryItemId/cancel', cancelDeliveryItemController);
 router.delete('/users/:userId', deleteUserController);
 
