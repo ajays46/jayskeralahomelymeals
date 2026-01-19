@@ -204,6 +204,11 @@ const DeliveryExecutivePage = () => {
   const [selectedStopStatus, setSelectedStopStatus] = useState('Delivered'); // Default to 'Delivered'
   const [gettingLocation, setGettingLocation] = useState(false); // Track geolocation loading state
   
+  // Delivery note modal state
+  const [showDeliveryNoteModal, setShowDeliveryNoteModal] = useState(false);
+  const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
+  const [selectedStopForNote, setSelectedStopForNote] = useState(null);
+  
   // Offline state
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [syncStatus, setSyncStatus] = useState({ queueLength: 0, syncInProgress: false });
