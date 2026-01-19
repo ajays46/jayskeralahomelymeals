@@ -203,6 +203,11 @@ const DeliveryExecutivePage = () => {
   const [selectedStopStatus, setSelectedStopStatus] = useState('Delivered'); // Default to 'Delivered'
   const [gettingLocation, setGettingLocation] = useState(false); // Track geolocation loading state
   
+  // Delivery note modal state
+  const [showDeliveryNoteModal, setShowDeliveryNoteModal] = useState(false);
+  const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
+  const [selectedStopForNote, setSelectedStopForNote] = useState(null);
+  
   // React Query hooks
   const startJourneyMutation = useStartJourney();
   const updateGeoLocationMutation = useUpdateGeoLocation();
@@ -218,12 +223,6 @@ const DeliveryExecutivePage = () => {
   const [showTrafficAlert, setShowTrafficAlert] = useState(false);
   const [showReoptimizationSuccess, setShowReoptimizationSuccess] = useState(false);
   
-  // Get route order for active route (if available)
-  const { data: routeOrderData } = useRouteOrder(activeRouteId, {
-    enabled: !!activeRouteId,
-    refetchInterval: 30000 // Poll every 30 seconds
-  });
-
   // Helper function to get route_id from currently selected session (defined early for use in useMemo)
   const getRouteIdFromSelectedSession = useCallback(() => {
     if (!routes || !selectedSession) {
@@ -271,6 +270,42 @@ const DeliveryExecutivePage = () => {
     
     return '';
   }, [routes, selectedSession]);
+
+  // Get route_id for fetching route order - use currently selected session's route_id
+  const routeIdForOrder = useMemo(() => {
+    const currentSessionRouteId = getRouteIdFromSelectedSession();
+    return currentSessionRouteId || activeRouteId || '';
+  }, [routes, selectedSession, activeRouteId, getRouteIdFromSelectedSession]);
+
+  // Get route order for active route (if available)
+  const { data: routeOrderData } = useRouteOrder(routeIdForOrder, {
+    enabled: !!routeIdForOrder,
+    refetchInterval: 30000 // Poll every 30 seconds
+  });
+
+  // Merge delivery notes from routeOrderData into stops
+  const stopsWithDeliveryNotes = useMemo(() => {
+    if (!routes.sessions || !routes.sessions[selectedSession] || !routeOrderData?.stops) {
+      return routes.sessions?.[selectedSession]?.stops || [];
+    }
+
+    const currentStops = routes.sessions[selectedSession].stops || [];
+    const routeOrderStops = routeOrderData.stops || [];
+
+    return currentStops.map(stop => {
+      // Try to find matching stop in routeOrderData by stop_order or delivery_name
+      const matchingStop = routeOrderStops.find(routeStop => 
+        routeStop.stop_order === stop.Stop_No ||
+        routeStop.delivery_name?.toLowerCase() === stop.Delivery_Name?.toLowerCase() ||
+        routeStop.planned_stop_id === stop.planned_stop_id
+      );
+
+      return {
+        ...stop,
+        delivery_note: matchingStop?.delivery_note || stop.delivery_note || null
+      };
+    });
+  }, [routes.sessions, selectedSession, routeOrderData]);
 
   // Get route_id for status check - use currently selected session's route_id
   const routeIdForStatus = useMemo(() => {
@@ -2440,19 +2475,19 @@ const DeliveryExecutivePage = () => {
                               <div className="space-y-4">
                                 <div className="flex items-center justify-between mb-2">
                                   <h5 className="text-lg font-bold text-gray-900">Delivery Stops</h5>
-                                  {routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub').length > 2 && (
+                                  {stopsWithDeliveryNotes.filter(stop => stop.Delivery_Name !== 'Return to Hub').length > 2 && (
                                     <button
                                       onClick={() => setShowAllStops(!showAllStops)}
                                       className="px-4 py-2 text-blue-600 hover:bg-blue-50 text-sm font-semibold rounded-lg transition-colors"
                                     >
-                                      {showAllStops ? 'Show Less' : `Show All (${routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub').length})`}
+                                      {showAllStops ? 'Show Less' : `Show All (${stopsWithDeliveryNotes.filter(stop => stop.Delivery_Name !== 'Return to Hub').length})`}
                                     </button>
                                   )}
                                 </div>
                                 
-                                {(showAllStops ? routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub') : routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub').slice(0, 2)).map((stop, index) => (
+                                {(showAllStops ? stopsWithDeliveryNotes.filter(stop => stop.Delivery_Name !== 'Return to Hub') : stopsWithDeliveryNotes.filter(stop => stop.Delivery_Name !== 'Return to Hub').slice(0, 2)).map((stop, index) => (
                                   <div key={index} className="bg-white rounded-xl p-5 shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
-                                    <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-start justify-between mb-2 gap-3">
                                       <div className="flex items-start gap-4 flex-1 min-w-0">
                                         <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0 shadow-md">
                                           {stop.Stop_No}
@@ -2468,11 +2503,45 @@ const DeliveryExecutivePage = () => {
                                         </div>
                                       </div>
                                       {stop.Packages && (
-                                        <span className="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm font-bold rounded-full flex-shrink-0 ml-2">
+                                        <span className="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm font-bold rounded-full flex-shrink-0">
                                           {stop.Packages} pkg
                                         </span>
                                       )}
                                     </div>
+
+                                    {/* Delivery Note - Prominent Display */}
+                                    {stop.delivery_note && (
+                                      <div className="mb-3 py-2 px-2.5 sm:px-3 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-300 rounded-lg shadow-sm -mt-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <div className="w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                              </svg>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-yellow-900 font-semibold text-xs sm:text-sm mb-0.5">Delivery Note</p>
+                                              <p className="text-yellow-800 text-xs sm:text-sm line-clamp-1">{stop.delivery_note}</p>
+                                            </div>
+                                          </div>
+                                          <button
+                                            onClick={() => {
+                                              setSelectedDeliveryNote(stop.delivery_note);
+                                              setSelectedStopForNote(stop);
+                                              setShowDeliveryNoteModal(true);
+                                            }}
+                                            className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors flex-shrink-0 shadow-sm hover:shadow-md whitespace-nowrap"
+                                            title="View full delivery note"
+                                          >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                            <span className="hidden sm:inline">View</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
 
                                     {/* Action Buttons - Swiggy Style */}
                                     <div className="mt-4">
@@ -3146,6 +3215,52 @@ const DeliveryExecutivePage = () => {
                     Mark Stop
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delivery Note Modal - Swiggy Style */}
+      {showDeliveryNoteModal && selectedDeliveryNote && selectedStopForNote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Delivery Note</h3>
+                <p className="text-gray-600 text-sm">{selectedStopForNote.Delivery_Name || 'Unknown Delivery'}</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-5">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-yellow-800 font-semibold text-sm mb-2">Special Instructions:</p>
+                    <p className="text-yellow-900 text-base leading-relaxed whitespace-pre-wrap">{selectedDeliveryNote}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowDeliveryNoteModal(false);
+                  setSelectedDeliveryNote(null);
+                  setSelectedStopForNote(null);
+                }}
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>
