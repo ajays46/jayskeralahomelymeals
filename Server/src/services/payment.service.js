@@ -286,6 +286,7 @@ export const createPaymentService = async (userId, paymentData) => {
                         orderTimes: JSON.stringify(parsedOrderData.orderTimes),
                         totalPrice: paymentAmount,
                         deliveryAddressId: finalDeliveryAddressId,
+                        deliveryNote: parsedOrderData.deliveryNote || null,
                         status: receiptUrl ? 'Payment_Confirmed' : 'Pending' // Status based on receipt availability
                     }
                 });
