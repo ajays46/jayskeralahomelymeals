@@ -1,4 +1,4 @@
-import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressForUser, deleteAddressForUser, getUserOrders, cancelDeliveryItem, deleteUser, updateCustomer, generateCustomerAccessLink } from '../services/seller.service.js';
+import { createContactOnly, getUsersBySeller, getUserAddresses, createAddressForUser, deleteAddressForUser, getUserOrders, cancelDeliveryItem, deleteUser, updateCustomer, generateCustomerAccessLink, updateOrderDeliveryNote, updateDeliveryItemsNoteByDate, updateDeliveryItemsNoteByDateRange } from '../services/seller.service.js';
 import { cancelOrderService } from '../services/order.service.js';
 import { saveAddressToExternalApi } from '../utils/externalApi.js';
 import prisma from '../config/prisma.js';
@@ -244,7 +244,9 @@ export const getUserOrdersController = async (req, res, next) => {
   try {
     const sellerId = req.user.userId; // Get seller ID from JWT token
     const { userId } = req.params; // Get user ID from URL params
-    
+
+    console.log('userId', userId);
+    console.log('sellerId', sellerId);
     if (!userId) {
       return res.status(400).json({
         success: false,
@@ -422,6 +424,137 @@ export const updateCustomerController = async (req, res, next) => {
   }
 };
 
+// Update delivery note for an order
+export const updateOrderDeliveryNoteController = async (req, res, next) => {
+  try {
+    const sellerId = req.user.userId; // Get seller ID from JWT token
+    const { orderId } = req.params; // Get order ID from URL params
+    const { deliveryNote } = req.body; // Get delivery note from request body
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order ID is required'
+      });
+    }
+
+    const updatedOrder = await updateOrderDeliveryNote(orderId, sellerId, deliveryNote);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery note updated successfully', {
+      orderId: orderId,
+      sellerId: sellerId
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery note updated successfully',
+      data: updatedOrder
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery note update failed', {
+      orderId: req.params?.orderId,
+      sellerId: req.user?.userId,
+      error: error.message,
+      stack: error.stack
+    });
+    next(error);
+  }
+};
+
+// Update delivery note for delivery items by date
+export const updateDeliveryItemsNoteByDateController = async (req, res, next) => {
+  try {
+    const sellerId = req.user.userId; // Get seller ID from JWT token
+    const { orderId } = req.params; // Get order ID from URL params
+    const { deliveryDate, deliveryNote } = req.body; // Get delivery date and note from request body
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order ID is required'
+      });
+    }
+
+    if (!deliveryDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Delivery date is required'
+      });
+    }
+
+    const result = await updateDeliveryItemsNoteByDate(orderId, deliveryDate, sellerId, deliveryNote);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery items note updated successfully by date', {
+      orderId: orderId,
+      deliveryDate: deliveryDate,
+      sellerId: sellerId,
+      updatedCount: result.updatedCount
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery note updated successfully for delivery items',
+      data: result
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery items note update failed by date', {
+      orderId: req.params?.orderId,
+      sellerId: req.user?.userId,
+      error: error.message,
+      stack: error.stack
+    });
+    next(error);
+  }
+};
+
+// Update delivery note for delivery items by date range and session
+export const updateDeliveryItemsNoteByDateRangeController = async (req, res, next) => {
+  try {
+    const sellerId = req.user.userId; // Get seller ID from JWT token
+    const { orderId } = req.params; // Get order ID from URL params
+    const { fromDate, toDate, deliveryNote, deliveryTimeSlot } = req.body; // Get date range, note, and session from request body
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order ID is required'
+      });
+    }
+
+    if (!fromDate || !toDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'From date and To date are required'
+      });
+    }
+
+    const result = await updateDeliveryItemsNoteByDateRange(orderId, fromDate, toDate, sellerId, deliveryNote, deliveryTimeSlot);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery items note updated successfully by date range', {
+      orderId: orderId,
+      fromDate: fromDate,
+      toDate: toDate,
+      deliveryTimeSlot: deliveryTimeSlot,
+      sellerId: sellerId,
+      updatedCount: result.updatedCount
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery note updated successfully for delivery items',
+      data: result
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery items note update failed by date range', {
+      orderId: req.params?.orderId,
+      sellerId: req.user?.userId,
+      error: error.message,
+      stack: error.stack
+    });
+    next(error);
+  }
+};
+
 // Get seller profile
 export const getSellerProfile = async (req, res, next) => {
   try {
@@ -446,7 +579,7 @@ export const getSellerProfile = async (req, res, next) => {
       stack: error.stack
     });
     next(error);
-    }
+  }
 };
 
 // Generate customer access link

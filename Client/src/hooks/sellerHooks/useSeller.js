@@ -157,6 +157,67 @@ export const useSeller = () => {
     }
   };
 
+  // Update delivery note
+  const updateDeliveryNote = async (orderId, deliveryNote) => {
+    if (!isSeller) {
+      throw new Error('Only sellers can update delivery notes');
+    }
+    
+    try {
+      const response = await axiosInstance.put(`/seller/orders/${orderId}/delivery-note`, {
+        deliveryNote: deliveryNote || null
+      });
+      if (response.data.success) {
+        return response.data;
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to update delivery note';
+      throw new Error(errorMessage);
+    }
+  };
+
+  // Update delivery note for delivery items by date
+  const updateDeliveryItemsNoteByDate = async (orderId, deliveryDate, deliveryNote) => {
+    if (!isSeller) {
+      throw new Error('Only sellers can update delivery notes');
+    }
+    
+    try {
+      const response = await axiosInstance.put(`/seller/orders/${orderId}/delivery-items-note`, {
+        deliveryDate: deliveryDate,
+        deliveryNote: deliveryNote || null
+      });
+      if (response.data.success) {
+        return response.data;
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to update delivery items note';
+      throw new Error(errorMessage);
+    }
+  };
+
+  // Update delivery note for delivery items by date range and session
+  const updateDeliveryItemsNoteByDateRange = async (orderId, fromDate, toDate, deliveryNote, deliveryTimeSlot = null) => {
+    if (!isSeller) {
+      throw new Error('Only sellers can update delivery notes');
+    }
+    
+    try {
+      const response = await axiosInstance.put(`/seller/orders/${orderId}/delivery-items-note-range`, {
+        fromDate: fromDate,
+        toDate: toDate,
+        deliveryNote: deliveryNote || null,
+        deliveryTimeSlot: deliveryTimeSlot || null
+      });
+      if (response.data.success) {
+        return response.data;
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to update delivery items note';
+      throw new Error(errorMessage);
+    }
+  };
+
   useEffect(() => {
     if (isSeller) {
       getSellerProfile();
@@ -177,6 +238,9 @@ export const useSeller = () => {
     getUserOrders,
     cancelOrder,
     cancelDeliveryItem,
+    updateDeliveryNote,
+    updateDeliveryItemsNoteByDate,
+    updateDeliveryItemsNoteByDateRange,
     refreshData: () => {
       getSellerProfile();
       getSellerUsers();
