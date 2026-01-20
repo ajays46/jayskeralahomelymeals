@@ -3,7 +3,22 @@ import { saveBase64Image } from './imageUpload.service.js';
 import fetch from 'node-fetch';
 import FormData from 'form-data';
 import sharp from 'sharp';
+import ffmpeg from 'fluent-ffmpeg';
+import { writeFileSync, unlinkSync, readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
+
+// Configure FFmpeg paths explicitly for EC2/Ubuntu
+// PM2 might not have the same PATH environment, so we set absolute paths
+ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
+ffmpeg.setFfprobePath('/usr/bin/ffprobe');
+
+console.log('[FFMPEG] Configured FFmpeg path: /usr/bin/ffmpeg');
+console.log('[FFMPEG] Configured FFprobe path: /usr/bin/ffprobe');
+
+/**
+ * 
 /**
  * Delivery Executive Service - Handles delivery executive profile and operations
  * Manages delivery executive profiles, location tracking, and delivery operations
@@ -211,11 +226,119 @@ export const deleteDeliveryExecutiveProfile = async (userId) => {
   }
 };
 
-// Upload delivery photo to external API
-export const uploadDeliveryPhotoService = async (imageFile, addressId, session) => {
+// Helper function to compress video
+const compressVideo = async (inputBuffer, originalName, originalMimetype, maxSizeMB = 10) => {
+  return new Promise((resolve, reject) => {
+    const tempInputPath = join(tmpdir(), `input_${Date.now()}_${originalName}`);
+    const tempOutputPath = join(tmpdir(), `output_${Date.now()}_${originalName.replace(/\.[^.]+$/, '.mp4')}`);
+    
+    try {
+      // Write input buffer to temp file
+      writeFileSync(tempInputPath, inputBuffer);
+      
+      // Get video duration and size info
+      ffmpeg.ffprobe(tempInputPath, (err, metadata) => {
+        if (err) {
+          // If ffprobe fails, try compression anyway
+          console.warn('Could not probe video metadata, attempting compression anyway:', err.message);
+        }
+        
+        const maxSizeBytes = maxSizeMB * 1024 * 1024;
+        const currentSize = inputBuffer.length;
+        
+        // If video is already small enough, return original
+        if (currentSize <= maxSizeBytes) {
+          try {
+            unlinkSync(tempInputPath);
+          } catch (e) {}
+          resolve({ buffer: inputBuffer, mimetype: originalMimetype, filename: originalName });
+          return;
+        }
+        
+        // Calculate target bitrate based on current size and desired size
+        // Bitrate formula: (target_size_in_bytes * 8) / duration_in_seconds
+        const duration = metadata?.format?.duration || 10; // Default 10 seconds if unknown
+        const targetBitrate = Math.floor((maxSizeBytes * 8) / duration) - 50000; // Leave some margin
+        
+        // Compress video
+        ffmpeg(tempInputPath)
+          .videoCodec('libx264')
+          .audioCodec('aac')
+          .outputOptions([
+            '-preset fast',
+            '-crf 28', // Higher CRF = lower quality but smaller file (18-28 is good range)
+            `-b:v ${Math.max(targetBitrate, 200000)}`, // Minimum 200kbps
+            '-b:a 64k', // Low audio bitrate
+            '-movflags +faststart', // Web optimization
+            '-vf scale=1280:-2' // Max width 1280px, maintain aspect ratio
+          ])
+          .on('start', (commandLine) => {
+            console.log(`Compressing video: ${commandLine}`);
+          })
+          .on('progress', (progress) => {
+            if (progress.percent) {
+              console.log(`Video compression progress: ${Math.round(progress.percent)}%`);
+            }
+          })
+          .on('end', () => {
+            try {
+              const compressedBuffer = readFileSync(tempOutputPath);
+              
+              // Clean up temp files
+              unlinkSync(tempInputPath);
+              unlinkSync(tempOutputPath);
+              
+              console.log(`Video compressed from ${(currentSize / 1024 / 1024).toFixed(2)}MB to ${(compressedBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+              
+              resolve({
+                buffer: compressedBuffer,
+                mimetype: 'video/mp4',
+                filename: originalName.replace(/\.[^.]+$/, '.mp4')
+              });
+            } catch (error) {
+              // Clean up on error
+              try {
+                unlinkSync(tempInputPath);
+                if (existsSync(tempOutputPath)) {
+                  unlinkSync(tempOutputPath);
+                }
+              } catch (e) {}
+              reject(error);
+            }
+          })
+          .on('error', (err) => {
+            // Clean up on error
+            try {
+              unlinkSync(tempInputPath);
+              if (existsSync(tempOutputPath)) {
+                unlinkSync(tempOutputPath);
+              }
+            } catch (e) {}
+            
+            console.error('Video compression failed, using original:', err.message);
+            // Return original if compression fails
+            resolve({ buffer: inputBuffer, mimetype: originalMimetype, filename: originalName });
+          })
+          .save(tempOutputPath);
+      });
+    } catch (error) {
+      // Clean up on error
+      try {
+        if (existsSync(tempInputPath)) {
+          unlinkSync(tempInputPath);
+        }
+      } catch (e) {}
+      console.error('Video compression error, using original:', error.message);
+      resolve({ buffer: inputBuffer, mimetype: originalMimetype, filename: originalName });
+    }
+  });
+};
+
+// Upload delivery photos/videos to external API
+export const uploadDeliveryPhotoService = async (files, addressId, session, date) => {
   try {
-    if (!imageFile) {
-      throw new Error('Image file is required');
+    if (!files || files.length === 0) {
+      throw new Error('At least one image or video file is required');
     }
 
     if (!addressId) {
@@ -226,92 +349,135 @@ export const uploadDeliveryPhotoService = async (imageFile, addressId, session) 
       throw new Error('Session is required');
     }
 
+    if (!date) {
+      throw new Error('Date is required (YYYY-MM-DD format)');
+    }
+
     // Convert session to uppercase (BREAKFAST, LUNCH, DINNER)
     const sessionUpper = session.toUpperCase();
 
-    // Compress image if it's larger than 1.5MB to avoid external API 413 errors
-    // External API nginx limit is around 2MB, so we compress to be safe
-    const MAX_SIZE_FOR_EXTERNAL_API = 1.5 * 1024 * 1024; // 1.5MB
-    let processedBuffer = imageFile.buffer;
-    let processedMimeType = imageFile.mimetype;
-    let processedFilename = imageFile.originalname;
+    // Process each file (compress images and videos)
+    const MAX_SIZE_FOR_IMAGES = 1.5 * 1024 * 1024; // 1.5MB for images
+    const MAX_SIZE_FOR_VIDEOS = 10 * 1024 * 1024; // 10MB for videos
+    const processedFiles = [];
 
-    if (imageFile.size > MAX_SIZE_FOR_EXTERNAL_API) {
-      try {
-        console.log(`Compressing image from ${(imageFile.size / 1024 / 1024).toFixed(2)}MB...`);
-        
-        // Use sharp to compress the image
-        // Resize if needed (max width 1920px, maintain aspect ratio)
-        // Compress JPEG quality to 85% or PNG to reduce size
-        let sharpInstance = sharp(imageFile.buffer);
-        
-        // Get image metadata
-        const metadata = await sharpInstance.metadata();
-        
-        // Resize if image is very large (max 1920px width)
-        if (metadata.width && metadata.width > 1920) {
-          sharpInstance = sharpInstance.resize(1920, null, {
-            withoutEnlargement: true,
-            fit: 'inside'
-          });
-        }
-        
-        // Compress based on image type
-        if (imageFile.mimetype === 'image/jpeg' || imageFile.mimetype === 'image/jpg') {
-          processedBuffer = await sharpInstance
-            .jpeg({ quality: 85, mozjpeg: true })
-            .toBuffer();
-          processedMimeType = 'image/jpeg';
-          processedFilename = imageFile.originalname.replace(/\.(png|gif|webp)$/i, '.jpg');
-        } else if (imageFile.mimetype === 'image/png') {
-          processedBuffer = await sharpInstance
-            .png({ quality: 85, compressionLevel: 9 })
-            .toBuffer();
-          processedMimeType = 'image/png';
-        } else {
-          // For other formats, convert to JPEG
-          processedBuffer = await sharpInstance
-            .jpeg({ quality: 85, mozjpeg: true })
-            .toBuffer();
-          processedMimeType = 'image/jpeg';
-          processedFilename = imageFile.originalname.replace(/\.[^.]+$/, '.jpg');
-        }
-        
-        // If still too large, reduce quality further
-        if (processedBuffer.length > MAX_SIZE_FOR_EXTERNAL_API) {
-          console.log(`Image still too large (${(processedBuffer.length / 1024 / 1024).toFixed(2)}MB), reducing quality further...`);
-          sharpInstance = sharp(imageFile.buffer);
+    for (const file of files) {
+      const isImage = file.mimetype.startsWith('image/');
+      const isVideo = file.mimetype.startsWith('video/');
+
+      if (!isImage && !isVideo) {
+        throw new Error(`Invalid file type: ${file.mimetype}. Only images and videos are allowed.`);
+      }
+
+      let processedBuffer = file.buffer;
+      let processedMimeType = file.mimetype;
+      let processedFilename = file.originalname;
+
+      // Compress images if too large
+      if (isImage && file.size > MAX_SIZE_FOR_IMAGES) {
+        try {
+          console.log(`Compressing image ${file.originalname} from ${(file.size / 1024 / 1024).toFixed(2)}MB...`);
           
-          if (metadata.width && metadata.width > 1280) {
-            sharpInstance = sharpInstance.resize(1280, null, {
+          let sharpInstance = sharp(file.buffer);
+          const metadata = await sharpInstance.metadata();
+          
+          // Resize if image is very large (max 1920px width)
+          if (metadata.width && metadata.width > 1920) {
+            sharpInstance = sharpInstance.resize(1920, null, {
               withoutEnlargement: true,
               fit: 'inside'
             });
           }
           
-          processedBuffer = await sharpInstance
-            .jpeg({ quality: 75, mozjpeg: true })
-            .toBuffer();
-          processedMimeType = 'image/jpeg';
-          processedFilename = imageFile.originalname.replace(/\.[^.]+$/, '.jpg');
+          // Compress based on image type
+          if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/jpg') {
+            processedBuffer = await sharpInstance
+              .jpeg({ quality: 85, mozjpeg: true })
+              .toBuffer();
+            processedMimeType = 'image/jpeg';
+            processedFilename = file.originalname.replace(/\.(png|gif|webp)$/i, '.jpg');
+          } else if (file.mimetype === 'image/png') {
+            processedBuffer = await sharpInstance
+              .png({ quality: 85, compressionLevel: 9 })
+              .toBuffer();
+            processedMimeType = 'image/png';
+          } else {
+            // For other formats, convert to JPEG
+            processedBuffer = await sharpInstance
+              .jpeg({ quality: 85, mozjpeg: true })
+              .toBuffer();
+            processedMimeType = 'image/jpeg';
+            processedFilename = file.originalname.replace(/\.[^.]+$/, '.jpg');
+          }
+          
+          // If still too large, reduce quality further
+          if (processedBuffer.length > MAX_SIZE_FOR_EXTERNAL_API) {
+            console.log(`Image still too large (${(processedBuffer.length / 1024 / 1024).toFixed(2)}MB), reducing quality further...`);
+            sharpInstance = sharp(file.buffer);
+            
+            if (metadata.width && metadata.width > 1280) {
+              sharpInstance = sharpInstance.resize(1280, null, {
+                withoutEnlargement: true,
+                fit: 'inside'
+              });
+            }
+            
+            processedBuffer = await sharpInstance
+              .jpeg({ quality: 75, mozjpeg: true })
+              .toBuffer();
+            processedMimeType = 'image/jpeg';
+            processedFilename = file.originalname.replace(/\.[^.]+$/, '.jpg');
+          }
+          
+          console.log(`Image compressed to ${(processedBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+        } catch (compressError) {
+          console.error('Error compressing image, using original:', compressError);
+          // If compression fails, use original
+          processedBuffer = file.buffer;
         }
-        
-        console.log(`Image compressed to ${(processedBuffer.length / 1024 / 1024).toFixed(2)}MB`);
-      } catch (compressError) {
-        console.error('Error compressing image, using original:', compressError);
-        // If compression fails, use original (might still fail at external API)
-        processedBuffer = imageFile.buffer;
       }
+      
+      // Compress videos if too large
+      if (isVideo && file.size > MAX_SIZE_FOR_VIDEOS) {
+        try {
+          console.log(`Compressing video ${file.originalname} from ${(file.size / 1024 / 1024).toFixed(2)}MB...`);
+          const compressed = await compressVideo(file.buffer, file.originalname, file.mimetype, 10); // Max 10MB
+          processedBuffer = compressed.buffer;
+          processedMimeType = compressed.mimetype;
+          processedFilename = compressed.filename;
+          console.log(`Video compressed to ${(processedBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+        } catch (compressError) {
+          console.error('Error compressing video, using original:', compressError);
+          // If compression fails, use original
+          processedBuffer = file.buffer;
+        }
+      }
+
+      processedFiles.push({
+        buffer: processedBuffer,
+        mimetype: processedMimeType,
+        filename: processedFilename,
+        originalName: file.originalname,
+        originalSize: file.size,
+        processedSize: processedBuffer.length,
+        isVideo: isVideo
+      });
     }
 
-    // Create FormData for external API using processed buffer
+    // Create FormData for external API
     const formData = new FormData();
-    formData.append('image', processedBuffer, {
-      filename: processedFilename,
-      contentType: processedMimeType
+    
+    // Append all files with 'images[]' key (array format)
+    processedFiles.forEach((file) => {
+      formData.append('images[]', file.buffer, {
+        filename: file.filename,
+        contentType: file.mimetype
+      });
     });
+    
     formData.append('address_id', addressId);
     formData.append('session', sessionUpper);
+    formData.append('date', date);
 
     // Send to external API using fetch (port 5003)
     const externalApiUrl = `${process.env.AI_ROUTE_API_THIRD || 'http://13.203.227.119:5003'}/upload_delivery_pic`;
@@ -361,15 +527,15 @@ export const uploadDeliveryPhotoService = async (imageFile, addressId, session) 
     if (responseData && responseData.success) {
       return {
         success: true,
-        message: 'Photo uploaded successfully to external API',
+        message: `${processedFiles.length} file(s) uploaded successfully to external API`,
         externalResponse: responseData,
-        fileInfo: {
-          originalName: imageFile.originalname,
-          originalSize: imageFile.size,
-          processedSize: processedBuffer.length,
-          mimeType: imageFile.mimetype,
-          processedMimeType: processedMimeType
-        }
+        fileInfo: processedFiles.map(f => ({
+          originalName: f.originalName,
+          originalSize: f.originalSize,
+          processedSize: f.processedSize,
+          mimeType: f.mimetype,
+          isVideo: f.isVideo
+        }))
       };
     } else {
       throw new Error('External API returned unsuccessful response');
@@ -377,8 +543,8 @@ export const uploadDeliveryPhotoService = async (imageFile, addressId, session) 
   } catch (error) {
     console.error('Error in uploadDeliveryPhotoService:', error);
     if (error.message) {
-      throw new Error('Failed to upload photo: ' + error.message);
+      throw new Error('Failed to upload files: ' + error.message);
     }
-    throw new Error('Failed to upload photo to external API');
+    throw new Error('Failed to upload files to external API');
   }
 };

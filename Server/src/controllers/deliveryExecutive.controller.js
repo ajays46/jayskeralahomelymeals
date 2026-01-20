@@ -590,16 +590,16 @@ export const getRoutesByDriverId = async (req, res) => {
   }
 };
 
-// Upload delivery photo to external API
+// Upload delivery photos/videos to external API
 export const uploadDeliveryPhoto = async (req, res) => {
   try {
-    const { address_id, session } = req.body;
-    const imageFile = req.file;
+    const { address_id, session, date } = req.body;
+    const files = req.files; // Array of files
 
-    if (!imageFile) {
+    if (!files || files.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Image file is required'
+        message: 'At least one image or video file is required'
       });
     }
 
@@ -617,26 +617,36 @@ export const uploadDeliveryPhoto = async (req, res) => {
       });
     }
 
-    const result = await uploadDeliveryPhotoService(imageFile, address_id, session);
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date is required (YYYY-MM-DD format)'
+      });
+    }
 
-    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery photo uploaded successfully to external API', {
+    const result = await uploadDeliveryPhotoService(files, address_id, session, date);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery photos/videos uploaded successfully to external API', {
       address_id: address_id,
       session: session,
-      fileName: imageFile.originalname,
-      fileSize: imageFile.size
+      date: date,
+      fileCount: files.length,
+      fileNames: files.map(f => f.originalname),
+      totalSize: files.reduce((sum, f) => sum + f.size, 0)
     });
 
     res.status(200).json(result);
   } catch (error) {
-    logError(LOG_CATEGORIES.SYSTEM, 'Delivery photo upload failed', {
+    logError(LOG_CATEGORIES.SYSTEM, 'Delivery photo/video upload failed', {
       address_id: req.body?.address_id,
       session: req.body?.session,
+      date: req.body?.date,
       error: error.message,
       stack: error.stack
     });
     res.status(500).json({
       success: false,
-      message: 'Failed to upload delivery photo',
+      message: 'Failed to upload delivery photos/videos',
       error: error.message
     });
   }

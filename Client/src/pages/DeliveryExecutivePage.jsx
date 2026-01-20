@@ -45,6 +45,12 @@ const DeliveryExecutivePage = () => {
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   }, []); // Only calculate once per day (could add date dependency if needed)
   
+  // Helper function to get today's date string (for dynamic date checking)
+  const getTodayDateString = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  };
+  
   // Use React Query hooks for driver maps
   const isMapsEnabled = !!user?.id && !!selectedSession && routes.sessions && Object.keys(routes.sessions).length > 0;
   
@@ -118,10 +124,10 @@ const DeliveryExecutivePage = () => {
     });
   };
   
-  // Image upload state
+  // Image/Video upload state
   const [uploadingImage, setUploadingImage] = useState(null); // stop index being uploaded
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]); // Array of selected files (images/videos)
+  const [filePreviews, setFilePreviews] = useState([]); // Array of preview URLs
   const [imageUploadError, setImageUploadError] = useState(null);
   
   // Hook for uploading delivery photos
@@ -134,44 +140,108 @@ const DeliveryExecutivePage = () => {
   // Track marked stops (using route_id + stop_order as key)
   const [markedStops, setMarkedStops] = useState(new Set());
   
-  // Track uploaded photos (keyed by address_id + session)
+  // Track uploaded photos (keyed by address_id + session + date)
+  // Structure: { "addressId_session_date": true }
   const [uploadedPhotos, setUploadedPhotos] = useState(() => {
-    // Load from localStorage on mount
+    // Load from localStorage on mount and clean up old entries
     try {
       const saved = localStorage.getItem('uploadedDeliveryPhotos');
-      return saved ? new Set(JSON.parse(saved)) : new Set();
+      if (!saved) return {};
+      
+      const savedData = JSON.parse(saved);
+      // Get today's date string
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
+      // Filter to keep only today's entries
+      const todayEntries = {};
+      Object.keys(savedData).forEach(key => {
+        // Key format: "addressId_session_date"
+        const parts = key.split('_');
+        if (parts.length >= 3) {
+          const datePart = parts.slice(-1)[0]; // Last part is the date
+          if (datePart === todayStr) {
+            todayEntries[key] = true;
+          }
+        }
+      });
+      
+      // Update localStorage with cleaned data
+      if (Object.keys(todayEntries).length !== Object.keys(savedData).length) {
+        localStorage.setItem('uploadedDeliveryPhotos', JSON.stringify(todayEntries));
+      }
+      
+      return todayEntries;
     } catch (error) {
       console.error('Error loading uploaded photos from localStorage:', error);
-      return new Set();
+      return {};
     }
   });
   
-  // Helper function to get photo key (address_id + session)
-  const getPhotoKey = (addressId, session) => {
-    return `${addressId}_${session.toUpperCase()}`;
+  // Helper function to get photo key (address_id + session + date)
+  const getPhotoKey = (addressId, session, date = null) => {
+    const dateStr = date || getTodayDateString();
+    return `${addressId}_${session.toUpperCase()}_${dateStr}`;
   };
   
-  // Helper function to check if photo is uploaded
+  // Helper function to check if photo is uploaded (for today)
   const isPhotoUploaded = (addressId, session) => {
     if (!addressId || !session) return false;
-    return uploadedPhotos.has(getPhotoKey(addressId, session));
+    const key = getPhotoKey(addressId, session);
+    return uploadedPhotos[key] === true;
   };
   
   // Helper function to mark photo as uploaded
   const markPhotoAsUploaded = (addressId, session) => {
     const key = getPhotoKey(addressId, session);
     setUploadedPhotos(prev => {
-      const newSet = new Set(prev);
-      newSet.add(key);
+      const newData = { ...prev, [key]: true };
       // Save to localStorage
       try {
-        localStorage.setItem('uploadedDeliveryPhotos', JSON.stringify(Array.from(newSet)));
+        localStorage.setItem('uploadedDeliveryPhotos', JSON.stringify(newData));
       } catch (error) {
         console.error('Error saving uploaded photos to localStorage:', error);
       }
-      return newSet;
+      return newData;
     });
   };
+  
+  // Clean up old photo entries when date changes (e.g., past midnight)
+  useEffect(() => {
+    const cleanupOldPhotos = () => {
+      const today = getTodayDateString();
+      setUploadedPhotos(prev => {
+        const cleaned = {};
+        Object.keys(prev).forEach(key => {
+          // Key format: "addressId_session_date"
+          const parts = key.split('_');
+          if (parts.length >= 3) {
+            const datePart = parts.slice(-1)[0]; // Last part is the date
+            if (datePart === today) {
+              cleaned[key] = true;
+            }
+          }
+        });
+        
+        // Update localStorage if cleaned data is different
+        if (Object.keys(cleaned).length !== Object.keys(prev).length) {
+          try {
+            localStorage.setItem('uploadedDeliveryPhotos', JSON.stringify(cleaned));
+          } catch (error) {
+            console.error('Error cleaning up old photos from localStorage:', error);
+          }
+        }
+        
+        return cleaned;
+      });
+    };
+    
+    // Clean up on mount and set interval to check every hour
+    cleanupOldPhotos();
+    const interval = setInterval(cleanupOldPhotos, 60 * 60 * 1000); // Check every hour
+    
+    return () => clearInterval(interval);
+  }, []); // Empty deps - cleanup runs on mount and via interval
   
   // Start Journey state
   const [showStartJourneyModal, setShowStartJourneyModal] = useState(false);
@@ -652,37 +722,85 @@ const DeliveryExecutivePage = () => {
     }
   };
 
-  // Image upload functions
-  const handleImageSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setImageUploadError('Please select a valid image file.');
+  // Image/Video upload functions
+  const handleFileSelect = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const validFiles = [];
+    const errors = [];
+    
+    // Validate all files first
+    files.forEach((file) => {
+      // Validate file type (images or videos)
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      
+      if (!isImage && !isVideo) {
+        errors.push(`${file.name}: Invalid file type. Only images and videos are allowed.`);
         return;
       }
       
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setImageUploadError('Image size should be less than 5MB.');
+      // Validate file size (max 50MB for videos, 10MB for images)
+      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        errors.push(`${file.name}: ${isVideo ? 'Video' : 'Image'} size should be less than ${maxSize / (1024 * 1024)}MB.`);
         return;
       }
       
-      setSelectedImage(file);
-      setImageUploadError(null);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
+      validFiles.push(file);
+    });
+    
+    if (errors.length > 0) {
+      setImageUploadError(errors.join(' '));
+      return;
     }
+    
+    if (validFiles.length === 0) {
+      return;
+    }
+    
+    // Create previews for all valid files
+    const previewPromises = validFiles.map((file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            url: e.target.result,
+            type: file.type,
+            name: file.name
+          });
+        };
+        reader.onerror = () => {
+          resolve({
+            url: null,
+            type: file.type,
+            name: file.name
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+    
+    const previews = await Promise.all(previewPromises);
+    
+    // Update state
+    setSelectedFiles(prev => [...prev, ...validFiles]);
+    setFilePreviews(prev => [...prev, ...previews]);
+    setImageUploadError(null);
+    
+    // Reset the input so the same file can be selected again
+    event.target.value = '';
+  };
+
+  const removeFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setFilePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const clearImageUpload = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
+    setSelectedFiles([]);
+    setFilePreviews([]);
     setImageUploadError(null);
     setUploadingImage(null);
   };
@@ -710,8 +828,8 @@ const DeliveryExecutivePage = () => {
   };
 
   const handleImageUpload = async (stopIndex) => {
-    if (!selectedImage) {
-      setImageUploadError('Please select an image first.');
+    if (!selectedFiles || selectedFiles.length === 0) {
+      setImageUploadError('Please select at least one image or video first.');
       return;
     }
 
@@ -765,12 +883,16 @@ const DeliveryExecutivePage = () => {
 
       // Get session in uppercase format (BREAKFAST, LUNCH, DINNER)
       const sessionUpper = selectedSession.toUpperCase();
+      
+      // Get today's date in YYYY-MM-DD format
+      const today = getTodayDateString();
 
-      // Use the mutation hook to upload the photo
+      // Use the mutation hook to upload the photos/videos
       await uploadDeliveryPhotoMutation.mutateAsync({
-        image: selectedImage,
+        images: selectedFiles,
         address_id: addressId,
-        session: sessionUpper
+        session: sessionUpper,
+        date: today
       });
 
       // Mark photo as uploaded in state and localStorage
@@ -782,6 +904,12 @@ const DeliveryExecutivePage = () => {
         await fetchDeliveryStatus(deliveryItemId, stopIndex);
       }
       
+      // Save file count before clearing
+      const fileCount = selectedFiles.length;
+      
+      // Clear selected files after successful upload
+      clearImageUpload();
+      
       // Show success toast
       toast.success(
         <div className="flex items-center gap-3">
@@ -789,8 +917,8 @@ const DeliveryExecutivePage = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <div>
-            <div className="font-semibold text-green-800 text-base">✅ Delivery Photo Uploaded!</div>
-            <div className="text-sm text-green-700 mt-1">Photo uploaded successfully to external API.</div>
+            <div className="font-semibold text-green-800 text-base">✅ {fileCount} File{fileCount > 1 ? 's' : ''} Uploaded!</div>
+            <div className="text-sm text-green-700 mt-1">{fileCount} file{fileCount > 1 ? 's' : ''} uploaded successfully to external API.</div>
           </div>
         </div>,
         {
@@ -2853,14 +2981,14 @@ const DeliveryExecutivePage = () => {
                                           </>
                                         )}
 
-                                        {/* Image Upload UI */}
+                                        {/* Image/Video Upload UI */}
                                         {uploadingImage === index && (
                                           <>
                                             <h6 className="text-gray-900 font-bold mb-4 flex items-center gap-2 text-base">
                                               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                               </svg>
-                                              Upload Delivery Photo
+                                              Upload Delivery Photos/Videos
                                             </h6>
                                             
                                             <div className="space-y-4">
@@ -2869,8 +2997,9 @@ const DeliveryExecutivePage = () => {
                                                 <label className="block cursor-pointer">
                                                   <input
                                                     type="file"
-                                                    accept="image/*"
-                                                    onChange={handleImageSelect}
+                                                    accept="image/*,video/*"
+                                                    multiple
+                                                    onChange={handleFileSelect}
                                                     className="hidden"
                                                     id={`image-upload-${index}`}
                                                   />
@@ -2879,33 +3008,77 @@ const DeliveryExecutivePage = () => {
                                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                                     </svg>
                                                     <p className="text-gray-700 font-semibold text-sm mb-1">
-                                                      {selectedImage ? 'Change Image' : 'Select Image'}
+                                                      {selectedFiles.length > 0 ? `Add More Files (${selectedFiles.length} selected)` : 'Select Images/Videos'}
                                                     </p>
-                                                    <p className="text-gray-500 text-xs">Max 5MB</p>
+                                                    <p className="text-gray-500 text-xs">Images: Max 10MB | Videos: Max 50MB</p>
                                                   </div>
                                                 </label>
                                               </div>
 
-                                              {/* Image Preview */}
-                                              {imagePreview && (
+                                              {/* Files Preview */}
+                                              {selectedFiles.length > 0 && (
                                                 <div className="bg-white rounded-xl p-4 border border-gray-200">
                                                   <div className="flex items-center justify-between mb-3">
-                                                    <span className="text-gray-700 font-semibold text-sm">Preview:</span>
+                                                    <span className="text-gray-700 font-semibold text-sm">
+                                                      Selected Files ({selectedFiles.length}):
+                                                    </span>
                                                     <button
                                                       onClick={clearImageUpload}
-                                                      className="bg-red-600 hover:bg-red-700 text-white rounded-lg p-2 transition-colors"
+                                                      className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1"
                                                     >
                                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                       </svg>
+                                                      Clear All
                                                     </button>
                                                   </div>
-                                                  <div className="relative">
-                                                    <img
-                                                      src={imagePreview}
-                                                      alt="Preview"
-                                                      className="w-full h-32 object-cover rounded-xl border border-gray-200"
-                                                    />
+                                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                    {selectedFiles.map((file, fileIndex) => {
+                                                      const preview = filePreviews[fileIndex];
+                                                      const isVideo = file.type.startsWith('video/');
+                                                      return (
+                                                        <div key={fileIndex} className="relative group">
+                                                          <div className="relative rounded-lg border border-gray-200 overflow-hidden bg-gray-100">
+                                                            {preview ? (
+                                                              isVideo ? (
+                                                                <video
+                                                                  src={preview.url}
+                                                                  className="w-full h-24 object-cover"
+                                                                  controls={false}
+                                                                />
+                                                              ) : (
+                                                                <img
+                                                                  src={preview.url}
+                                                                  alt={file.name}
+                                                                  className="w-full h-24 object-cover"
+                                                                />
+                                                              )
+                                                            ) : (
+                                                              <div className="w-full h-24 flex items-center justify-center">
+                                                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                </svg>
+                                                              </div>
+                                                            )}
+                                                            <button
+                                                              onClick={() => removeFile(fileIndex)}
+                                                              className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                              title="Remove file"
+                                                            >
+                                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                              </svg>
+                                                            </button>
+                                                          </div>
+                                                          <p className="text-xs text-gray-600 mt-1 truncate" title={file.name}>
+                                                            {file.name}
+                                                          </p>
+                                                          <p className="text-xs text-gray-400">
+                                                            {(file.size / (1024 * 1024)).toFixed(2)} MB
+                                                          </p>
+                                                        </div>
+                                                      );
+                                                    })}
                                                   </div>
                                                 </div>
                                               )}
@@ -2921,9 +3094,9 @@ const DeliveryExecutivePage = () => {
                                               <div className="pt-2">
                                                 <button
                                                   onClick={() => handleImageUpload(index)}
-                                                  disabled={!selectedImage || uploadDeliveryPhotoMutation.isPending}
+                                                  disabled={selectedFiles.length === 0 || uploadDeliveryPhotoMutation.isPending}
                                                   className={`w-full px-5 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
-                                                    selectedImage && !uploadDeliveryPhotoMutation.isPending
+                                                    selectedFiles.length > 0 && !uploadDeliveryPhotoMutation.isPending
                                                       ? 'bg-blue-600 hover:bg-blue-700 text-white'
                                                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                                   }`}
@@ -2931,14 +3104,14 @@ const DeliveryExecutivePage = () => {
                                                   {uploadDeliveryPhotoMutation.isPending ? (
                                                     <>
                                                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                                                      Uploading...
+                                                      Uploading {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''}...
                                                     </>
                                                   ) : (
                                                     <>
                                                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                                       </svg>
-                                                      Upload Photo
+                                                      Upload {selectedFiles.length > 0 ? `${selectedFiles.length} ` : ''}File{selectedFiles.length !== 1 ? 's' : ''}
                                                     </>
                                                   )}
                                                 </button>

@@ -14,17 +14,18 @@ import {
 
 const router = express.Router();
 
-// Configure multer for memory storage (for delivery photo uploads)
+// Configure multer for memory storage (for delivery photo/video uploads)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024 // 5MB limit
+    fileSize: 100 * 1024 * 1024 // 50MB limit for videos
   },
   fileFilter: function (req, file, cb) {
-    if (file.mimetype.startsWith('image/')) {
+    // Allow both images and videos
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed!'), false);
+      cb(new Error('Only image and video files are allowed!'), false);
     }
   }
 });
@@ -53,7 +54,7 @@ router.get('/get-routes/:phoneNumber', getRoutes);
 // Get delivery routes by driver_id (query parameter)
 router.get('/routes', getRoutesByDriverId);
 
-// Upload delivery photo to external API
-router.post('/upload-delivery-photo', upload.single('image'), uploadDeliveryPhoto);
+// Upload delivery photos/videos to external API (accepts multiple files with 'images[]' key)
+router.post('/upload-delivery-photo', upload.array('images[]', 10), uploadDeliveryPhoto);
 
 export default router;
