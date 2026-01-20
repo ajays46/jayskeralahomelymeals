@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MdPerson, MdLock, MdVisibility, MdVisibilityOff } from 'react-icons/md';
 import axios from 'axios';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import useAuthStore from '../stores/Zustand.store';
 
 /**
  * CustomerLoginPage - Login page for customers to access their orders
@@ -15,6 +16,7 @@ const CustomerLoginPage = () => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(false);
   const [customerInfo, setCustomerInfo] = useState(null);
+  const { setAccessToken } = useAuthStore();
   
   const [formData, setFormData] = useState({
     phoneNumber: '',
@@ -108,8 +110,10 @@ const CustomerLoginPage = () => {
       });
 
       if (response.data.success) {
-        // Store auth token
-        localStorage.setItem('accessToken', response.data.accessToken);
+        // Store auth token in both localStorage and Zustand store
+        const accessToken = response.data.accessToken;
+        localStorage.setItem('accessToken', accessToken);
+        setAccessToken(accessToken);
         
         showSuccessToast('Login successful! Redirecting...');
         

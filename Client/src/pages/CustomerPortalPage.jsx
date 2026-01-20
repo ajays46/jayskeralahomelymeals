@@ -16,6 +16,8 @@ import {
 } from 'react-icons/md';
 import axios from 'axios';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import axiosInstance from '../api/axios';
+import useAuthStore from '../stores/Zustand.store';
 
 /**
  * CustomerPortalPage - Customer self-service portal for order status viewing
@@ -26,6 +28,8 @@ const CustomerPortalPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [token, setToken] = useState(null);
+  const [isAuthenticatedMode, setIsAuthenticatedMode] = useState(false);
+  const { setAccessToken, accessToken: storeAccessToken } = useAuthStore();
 
   // State management
   const [customerInfo, setCustomerInfo] = useState(null);
@@ -39,6 +43,20 @@ const CustomerPortalPage = () => {
   // Initialize token and hide it from URL
   useEffect(() => {
     const urlToken = searchParams.get('token');
+    
+    // Check if user is logged in with accessToken
+    const localAccessToken = localStorage.getItem('accessToken');
+    
+    if (localAccessToken) {
+      // User is logged in - use authenticated mode
+      setIsAuthenticatedMode(true);
+      // Sync token to Zustand store if not already set
+      if (!storeAccessToken) {
+        setAccessToken(localAccessToken);
+      }
+      setLoading(false);
+      return;
+    }
     
     if (!urlToken) {
       // Try to get token from sessionStorage (for page refresh)
@@ -61,16 +79,16 @@ const CustomerPortalPage = () => {
     const url = new URL(window.location);
     url.searchParams.delete('token');
     window.history.replaceState({}, document.title, url.pathname);
-  }, [searchParams]);
+  }, [searchParams, setAccessToken, storeAccessToken]);
 
   // Fetch customer data
   useEffect(() => {
-    if (!token) {
-      return;
+    if (isAuthenticatedMode) {
+      fetchCustomerDataAuthenticated();
+    } else if (token) {
+      fetchCustomerData();
     }
-
-    fetchCustomerData();
-  }, [token]);
+  }, [token, isAuthenticatedMode]);
 
   // Cleanup sessionStorage on component unmount
   useEffect(() => {
@@ -79,6 +97,113 @@ const CustomerPortalPage = () => {
     };
   }, []);
 
+  // Helper function to decode JWT token and get userId
+  const getUserIdFromToken = (token) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const decoded = JSON.parse(jsonPayload);
+      return decoded.userId || decoded.id;
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return null;
+    }
+  };
+
+  // Fetch customer data using authenticated API (after login)
+  const fetchCustomerDataAuthenticated = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const localAccessToken = localStorage.getItem('accessToken') || storeAccessToken;
+      if (!localAccessToken) {
+        setError('No access token found');
+        setLoading(false);
+        return;
+      }
+
+      // Decode token to get userId
+      const userId = getUserIdFromToken(localAccessToken);
+      if (!userId) {
+        setError('Invalid token format');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch orders for the user
+      const ordersResponse = await axiosInstance.get(`/orders/user/${userId}`);
+      
+      if (ordersResponse.data.success) {
+        const fetchedOrders = ordersResponse.data.data.orders || [];
+        setOrders(fetchedOrders);
+        
+        // Extract customer info from first order if available, or set defaults
+        if (fetchedOrders.length > 0 && fetchedOrders[0].user) {
+          const userData = fetchedOrders[0].user;
+          setCustomerInfo({
+            userId: userId,
+            customerName: userData.contacts?.[0] 
+              ? `${userData.contacts[0].firstName} ${userData.contacts[0].lastName}` 
+              : 'Customer',
+            phoneNumber: userData.contacts?.[0]?.phoneNumbers?.[0]?.number || userData.phoneNumber || null,
+            email: userData.email || userData.auth?.email
+          });
+        } else {
+          // Set basic info if no orders
+          setCustomerInfo({
+            userId: userId,
+            customerName: 'Customer',
+            phoneNumber: null,
+            email: null
+          });
+        }
+        
+        // Calculate summary from orders
+        const summary = {
+          totalOrders: fetchedOrders.length,
+          totalSpent: fetchedOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0),
+          activeOrders: fetchedOrders.filter(order => 
+            order.status === 'Payment_Confirmed' || order.status === 'In_Progress'
+          ).length,
+          completedOrders: fetchedOrders.filter(order => order.status === 'Completed').length,
+          cancelledOrders: fetchedOrders.filter(order => order.status === 'Cancelled').length,
+          recentOrders: fetchedOrders.slice(0, 5)
+        };
+        setOrderSummary(summary);
+      }
+
+      // Try to fetch addresses if endpoint exists
+      try {
+        const addressesResponse = await axiosInstance.get('/addresses');
+        if (addressesResponse.data.success) {
+          setAddresses(addressesResponse.data.data.addresses || addressesResponse.data.data || []);
+        }
+      } catch (addrError) {
+        // Addresses endpoint might not exist, that's okay
+        console.log('Addresses endpoint not available');
+      }
+
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+      if (error.response?.status === 401) {
+        // Token expired or invalid - redirect to login
+        localStorage.removeItem('accessToken');
+        navigate('/customer-login');
+        showErrorToast('Session expired. Please login again.');
+      } else {
+        setError(error.response?.data?.message || 'Failed to load customer data');
+        showErrorToast('Failed to load customer data');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch customer data using customer portal token (from URL)
   const fetchCustomerData = async () => {
     try {
       setLoading(true);
@@ -249,7 +374,7 @@ const CustomerPortalPage = () => {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={fetchCustomerData}
+                onClick={() => isAuthenticatedMode ? fetchCustomerDataAuthenticated() : fetchCustomerData()}
                 className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors text-sm font-medium shadow-sm"
               >
                 <MdRefresh className="w-4 h-4" />
