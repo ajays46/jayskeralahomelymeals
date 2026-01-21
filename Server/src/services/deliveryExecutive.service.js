@@ -548,3 +548,103 @@ export const uploadDeliveryPhotoService = async (files, addressId, session, date
     throw new Error('Failed to upload files to external API');
   }
 };
+
+// Check if delivery images exist for a specific stop
+export const checkDeliveryImagesForStop = async (addressId, deliveryDate, deliverySession) => {
+  try {
+    if (!addressId) {
+      throw new Error('Address ID is required');
+    }
+
+    if (!deliveryDate) {
+      throw new Error('Delivery date is required');
+    }
+
+    if (!deliverySession) {
+      throw new Error('Delivery session is required');
+    }
+
+    // Convert session to uppercase to match enum
+    const sessionUpper = deliverySession.toUpperCase();
+
+    // Validate session is one of the allowed values
+    const validSessions = ['BREAKFAST', 'LUNCH', 'DINNER'];
+    if (!validSessions.includes(sessionUpper)) {
+      throw new Error('Invalid delivery session. Must be BREAKFAST, LUNCH, or DINNER');
+    }
+
+    // Parse delivery date - ensure it's in YYYY-MM-DD format
+    let dateToCheck;
+    if (typeof deliveryDate === 'string') {
+      // If it's already in YYYY-MM-DD format, use it directly
+      if (/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate)) {
+        dateToCheck = new Date(deliveryDate + 'T00:00:00.000Z');
+      } else {
+        dateToCheck = new Date(deliveryDate);
+      }
+    } else {
+      dateToCheck = new Date(deliveryDate);
+    }
+
+    if (isNaN(dateToCheck.getTime())) {
+      throw new Error('Invalid delivery date format. Expected YYYY-MM-DD format');
+    }
+
+    // For DATE field in Prisma, we need to set to start of day (midnight UTC)
+    // This ensures exact date matching regardless of time
+    const startOfDay = new Date(dateToCheck);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(dateToCheck);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    // Get the actual images if they exist
+    // Check by ALL THREE - addressId, exact deliveryDate, and deliverySession
+    // Using date range to handle DATE field properly in Prisma
+    const images = await prisma.deliveryImage.findMany({
+      where: {
+        addressId: addressId, // Exact address match
+        deliveryDate: {
+          gte: startOfDay,
+          lte: endOfDay
+        }, // Exact date match (DATE field) - only images for this specific date
+        deliverySession: sessionUpper // Exact session match (BREAKFAST, LUNCH, or DINNER) - only images for this session
+      },
+      select: {
+        id: true,
+        filename: true,
+        fileType: true,
+        fileSize: true,
+        s3Url: true,
+        presignedUrl: true,
+        uploadedAt: true,
+        contentType: true
+      },
+      orderBy: {
+        uploadedAt: 'desc'
+      }
+    });
+
+    // Check if images exist and are properly uploaded (have s3_url)
+    const hasValidImages = images.length > 0 && images.some(img => img.s3Url && img.s3Url.trim() !== '');
+
+    // Determine status: "uploaded" if images exist and are valid, "not_uploaded" otherwise
+    const status = hasValidImages ? 'uploaded' : 'not_uploaded';
+
+    // Convert BigInt fileSize to string for JSON serialization
+    const serializedImages = images.map(img => ({
+      ...img,
+      fileSize: img.fileSize ? String(img.fileSize) : null
+    }));
+
+    return {
+      success: true,
+      status: status,
+      hasImages: hasValidImages,
+      imageCount: images.length,
+      images: serializedImages
+    };
+  } catch (error) {
+    console.error('Error in checkDeliveryImagesForStop:', error);
+    throw new Error('Failed to check delivery images: ' + error.message);
+  }
+};

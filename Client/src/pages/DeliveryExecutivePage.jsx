@@ -8,7 +8,7 @@ import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
 import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
-import { useUploadDeliveryPhoto } from '../hooks/deliverymanager';
+import { useUploadDeliveryPhoto, useCheckMultipleDeliveryImages } from '../hooks/deliverymanager';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 /**
@@ -184,10 +184,17 @@ const DeliveryExecutivePage = () => {
     return `${addressId}_${session.toUpperCase()}_${dateStr}`;
   };
   
-  // Helper function to check if photo is uploaded (for today)
+  // Helper function to check if photo is uploaded (checks database first, then localStorage fallback)
   const isPhotoUploaded = (addressId, session) => {
     if (!addressId || !session) return false;
+    
+    // First check database status
     const key = getPhotoKey(addressId, session);
+    if (deliveryImagesStatus && deliveryImagesStatus[key]) {
+      return deliveryImagesStatus[key].status === 'uploaded';
+    }
+    
+    // Fallback to localStorage (for backward compatibility)
     return uploadedPhotos[key] === true;
   };
   
@@ -376,6 +383,61 @@ const DeliveryExecutivePage = () => {
       };
     });
   }, [routes.sessions, selectedSession, routeOrderData]);
+
+  // Prepare stops for batch image status check
+  const stopsForImageCheck = useMemo(() => {
+    if (!stopsWithDeliveryNotes || stopsWithDeliveryNotes.length === 0) {
+      return [];
+    }
+
+    const today = getTodayDateString();
+    const sessionUpper = selectedSession.toUpperCase();
+
+    return stopsWithDeliveryNotes
+      .filter(stop => {
+        // Filter out "Return to Hub" stops
+        if (stop.Delivery_Name === 'Return to Hub') return false;
+        
+        // Get address_id from stop
+        const addressId = 
+          (stop?.address_id && stop.address_id !== '') ? stop.address_id :
+          (stop?.Address_ID && stop.Address_ID !== '') ? stop.Address_ID :
+          (stop?.addressId && stop.addressId !== '') ? stop.addressId :
+          (stop?._original?.address_id && stop._original.address_id !== '') ? stop._original.address_id :
+          (stop?._original?.Address_ID && stop._original.Address_ID !== '') ? stop._original.Address_ID :
+          (stop?._original?.addressId && stop._original.addressId !== '') ? stop._original.addressId :
+          null;
+        
+        return !!addressId;
+      })
+      .map(stop => {
+        const addressId = 
+          (stop?.address_id && stop.address_id !== '') ? stop.address_id :
+          (stop?.Address_ID && stop.Address_ID !== '') ? stop.Address_ID :
+          (stop?.addressId && stop.addressId !== '') ? stop.addressId :
+          (stop?._original?.address_id && stop._original.address_id !== '') ? stop._original.address_id :
+          (stop?._original?.Address_ID && stop._original.Address_ID !== '') ? stop._original.Address_ID :
+          (stop?._original?.addressId && stop._original.addressId !== '') ? stop._original.addressId :
+          null;
+        
+        return {
+          addressId,
+          deliveryDate: today,
+          deliverySession: sessionUpper
+        };
+      });
+  }, [stopsWithDeliveryNotes, selectedSession]);
+
+  // Check delivery images status for all stops using database
+  const { data: deliveryImagesStatus, refetch: refetchImageStatus, isLoading: checkingImages } = useCheckMultipleDeliveryImages(
+    stopsForImageCheck,
+    {
+      enabled: stopsForImageCheck.length > 0,
+      refetchInterval: 30000, // Refetch every 30 seconds
+      staleTime: 15 * 1000 // 15 seconds
+    }
+  );
+
 
   // Get route_id for status check - use currently selected session's route_id
   const routeIdForStatus = useMemo(() => {
@@ -895,8 +957,11 @@ const DeliveryExecutivePage = () => {
         date: today
       });
 
-      // Mark photo as uploaded in state and localStorage
+      // Mark photo as uploaded in state and localStorage (for backward compatibility)
       markPhotoAsUploaded(addressId, sessionUpper);
+
+      // Refetch image status from database to update UI
+      refetchImageStatus();
 
       // Fetch updated delivery status from database if deliveryItemId exists
       const deliveryItemId = currentStop?.Delivery_Item_ID;

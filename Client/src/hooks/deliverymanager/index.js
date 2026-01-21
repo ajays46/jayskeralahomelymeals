@@ -23,3 +23,8 @@ export {
 export {
   useUploadDeliveryPhoto
 } from './useUploadDeliveryPhoto';
+
+export {
+  useCheckDeliveryImages,
+  useCheckMultipleDeliveryImages
+} from './useCheckDeliveryImages';

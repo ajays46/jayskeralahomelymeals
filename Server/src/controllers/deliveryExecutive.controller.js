@@ -5,7 +5,8 @@ import {
   updateDeliveryExecutiveLocation,
   getAllDeliveryExecutives,
   deleteDeliveryExecutiveProfile,
-  uploadDeliveryPhotoService
+  uploadDeliveryPhotoService,
+  checkDeliveryImagesForStop
 } from '../services/deliveryExecutive.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
@@ -647,6 +648,59 @@ export const uploadDeliveryPhoto = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to upload delivery photos/videos',
+      error: error.message
+    });
+  }
+};
+
+// Check if delivery images exist for a specific stop
+export const checkDeliveryImages = async (req, res) => {
+  try {
+    const { address_id, delivery_date, delivery_session } = req.query;
+
+    if (!address_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Address ID is required as query parameter'
+      });
+    }
+
+    if (!delivery_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Delivery date is required as query parameter (YYYY-MM-DD format)'
+      });
+    }
+
+    if (!delivery_session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Delivery session is required as query parameter (BREAKFAST, LUNCH, or DINNER)'
+      });
+    }
+
+    const result = await checkDeliveryImagesForStop(address_id, delivery_date, delivery_session);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery images check completed', {
+      address_id: address_id,
+      delivery_date: delivery_date,
+      delivery_session: delivery_session,
+      hasImages: result.hasImages,
+      imageCount: result.imageCount
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to check delivery images', {
+      address_id: req.query?.address_id,
+      delivery_date: req.query?.delivery_date,
+      delivery_session: req.query?.delivery_session,
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check delivery images',
       error: error.message
     });
   }

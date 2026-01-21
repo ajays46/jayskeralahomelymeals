@@ -9,7 +9,8 @@ import {
   deleteProfile,
   getRoutes,
   getRoutesByDriverId,
-  uploadDeliveryPhoto
+  uploadDeliveryPhoto,
+  checkDeliveryImages
 } from '../controllers/deliveryExecutive.controller.js';
 
 const router = express.Router();
@@ -56,5 +57,9 @@ router.get('/routes', getRoutesByDriverId);
 
 // Upload delivery photos/videos to external API (accepts multiple files with 'images[]' key)
 router.post('/upload-delivery-photo', upload.array('images[]', 10), uploadDeliveryPhoto);
+
+// Check if delivery images exist for a specific stop
+// Query params: address_id, delivery_date (YYYY-MM-DD), delivery_session (BREAKFAST/LUNCH/DINNER)
+router.get('/check-delivery-images', checkDeliveryImages);
 
 export default router;
