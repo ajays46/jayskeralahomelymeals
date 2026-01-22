@@ -983,3 +983,35 @@ enum delivery_items_delivery_time_slot {
   LUNCH
   DINNER
 }
+
+model DeliveryImage {
+  id             String                  @id @default(uuid()) @db.VarChar(36)
+  addressId      String                  @map("address_id") @db.VarChar(36)
+  contentType    String                  @map("content_type") @db.VarChar(100)
+  deliveryDate   DateTime                @map("delivery_date") @db.Date
+  deliveryId     String                  @map("delivery_id") @db.VarChar(36)
+  deliverySession DeliveryImageSession   @map("delivery_session")
+  fileSize       BigInt                  @map("file_size")
+  fileType       DeliveryImageFileType    @map("file_type")
+  filename       String                  @db.VarChar(255)
+  presignedUrl   String?                 @map("presigned_url") @db.VarChar(500)
+  s3Key          String                  @map("s3_key") @db.VarChar(500)
+  s3Url          String                  @map("s3_url") @db.VarChar(500)
+  uploadedAt     DateTime?               @default(now()) @map("uploaded_at") @db.Timestamp(0)
+
+  @@index([addressId], map: "idx_delivery_image_address_id")
+  @@index([deliveryDate], map: "idx_delivery_image_delivery_date")
+  @@index([deliveryId], map: "idx_delivery_image_delivery_id")
+  @@map("delivery_images")
+}
+
+enum DeliveryImageSession {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+enum DeliveryImageFileType {
+  image
+  video
+}
