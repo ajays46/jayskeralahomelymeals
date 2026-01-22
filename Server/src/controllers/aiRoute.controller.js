@@ -29,7 +29,8 @@ import {
   getDriverRouteOverviewMapsService,
   checkTrafficService,
   getRouteOrderService,
-  getRouteStatusFromActualStopsService
+  getRouteStatusFromActualStopsService,
+  updateDeliveryCommentService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
@@ -1226,6 +1227,47 @@ export const getRouteStatusFromActualStops = async (req, res, next) => {
     logError(LOG_CATEGORIES.SYSTEM, 'Get route status failed', {
       error: error.message,
       routeId: req.params?.routeId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Update Delivery Comment
+ * Updates the comment for a specific delivery using delivery_id
+ */
+export const updateDeliveryComment = async (req, res, next) => {
+  try {
+    const { deliveryId } = req.params;
+    const { comments } = req.body;
+    console.log(deliveryId)
+    console.log(comments)
+    
+    if (!deliveryId) {
+      return res.status(400).json({
+        success: false,
+        message: 'deliveryId is required'
+      });
+    }
+    
+    if (comments === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'comments field is required'
+      });
+    }
+    
+    const result = await updateDeliveryCommentService(deliveryId, comments);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery comment updated successfully', {
+      delivery_id: deliveryId
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update delivery comment', {
+      error: error.message,
+      deliveryId: req.params?.deliveryId
     });
     next(error);
   }

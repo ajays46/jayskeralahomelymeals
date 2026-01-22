@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin, FiTrendingDown, FiClock, FiCheckCircle, FiBarChart2, FiActivity, FiPieChart, FiTarget, FiShield, FiPackage, FiX, FiDownload, FiEye, FiEyeOff, FiMessageCircle, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
+import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin, FiTrendingDown, FiClock, FiCheckCircle, FiBarChart2, FiActivity, FiPieChart, FiTarget, FiShield, FiPackage, FiX, FiDownload, FiEye, FiEyeOff, FiMessageCircle, FiMaximize2, FiMinimize2, FiEdit2, FiSave } from 'react-icons/fi';
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney } from 'react-icons/md';
 import { Modal, message } from 'antd';
 import axiosInstance from '../api/axios';
 import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes, useVehicles, useAssignVehicle, useUnassignVehicle } from '../hooks/deliverymanager';
-import { useUpdateGeoLocation } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useUpdateGeoLocation, useUpdateDeliveryComment } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
 import { isSeller } from '../utils/roleUtils';
@@ -194,8 +194,19 @@ const DeliveryManagerPage = () => {
   const [manualGeoLocation, setManualGeoLocation] = useState({ latitude: '', longitude: '' });
   const [geoLocationLoading, setGeoLocationLoading] = useState(false);
   
+  // Comments modal state
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [selectedComments, setSelectedComments] = useState(null);
+  const [selectedCommentsCustomer, setSelectedCommentsCustomer] = useState('');
+  const [selectedDeliveryId, setSelectedDeliveryId] = useState(null);
+  const [isEditingComment, setIsEditingComment] = useState(false);
+  const [editedComment, setEditedComment] = useState('');
+  
   // Geo-location mutation
   const updateGeoLocationMutation = useUpdateGeoLocation();
+  
+  // Delivery comment mutation
+  const updateDeliveryCommentMutation = useUpdateDeliveryComment();
 
   useEffect(() => {
     fetchSellersData();
@@ -3781,6 +3792,9 @@ const DeliveryManagerPage = () => {
                                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                                         ⏰ Delivered Time
                                       </th>
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        💬 Comments
+                                      </th>
                                     </tr>
                                   </thead>
                                   <tbody className="bg-gray-700 divide-y divide-gray-600">
@@ -3942,6 +3956,31 @@ const DeliveryManagerPage = () => {
                                             <span className="text-xs text-gray-500">-</span>
                                           )}
                                         </td>
+                                        
+                                        {/* Comments */}
+                                        <td className="px-4 py-3">
+                                          <div>
+                                            {item.comments ? (
+                                              <button
+                                                onClick={() => {
+                                                  setSelectedComments(item.comments);
+                                                  setSelectedCommentsCustomer(`${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Unknown Customer');
+                                                  setSelectedDeliveryId(item.delivery_id);
+                                                  setEditedComment(item.comments);
+                                                  setIsEditingComment(false);
+                                                  setShowCommentsModal(true);
+                                                }}
+                                                className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+                                                title="View/Edit comments"
+                                              >
+                                                <FiMessageCircle className="w-3 h-3" />
+                                                <span>View</span>
+                                              </button>
+                                            ) : (
+                                              <span className="text-xs text-gray-500">-</span>
+                                            )}
+                                          </div>
+                                        </td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -4036,6 +4075,30 @@ const DeliveryManagerPage = () => {
                                         <div className="text-white text-xs">
                                           {formatArrivalTime(item.actual_arrival_time) ? (
                                             formatArrivalTime(item.actual_arrival_time)
+                                          ) : (
+                                            <span className="text-gray-500">-</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="col-span-2">
+                                        <div className="text-gray-400 mb-1">💬 Comments</div>
+                                        <div className="text-white text-xs">
+                                          {item.comments ? (
+                                            <button
+                                              onClick={() => {
+                                                setSelectedComments(item.comments);
+                                                setSelectedCommentsCustomer(`${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Unknown Customer');
+                                                setSelectedDeliveryId(item.delivery_id);
+                                                setEditedComment(item.comments);
+                                                setIsEditingComment(false);
+                                                setShowCommentsModal(true);
+                                              }}
+                                              className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+                                              title="View/Edit comments"
+                                            >
+                                              <FiMessageCircle className="w-3 h-3" />
+                                              <span>View</span>
+                                            </button>
                                           ) : (
                                             <span className="text-gray-500">-</span>
                                           )}
@@ -5589,6 +5652,156 @@ const DeliveryManagerPage = () => {
               </div>
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Comments Modal - Small Popup */}
+      <Modal
+        title={
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <FiMessageCircle className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-semibold">Comments</span>
+            </div>
+            {!isEditingComment && selectedDeliveryId && (
+              <button
+                onClick={() => {
+                  setIsEditingComment(true);
+                  setEditedComment(selectedComments || '');
+                }}
+                className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+                title="Edit comments"
+              >
+                <FiEdit2 className="w-3 h-3" />
+                <span>Edit</span>
+              </button>
+            )}
+          </div>
+        }
+        open={showCommentsModal}
+        onCancel={() => {
+          setShowCommentsModal(false);
+          setSelectedComments(null);
+          setSelectedCommentsCustomer('');
+          setSelectedDeliveryId(null);
+          setIsEditingComment(false);
+          setEditedComment('');
+        }}
+        footer={[
+          isEditingComment ? (
+            <>
+              <button
+                key="cancel"
+                onClick={() => {
+                  setIsEditingComment(false);
+                  setEditedComment(selectedComments || '');
+                }}
+                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                key="save"
+                onClick={async () => {
+                  if (!selectedDeliveryId) {
+                    showErrorToast('Delivery ID is missing');
+                    return;
+                  }
+                  
+                  try {
+                    await updateDeliveryCommentMutation.mutateAsync({
+                      delivery_id: selectedDeliveryId,
+                      comments: editedComment
+                    });
+                    
+                    // Update local state
+                    setSelectedComments(editedComment);
+                    setIsEditingComment(false);
+                    
+                    // Refresh delivery data
+                    if (sessionData?.data?.externalResponse?.data) {
+                      const updatedData = sessionData.data.externalResponse.data.map(item => 
+                        item.delivery_id === selectedDeliveryId 
+                          ? { ...item, comments: editedComment }
+                          : item
+                      );
+                      setSessionData({
+                        ...sessionData,
+                        data: {
+                          ...sessionData.data,
+                          externalResponse: {
+                            ...sessionData.data.externalResponse,
+                            data: updatedData
+                          }
+                        }
+                      });
+                    }
+                    
+                    showSuccessToast('Comment updated successfully');
+                  } catch (error) {
+                    showErrorToast(error.message || 'Failed to update comment');
+                  }
+                }}
+                disabled={updateDeliveryCommentMutation.isPending}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                {updateDeliveryCommentMutation.isPending ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiSave className="w-3 h-3" />
+                    <span>Save</span>
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+            <button
+              key="close"
+              onClick={() => {
+                setShowCommentsModal(false);
+                setSelectedComments(null);
+                setSelectedCommentsCustomer('');
+                setSelectedDeliveryId(null);
+                setIsEditingComment(false);
+                setEditedComment('');
+              }}
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-medium transition-colors"
+            >
+              Close
+            </button>
+          )
+        ]}
+        width={400}
+        style={{ top: 100 }}
+      >
+        <div className="py-2">
+          {selectedCommentsCustomer && (
+            <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+              <div className="text-gray-600 mb-0.5">Customer:</div>
+              <div className="text-sm font-semibold text-gray-900">{selectedCommentsCustomer}</div>
+            </div>
+          )}
+          <div>
+            {isEditingComment ? (
+              <textarea
+                value={editedComment}
+                onChange={(e) => setEditedComment(e.target.value)}
+                className="w-full p-3 bg-white border border-gray-300 rounded min-h-[100px] max-h-[250px] text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter comments here..."
+                autoFocus
+              />
+            ) : (
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded min-h-[100px] max-h-[250px] overflow-y-auto">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">
+                  {selectedComments || 'No comments available'}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
 

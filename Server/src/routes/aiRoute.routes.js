@@ -30,7 +30,8 @@ import {
   updateGeoLocation,
   checkTraffic,
   getRouteOrder,
-  getRouteStatusFromActualStops
+  getRouteStatusFromActualStops,
+  updateDeliveryComment
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();
@@ -92,6 +93,9 @@ router.post('/driver-session/complete', checkRole('DELIVERY_EXECUTIVE'), complet
 // Address geo-location management - DELIVERY_MANAGER only
 router.get('/address/get-missing-geo-locations', checkRole('DELIVERY_MANAGER'), getMissingGeoLocations);
 router.post('/address/update-geo-location', checkRole('DELIVERY_MANAGER'), updateGeoLocation);
+
+// Delivery data comments - DELIVERY_MANAGER only
+router.put('/delivery_data/:deliveryId/comments', checkRole('DELIVERY_MANAGER'), updateDeliveryComment);
 
 export default router;
 

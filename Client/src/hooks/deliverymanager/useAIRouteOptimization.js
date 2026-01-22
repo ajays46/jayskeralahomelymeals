@@ -1143,3 +1143,32 @@ export const useRouteStatusFromActualStops = (routeId, options = {}) => {
   });
 };
 
+/**
+ * Update Delivery Comment (Mutation)
+ * Updates the comment for a specific delivery using delivery_id
+ */
+export const useUpdateDeliveryComment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ delivery_id, comments }) => {
+      const response = await axiosInstance.put(`/ai-routes/delivery_data/${delivery_id}/comments`, {
+        comments
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to update delivery comment');
+      }
+      
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate delivery data queries to refetch updated data
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.deliveryData() });
+    },
+    onError: (error) => {
+      console.error('Error updating delivery comment:', error);
+    }
+  });
+};
+

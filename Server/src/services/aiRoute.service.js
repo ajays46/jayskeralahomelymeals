@@ -10,10 +10,20 @@ import prisma from '../config/prisma.js';
  */
 
 const AI_ROUTE_API_BASE_URL = process.env.AI_ROUTE_API_THIRD;
+const AI_ROUTE_API = process.env.AI_ROUTE_API;
 
 // Create axios instance with default configuration
 const apiClient = axios.create({
   baseURL: AI_ROUTE_API_BASE_URL,
+  timeout: 30000, // 30 seconds timeout
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Create separate axios instance for AI_ROUTE_API endpoints
+const apiClientRouteAPI = axios.create({
+  baseURL: AI_ROUTE_API,
   timeout: 30000, // 30 seconds timeout
   headers: {
     'Content-Type': 'application/json'
@@ -1115,6 +1125,45 @@ export const getDriverRouteOverviewMapsService = async (params) => {
     });
     throw new AppError(
       error.response?.data?.error || error.message || 'Failed to fetch driver route overview maps',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Update Delivery Comment
+ * Updates the comment for a specific delivery using delivery_id
+ * Uses AI_ROUTE_API from .env (different from AI_ROUTE_API_THIRD)
+ */
+export const updateDeliveryCommentService = async (deliveryId, comments) => {
+  try {
+    if (!AI_ROUTE_API) {
+      throw new Error('AI_ROUTE_API environment variable is not set');
+    }
+    
+    const response = await apiClientRouteAPI.put(`/delivery_data/${deliveryId}/comments`, {
+      comments
+    });
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to update delivery comment');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery comment updated', {
+      delivery_id: deliveryId,
+      comments_length: comments?.length || 0
+    });
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update delivery comment', {
+      error: error.message,
+      deliveryId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to update delivery comment',
       error.response?.status || 500
     );
   }
