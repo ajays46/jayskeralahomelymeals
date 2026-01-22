@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin, FiTrendingDown, FiClock, FiCheckCircle, FiBarChart2, FiActivity, FiPieChart, FiTarget, FiShield, FiPackage, FiX, FiDownload, FiEye, FiEyeOff, FiMessageCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin, FiTrendingDown, FiClock, FiCheckCircle, FiBarChart2, FiActivity, FiPieChart, FiTarget, FiShield, FiPackage, FiX, FiDownload, FiEye, FiEyeOff, FiMessageCircle, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney } from 'react-icons/md';
 import { Modal, message } from 'antd';
 import axiosInstance from '../api/axios';
@@ -187,6 +187,7 @@ const DeliveryManagerPage = () => {
   });
   const [filteredDeliveryData, setFilteredDeliveryData] = useState([]);
   const [isFullscreenExecutivesRoutes, setIsFullscreenExecutivesRoutes] = useState(false);
+  const [isFullscreenRouteManagement, setIsFullscreenRouteManagement] = useState(false);
   
   // Manual geo-location state
   const [editingGeoLocation, setEditingGeoLocation] = useState(null); // index of item being edited
@@ -1809,6 +1810,44 @@ const DeliveryManagerPage = () => {
     }).format(amount || 0);
   };
 
+  // Helper function to format arrival time (returns time only, no date)
+  const formatArrivalTime = (arrivalTime) => {
+    if (!arrivalTime) return null;
+    
+    // Check if it's just a time string (HH:MM or HH:MM:SS format)
+    const timeOnlyPattern = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
+    const timeMatch = arrivalTime.match(timeOnlyPattern);
+    
+    if (timeMatch) {
+      // It's already a time-only string, format it nicely
+      const hours = parseInt(timeMatch[1], 10);
+      const minutes = parseInt(timeMatch[2], 10);
+      
+      // Create a temporary date to format time in 12-hour format
+      const tempDate = new Date();
+      tempDate.setHours(hours, minutes, 0, 0);
+      
+      return tempDate.toLocaleString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+    
+    // Try to parse as full datetime and extract only time
+    const date = new Date(arrivalTime);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+    
+    // If parsing fails, return the original string
+    return arrivalTime;
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
       day: '2-digit',
@@ -2103,9 +2142,9 @@ const DeliveryManagerPage = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-gray-900 text-white ${isFullscreenExecutivesRoutes ? 'fixed inset-0 z-50 overflow-hidden' : ''}`}>
+    <div className={`min-h-screen bg-gray-900 text-white ${isFullscreenExecutivesRoutes || isFullscreenRouteManagement ? 'fixed inset-0 z-50 overflow-hidden' : ''}`}>
       {/* Navbar - Hide in fullscreen mode */}
-      {!isFullscreenExecutivesRoutes && (
+      {!isFullscreenExecutivesRoutes && !isFullscreenRouteManagement && (
       <div className="fixed top-0 left-0 right-0 h-16 sm:h-20 lg:h-24 bg-gray-800 border-b border-gray-700 z-40 flex items-center justify-between px-3 sm:px-4 lg:px-8 overflow-hidden">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 max-w-[calc(100%-2rem)]">
           <button
@@ -2138,9 +2177,9 @@ const DeliveryManagerPage = () => {
       )}
 
       {/* Main Content with proper spacing for navbar */}
-      <div className={isFullscreenExecutivesRoutes ? 'h-screen overflow-hidden' : 'pt-16 sm:pt-20 lg:pt-24'}> {/* Add top padding to account for fixed navbar height */}
+      <div className={isFullscreenExecutivesRoutes || isFullscreenRouteManagement ? 'h-screen overflow-hidden' : 'pt-16 sm:pt-20 lg:pt-24'}> {/* Add top padding to account for fixed navbar height */}
         {/* Mobile Sidebar Toggle - Hide in fullscreen */}
-        {!isFullscreenExecutivesRoutes && (
+        {!isFullscreenExecutivesRoutes && !isFullscreenRouteManagement && (
         <div className="lg:hidden fixed top-20 sm:top-24 left-3 z-50">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -2154,7 +2193,7 @@ const DeliveryManagerPage = () => {
         )}
 
         {/* Mobile Overlay - Hide in fullscreen */}
-        {!isFullscreenExecutivesRoutes && sidebarOpen && (
+        {!isFullscreenExecutivesRoutes && !isFullscreenRouteManagement && sidebarOpen && (
           <div 
             className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-20"
             onClick={() => setSidebarOpen(false)}
@@ -2162,7 +2201,7 @@ const DeliveryManagerPage = () => {
         )}
 
         {/* Sidebar - Hide in fullscreen */}
-        {!isFullscreenExecutivesRoutes && (
+        {!isFullscreenExecutivesRoutes && !isFullscreenRouteManagement && (
         <div className={`fixed left-0 top-16 sm:top-20 lg:top-24 w-64 h-[calc(100vh-4rem)] sm:h-[calc(100vh-5rem)] lg:h-[calc(100vh-6rem)] bg-gray-800 border-r border-gray-700 z-30 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
@@ -2276,9 +2315,9 @@ const DeliveryManagerPage = () => {
         )}
 
         {/* Dashboard Content */}
-        <div className={`${isFullscreenExecutivesRoutes ? 'h-screen overflow-y-auto' : 'lg:ml-64 px-3 sm:px-4 lg:px-6 py-4 sm:py-6'} overflow-x-hidden max-w-full`}>
+        <div className={`${isFullscreenExecutivesRoutes || isFullscreenRouteManagement ? 'h-screen overflow-y-auto' : 'lg:ml-64 px-3 sm:px-4 lg:px-6 py-4 sm:py-6'} overflow-x-hidden max-w-full`}>
           {/* Mobile Backdrop - Hide in fullscreen */}
-          {!isFullscreenExecutivesRoutes && sidebarOpen && (
+          {!isFullscreenExecutivesRoutes && !isFullscreenRouteManagement && sidebarOpen && (
             <div 
               className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
               onClick={() => setSidebarOpen(false)}
@@ -3566,14 +3605,25 @@ const DeliveryManagerPage = () => {
 
           {/* Root & Management Tab Content */}
           {activeTab === 'rootManagement' && (
-            <>
-              <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-8">
+            <div className={isFullscreenRouteManagement ? 'fixed inset-0 z-50 bg-gray-900 overflow-y-auto' : ''}>
+              <div className={`bg-gray-800 rounded-lg border border-gray-700 p-6 mb-8 ${isFullscreenRouteManagement ? 'm-4' : ''}`}>
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     <FiActivity className="text-blue-400" />
                     Route & Management Dashboard
                   </h3>
                   <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setIsFullscreenRouteManagement(!isFullscreenRouteManagement)}
+                      className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-white"
+                      title={isFullscreenRouteManagement ? "Exit Fullscreen" : "Enter Fullscreen"}
+                    >
+                      {isFullscreenRouteManagement ? (
+                        <FiMinimize2 className="w-5 h-5" />
+                      ) : (
+                        <FiMaximize2 className="w-5 h-5" />
+                      )}
+                    </button>
                     <FiTarget className="text-gray-400 text-xl" />
                   </div>
                 </div>
@@ -3728,6 +3778,9 @@ const DeliveryManagerPage = () => {
                                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
                                         📊 Status
                                       </th>
+                                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        ⏰ Delivered Time
+                                      </th>
                                     </tr>
                                   </thead>
                                   <tbody className="bg-gray-700 divide-y divide-gray-600">
@@ -3878,6 +3931,17 @@ const DeliveryManagerPage = () => {
                                             {item.status || 'Unknown'}
                                           </span>
                                         </td>
+                                        
+                                        {/* Delivered Time */}
+                                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                                          {formatArrivalTime(item.actual_arrival_time) ? (
+                                            <div className="text-sm text-white">
+                                              {formatArrivalTime(item.actual_arrival_time)}
+                                            </div>
+                                          ) : (
+                                            <span className="text-xs text-gray-500">-</span>
+                                          )}
+                                        </td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -3966,6 +4030,16 @@ const DeliveryManagerPage = () => {
                                             Add Location
                                           </button>
                                         )}
+                                      </div>
+                                      <div>
+                                        <div className="text-gray-400 mb-1">⏰ Delivered Time</div>
+                                        <div className="text-white text-xs">
+                                          {formatArrivalTime(item.actual_arrival_time) ? (
+                                            formatArrivalTime(item.actual_arrival_time)
+                                          ) : (
+                                            <span className="text-gray-500">-</span>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
 
@@ -5267,7 +5341,7 @@ const DeliveryManagerPage = () => {
 
                 </div>
               )}
-            </>
+              </div>
           )}
 
           {/* Executives & Routes Tab Content */}
