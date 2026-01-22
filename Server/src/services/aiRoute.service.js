@@ -271,7 +271,8 @@ export const stopReachedService = async (stopData) => {
   try {
     const { 
       route_id, 
-      stop_order, 
+      planned_stop_id,
+      stop_order, // Keep for backward compatibility
       delivery_id, 
       driver_id,
       completed_at,
@@ -285,11 +286,18 @@ export const stopReachedService = async (stopData) => {
     } = stopData;
     
     // Build request body according to documentation format
+    // Prefer planned_stop_id over stop_order
     const requestBody = {
       route_id,
-      stop_order,
       delivery_id
     };
+    
+    // Use planned_stop_id if provided, otherwise fallback to stop_order
+    if (planned_stop_id) {
+      requestBody.planned_stop_id = planned_stop_id;
+    } else if (stop_order !== undefined) {
+      requestBody.stop_order = stop_order;
+    }
     
     // Add driver_id if provided (required by external API to auto-detect driver)
     if (driver_id) {
@@ -334,7 +342,7 @@ export const stopReachedService = async (stopData) => {
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Stop reached marked', {
       route_id,
-      stop_order,
+      planned_stop_id: planned_stop_id || stop_order,
       completed_at: completed_at || 'current time'
     });
     

@@ -316,7 +316,8 @@ export const stopReached = async (req, res, next) => {
   try {
     const { 
       route_id, 
-      stop_order, 
+      planned_stop_id,
+      stop_order, // Keep for backward compatibility
       delivery_id, 
       driver_id,
       completed_at,
@@ -329,11 +330,12 @@ export const stopReached = async (req, res, next) => {
       packages_delivered
     } = req.body;
     
-    // Validate required fields
-    if (!route_id || stop_order === undefined) {
+    // Validate required fields - use planned_stop_id if provided, otherwise fallback to stop_order
+    const stopIdentifier = planned_stop_id || stop_order;
+    if (!route_id || stopIdentifier === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'route_id and stop_order are required'
+        message: 'route_id and planned_stop_id (or stop_order for backward compatibility) are required'
       });
     }
     
@@ -342,7 +344,8 @@ export const stopReached = async (req, res, next) => {
     // Otherwise, use legacy format (latitude, longitude)
     let serviceData = {
       route_id,
-      stop_order,
+      planned_stop_id: planned_stop_id || undefined,
+      stop_order: stop_order || undefined, // Keep for backward compatibility
       delivery_id,
       completed_at: completed_at || new Date().toISOString()
     };
@@ -378,7 +381,7 @@ export const stopReached = async (req, res, next) => {
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Stop reached marked successfully', {
       route_id,
-      stop_order,
+      planned_stop_id: planned_stop_id || stop_order,
       completed_at: serviceData.completed_at
     });
     

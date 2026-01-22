@@ -268,7 +268,8 @@ export const useStopReached = () => {
     mutationFn: async (stopData) => {
       const { 
         route_id, 
-        stop_order, 
+        planned_stop_id,
+        stop_order, // Keep for backward compatibility
         delivery_id, 
         driver_id,
         completed_at,
@@ -282,11 +283,18 @@ export const useStopReached = () => {
       } = stopData;
       
       // Build request body according to documentation format
+      // Prefer planned_stop_id over stop_order
       const requestBody = {
         route_id,
-        stop_order,
         delivery_id
       };
+      
+      // Use planned_stop_id if provided, otherwise fallback to stop_order
+      if (planned_stop_id && typeof planned_stop_id === 'string' && planned_stop_id.trim() !== '') {
+        requestBody.planned_stop_id = planned_stop_id;
+      } else if (stop_order !== undefined) {
+        requestBody.stop_order = stop_order;
+      }
       
       // Add driver_id if provided (required by external API)
       if (driver_id) {
