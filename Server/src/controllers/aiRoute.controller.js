@@ -327,7 +327,8 @@ export const stopReached = async (req, res, next) => {
       latitude,
       longitude,
       status,
-      packages_delivered
+      packages_delivered,
+      comments // Comments field for delivery notes
     } = req.body;
     
     // Validate required fields - use planned_stop_id if provided, otherwise fallback to stop_order
@@ -376,6 +377,18 @@ export const stopReached = async (req, res, next) => {
     if (user_id) serviceData.user_id = user_id;
     if (status) serviceData.status = status;
     if (packages_delivered !== undefined) serviceData.packages_delivered = packages_delivered;
+    
+    // Add comments if provided (optional field, max 500 characters)
+    if (comments && typeof comments === 'string' && comments.trim()) {
+      // Validate length
+      if (comments.trim().length > 500) {
+        return res.status(400).json({
+          success: false,
+          message: 'Comments cannot exceed 500 characters'
+        });
+      }
+      serviceData.comments = comments.trim();
+    }
     
     const result = await stopReachedService(serviceData);
     

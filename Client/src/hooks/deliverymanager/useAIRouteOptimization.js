@@ -279,7 +279,8 @@ export const useStopReached = () => {
         latitude,
         longitude,
         status,
-        packages_delivered
+        packages_delivered,
+        comments // Comments field for delivery notes
       } = stopData;
       
       // Build request body according to documentation format
@@ -312,6 +313,11 @@ export const useStopReached = () => {
       // Add status if provided (Delivered or CUSTOMER_UNAVAILABLE)
       if (status) {
         requestBody.status = status;
+      }
+      
+      // Add comments if provided (optional field, max 500 characters)
+      if (comments && typeof comments === 'string' && comments.trim()) {
+        requestBody.comments = comments.trim();
       }
       
       // Add current_location if available (new format)

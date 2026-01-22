@@ -272,60 +272,13 @@ const DeliveryExecutivePage = () => {
   const [selectedStopIndex, setSelectedStopIndex] = useState(null);
   const [selectedStopStatus, setSelectedStopStatus] = useState('Delivered'); // Default to 'Delivered'
   const [gettingLocation, setGettingLocation] = useState(false); // Track geolocation loading state
+  const [deliveryComments, setDeliveryComments] = useState(''); // Comments for delivery
+  const MAX_COMMENTS_LENGTH = 500; // Maximum characters for comments
   
   // Delivery note modal state
   const [showDeliveryNoteModal, setShowDeliveryNoteModal] = useState(false);
   const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
   const [selectedStopForNote, setSelectedStopForNote] = useState(null);
-  
-  // Delivery command state (stored per stop)
-  const [deliveryCommands, setDeliveryCommands] = useState(() => {
-    // Load from localStorage on mount
-    try {
-      const saved = localStorage.getItem('deliveryCommands');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (error) {
-      console.error('Error loading delivery commands:', error);
-    }
-    return {};
-  });
-  const [showDeliveryCommandModal, setShowDeliveryCommandModal] = useState(false);
-  const [selectedStopForCommand, setSelectedStopForCommand] = useState(null);
-  const [editingCommand, setEditingCommand] = useState('');
-  
-  // Helper function to get command key for a stop
-  const getCommandKey = (stop, index) => {
-    const stopOrder = stop.Stop_No || stop.stop_order || index + 1;
-    const routeId = activeRouteId || stop.route_id || stop.Route_ID || '';
-    const session = selectedSession.toLowerCase();
-    return `${routeId}-${session}-${stopOrder}-${stop.Delivery_Name || 'stop'}`;
-  };
-  
-  // Helper function to get command for a stop
-  const getStopCommand = (stop, index) => {
-    const key = getCommandKey(stop, index);
-    return deliveryCommands[key] || null;
-  };
-  
-  // Helper function to save command for a stop
-  const saveStopCommand = (stop, index, command) => {
-    const key = getCommandKey(stop, index);
-    const updated = { ...deliveryCommands };
-    if (command && command.trim()) {
-      updated[key] = command.trim();
-    } else {
-      delete updated[key];
-    }
-    setDeliveryCommands(updated);
-    // Save to localStorage
-    try {
-      localStorage.setItem('deliveryCommands', JSON.stringify(updated));
-    } catch (error) {
-      console.error('Error saving delivery commands:', error);
-    }
-  };
   
   // React Query hooks
   const startJourneyMutation = useStartJourney();
@@ -1933,10 +1886,47 @@ const DeliveryExecutivePage = () => {
   };
 
   // Handle opening status selection modal
+  // Helper function to get comments key for localStorage
+  const getCommentsKey = (stop, routeId, stopIndex = null) => {
+    const stopOrder = stop.Stop_No || stop.stop_order || (stopIndex !== null ? stopIndex + 1 : 1);
+    const plannedStopId = stop.planned_stop_id || stop.Planned_Stop_ID || stop._original?.planned_stop_id || stop._original?.Planned_Stop_ID;
+    return `delivery_comments_${routeId}_${plannedStopId || stopOrder}`;
+  };
+
+  // Helper function to save comments to localStorage
+  const saveCommentsToLocalStorage = (key, comments) => {
+    try {
+      if (comments && comments.trim()) {
+        localStorage.setItem(key, comments.trim());
+      } else {
+        localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error('Error saving comments to localStorage:', error);
+    }
+  };
+
+  // Helper function to load comments from localStorage
+  const loadCommentsFromLocalStorage = (key) => {
+    try {
+      return localStorage.getItem(key) || '';
+    } catch (error) {
+      console.error('Error loading comments from localStorage:', error);
+      return '';
+    }
+  };
+
   const handleOpenStatusModal = (stop, stopIndex) => {
     setSelectedStopForStatus(stop);
     setSelectedStopIndex(stopIndex);
     setSelectedStopStatus('Delivered'); // Reset to default
+    
+    // Load comments from localStorage
+    const routeId = activeRouteId;
+    const commentsKey = getCommentsKey(stop, routeId, stopIndex);
+    const savedComments = loadCommentsFromLocalStorage(commentsKey);
+    setDeliveryComments(savedComments);
+    
     setShowStatusModal(true);
   };
 
@@ -2050,6 +2040,11 @@ const DeliveryExecutivePage = () => {
         };
       }
       
+      // Add comments if provided (trim and only include if not empty)
+      if (deliveryComments && deliveryComments.trim()) {
+        requestData.comments = deliveryComments.trim();
+      }
+      
       // Use new format matching documentation with status
       await stopReachedMutation.mutateAsync(requestData);
       
@@ -2062,6 +2057,11 @@ const DeliveryExecutivePage = () => {
       const session = selectedSession.toLowerCase();
       const stopKey = `${routeId}-${session}-${stopOrder}`;
       setMarkedStops(prev => new Set(prev).add(stopKey));
+      
+      // Clear comments from localStorage after successful submission
+      const commentsKey = getCommentsKey(stop, routeId, stopIndex);
+      localStorage.removeItem(commentsKey);
+      setDeliveryComments('');
       
       // Close modal if open
       setShowStatusModal(false);
@@ -2111,6 +2111,11 @@ const DeliveryExecutivePage = () => {
             retryRequestData.stop_order = stopOrder;
           }
           
+          // Add comments if provided (trim and only include if not empty)
+          if (deliveryComments && deliveryComments.trim()) {
+            retryRequestData.comments = deliveryComments.trim();
+          }
+          
           await stopReachedMutation.mutateAsync(retryRequestData);
           
           const statusMessage = status === 'CUSTOMER_UNAVAILABLE' 
@@ -2122,6 +2127,11 @@ const DeliveryExecutivePage = () => {
           const session = selectedSession.toLowerCase();
           const stopKey = `${routeId}-${session}-${stopOrder}`;
           setMarkedStops(prev => new Set(prev).add(stopKey));
+          
+          // Clear comments from localStorage after successful submission
+          const commentsKey = getCommentsKey(stop, routeId, stopIndex);
+          localStorage.removeItem(commentsKey);
+          setDeliveryComments('');
           
           setShowStatusModal(false);
           setSelectedStopForStatus(null);
@@ -2761,41 +2771,6 @@ const DeliveryExecutivePage = () => {
                                       </div>
                                     )}
 
-                                    {/* Delivery Command - Prominent Display */}
-                                    {(() => {
-                                      const stopCommand = getStopCommand(stop, index);
-                                      return stopCommand ? (
-                                        <div className="mb-3 py-2.5 px-3 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-300 rounded-lg shadow-sm">
-                                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                            <div className="flex items-start gap-2 flex-1 min-w-0">
-                                              <div className="w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                                                </svg>
-                                              </div>
-                                              <div className="flex-1 min-w-0">
-                                                <p className="text-indigo-900 font-semibold text-xs mb-1">Delivery Command</p>
-                                                <p className="text-indigo-800 text-xs sm:text-sm leading-relaxed break-words">{stopCommand}</p>
-                                              </div>
-                                            </div>
-                                            <button
-                                              onClick={() => {
-                                                setEditingCommand(stopCommand);
-                                                setSelectedStopForCommand({ stop, index });
-                                                setShowDeliveryCommandModal(true);
-                                              }}
-                                              className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors flex-shrink-0 shadow-sm hover:shadow-md w-full sm:w-auto"
-                                              title="Edit delivery command"
-                                            >
-                                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                              </svg>
-                                              <span>Edit</span>
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : null;
-                                    })()}
 
                                     {/* Action Buttons - Swiggy Style */}
                                     <div className="mt-4">
@@ -2950,23 +2925,6 @@ const DeliveryExecutivePage = () => {
                                             </button>
                                           );
                                         })()}
-                                        
-                                        {/* Delivery Command Button */}
-                                        <button
-                                          onClick={() => {
-                                            const existingCommand = getStopCommand(stop, index);
-                                            setEditingCommand(existingCommand || '');
-                                            setSelectedStopForCommand({ stop, index });
-                                            setShowDeliveryCommandModal(true);
-                                          }}
-                                          className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm"
-                                          title={getStopCommand(stop, index) ? "Edit delivery command" : "Add delivery command"}
-                                        >
-                                          <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                                          </svg>
-                                          <span className="truncate">{getStopCommand(stop, index) ? 'Edit' : 'Command'}</span>
-                                        </button>
                                       </div>
                                     </div>
 
@@ -3497,6 +3455,43 @@ const DeliveryExecutivePage = () => {
                   </p>
                 </div>
               </div>
+              
+              {/* Comments Section */}
+              <div className="mt-4">
+                <label className="block text-gray-700 font-semibold text-sm mb-2">
+                  Comments (Optional)
+                  <span className={`ml-2 text-xs font-normal ${deliveryComments.length > MAX_COMMENTS_LENGTH * 0.9 ? 'text-orange-500' : 'text-gray-500'}`}>
+                    {deliveryComments.length}/{MAX_COMMENTS_LENGTH}
+                  </span>
+                </label>
+                <textarea
+                  value={deliveryComments}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= MAX_COMMENTS_LENGTH) {
+                      setDeliveryComments(value);
+                      // Save to localStorage as user types (debounced)
+                      const routeId = activeRouteId;
+                      const commentsKey = getCommentsKey(selectedStopForStatus, routeId, selectedStopIndex);
+                      // Use setTimeout for debouncing
+                      clearTimeout(window.commentsSaveTimeout);
+                      window.commentsSaveTimeout = setTimeout(() => {
+                        saveCommentsToLocalStorage(commentsKey, value);
+                      }, 500);
+                    }
+                  }}
+                  placeholder="Add any notes about this delivery (e.g., 'Customer requested early delivery', 'Left at door', etc.)"
+                  rows={4}
+                  maxLength={MAX_COMMENTS_LENGTH}
+                  disabled={gettingLocation || stopReachedMutation.isPending}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed resize-vertical"
+                />
+                {deliveryComments.length > MAX_COMMENTS_LENGTH * 0.9 && (
+                  <p className="text-orange-500 text-xs mt-1">
+                    {MAX_COMMENTS_LENGTH - deliveryComments.length} characters remaining
+                  </p>
+                )}
+              </div>
             </div>
             
             <div className="flex gap-3 justify-end">
@@ -3507,6 +3502,7 @@ const DeliveryExecutivePage = () => {
                   setSelectedStopIndex(null);
                   setSelectedStopStatus('Delivered');
                   setGettingLocation(false);
+                  // Don't clear comments - keep them for next time user opens modal
                 }}
                 disabled={stopReachedMutation.isPending}
                 className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3577,87 +3573,6 @@ const DeliveryExecutivePage = () => {
                 className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
               >
                 Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delivery Command Modal */}
-      {showDeliveryCommandModal && selectedStopForCommand && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900">Delivery Command</h3>
-                <p className="text-gray-600 text-xs sm:text-sm truncate">{selectedStopForCommand.stop.Delivery_Name || 'Unknown Delivery'}</p>
-              </div>
-            </div>
-            
-            <div className="mb-4 sm:mb-6">
-              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
-                Enter delivery command or instruction:
-              </label>
-              <textarea
-                value={editingCommand}
-                onChange={(e) => setEditingCommand(e.target.value)}
-                placeholder="e.g., Call before delivery, Leave at door, Ring bell twice..."
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base text-gray-900 placeholder-gray-400 resize-none"
-                rows={4}
-                autoFocus
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Add specific instructions or commands for this delivery stop
-              </p>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowDeliveryCommandModal(false);
-                  setEditingCommand('');
-                  setSelectedStopForCommand(null);
-                }}
-                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base order-3 sm:order-1"
-              >
-                Cancel
-              </button>
-              {getStopCommand(selectedStopForCommand.stop, selectedStopForCommand.index) && (
-                <button
-                  onClick={() => {
-                    saveStopCommand(selectedStopForCommand.stop, selectedStopForCommand.index, '');
-                    setShowDeliveryCommandModal(false);
-                    setEditingCommand('');
-                    setSelectedStopForCommand(null);
-                    toast.success('Delivery command deleted!', {
-                      position: "top-right",
-                      autoClose: 2000,
-                    });
-                  }}
-                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base order-2"
-                >
-                  Delete
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  saveStopCommand(selectedStopForCommand.stop, selectedStopForCommand.index, editingCommand);
-                  setShowDeliveryCommandModal(false);
-                  setEditingCommand('');
-                  setSelectedStopForCommand(null);
-                  toast.success('Delivery command saved successfully!', {
-                    position: "top-right",
-                    autoClose: 2000,
-                  });
-                }}
-                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base order-1 sm:order-3"
-              >
-                Save Command
               </button>
             </div>
           </div>
