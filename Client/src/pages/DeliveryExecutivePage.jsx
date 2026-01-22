@@ -285,6 +285,55 @@ const DeliveryExecutivePage = () => {
   const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
   const [selectedStopForNote, setSelectedStopForNote] = useState(null);
   
+  // Delivery command state (stored per stop)
+  const [deliveryCommands, setDeliveryCommands] = useState(() => {
+    // Load from localStorage on mount
+    try {
+      const saved = localStorage.getItem('deliveryCommands');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error('Error loading delivery commands:', error);
+    }
+    return {};
+  });
+  const [showDeliveryCommandModal, setShowDeliveryCommandModal] = useState(false);
+  const [selectedStopForCommand, setSelectedStopForCommand] = useState(null);
+  const [editingCommand, setEditingCommand] = useState('');
+  
+  // Helper function to get command key for a stop
+  const getCommandKey = (stop, index) => {
+    const stopOrder = stop.Stop_No || stop.stop_order || index + 1;
+    const routeId = activeRouteId || stop.route_id || stop.Route_ID || '';
+    const session = selectedSession.toLowerCase();
+    return `${routeId}-${session}-${stopOrder}-${stop.Delivery_Name || 'stop'}`;
+  };
+  
+  // Helper function to get command for a stop
+  const getStopCommand = (stop, index) => {
+    const key = getCommandKey(stop, index);
+    return deliveryCommands[key] || null;
+  };
+  
+  // Helper function to save command for a stop
+  const saveStopCommand = (stop, index, command) => {
+    const key = getCommandKey(stop, index);
+    const updated = { ...deliveryCommands };
+    if (command && command.trim()) {
+      updated[key] = command.trim();
+    } else {
+      delete updated[key];
+    }
+    setDeliveryCommands(updated);
+    // Save to localStorage
+    try {
+      localStorage.setItem('deliveryCommands', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error saving delivery commands:', error);
+    }
+  };
+  
   // React Query hooks
   const startJourneyMutation = useStartJourney();
   const updateGeoLocationMutation = useUpdateGeoLocation();
@@ -379,7 +428,9 @@ const DeliveryExecutivePage = () => {
 
       return {
         ...stop,
-        delivery_note: matchingStop?.delivery_note || stop.delivery_note || null
+        delivery_note: matchingStop?.delivery_note || stop.delivery_note || null,
+        // Merge planned_stop_id from routeOrderData if not already in stop
+        planned_stop_id: stop.planned_stop_id || stop.Planned_Stop_ID || matchingStop?.planned_stop_id || stop._original?.planned_stop_id || null
       };
     });
   }, [routes.sessions, selectedSession, routeOrderData]);
@@ -1436,6 +1487,7 @@ const DeliveryExecutivePage = () => {
             Longitude: stop.longitude || stop.Longitude || 0,
             Map_Link: stop.map_link || stop.Map_Link || '',
             route_id: stop.route_id || route.route_id || '', // Ensure route_id is in each stop
+            planned_stop_id: stop.planned_stop_id || stop.Planned_Stop_ID || null, // Preserve planned_stop_id
             // Keep original data for reference
             _original: stop
           }));
@@ -1976,8 +2028,30 @@ const DeliveryExecutivePage = () => {
     
     // Prepare stop data
     const stopOrder = stop.Stop_No || stop.stop_order || stopIndex + 1;
+    // Try multiple sources for planned_stop_id: direct property, _original, or routeOrderData
+    let plannedStopId = stop.planned_stop_id || stop.Planned_Stop_ID || stop._original?.planned_stop_id || stop._original?.Planned_Stop_ID;
+    
+    // If still not found, try to get it from routeOrderData by matching stop_order or delivery_name
+    if (!plannedStopId && routeOrderData?.stops) {
+      const matchingRouteStop = routeOrderData.stops.find(routeStop => 
+        routeStop.stop_order === stopOrder ||
+        routeStop.delivery_name?.toLowerCase() === stop.Delivery_Name?.toLowerCase()
+      );
+      if (matchingRouteStop?.planned_stop_id) {
+        plannedStopId = matchingRouteStop.planned_stop_id;
+      }
+    }
+    
     const deliveryId = stop.Delivery_Item_ID || stop.delivery_item_id || '';
     const packagesDelivered = stop.Packages || stop.packages || 1;
+    
+    // Debug log to help troubleshoot (only log when not found)
+    if (!plannedStopId) {
+      console.warn('planned_stop_id not found for stop:', {
+        Stop_No: stopOrder,
+        Delivery_Name: stop.Delivery_Name
+      });
+    }
     
     // Set loading state for geolocation
     setGettingLocation(true);
@@ -2016,15 +2090,22 @@ const DeliveryExecutivePage = () => {
         console.warn('Geolocation failed, proceeding without location:', geoError);
       }
       
-      // Prepare request data
+      // Prepare request data - use planned_stop_id if available, otherwise fallback to stop_order
       const requestData = {
         route_id: routeId,
-        stop_order: stopOrder,
         delivery_id: deliveryId,
         driver_id: user.id,
         completed_at: new Date().toISOString(),
         status: status
       };
+      
+      // Use planned_stop_id if available, otherwise fallback to stop_order for backward compatibility
+      // Explicitly check for truthy value and ensure it's a string
+      if (plannedStopId && typeof plannedStopId === 'string' && plannedStopId.trim() !== '') {
+        requestData.planned_stop_id = plannedStopId;
+      } else {
+        requestData.stop_order = stopOrder;
+      }
       
       // Add location if available (make it optional)
       if (position && position.coords) {
@@ -2078,15 +2159,24 @@ const DeliveryExecutivePage = () => {
         showErrorToast('Location request timed out. The stop was marked without location data.');
         // Try to proceed without location
         try {
-          await stopReachedMutation.mutateAsync({
+          const retryRequestData = {
             route_id: routeId,
-            stop_order: stopOrder,
             delivery_id: deliveryId,
             driver_id: user.id,
             completed_at: new Date().toISOString(),
             status: status
             // No location - API should handle this
-          });
+          };
+          
+          // Use planned_stop_id if available, otherwise fallback to stop_order
+          // Explicitly check for truthy value and ensure it's a string
+          if (plannedStopId && typeof plannedStopId === 'string' && plannedStopId.trim() !== '') {
+            retryRequestData.planned_stop_id = plannedStopId;
+          } else {
+            retryRequestData.stop_order = stopOrder;
+          }
+          
+          await stopReachedMutation.mutateAsync(retryRequestData);
           
           const statusMessage = status === 'CUSTOMER_UNAVAILABLE' 
             ? `Stop ${stopOrder} marked as Customer Unavailable!`
@@ -2736,20 +2826,56 @@ const DeliveryExecutivePage = () => {
                                       </div>
                                     )}
 
+                                    {/* Delivery Command - Prominent Display */}
+                                    {(() => {
+                                      const stopCommand = getStopCommand(stop, index);
+                                      return stopCommand ? (
+                                        <div className="mb-3 py-2.5 px-3 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-300 rounded-lg shadow-sm">
+                                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                            <div className="flex items-start gap-2 flex-1 min-w-0">
+                                              <div className="w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                                </svg>
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <p className="text-indigo-900 font-semibold text-xs mb-1">Delivery Command</p>
+                                                <p className="text-indigo-800 text-xs sm:text-sm leading-relaxed break-words">{stopCommand}</p>
+                                              </div>
+                                            </div>
+                                            <button
+                                              onClick={() => {
+                                                setEditingCommand(stopCommand);
+                                                setSelectedStopForCommand({ stop, index });
+                                                setShowDeliveryCommandModal(true);
+                                              }}
+                                              className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors flex-shrink-0 shadow-sm hover:shadow-md w-full sm:w-auto"
+                                              title="Edit delivery command"
+                                            >
+                                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                              </svg>
+                                              <span>Edit</span>
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : null;
+                                    })()}
+
                                     {/* Action Buttons - Swiggy Style */}
                                     <div className="mt-4">
-                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                                         {/* Map Button */}
                                         {stop.Map_Link && (
                                           <a
                                             href={stop.Map_Link}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
+                                            className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all text-xs sm:text-sm"
                                             title="Opens Google Maps with directions"
                                           >
-                                            <FiMapPin className="w-5 h-5" />
-                                            <span>Map</span>
+                                            <FiMapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                                            <span className="truncate">Map</span>
                                           </a>
                                         )}
                                         
@@ -2766,7 +2892,7 @@ const DeliveryExecutivePage = () => {
                                             <button
                                               onClick={() => handleOpenStatusModal(stop, index)}
                                               disabled={stopReachedMutation.isPending || isMarked}
-                                              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed ${
+                                              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed text-xs sm:text-sm ${
                                                 isMarked
                                                   ? 'bg-green-600 hover:bg-green-700 text-white'
                                                   : stopReachedMutation.isPending
@@ -2778,17 +2904,17 @@ const DeliveryExecutivePage = () => {
                                                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                                               ) : isMarked ? (
                                                 <>
-                                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                   </svg>
-                                                  <span>Marked</span>
+                                                  <span className="truncate">Marked</span>
                                                 </>
                                               ) : (
                                                 <>
-                                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                   </svg>
-                                                  <span>Mark</span>
+                                                  <span className="truncate">Mark</span>
                                                 </>
                                               )}
                                             </button>
@@ -2817,7 +2943,7 @@ const DeliveryExecutivePage = () => {
                                                 }
                                               }}
                                               disabled={photoUploaded}
-                                              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all ${
+                                              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all text-xs sm:text-sm ${
                                                 photoUploaded
                                                   ? 'bg-green-600 hover:bg-green-700 text-white cursor-default'
                                                   : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -2826,17 +2952,17 @@ const DeliveryExecutivePage = () => {
                                             >
                                               {photoUploaded ? (
                                                 <>
-                                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                   </svg>
-                                                  <span>Uploaded</span>
+                                                  <span className="truncate">Uploaded</span>
                                                 </>
                                               ) : (
                                                 <>
-                                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                   </svg>
-                                                  <span>Photo</span>
+                                                  <span className="truncate">Photo</span>
                                                 </>
                                               )}
                                             </button>
@@ -2874,21 +3000,38 @@ const DeliveryExecutivePage = () => {
                                                   }, 100);
                                                 }
                                               }}
-                                              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all ${
+                                              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all text-xs sm:text-sm ${
                                                 locationUpdated
                                                   ? 'bg-green-600 hover:bg-green-700 text-white'
                                                   : 'bg-purple-600 hover:bg-purple-700 text-white'
                                               }`}
                                               title={locationUpdated ? 'Location already updated' : 'Update delivery location'}
                                             >
-                                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                               </svg>
-                                              <span>{locationUpdated ? 'Located' : 'Location'}</span>
+                                              <span className="truncate">{locationUpdated ? 'Located' : 'Location'}</span>
                                             </button>
                                           );
                                         })()}
+                                        
+                                        {/* Delivery Command Button */}
+                                        <button
+                                          onClick={() => {
+                                            const existingCommand = getStopCommand(stop, index);
+                                            setEditingCommand(existingCommand || '');
+                                            setSelectedStopForCommand({ stop, index });
+                                            setShowDeliveryCommandModal(true);
+                                          }}
+                                          className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm"
+                                          title={getStopCommand(stop, index) ? "Edit delivery command" : "Add delivery command"}
+                                        >
+                                          <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                          </svg>
+                                          <span className="truncate">{getStopCommand(stop, index) ? 'Edit' : 'Command'}</span>
+                                        </button>
                                       </div>
                                     </div>
 
@@ -3499,6 +3642,87 @@ const DeliveryExecutivePage = () => {
                 className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delivery Command Modal */}
+      {showDeliveryCommandModal && selectedStopForCommand && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900">Delivery Command</h3>
+                <p className="text-gray-600 text-xs sm:text-sm truncate">{selectedStopForCommand.stop.Delivery_Name || 'Unknown Delivery'}</p>
+              </div>
+            </div>
+            
+            <div className="mb-4 sm:mb-6">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                Enter delivery command or instruction:
+              </label>
+              <textarea
+                value={editingCommand}
+                onChange={(e) => setEditingCommand(e.target.value)}
+                placeholder="e.g., Call before delivery, Leave at door, Ring bell twice..."
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base text-gray-900 placeholder-gray-400 resize-none"
+                rows={4}
+                autoFocus
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Add specific instructions or commands for this delivery stop
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowDeliveryCommandModal(false);
+                  setEditingCommand('');
+                  setSelectedStopForCommand(null);
+                }}
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base order-3 sm:order-1"
+              >
+                Cancel
+              </button>
+              {getStopCommand(selectedStopForCommand.stop, selectedStopForCommand.index) && (
+                <button
+                  onClick={() => {
+                    saveStopCommand(selectedStopForCommand.stop, selectedStopForCommand.index, '');
+                    setShowDeliveryCommandModal(false);
+                    setEditingCommand('');
+                    setSelectedStopForCommand(null);
+                    toast.success('Delivery command deleted!', {
+                      position: "top-right",
+                      autoClose: 2000,
+                    });
+                  }}
+                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base order-2"
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  saveStopCommand(selectedStopForCommand.stop, selectedStopForCommand.index, editingCommand);
+                  setShowDeliveryCommandModal(false);
+                  setEditingCommand('');
+                  setSelectedStopForCommand(null);
+                  toast.success('Delivery command saved successfully!', {
+                    position: "top-right",
+                    autoClose: 2000,
+                  });
+                }}
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg sm:rounded-xl font-semibold transition-colors text-sm sm:text-base order-1 sm:order-3"
+              >
+                Save Command
               </button>
             </div>
           </div>
