@@ -1214,7 +1214,7 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
     // Note: CUSTOMER_UNAVAILABLE might be stored in a different field or handled by the external API
     const markedStopsQuery = driverId
       ? prisma.$queryRaw`
-          SELECT stop_order, delivery_status, actual_completion_time, session
+          SELECT stop_order, planned_stop_id, delivery_status, actual_completion_time, session
           FROM actual_route_stops 
           WHERE route_id = ${routeId} 
             AND DATE(date) = DATE(${todayStr})
@@ -1224,7 +1224,7 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
           ORDER BY stop_order ASC
         `
       : prisma.$queryRaw`
-          SELECT stop_order, delivery_status, actual_completion_time, session
+          SELECT stop_order, planned_stop_id, delivery_status, actual_completion_time, session
           FROM actual_route_stops 
           WHERE route_id = ${routeId} 
             AND DATE(date) = DATE(${todayStr})

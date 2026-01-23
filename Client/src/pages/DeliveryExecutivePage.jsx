@@ -615,12 +615,15 @@ const DeliveryExecutivePage = () => {
       // This prevents restoring state from a different session when switching tabs
       if (routeStatus.route_id === currentSessionRouteId || !currentSessionRouteId) {
         // Restore marked stops (include session to make it unique across sessions)
+        // Use planned_stop_id as stable identifier, fallback to stop_order for backward compatibility
         const marked = new Set();
         routeStatus.marked_stops?.forEach(stop => {
           // Include session in stopKey to prevent conflicts across sessions
           // Use stop.session from backend, fallback to selectedSession if not available
           const session = (stop.session || selectedSession).toLowerCase();
-          const stopKey = `${routeStatus.route_id}-${session}-${stop.stop_order}`;
+          // Use planned_stop_id if available (stable identifier), otherwise fallback to stop_order
+          const stopIdentifier = stop.planned_stop_id || stop.stop_order;
+          const stopKey = `${routeStatus.route_id}-${session}-${stopIdentifier}`;
           marked.add(stopKey);
         });
         // Merge with existing marked stops instead of replacing (in case multiple sessions are active)
@@ -2119,8 +2122,10 @@ const DeliveryExecutivePage = () => {
       showSuccessToast(statusMessage);
       
       // Mark this stop as reached in local state (include session to make it unique across sessions)
+      // Use planned_stop_id as stable identifier, fallback to stop_order for backward compatibility
       const session = selectedSession.toLowerCase();
-      const stopKey = `${routeId}-${session}-${stopOrder}`;
+      const stopIdentifier = plannedStopId || stopOrder;
+      const stopKey = `${routeId}-${session}-${stopIdentifier}`;
       setMarkedStops(prev => new Set(prev).add(stopKey));
       
       // Clear comments from localStorage after successful submission
@@ -2189,8 +2194,10 @@ const DeliveryExecutivePage = () => {
           showSuccessToast(statusMessage);
           
           // Mark this stop as reached in local state (include session to make it unique across sessions)
+          // Use planned_stop_id as stable identifier, fallback to stop_order for backward compatibility
           const session = selectedSession.toLowerCase();
-          const stopKey = `${routeId}-${session}-${stopOrder}`;
+          const stopIdentifier = plannedStopId || stopOrder;
+          const stopKey = `${routeId}-${session}-${stopIdentifier}`;
           setMarkedStops(prev => new Set(prev).add(stopKey));
           
           // Clear comments from localStorage after successful submission
@@ -2860,7 +2867,9 @@ const DeliveryExecutivePage = () => {
                                           const routeId = activeRouteId || stop.route_id || stop.Route_ID || '';
                                           // Include session in stopKey to prevent conflicts across sessions
                                           const session = selectedSession.toLowerCase();
-                                          const stopKey = `${routeId}-${session}-${stopOrder}`;
+                                          // Use planned_stop_id as stable identifier, fallback to stop_order for backward compatibility
+                                          const stopIdentifier = stop.planned_stop_id || stop.Planned_Stop_ID || stop._original?.planned_stop_id || stop._original?.Planned_Stop_ID || stopOrder;
+                                          const stopKey = `${routeId}-${session}-${stopIdentifier}`;
                                           const isMarked = markedStops.has(stopKey);
                                           
                                           return (
