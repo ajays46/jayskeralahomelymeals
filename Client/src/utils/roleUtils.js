@@ -116,6 +116,13 @@ export const isCEO = (roles) => hasRole(roles, 'CEO');
 export const isCFO = (roles) => hasRole(roles, 'CFO');
 
 /**
+ * Check if user is CXO (CEO or CFO - has all roles/permissions)
+ * @param {string|Array} roles - Comma-separated role string or array
+ * @returns {boolean} - True if user is CEO or CFO
+ */
+export const isCXO = (roles) => hasAnyRole(roles, ['CEO', 'CFO']);
+
+/**
  * Get role display name
  * @param {string} role - Role name
  * @returns {string} - Display name for the role

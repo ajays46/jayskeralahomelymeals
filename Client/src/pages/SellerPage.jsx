@@ -46,15 +46,28 @@ import useAuthStore from '../stores/Zustand.store';
 import Navbar from '../components/Navbar';
 import axiosInstance from '../api/axios';
 import { SkeletonTable, SkeletonCard, SkeletonDashboard, SkeletonOrderCard } from '../components/Skeleton';
+import { isCXO, isCEO, isCFO, hasAnyRole } from '../utils/roleUtils';
+import { useSellersData } from '../hooks/deliverymanager/useSellersData';
 
 const SellerPage = () => {
   try {
     const navigate = useNavigate();
     const { user, roles } = useAuthStore();
     const { sellerUsers, loading: sellerUsersLoading, getSellerUsers } = useSeller();
+    
+    // Check if user has CXO/CFO/CEO role
+    const isCXOUser = isCXO(roles) || isCEO(roles) || isCFO(roles);
+    const isSellerUser = hasAnyRole(roles, ['SELLER']);
+    
+    // CXO dashboard data
+    const { sellers: allSellers, loading: allSellersLoading, stats: allSellersStats, fetchSellersData } = useSellersData();
   
     // State management
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState(isCXOUser ? 'cxo-dashboard' : 'overview');
+    const [expandedSellers, setExpandedSellers] = useState(new Set());
+    const [expandedCustomers, setExpandedCustomers] = useState(new Set());
+    const [selectedSellerId, setSelectedSellerId] = useState(null);
+    const [selectedCustomerKey, setSelectedCustomerKey] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [sortBy, setSortBy] = useState('recent');
@@ -89,10 +102,17 @@ const SellerPage = () => {
 
     // Fetch seller users on component mount
     useEffect(() => {
-      if (user && roles?.includes('SELLER')) {
+      if (user && isSellerUser) {
         getSellerUsers();
       }
-    }, [user, roles]);
+    }, [user, roles, isSellerUser]);
+    
+    // Fetch all sellers data for CXO users
+    useEffect(() => {
+      if (user && isCXOUser) {
+        fetchSellersData();
+      }
+    }, [user, roles, isCXOUser, fetchSellersData]);
 
     // Calculate stats when users change
     useEffect(() => {
@@ -441,7 +461,7 @@ const SellerPage = () => {
       return filtered;
     };
 
-    if (!user || !roles?.includes('SELLER')) {
+    if (!user || (!isSellerUser && !isCXOUser)) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center">
           <div className="text-center">
@@ -463,56 +483,406 @@ const SellerPage = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         
-        {/* Professional Business Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 mt-16 sm:mt-20 lg:mt-24">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-6 sm:py-8 gap-4">
-              <div>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center">
-                    <MdDashboard className="text-2xl text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Sales Dashboard</h1>
-                    <p className="text-base sm:text-lg text-gray-600 mt-1">Customer Management & Order Analytics</p>
+        {/* Professional Business Header - Hidden for CXO Dashboard */}
+        {!(isCXOUser && activeTab === 'cxo-dashboard') && (
+          <div className="bg-white shadow-sm border-b border-gray-200 mt-16 sm:mt-20 lg:mt-24">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-6 sm:py-8 gap-4">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center">
+                      <MdDashboard className="text-2xl text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Sales Dashboard</h1>
+                      <p className="text-base sm:text-lg text-gray-600 mt-1">Customer Management & Order Analytics</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <button
-                  onClick={() => getSellerUsers()}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
-                >
-                  <MdRefresh className="w-4 h-4" />
-                  <span className="hidden sm:inline">Refresh Data</span>
-                </button>
-                <button
-                  onClick={() => navigate('/jkhm/place-order')}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
-                >
-                  <MdAdd className="w-4 h-4" />
-                  <span className="hidden sm:inline">New Booking</span>
-                </button>
-                <button
-                  onClick={() => navigate('/jkhm/seller/customers')}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm"
-                >
-                  <MdPeople className="w-4 h-4" />
-                  <span className="hidden sm:inline">View All Customers</span>
-                </button>
-                <button
-                  onClick={() => navigate('/jkhm/create-user')}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-sm"
-                >
-                  <MdPerson className="w-4 h-4" />
-                  <span className="hidden sm:inline">Add Customer</span>
-                </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <button
+                    onClick={() => getSellerUsers()}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+                  >
+                    <MdRefresh className="w-4 h-4" />
+                    <span className="hidden sm:inline">Refresh Data</span>
+                  </button>
+                  <button
+                    onClick={() => navigate('/jkhm/place-order')}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
+                  >
+                    <MdAdd className="w-4 h-4" />
+                    <span className="hidden sm:inline">New Booking</span>
+                  </button>
+                  <button
+                    onClick={() => navigate('/jkhm/seller/customers')}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm"
+                  >
+                    <MdPeople className="w-4 h-4" />
+                    <span className="hidden sm:inline">View All Customers</span>
+                  </button>
+                  <button
+                    onClick={() => navigate('/jkhm/create-user')}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-sm"
+                  >
+                    <MdPerson className="w-4 h-4" />
+                    <span className="hidden sm:inline">Add Customer</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Full Screen Container for CXO Dashboard */}
+        {isCXOUser && activeTab === 'cxo-dashboard' ? (
+          <div className="h-[calc(100vh-64px)] mt-16 overflow-hidden">
+            <div className="h-full px-4 sm:px-6 lg:px-8 py-4">
+              {allSellersLoading ? (
+                <SkeletonDashboard />
+              ) : (
+                <div className="h-full grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Left Side - Sellers List */}
+                  <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-full">
+                    <div className="bg-gradient-to-r from-slate-700 to-slate-600 p-4 text-white flex-shrink-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                            <MdRestaurant className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-bold">Sellers</h3>
+                            <p className="text-slate-200 text-xs">
+                              {allSellers.length} total
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => fetchSellersData()}
+                          className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                          title="Refresh Data"
+                        >
+                          <MdRefresh className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto">
+                      {allSellers.length === 0 ? (
+                        <div className="text-center py-12 px-4">
+                          <MdRestaurant className="text-4xl text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500 text-sm font-medium">No sellers found</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-gray-200">
+                          {allSellers.map((seller) => {
+                            // Extract unique customers from orders for count
+                            const customersMap = new Map();
+                            seller.recentOrders?.forEach(order => {
+                              const customerKey = order.customerEmail || order.customerPhone || `customer-${order.id}`;
+                              if (!customersMap.has(customerKey)) {
+                                customersMap.set(customerKey, {
+                                  name: order.customerName || 'Unknown',
+                                  email: order.customerEmail || 'No email',
+                                  phone: order.customerPhone || 'No phone',
+                                  orders: []
+                                });
+                              }
+                            });
+                            const customersCount = customersMap.size;
+                            const isSelected = selectedSellerId === seller.id;
+
+                            return (
+                              <div
+                                key={seller.id}
+                                onClick={() => {
+                                  setSelectedSellerId(seller.id);
+                                  setSelectedCustomerKey(null);
+                                }}
+                                className={`p-4 cursor-pointer transition-colors ${
+                                  isSelected
+                                    ? 'bg-blue-50 border-l-4 border-blue-600'
+                                    : 'hover:bg-gray-50'
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
+                                    isSelected
+                                      ? 'bg-gradient-to-br from-blue-600 to-blue-700'
+                                      : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                                  }`}>
+                                    {seller.name?.charAt(0)?.toUpperCase() || 'S'}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className={`font-bold text-sm truncate ${
+                                      isSelected ? 'text-blue-900' : 'text-gray-900'
+                                    }`}>
+                                      {seller.name}
+                                    </h4>
+                                    <div className="text-xs text-gray-500 mt-1 truncate">
+                                      {seller.email}
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-2 text-xs">
+                                      <span className="text-gray-600">
+                                        <span className="font-semibold">{seller.orderCount || 0}</span> orders
+                                      </span>
+                                      <span className="text-gray-600">
+                                        <span className="font-semibold">{customersCount}</span> customers
+                                      </span>
+                                    </div>
+                                    <div className="mt-1">
+                                      <span className="text-xs font-semibold text-green-600">
+                                        {formatPrice(seller.totalRevenue || 0)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Side - Selected Seller Details */}
+                  <div className="lg:col-span-2 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-full">
+                    {selectedSellerId ? (() => {
+                      const selectedSeller = allSellers.find(s => s.id === selectedSellerId);
+                      if (!selectedSeller) {
+                        return (
+                          <div className="p-8 text-center flex-1 flex items-center justify-center">
+                            <div>
+                              <MdWarning className="text-4xl text-gray-300 mx-auto mb-3" />
+                              <p className="text-gray-500">Seller not found</p>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Extract unique customers from orders
+                      const customersMap = new Map();
+                      selectedSeller.recentOrders?.forEach(order => {
+                        const customerKey = order.customerEmail || order.customerPhone || `customer-${order.id}`;
+                        if (!customersMap.has(customerKey)) {
+                          customersMap.set(customerKey, {
+                            name: order.customerName || 'Unknown',
+                            email: order.customerEmail || 'No email',
+                            phone: order.customerPhone || 'No phone',
+                            orders: []
+                          });
+                        }
+                        customersMap.get(customerKey).orders.push(order);
+                      });
+                      const customers = Array.from(customersMap.values());
+
+                      return (
+                        <>
+                          {/* Seller Header */}
+                          <div className="bg-gradient-to-r from-slate-700 to-slate-600 p-6 text-white flex-shrink-0">
+                            <div className="flex items-center gap-4">
+                              <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center text-white font-bold text-xl">
+                                {selectedSeller.name?.charAt(0)?.toUpperCase() || 'S'}
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="text-xl font-bold">{selectedSeller.name}</h3>
+                                <div className="flex items-center gap-4 mt-2 text-sm text-slate-200">
+                                  <span className="flex items-center gap-1">
+                                    <MdEmail className="w-4 h-4" />
+                                    {selectedSeller.email}
+                                  </span>
+                                  {selectedSeller.phone && (
+                                    <span className="flex items-center gap-1">
+                                      <MdPhone className="w-4 h-4" />
+                                      {selectedSeller.phone}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm text-slate-300">Total Revenue</div>
+                                <div className="text-2xl font-bold">{formatPrice(selectedSeller.totalRevenue || 0)}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-6 mt-4 pt-4 border-t border-white/20">
+                              <div>
+                                <div className="text-xs text-slate-300">Orders</div>
+                                <div className="text-lg font-bold">{selectedSeller.orderCount || 0}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-slate-300">Customers</div>
+                                <div className="text-lg font-bold">{customers.length}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-slate-300">Company</div>
+                                <div className="text-sm font-medium">{selectedSeller.company || 'N/A'}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Customers List */}
+                          <div className="flex-1 overflow-hidden flex flex-col p-6">
+                            <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2 flex-shrink-0">
+                              <MdPeople className="w-5 h-5 text-blue-600" />
+                              Customers ({customers.length})
+                            </h4>
+                            
+                            <div className="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-4 overflow-hidden">
+                              {/* Left - Customers List */}
+                              <div className="space-y-2 overflow-y-auto">
+                                {customers.length === 0 ? (
+                                  <div className="text-center py-8">
+                                    <MdPeople className="text-4xl text-gray-300 mx-auto mb-2" />
+                                    <p className="text-gray-500 text-sm">No customers found</p>
+                                  </div>
+                                ) : (
+                                  customers.map((customer, idx) => {
+                                    const customerKey = `${selectedSeller.id}-${customer.email}-${idx}`;
+                                    const isSelected = selectedCustomerKey === customerKey;
+
+                                    return (
+                                      <div
+                                        key={customerKey}
+                                        onClick={() => setSelectedCustomerKey(customerKey)}
+                                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                                          isSelected
+                                            ? 'border-blue-500 bg-blue-50'
+                                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0 ${
+                                            isSelected
+                                              ? 'bg-blue-600 text-white'
+                                              : 'bg-blue-100 text-blue-700'
+                                          }`}>
+                                            {customer.name?.charAt(0)?.toUpperCase() || 'C'}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className={`font-medium text-sm truncate ${
+                                              isSelected ? 'text-blue-900' : 'text-gray-900'
+                                            }`}>
+                                              {customer.name}
+                                            </div>
+                                            <div className="text-xs text-gray-500 truncate">
+                                              {customer.email}
+                                            </div>
+                                            <div className="text-xs text-gray-500">
+                                              {customer.phone}
+                                            </div>
+                                            <div className="mt-1 text-xs text-gray-600">
+                                              <span className="font-semibold">{customer.orders.length}</span> orders
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+
+                              {/* Right - Selected Customer Orders */}
+                              <div className="xl:col-span-1 overflow-y-auto">
+                                {selectedCustomerKey ? (() => {
+                                  const selectedCustomer = customers.find((c, idx) => 
+                                    `${selectedSeller.id}-${c.email}-${idx}` === selectedCustomerKey
+                                  );
+
+                                  if (!selectedCustomer || selectedCustomer.orders.length === 0) {
+                                    return (
+                                      <div className="p-6 text-center border border-gray-200 rounded-lg">
+                                        <MdShoppingCart className="text-4xl text-gray-300 mx-auto mb-3" />
+                                        <p className="text-gray-500 text-sm">No orders found</p>
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                    <div className="border border-gray-200 rounded-lg p-4">
+                                      <h5 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                        <MdShoppingCart className="w-5 h-5 text-green-600" />
+                                        Orders ({selectedCustomer.orders.length})
+                                      </h5>
+                                      <div className="space-y-3">
+                                        {selectedCustomer.orders.map((order) => (
+                                          <div key={order.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                                            <div className="flex items-start justify-between mb-3">
+                                              <div className="flex-1">
+                                                <div className="font-semibold text-gray-900 text-sm mb-1">
+                                                  Order #{order.id?.slice(-6) || 'N/A'}
+                                                </div>
+                                                <div className="text-xs text-gray-500 mb-2">
+                                                  {formatDate(order.createdAt)}
+                                                </div>
+                                                <div className="text-lg font-bold text-gray-900">
+                                                  {formatPrice(order.totalPrice || 0)}
+                                                </div>
+                                              </div>
+                                              <div>
+                                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
+                                                  {getStatusIcon(order.status)}
+                                                  <span>{order.status}</span>
+                                                </span>
+                                              </div>
+                                            </div>
+                                            
+                                            {order.deliveryItems && order.deliveryItems.length > 0 && (
+                                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                                <div className="text-xs text-gray-600 mb-2">
+                                                  <span className="font-semibold">{order.deliveryItems.length}</span> items
+                                                </div>
+                                                <div className="text-xs text-gray-600">
+                                                  Delivery: {formatDeliveryDateRange(order.deliveryItems)}
+                                                </div>
+                                                <div className="mt-2 space-y-1">
+                                                  {order.deliveryItems.slice(0, 3).map((item, idx) => (
+                                                    <div key={idx} className="text-xs text-gray-600 flex items-center gap-2">
+                                                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                                                      <span>{item.menuItem?.name || 'Menu Item'} × {item.quantity}</span>
+                                                    </div>
+                                                  ))}
+                                                  {order.deliveryItems.length > 3 && (
+                                                    <div className="text-xs text-gray-500 italic">
+                                                      +{order.deliveryItems.length - 3} more items
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })() : (
+                                  <div className="p-8 text-center border border-gray-200 rounded-lg bg-gray-50">
+                                    <MdShoppingCart className="text-4xl text-gray-300 mx-auto mb-3" />
+                                    <p className="text-gray-500 text-sm font-medium">Select a customer to view orders</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })() : (
+                      <div className="p-12 text-center flex-1 flex items-center justify-center">
+                        <div>
+                          <MdRestaurant className="text-6xl text-gray-300 mx-auto mb-4" />
+                          <h3 className="text-lg font-bold text-gray-700 mb-2">Select a Seller</h3>
+                          <p className="text-gray-500 text-sm">Choose a seller from the list to view their customers and orders</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+
+          {/* Regular Seller Dashboard View */}
           {sellerUsersLoading ? (
             <SkeletonDashboard />
           ) : (
@@ -1012,7 +1382,8 @@ const SellerPage = () => {
           </div>
             </>
           )}
-        </div>
+          </div>
+        )}
 
 
 
