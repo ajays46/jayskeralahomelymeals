@@ -12,6 +12,7 @@ import { isSeller } from '../utils/roleUtils';
 import { SkeletonDeliveryManager, SkeletonLoading } from '../components/Skeleton';
 import RouteHistoryManager from '../components/deliveryManager/RouteHistoryManager';
 import ExecutivesAndRoutes from '../components/deliveryManager/ExecutivesAndRoutes';
+import CoordinatorSettings from '../components/deliveryManager/CoordinatorSettings';
 
 /**
  * DeliveryManagerPage - Comprehensive delivery management dashboard with route planning and analytics
@@ -33,7 +34,7 @@ const DeliveryManagerPage = () => {
   const [selectedSeller, setSelectedSeller] = useState(null);
   const [showSellerDetails, setShowSellerDetails] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState(null);
-  const [activeTab, setActiveTab] = useState('sellers'); // 'sellers', 'orders', 'analytics', 'rootManagement', or 'executivesRoutes'
+  const [activeTab, setActiveTab] = useState('sellers'); // 'sellers', 'orders', 'analytics', 'rootManagement', 'executivesRoutes', or 'coordinator'
   const [routeTableTab, setRouteTableTab] = useState('breakfast'); // For route planning table tabs
   
   // Route History Manager ref
@@ -2168,7 +2169,7 @@ const DeliveryManagerPage = () => {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <MdLocalShipping className="text-xl sm:text-2xl text-blue-500 flex-shrink-0" />
             <h1 className="text-sm sm:text-lg lg:text-xl font-bold truncate max-w-[200px] sm:max-w-[300px] lg:max-w-[400px]">
-              {activeTab === 'sellers' ? 'Sellers' : activeTab === 'orders' ? 'Orders' : activeTab === 'analytics' ? 'Analytics' : activeTab === 'rootManagement' ? 'Route & Management' : activeTab === 'executivesRoutes' ? 'Executives & Routes' : 'Dashboard'}
+              {activeTab === 'sellers' ? 'Sellers' : activeTab === 'orders' ? 'Orders' : activeTab === 'analytics' ? 'Analytics' : activeTab === 'rootManagement' ? 'Route & Management' : activeTab === 'executivesRoutes' ? 'Executives & Routes' : activeTab === 'coordinator' ? 'Coordinator Settings' : 'Dashboard'}
             </h1>
           </div>
         </div>
@@ -2298,6 +2299,20 @@ const DeliveryManagerPage = () => {
               >
                 <FiUsers className="text-lg" />
                 <span>Executives & Routes</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('coordinator');
+                  setSidebarOpen(false); // Close sidebar on mobile after selection
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                  activeTab === 'coordinator'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                <FiShield className="text-lg" />
+                <span>Coordinator</span>
               </button>
             </nav>
 
@@ -5413,6 +5428,10 @@ const DeliveryManagerPage = () => {
               isFullscreen={isFullscreenExecutivesRoutes}
               onToggleFullscreen={setIsFullscreenExecutivesRoutes}
             />
+          )}
+
+          {activeTab === 'coordinator' && (
+            <CoordinatorSettings />
           )}
         </div>
       </div>

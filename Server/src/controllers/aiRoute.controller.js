@@ -30,7 +30,9 @@ import {
   checkTrafficService,
   getRouteOrderService,
   getRouteStatusFromActualStopsService,
-  updateDeliveryCommentService
+  updateDeliveryCommentService,
+  getCoordinatorSettingsService,
+  updateCoordinatorSettingsService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
@@ -1281,6 +1283,58 @@ export const updateDeliveryComment = async (req, res, next) => {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to update delivery comment', {
       error: error.message,
       deliveryId: req.params?.deliveryId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Coordinator Settings
+ * Returns current Coordinator parameter values
+ */
+export const getCoordinatorSettings = async (req, res, next) => {
+  try {
+    const result = await getCoordinatorSettingsService();
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings retrieved', {
+      settings_count: Object.keys(result.settings || {}).length
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get Coordinator settings failed', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Update Coordinator Settings
+ * Updates Coordinator parameter values globally
+ */
+export const updateCoordinatorSettings = async (req, res, next) => {
+  try {
+    const updates = req.body;
+    
+    if (!updates || Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No updates provided'
+      });
+    }
+    
+    const result = await updateCoordinatorSettingsService(updates);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings updated successfully', {
+      changed_fields: Object.keys(result.changed || {})
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Update Coordinator settings failed', {
+      error: error.message,
+      updates: req.body
     });
     next(error);
   }

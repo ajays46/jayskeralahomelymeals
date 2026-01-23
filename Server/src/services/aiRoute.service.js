@@ -1335,3 +1335,103 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
     );
   }
 };
+
+/**
+ * Get Coordinator Settings
+ * Fetches current Coordinator parameter values from external API
+ */
+export const getCoordinatorSettingsService = async () => {
+  try {
+    const response = await apiClient.get('/api/coordinator/settings');
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch Coordinator settings');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings fetched', {
+      settings: data.settings
+    });
+    
+    return {
+      success: true,
+      settings: data.settings || {},
+      description: data.description || {}
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch Coordinator settings', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch Coordinator settings',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Update Coordinator Settings
+ * Updates Coordinator parameter values globally
+ */
+export const updateCoordinatorSettingsService = async (updates) => {
+  try {
+    // Validate updates
+    if (!updates || Object.keys(updates).length === 0) {
+      throw new Error('No updates provided');
+    }
+
+    // Validate parameter values
+    if (updates.max_time_hours !== undefined) {
+      if (typeof updates.max_time_hours !== 'number' || updates.max_time_hours <= 0) {
+        throw new Error('max_time_hours must be a positive number');
+      }
+    }
+    if (updates.max_packages_per_driver !== undefined) {
+      if (typeof updates.max_packages_per_driver !== 'number' || updates.max_packages_per_driver <= 0) {
+        throw new Error('max_packages_per_driver must be a positive integer');
+      }
+    }
+    if (updates.max_distance_km !== undefined) {
+      if (typeof updates.max_distance_km !== 'number' || updates.max_distance_km <= 0) {
+        throw new Error('max_distance_km must be a positive number');
+      }
+    }
+    if (updates.min_confidence !== undefined) {
+      if (typeof updates.min_confidence !== 'number' || updates.min_confidence < 0 || updates.min_confidence > 1) {
+        throw new Error('min_confidence must be a number between 0.0 and 1.0');
+      }
+    }
+
+    const response = await apiClient.put('/api/coordinator/settings', updates);
+    const data = response.data;
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to update Coordinator settings');
+    }
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings updated', {
+      changed: data.changed,
+      previous: data.previous_settings,
+      current: data.current_settings
+    });
+    
+    return {
+      success: true,
+      message: data.message || 'Coordinator settings updated successfully',
+      previous_settings: data.previous_settings || {},
+      current_settings: data.current_settings || {},
+      changed: data.changed || {}
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update Coordinator settings', {
+      error: error.message,
+      updates,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to update Coordinator settings',
+      error.response?.status || 500
+    );
+  }
+};
