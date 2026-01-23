@@ -34,8 +34,10 @@ import {
   checkTraffic,
   getRouteOrder,
   getRouteStatusFromActualStops,
+  updateDeliveryComment,
   getLiveVehicleTracking,
-  updateDeliveryComment
+  getCoordinatorSettings,
+  updateCoordinatorSettings
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();
@@ -103,6 +105,10 @@ router.post('/address/update-geo-location', checkRole('DELIVERY_MANAGER'), updat
 
 // Delivery data comments - DELIVERY_MANAGER only
 router.put('/delivery_data/:deliveryId/comments', checkRole('DELIVERY_MANAGER'), updateDeliveryComment);
+
+// Coordinator settings - DELIVERY_MANAGER only
+router.get('/coordinator/settings', checkRole('DELIVERY_MANAGER'), getCoordinatorSettings);
+router.put('/coordinator/settings', checkRole('DELIVERY_MANAGER'), updateCoordinatorSettings);
 
 export default router;
 
