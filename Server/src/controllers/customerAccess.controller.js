@@ -10,7 +10,8 @@ import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 // Validate customer token and get basic info
 export const validateCustomerTokenController = async (req, res, next) => {
   try {
-    const { token } = req.query;
+    // Support both 't' (short token) and 'token' (legacy JWT) parameters
+    const token = req.query.t || req.query.token;
 
     if (!token) {
       return res.status(400).json({
@@ -43,7 +44,8 @@ export const validateCustomerTokenController = async (req, res, next) => {
 // Get customer orders
 export const getCustomerOrdersController = async (req, res, next) => {
   try {
-    const { token } = req.query;
+    // Support both 't' (short token) and 'token' (legacy JWT) parameters
+    const token = req.query.t || req.query.token;
     
     if (!token) {
       return res.status(400).json({
@@ -71,7 +73,8 @@ export const getCustomerOrdersController = async (req, res, next) => {
 // Get customer order summary
 export const getCustomerOrderSummaryController = async (req, res, next) => {
   try {
-    const { token } = req.query;
+    // Support both 't' (short token) and 'token' (legacy JWT) parameters
+    const token = req.query.t || req.query.token;
 
     if (!token) {
       return res.status(400).json({
@@ -99,7 +102,8 @@ export const getCustomerOrderSummaryController = async (req, res, next) => {
 // Get customer addresses
 export const getCustomerAddressesController = async (req, res, next) => {
   try {
-    const { token } = req.query;
+    // Support both 't' (short token) and 'token' (legacy JWT) parameters
+    const token = req.query.t || req.query.token;
 
     if (!token) {
       return res.status(400).json({
@@ -127,7 +131,8 @@ export const getCustomerAddressesController = async (req, res, next) => {
 // Setup customer password
 export const setupCustomerPasswordController = async (req, res, next) => {
   try {
-    const { token } = req.query;
+    // Support both 't' (short token) and 'token' (legacy JWT) parameters
+    const token = req.query.t || req.query.token;
     const { password } = req.body;
 
     if (!token) {

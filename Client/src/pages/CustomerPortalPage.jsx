@@ -42,7 +42,8 @@ const CustomerPortalPage = () => {
 
   // Initialize token and hide it from URL
   useEffect(() => {
-    const urlToken = searchParams.get('token');
+    // Support both 't' (short token) and 'token' (legacy JWT) parameters
+    const urlToken = searchParams.get('t') || searchParams.get('token');
     
     // Check if user is logged in with accessToken
     const localAccessToken = localStorage.getItem('accessToken');
@@ -77,6 +78,7 @@ const CustomerPortalPage = () => {
     
     // Remove token from URL without page reload
     const url = new URL(window.location);
+    url.searchParams.delete('t');
     url.searchParams.delete('token');
     window.history.replaceState({}, document.title, url.pathname);
   }, [searchParams, setAccessToken, storeAccessToken]);
@@ -210,8 +212,9 @@ const CustomerPortalPage = () => {
       setError(null);
 
       // First validate token and check password status
-      const baseURL = import.meta.env.VITE_PROD_API_URL 
-      
+      // Use dev API URL for localhost, prod for production
+   
+        const baseURL = import.meta.env.VITE_PROD_API_URL;
       // Validate token and get customer info
       const validateResponse = await axios.get(`${baseURL}/customer-portal/validate-token?token=${token}`);
       

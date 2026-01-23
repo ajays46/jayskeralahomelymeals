@@ -28,7 +28,8 @@ const CustomerLoginPage = () => {
 
   // Get token from URL if provided
   useEffect(() => {
-    const urlToken = searchParams.get('token');
+    // Support both 't' (short token) and 'token' (legacy JWT) parameters
+    const urlToken = searchParams.get('t') || searchParams.get('token');
     if (urlToken) {
       setToken(urlToken);
       fetchCustomerInfo(urlToken);
@@ -38,7 +39,10 @@ const CustomerLoginPage = () => {
   // Fetch customer info if token provided
   const fetchCustomerInfo = async (urlToken) => {
     try {
-      const baseURL = import.meta.env.VITE_PROD_API_URL 
+      // Use dev API URL for localhost, prod for production
+      const baseURL = import.meta.env.VITE_NODE_ENV === 'development' 
+        ? (import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000')
+        : import.meta.env.VITE_PROD_API_URL 
       const response = await axios.get(`${baseURL}/customer-portal/validate-token?token=${urlToken}`);
       
       if (response.data.success) {
@@ -101,7 +105,10 @@ const CustomerLoginPage = () => {
       setLoading(true);
       setErrors({});
       
-      const baseURL = import.meta.env.VITE_PROD_API_URL
+      // Use dev API URL for localhost, prod for production
+      const baseURL = import.meta.env.VITE_NODE_ENV === 'development' 
+        ? (import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000')
+        : import.meta.env.VITE_PROD_API_URL
       
       // Login using phone number as identifier
       const response = await axios.post(`${baseURL}/auth/login`, {

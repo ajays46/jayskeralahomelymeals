@@ -29,7 +29,8 @@ const CustomerPasswordSetupPage = () => {
 
   // Get token from URL
   useEffect(() => {
-    const urlToken = searchParams.get('token');
+    // Support both 't' (short token) and 'token' (legacy JWT) parameters
+    const urlToken = searchParams.get('t') || searchParams.get('token');
     
     if (!urlToken) {
       setError('No access token provided');
@@ -47,7 +48,10 @@ const CustomerPasswordSetupPage = () => {
       setLoading(true);
       setError(null);
       
-      const baseURL = import.meta.env.VITE_PROD_API_URL
+      // Use dev API URL for localhost, prod for production
+      const baseURL = import.meta.env.VITE_NODE_ENV === 'development' 
+        ? (import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000')
+        : import.meta.env.VITE_PROD_API_URL
       const response = await axios.get(`${baseURL}/customer-portal/validate-token?token=${urlToken}`);
       
       if (response.data.success) {
@@ -119,7 +123,10 @@ const CustomerPasswordSetupPage = () => {
 
     try {
       setSetupLoading(true);
-      const baseURL = import.meta.env.VITE_PROD_API_URL
+      // Use dev API URL for localhost, prod for production
+      const baseURL = import.meta.env.VITE_NODE_ENV === 'development' 
+        ? (import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000')
+        : import.meta.env.VITE_PROD_API_URL
       
       const response = await axios.post(
         `${baseURL}/customer-portal/setup-password?token=${token}`,

@@ -9,76 +9,189 @@ import bcrypt from 'bcrypt';
  * Features: Token validation, order status viewing, delivery tracking
  */
 
-// Validate customer access token
+// Validate customer access token (supports both short tokens and legacy JWT tokens)
 export const validateCustomerToken = async (token) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    
-    if (decoded.type !== 'CUSTOMER_ACCESS') {
-      throw new AppError('Invalid token type', 401);
-    }
+    // Check if token is a short token (8 characters) or JWT (longer)
+    const isShortToken = token.length <= 20 && !token.includes('.');
 
-    // Verify user exists and is active
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: {
-        contacts: {
-          select: {
-            firstName: true,
-            lastName: true,
-            phoneNumbers: {
-              select: {
-                number: true,
-                type: true
+    if (isShortToken) {
+      // Validate short token from database
+      const tokenRecord = await prisma.customerPortalToken.findUnique({
+        where: { shortToken: token },
+        include: {
+          user: {
+            include: {
+              contacts: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  phoneNumbers: {
+                    select: {
+                      number: true,
+                      type: true
+                    }
+                  }
+                }
+              },
+              auth: {
+                select: {
+                  email: true,
+                  status: true,
+                  password: true,
+                  phoneNumber: true
+                }
               }
             }
           }
-        },
-        auth: {
-          select: {
-            email: true,
-            status: true,
-            password: true,
-            phoneNumber: true
+        }
+      });
+
+      if (!tokenRecord) {
+        throw new AppError('Invalid access link', 401);
+      }
+
+      // Check if token has expired
+      if (new Date() > new Date(tokenRecord.expiresAt)) {
+        // Delete expired token
+        await prisma.customerPortalToken.delete({
+          where: { id: tokenRecord.id }
+        });
+        throw new AppError('Access link has expired (24 hours). Please request a new link from your seller.', 401);
+      }
+
+      const user = tokenRecord.user;
+
+      if (!user || user.status !== 'ACTIVE' || user.auth.status !== 'ACTIVE') {
+        throw new AppError('User not found or inactive', 401);
+      }
+
+      // Mark token as used (optional - you can keep it for multiple uses or delete it)
+      // For now, we'll keep it until expiration for better UX
+
+      return {
+        userId: user.id,
+        customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Customer',
+        phoneNumber: user.contacts?.[0]?.phoneNumbers?.[0]?.number || user.auth.phoneNumber || null,
+        email: user.auth.email,
+        needsPasswordSetup: user.auth.password === 'NO_PASSWORD_NEEDED'
+      };
+    } else {
+      // Legacy JWT token support (for backward compatibility)
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+      
+      if (decoded.type !== 'CUSTOMER_ACCESS') {
+        throw new AppError('Invalid token type', 401);
+      }
+
+      // Verify user exists and is active
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        include: {
+          contacts: {
+            select: {
+              firstName: true,
+              lastName: true,
+              phoneNumbers: {
+                select: {
+                  number: true,
+                  type: true
+                }
+              }
+            }
+          },
+          auth: {
+            select: {
+              email: true,
+              status: true,
+              password: true,
+              phoneNumber: true
+            }
           }
         }
+      });
+
+      if (!user || user.status !== 'ACTIVE' || user.auth.status !== 'ACTIVE') {
+        throw new AppError('User not found or inactive', 401);
       }
-    });
 
-    if (!user || user.status !== 'ACTIVE' || user.auth.status !== 'ACTIVE') {
-      throw new AppError('User not found or inactive', 401);
+      return {
+        userId: user.id,
+        customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Customer',
+        phoneNumber: user.contacts?.[0]?.phoneNumbers?.[0]?.number || user.auth.phoneNumber || null,
+        email: user.auth.email,
+        needsPasswordSetup: user.auth.password === 'NO_PASSWORD_NEEDED'
+      };
     }
-
-    return {
-      userId: user.id,
-      customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Customer',
-      phoneNumber: user.contacts?.[0]?.phoneNumbers?.[0]?.number || user.auth.phoneNumber || null,
-      email: user.auth.email,
-      needsPasswordSetup: user.auth.password === 'NO_PASSWORD_NEEDED'
-    };
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
-      throw new AppError('Access link has expired (24 hours). Please request a new link from your seller.', 401);
+      throw new AppError('Access link has expired. Please request a new link from your seller.', 401);
     }
     if (error.name === 'JsonWebTokenError') {
       throw new AppError('Invalid access link', 401);
+    }
+    if (error instanceof AppError) {
+      throw error;
     }
     throw new AppError('Token validation failed: ' + error.message, 401);
   }
 };
 
-// Setup customer password
+// Setup customer password (supports both short tokens and legacy JWT tokens)
 export const setupCustomerPassword = async (token, password) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    
-    if (decoded.type !== 'CUSTOMER_ACCESS') {
-      throw new AppError('Invalid token type', 401);
+    // Check if token is a short token (8 characters) or JWT (longer)
+    const isShortToken = token.length <= 20 && !token.includes('.');
+
+    let userId;
+
+    if (isShortToken) {
+      // Validate short token from database
+      const tokenRecord = await prisma.customerPortalToken.findUnique({
+        where: { shortToken: token },
+        include: {
+          user: {
+            include: {
+              auth: {
+                select: {
+                  id: true,
+                  password: true,
+                  email: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!tokenRecord) {
+        throw new AppError('Invalid access link', 401);
+      }
+
+      // Check if token has expired
+      if (new Date() > new Date(tokenRecord.expiresAt)) {
+        // Delete expired token
+        await prisma.customerPortalToken.delete({
+          where: { id: tokenRecord.id }
+        });
+        throw new AppError('Access link has expired (24 hours). Please request a new link.', 401);
+      }
+
+      userId = tokenRecord.userId;
+    } else {
+      // Legacy JWT token support (for backward compatibility)
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+      
+      if (decoded.type !== 'CUSTOMER_ACCESS') {
+        throw new AppError('Invalid token type', 401);
+      }
+
+      userId = decoded.userId;
     }
 
     // Get user with auth info
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: userId },
       include: {
         auth: {
           select: {
@@ -114,10 +227,13 @@ export const setupCustomerPassword = async (token, password) => {
     };
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
-      throw new AppError('Access link has expired (24 hours). Please request a new link.', 401);
+      throw new AppError('Access link has expired. Please request a new link.', 401);
     }
     if (error.name === 'JsonWebTokenError') {
       throw new AppError('Invalid access link', 401);
+    }
+    if (error instanceof AppError) {
+      throw error;
     }
     throw new AppError('Failed to setup password: ' + error.message, 500);
   }

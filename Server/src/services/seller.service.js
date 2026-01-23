@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
 import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
-import { generateCustomerAccessToken } from '../utils/jwt.config.js';
+import { generateShortToken } from '../utils/helpers.js';
 import crypto from 'crypto';
 
 /**
@@ -1072,23 +1072,55 @@ export const generateCustomerAccessLink = async (userId, sellerId) => {
       throw new AppError('User not found or not accessible by this seller', 404);
     }
 
-    // Generate customer access token
-    const customerToken = generateCustomerAccessToken(userId);
+    // Generate short token (8 characters)
+    let shortToken = generateShortToken();
     
-    // Create the customer portal URL
+    // Ensure uniqueness (retry if token already exists)
+    let tokenExists = true;
+    let retries = 0;
+    while (tokenExists && retries < 5) {
+      const existing = await prisma.customerPortalToken.findUnique({
+        where: { shortToken }
+      });
+      if (!existing) {
+        tokenExists = false;
+      } else {
+        shortToken = generateShortToken();
+        retries++;
+      }
+    }
+
+    if (tokenExists) {
+      throw new AppError('Failed to generate unique token. Please try again.', 500);
+    }
+
+    // Set expiration to 24 hours (86400000 ms)
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // Store short token in database
+    await prisma.customerPortalToken.create({
+      data: {
+        shortToken,
+        userId,
+        expiresAt
+      }
+    });
+    
+    // Create the customer portal URL with short token
     const baseUrl = process.env.FRONTEND_PROD_URL 
-    const customerPortalUrl = `${baseUrl}/customer-portal?token=${customerToken}`;
+    const customerPortalUrl = `${baseUrl}/customer-portal?t=${shortToken}`;
 
     logInfo(LOG_CATEGORIES.SYSTEM, 'Customer access link generated', {
       userId: userId,
       sellerId: sellerId,
+      shortToken: shortToken,
       customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Unknown'
     });
 
     return {
       success: true,
       customerPortalUrl: customerPortalUrl,
-      token: customerToken,
+      token: shortToken,
       expiresIn: '24 hours',
       customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Unknown Customer',
       securityNote: 'Token is automatically hidden from URL for security'
