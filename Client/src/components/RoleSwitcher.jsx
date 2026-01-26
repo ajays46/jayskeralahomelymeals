@@ -81,7 +81,8 @@ const RoleSwitcher = () => {
     setIsOpen(false);
     
     // Navigate to the new role's dashboard
-    const dashboardRoute = getDashboardRoute([newRole]);
+    // Pass all user roles so getDashboardRoute can check if user has CXO roles
+    const dashboardRoute = getDashboardRoute([newRole], roles);
     navigate(dashboardRoute);
   };
 

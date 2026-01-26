@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLogout } from '../hooks/userHooks/useLogin';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
-import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO } from '../utils/roleUtils';
+import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO, isCXO } from '../utils/roleUtils';
 
 /**
  * Navbar - Main navigation component with role-based menu and authentication
@@ -37,6 +37,7 @@ const Navbar = ({ onSignInClick }) => {
   const userIsDeliveryExecutive = isDeliveryExecutive(roles);
   const userIsCEO = isCEO(roles);
   const userIsCFO = isCFO(roles);
+  const userIsCXO = isCXO(roles) || userIsCEO || userIsCFO;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -193,8 +194,11 @@ const Navbar = ({ onSignInClick }) => {
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Seller Panel</div>
-                          <a href="/jkhm/seller/customers" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200">
-                            <MdStore className="text-xl" /> Customers List
+                          <a 
+                            href={userIsCXO ? "/jkhm/seller" : "/jkhm/seller/customers"} 
+                            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200"
+                          >
+                            <MdStore className="text-xl" /> {userIsCXO ? "Seller Dashboard" : "Customers List"}
                           </a>
                         </>
                       )}

@@ -99,7 +99,8 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
       setActiveRole(selectedRole); // Set the selected role as active
       
       // Navigate to the role-specific dashboard
-      const dashboardRoute = getDashboardRoute([selectedRole]);
+      // Pass all user roles so getDashboardRoute can check if user has CXO roles
+      const dashboardRoute = getDashboardRoute([selectedRole], userRoles);
       navigate(dashboardRoute);
       
       // Close the sidebar

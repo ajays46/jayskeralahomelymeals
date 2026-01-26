@@ -99,6 +99,31 @@ const SellerPage = () => {
       searchTerm: '',
       sortBy: 'recent'
     });
+    
+    // CXO Dashboard Filters
+    const [cxoFilters, setCxoFilters] = useState({
+      searchTerm: '',
+      sortBy: 'recent', // recent, name, revenue-high, revenue-low, orders-high, orders-low, customers-high, customers-low
+      revenueMin: '',
+      revenueMax: '',
+      ordersMin: '',
+      ordersMax: '',
+      customersMin: '',
+      customersMax: ''
+    });
+    
+    // Customer and Order Filters for selected seller
+    const [customerFilters, setCustomerFilters] = useState({
+      searchTerm: '',
+      sortBy: 'recent', // recent, name, orders-high, orders-low
+      minOrders: ''
+    });
+    
+    const [orderFiltersCxo, setOrderFiltersCxo] = useState({
+      status: 'all',
+      dateRange: 'all',
+      sortBy: 'recent'
+    });
 
     // Fetch seller users on component mount
     useEffect(() => {
@@ -567,15 +592,282 @@ const SellerPage = () => {
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto">
-                      {allSellers.length === 0 ? (
-                        <div className="text-center py-12 px-4">
-                          <MdRestaurant className="text-4xl text-gray-300 mx-auto mb-3" />
-                          <p className="text-gray-500 text-sm font-medium">No sellers found</p>
+                    {/* Filter Section for Sellers List */}
+                    <div className="p-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                      <div className="space-y-2">
+                        {/* Search */}
+                        <div className="relative">
+                          <MdSearch className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <input
+                            type="text"
+                            placeholder="Search sellers..."
+                            value={cxoFilters.searchTerm}
+                            onChange={(e) => setCxoFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                            className="w-full pl-8 pr-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
                         </div>
-                      ) : (
-                        <div className="divide-y divide-gray-200">
-                          {allSellers.map((seller) => {
+                        
+                        {/* Sort By */}
+                        <select
+                          value={cxoFilters.sortBy}
+                          onChange={(e) => setCxoFilters(prev => ({ ...prev, sortBy: e.target.value }))}
+                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="recent">Most Recent</option>
+                          <option value="name">Name A-Z</option>
+                          <option value="revenue-high">Revenue High to Low</option>
+                          <option value="revenue-low">Revenue Low to High</option>
+                          <option value="orders-high">Orders High to Low</option>
+                          <option value="orders-low">Orders Low to High</option>
+                          <option value="customers-high">Customers High to Low</option>
+                          <option value="customers-low">Customers Low to High</option>
+                        </select>
+                        
+                        {/* Advanced Filters Toggle */}
+                        <details className="text-xs">
+                          <summary className="cursor-pointer text-gray-600 hover:text-gray-900 font-medium py-1">
+                            Advanced Filters
+                          </summary>
+                          <div className="mt-2 space-y-2 pt-2 border-t border-gray-200">
+                            {/* Revenue Range */}
+                            <div className="grid grid-cols-2 gap-1">
+                              <input
+                                type="number"
+                                placeholder="Min Revenue"
+                                value={cxoFilters.revenueMin}
+                                onChange={(e) => setCxoFilters(prev => ({ ...prev, revenueMin: e.target.value }))}
+                                className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              />
+                              <input
+                                type="number"
+                                placeholder="Max Revenue"
+                                value={cxoFilters.revenueMax}
+                                onChange={(e) => setCxoFilters(prev => ({ ...prev, revenueMax: e.target.value }))}
+                                className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+                            
+                            {/* Orders Range */}
+                            <div className="grid grid-cols-2 gap-1">
+                              <input
+                                type="number"
+                                placeholder="Min Orders"
+                                value={cxoFilters.ordersMin}
+                                onChange={(e) => setCxoFilters(prev => ({ ...prev, ordersMin: e.target.value }))}
+                                className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              />
+                              <input
+                                type="number"
+                                placeholder="Max Orders"
+                                value={cxoFilters.ordersMax}
+                                onChange={(e) => setCxoFilters(prev => ({ ...prev, ordersMax: e.target.value }))}
+                                className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+                            
+                            {/* Customers Range */}
+                            <div className="grid grid-cols-2 gap-1">
+                              <input
+                                type="number"
+                                placeholder="Min Customers"
+                                value={cxoFilters.customersMin}
+                                onChange={(e) => setCxoFilters(prev => ({ ...prev, customersMin: e.target.value }))}
+                                className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              />
+                              <input
+                                type="number"
+                                placeholder="Max Customers"
+                                value={cxoFilters.customersMax}
+                                onChange={(e) => setCxoFilters(prev => ({ ...prev, customersMax: e.target.value }))}
+                                className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+                        </details>
+                        
+                        {/* Quick Filters */}
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setCxoFilters({
+                              searchTerm: '',
+                              sortBy: 'revenue-high',
+                              revenueMin: '',
+                              revenueMax: '',
+                              ordersMin: '',
+                              ordersMax: '',
+                              customersMin: '',
+                              customersMax: ''
+                            })}
+                            className="flex-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                          >
+                            Top Revenue
+                          </button>
+                          <button
+                            onClick={() => setCxoFilters({
+                              searchTerm: '',
+                              sortBy: 'orders-high',
+                              revenueMin: '',
+                              revenueMax: '',
+                              ordersMin: '',
+                              ordersMax: '',
+                              customersMin: '',
+                              customersMax: ''
+                            })}
+                            className="flex-1 px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                          >
+                            Top Orders
+                          </button>
+                        </div>
+                        
+                        {/* Clear Filters */}
+                        {(cxoFilters.searchTerm || cxoFilters.sortBy !== 'recent' || cxoFilters.revenueMin || cxoFilters.revenueMax || cxoFilters.ordersMin || cxoFilters.ordersMax || cxoFilters.customersMin || cxoFilters.customersMax) && (
+                          <button
+                            onClick={() => setCxoFilters({
+                              searchTerm: '',
+                              sortBy: 'recent',
+                              revenueMin: '',
+                              revenueMax: '',
+                              ordersMin: '',
+                              ordersMax: '',
+                              customersMin: '',
+                              customersMax: ''
+                            })}
+                            className="w-full px-2 py-1 text-xs text-gray-600 bg-gray-200 rounded hover:bg-gray-300 transition-colors flex items-center justify-center gap-1"
+                          >
+                            <MdFilterAlt className="w-3 h-3" />
+                            Clear Filters
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto">
+                      {(() => {
+                        // Filter and sort sellers
+                        let filteredSellers = [...allSellers];
+                        
+                        // Apply search filter
+                        if (cxoFilters.searchTerm) {
+                          const search = cxoFilters.searchTerm.toLowerCase();
+                          filteredSellers = filteredSellers.filter(seller =>
+                            seller.name?.toLowerCase().includes(search) ||
+                            seller.email?.toLowerCase().includes(search) ||
+                            seller.company?.toLowerCase().includes(search)
+                          );
+                        }
+                        
+                        // Apply revenue filter
+                        if (cxoFilters.revenueMin) {
+                          filteredSellers = filteredSellers.filter(seller => 
+                            (seller.totalRevenue || 0) >= parseFloat(cxoFilters.revenueMin)
+                          );
+                        }
+                        if (cxoFilters.revenueMax) {
+                          filteredSellers = filteredSellers.filter(seller => 
+                            (seller.totalRevenue || 0) <= parseFloat(cxoFilters.revenueMax)
+                          );
+                        }
+                        
+                        // Apply orders filter
+                        if (cxoFilters.ordersMin) {
+                          filteredSellers = filteredSellers.filter(seller => 
+                            (seller.orderCount || 0) >= parseInt(cxoFilters.ordersMin)
+                          );
+                        }
+                        if (cxoFilters.ordersMax) {
+                          filteredSellers = filteredSellers.filter(seller => 
+                            (seller.orderCount || 0) <= parseInt(cxoFilters.ordersMax)
+                          );
+                        }
+                        
+                        // Apply customers filter
+                        if (cxoFilters.customersMin) {
+                          filteredSellers = filteredSellers.filter(seller => {
+                            const customersMap = new Map();
+                            seller.recentOrders?.forEach(order => {
+                              const customerKey = order.customerEmail || order.customerPhone || `customer-${order.id}`;
+                              if (!customersMap.has(customerKey)) {
+                                customersMap.set(customerKey, true);
+                              }
+                            });
+                            return customersMap.size >= parseInt(cxoFilters.customersMin);
+                          });
+                        }
+                        if (cxoFilters.customersMax) {
+                          filteredSellers = filteredSellers.filter(seller => {
+                            const customersMap = new Map();
+                            seller.recentOrders?.forEach(order => {
+                              const customerKey = order.customerEmail || order.customerPhone || `customer-${order.id}`;
+                              if (!customersMap.has(customerKey)) {
+                                customersMap.set(customerKey, true);
+                              }
+                            });
+                            return customersMap.size <= parseInt(cxoFilters.customersMax);
+                          });
+                        }
+                        
+                        // Apply sorting
+                        filteredSellers.sort((a, b) => {
+                          switch (cxoFilters.sortBy) {
+                            case 'name':
+                              return (a.name || '').localeCompare(b.name || '');
+                            case 'revenue-high':
+                              return (b.totalRevenue || 0) - (a.totalRevenue || 0);
+                            case 'revenue-low':
+                              return (a.totalRevenue || 0) - (b.totalRevenue || 0);
+                            case 'orders-high':
+                              return (b.orderCount || 0) - (a.orderCount || 0);
+                            case 'orders-low':
+                              return (a.orderCount || 0) - (b.orderCount || 0);
+                            case 'customers-high':
+                              const customersA = new Set();
+                              const customersB = new Set();
+                              a.recentOrders?.forEach(order => {
+                                customersA.add(order.customerEmail || order.customerPhone || `customer-${order.id}`);
+                              });
+                              b.recentOrders?.forEach(order => {
+                                customersB.add(order.customerEmail || order.customerPhone || `customer-${order.id}`);
+                              });
+                              return customersB.size - customersA.size;
+                            case 'customers-low':
+                              const customersALow = new Set();
+                              const customersBLow = new Set();
+                              a.recentOrders?.forEach(order => {
+                                customersALow.add(order.customerEmail || order.customerPhone || `customer-${order.id}`);
+                              });
+                              b.recentOrders?.forEach(order => {
+                                customersBLow.add(order.customerEmail || order.customerPhone || `customer-${order.id}`);
+                              });
+                              return customersALow.size - customersBLow.size;
+                            case 'recent':
+                            default:
+                              return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                          }
+                        });
+                        
+                        return filteredSellers.length === 0 ? (
+                          <div className="text-center py-12 px-4">
+                            <MdSearch className="text-4xl text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500 text-sm font-medium">No sellers match your filters</p>
+                            <button
+                              onClick={() => setCxoFilters({
+                                searchTerm: '',
+                                sortBy: 'recent',
+                                revenueMin: '',
+                                revenueMax: '',
+                                ordersMin: '',
+                                ordersMax: '',
+                                customersMin: '',
+                                customersMax: ''
+                              })}
+                              className="mt-2 px-3 py-1 text-xs text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+                            >
+                              Clear Filters
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-gray-200">
+                            {filteredSellers.map((seller) => {
                             // Extract unique customers from orders for count
                             const customersMap = new Map();
                             seller.recentOrders?.forEach(order => {
@@ -641,7 +933,8 @@ const SellerPage = () => {
                             );
                           })}
                         </div>
-                      )}
+                      );
+                    })()}
                     </div>
                   </div>
 
@@ -722,63 +1015,163 @@ const SellerPage = () => {
 
                           {/* Customers List */}
                           <div className="flex-1 overflow-hidden flex flex-col p-6">
-                            <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2 flex-shrink-0">
-                              <MdPeople className="w-5 h-5 text-blue-600" />
-                              Customers ({customers.length})
-                            </h4>
+                            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                              <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                                <MdPeople className="w-5 h-5 text-blue-600" />
+                                Customers ({(() => {
+                                  let filtered = customers;
+                                  if (customerFilters.searchTerm) {
+                                    const search = customerFilters.searchTerm.toLowerCase();
+                                    filtered = filtered.filter(c => 
+                                      c.name?.toLowerCase().includes(search) ||
+                                      c.email?.toLowerCase().includes(search) ||
+                                      c.phone?.toLowerCase().includes(search)
+                                    );
+                                  }
+                                  if (customerFilters.minOrders) {
+                                    filtered = filtered.filter(c => 
+                                      c.orders.length >= parseInt(customerFilters.minOrders)
+                                    );
+                                  }
+                                  return filtered.length;
+                                })()})
+                              </h4>
+                              
+                              {/* Customer Filters */}
+                              <div className="flex items-center gap-2">
+                                <div className="relative">
+                                  <MdSearch className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                  <input
+                                    type="text"
+                                    placeholder="Search customers..."
+                                    value={customerFilters.searchTerm}
+                                    onChange={(e) => setCustomerFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                                    className="pl-8 pr-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-40"
+                                  />
+                                </div>
+                                <select
+                                  value={customerFilters.sortBy}
+                                  onChange={(e) => setCustomerFilters(prev => ({ ...prev, sortBy: e.target.value }))}
+                                  className="px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                  <option value="recent">Most Recent</option>
+                                  <option value="name">Name A-Z</option>
+                                  <option value="orders-high">Most Orders</option>
+                                  <option value="orders-low">Least Orders</option>
+                                </select>
+                                <input
+                                  type="number"
+                                  placeholder="Min orders"
+                                  value={customerFilters.minOrders}
+                                  onChange={(e) => setCustomerFilters(prev => ({ ...prev, minOrders: e.target.value }))}
+                                  className="px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 w-20"
+                                />
+                                {(customerFilters.searchTerm || customerFilters.minOrders || customerFilters.sortBy !== 'recent') && (
+                                  <button
+                                    onClick={() => setCustomerFilters({
+                                      searchTerm: '',
+                                      sortBy: 'recent',
+                                      minOrders: ''
+                                    })}
+                                    className="px-2 py-1.5 text-xs text-gray-600 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+                                    title="Clear filters"
+                                  >
+                                    <MdFilterAlt className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                             
                             <div className="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-4 overflow-hidden">
                               {/* Left - Customers List */}
                               <div className="space-y-2 overflow-y-auto">
-                                {customers.length === 0 ? (
-                                  <div className="text-center py-8">
-                                    <MdPeople className="text-4xl text-gray-300 mx-auto mb-2" />
-                                    <p className="text-gray-500 text-sm">No customers found</p>
-                                  </div>
-                                ) : (
-                                  customers.map((customer, idx) => {
-                                    const customerKey = `${selectedSeller.id}-${customer.email}-${idx}`;
-                                    const isSelected = selectedCustomerKey === customerKey;
+                                {(() => {
+                                  let filteredCustomers = [...customers];
+                                  
+                                  // Apply search filter
+                                  if (customerFilters.searchTerm) {
+                                    const search = customerFilters.searchTerm.toLowerCase();
+                                    filteredCustomers = filteredCustomers.filter(c => 
+                                      c.name?.toLowerCase().includes(search) ||
+                                      c.email?.toLowerCase().includes(search) ||
+                                      c.phone?.toLowerCase().includes(search)
+                                    );
+                                  }
+                                  
+                                  // Apply min orders filter
+                                  if (customerFilters.minOrders) {
+                                    filteredCustomers = filteredCustomers.filter(c => 
+                                      c.orders.length >= parseInt(customerFilters.minOrders)
+                                    );
+                                  }
+                                  
+                                  // Apply sorting
+                                  filteredCustomers.sort((a, b) => {
+                                    switch (customerFilters.sortBy) {
+                                      case 'name':
+                                        return (a.name || '').localeCompare(b.name || '');
+                                      case 'orders-high':
+                                        return b.orders.length - a.orders.length;
+                                      case 'orders-low':
+                                        return a.orders.length - b.orders.length;
+                                      case 'recent':
+                                      default:
+                                        const aLatest = a.orders.length > 0 ? new Date(a.orders[0].createdAt || 0) : new Date(0);
+                                        const bLatest = b.orders.length > 0 ? new Date(b.orders[0].createdAt || 0) : new Date(0);
+                                        return bLatest - aLatest;
+                                    }
+                                  });
+                                  
+                                  return filteredCustomers.length === 0 ? (
+                                    <div className="text-center py-8">
+                                      <MdSearch className="text-4xl text-gray-300 mx-auto mb-2" />
+                                      <p className="text-gray-500 text-sm">No customers match your filters</p>
+                                    </div>
+                                  ) : (
+                                    filteredCustomers.map((customer, idx) => {
+                                      const customerKey = `${selectedSeller.id}-${customer.email}-${idx}`;
+                                      const isSelected = selectedCustomerKey === customerKey;
 
-                                    return (
-                                      <div
-                                        key={customerKey}
-                                        onClick={() => setSelectedCustomerKey(customerKey)}
-                                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                                          isSelected
-                                            ? 'border-blue-500 bg-blue-50'
-                                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                        }`}
-                                      >
-                                        <div className="flex items-center gap-3">
-                                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0 ${
+                                      return (
+                                        <div
+                                          key={customerKey}
+                                          onClick={() => setSelectedCustomerKey(customerKey)}
+                                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                                             isSelected
-                                              ? 'bg-blue-600 text-white'
-                                              : 'bg-blue-100 text-blue-700'
-                                          }`}>
-                                            {customer.name?.charAt(0)?.toUpperCase() || 'C'}
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <div className={`font-medium text-sm truncate ${
-                                              isSelected ? 'text-blue-900' : 'text-gray-900'
+                                              ? 'border-blue-500 bg-blue-50'
+                                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0 ${
+                                              isSelected
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-blue-100 text-blue-700'
                                             }`}>
-                                              {customer.name}
+                                              {customer.name?.charAt(0)?.toUpperCase() || 'C'}
                                             </div>
-                                            <div className="text-xs text-gray-500 truncate">
-                                              {customer.email}
-                                            </div>
-                                            <div className="text-xs text-gray-500">
-                                              {customer.phone}
-                                            </div>
-                                            <div className="mt-1 text-xs text-gray-600">
-                                              <span className="font-semibold">{customer.orders.length}</span> orders
+                                            <div className="flex-1 min-w-0">
+                                              <div className={`font-medium text-sm truncate ${
+                                                isSelected ? 'text-blue-900' : 'text-gray-900'
+                                              }`}>
+                                                {customer.name}
+                                              </div>
+                                              <div className="text-xs text-gray-500 truncate">
+                                                {customer.email}
+                                              </div>
+                                              <div className="text-xs text-gray-500">
+                                                {customer.phone}
+                                              </div>
+                                              <div className="mt-1 text-xs text-gray-600">
+                                                <span className="font-semibold">{customer.orders.length}</span> orders
+                                              </div>
                                             </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    );
-                                  })
-                                )}
+                                      );
+                                    })
+                                  );
+                                })()}
                               </div>
 
                               {/* Right - Selected Customer Orders */}
@@ -797,14 +1190,116 @@ const SellerPage = () => {
                                     );
                                   }
 
+                                  // Filter and sort orders
+                                  let filteredOrders = [...selectedCustomer.orders];
+                                  
+                                  // Apply status filter
+                                  if (orderFiltersCxo.status !== 'all') {
+                                    filteredOrders = filteredOrders.filter(order => order.status === orderFiltersCxo.status);
+                                  }
+                                  
+                                  // Apply date range filter
+                                  if (orderFiltersCxo.dateRange !== 'all') {
+                                    const today = new Date();
+                                    filteredOrders = filteredOrders.filter(order => {
+                                      const orderDate = new Date(order.createdAt || order.orderDate);
+                                      switch (orderFiltersCxo.dateRange) {
+                                        case 'today':
+                                          return orderDate.toDateString() === today.toDateString();
+                                        case 'thisWeek':
+                                          const weekAgo = new Date(today);
+                                          weekAgo.setDate(weekAgo.getDate() - 7);
+                                          return orderDate >= weekAgo;
+                                        case 'thisMonth':
+                                          return orderDate.getMonth() === today.getMonth() && 
+                                                 orderDate.getFullYear() === today.getFullYear();
+                                        default:
+                                          return true;
+                                      }
+                                    });
+                                  }
+                                  
+                                  // Apply sorting
+                                  filteredOrders.sort((a, b) => {
+                                    switch (orderFiltersCxo.sortBy) {
+                                      case 'oldest':
+                                        return new Date(a.createdAt || a.orderDate) - new Date(b.createdAt || b.orderDate);
+                                      case 'amount-high':
+                                        return (b.totalPrice || 0) - (a.totalPrice || 0);
+                                      case 'amount-low':
+                                        return (a.totalPrice || 0) - (b.totalPrice || 0);
+                                      case 'recent':
+                                      default:
+                                        return new Date(b.createdAt || b.orderDate) - new Date(a.createdAt || a.orderDate);
+                                    }
+                                  });
+                                  
                                   return (
                                     <div className="border border-gray-200 rounded-lg p-4">
-                                      <h5 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                        <MdShoppingCart className="w-5 h-5 text-green-600" />
-                                        Orders ({selectedCustomer.orders.length})
-                                      </h5>
+                                      <div className="flex items-center justify-between mb-4">
+                                        <h5 className="font-bold text-gray-900 flex items-center gap-2">
+                                          <MdShoppingCart className="w-5 h-5 text-green-600" />
+                                          Orders ({filteredOrders.length})
+                                        </h5>
+                                        
+                                        {/* Order Filters */}
+                                        <div className="flex items-center gap-2">
+                                          <select
+                                            value={orderFiltersCxo.status}
+                                            onChange={(e) => setOrderFiltersCxo(prev => ({ ...prev, status: e.target.value }))}
+                                            className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                                          >
+                                            <option value="all">All Status</option>
+                                            <option value="Pending">Pending</option>
+                                            <option value="Payment_Confirmed">Payment Confirmed</option>
+                                            <option value="Confirmed">Confirmed</option>
+                                            <option value="In_Progress">In Progress</option>
+                                            <option value="Delivered">Delivered</option>
+                                            <option value="Cancelled">Cancelled</option>
+                                          </select>
+                                          <select
+                                            value={orderFiltersCxo.dateRange}
+                                            onChange={(e) => setOrderFiltersCxo(prev => ({ ...prev, dateRange: e.target.value }))}
+                                            className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                                          >
+                                            <option value="all">All Dates</option>
+                                            <option value="today">Today</option>
+                                            <option value="thisWeek">This Week</option>
+                                            <option value="thisMonth">This Month</option>
+                                          </select>
+                                          <select
+                                            value={orderFiltersCxo.sortBy}
+                                            onChange={(e) => setOrderFiltersCxo(prev => ({ ...prev, sortBy: e.target.value }))}
+                                            className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                                          >
+                                            <option value="recent">Most Recent</option>
+                                            <option value="oldest">Oldest First</option>
+                                            <option value="amount-high">Amount High</option>
+                                            <option value="amount-low">Amount Low</option>
+                                          </select>
+                                          {(orderFiltersCxo.status !== 'all' || orderFiltersCxo.dateRange !== 'all' || orderFiltersCxo.sortBy !== 'recent') && (
+                                            <button
+                                              onClick={() => setOrderFiltersCxo({
+                                                status: 'all',
+                                                dateRange: 'all',
+                                                sortBy: 'recent'
+                                              })}
+                                              className="px-2 py-1 text-xs text-gray-600 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+                                              title="Clear filters"
+                                            >
+                                              <MdFilterAlt className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
                                       <div className="space-y-3">
-                                        {selectedCustomer.orders.map((order) => (
+                                        {filteredOrders.length === 0 ? (
+                                          <div className="text-center py-6">
+                                            <MdSearch className="text-3xl text-gray-300 mx-auto mb-2" />
+                                            <p className="text-gray-500 text-xs">No orders match your filters</p>
+                                          </div>
+                                        ) : (
+                                          filteredOrders.map((order) => (
                                           <div key={order.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
                                             <div className="flex items-start justify-between mb-3">
                                               <div className="flex-1">
@@ -834,23 +1329,11 @@ const SellerPage = () => {
                                                 <div className="text-xs text-gray-600">
                                                   Delivery: {formatDeliveryDateRange(order.deliveryItems)}
                                                 </div>
-                                                <div className="mt-2 space-y-1">
-                                                  {order.deliveryItems.slice(0, 3).map((item, idx) => (
-                                                    <div key={idx} className="text-xs text-gray-600 flex items-center gap-2">
-                                                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                                                      <span>{item.menuItem?.name || 'Menu Item'} × {item.quantity}</span>
-                                                    </div>
-                                                  ))}
-                                                  {order.deliveryItems.length > 3 && (
-                                                    <div className="text-xs text-gray-500 italic">
-                                                      +{order.deliveryItems.length - 3} more items
-                                                    </div>
-                                                  )}
-                                                </div>
                                               </div>
                                             )}
                                           </div>
-                                        ))}
+                                          ))
+                                        )}
                                       </div>
                                     </div>
                                   );

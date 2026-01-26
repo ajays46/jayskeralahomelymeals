@@ -7,13 +7,21 @@ import { useNavigate } from 'react-router-dom';
  */
 
 // Function to determine the appropriate dashboard route based on user roles
-export const getDashboardRoute = (roles) => {
+// @param {Array|string} roles - The role(s) to route for (can be selected role or all user roles)
+// @param {Array} allUserRoles - Optional: All roles the user has (to check for CXO permissions)
+export const getDashboardRoute = (roles, allUserRoles = null) => {
   if (!roles || !Array.isArray(roles)) {
     return '/jkhm'; // Default fallback
   }
 
   // If roles is a single role (string), convert to array
   const roleArray = Array.isArray(roles) ? roles : [roles];
+  
+  // Check if user has CXO roles (CEO or CFO) - use allUserRoles if provided, otherwise check roleArray
+  const userRolesToCheck = allUserRoles || roleArray;
+  const hasCXORole = userRolesToCheck.some(role => 
+    role.toUpperCase() === 'CEO' || role.toUpperCase() === 'CFO'
+  );
 
   // Check for CEO role first (highest priority)
   if (roleArray.some(role => role.toUpperCase() === 'CEO')) {
@@ -35,9 +43,13 @@ export const getDashboardRoute = (roles) => {
     return '/jkhm/delivery-manager';
   }
 
-  // Check for seller role
+  // Check for seller role - if user has CXO roles, route to CXO dashboard view
   if (roleArray.some(role => role.toUpperCase() === 'SELLER')) {
-    return '/jkhm/seller/customers';
+    // If user has CEO or CFO role, route them to seller page with CXO dashboard view
+    if (hasCXORole) {
+      return '/jkhm/seller'; // This will show CXO dashboard in SellerPage
+    }
+    return '/jkhm/seller/customers'; // Regular seller goes to customer list
   }
 
   // Check for delivery executive role
