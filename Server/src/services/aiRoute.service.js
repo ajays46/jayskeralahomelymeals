@@ -1335,3 +1335,236 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
     );
   }
 };
+
+/**
+ * Get Route Map Data for CXO
+ * Fetches route data for a specific date, session, and optionally route_id
+ * Uses AI_ROUTE_API endpoint /api/route/map-data
+ * Enriches route data with delivery executive names
+ */
+export const getRouteMapDataService = async (params = {}) => {
+  try {
+    const { date, session, route_id, driver_name } = params;
+    
+    if (!date) {
+      throw new Error('date is required');
+    }
+    
+    // Build query parameters
+    // Convert session to lowercase if provided (database uses lowercase: breakfast, lunch, dinner)
+    const queryParams = { date };
+    if (session) queryParams.session = session;
+    if (route_id) queryParams.route_id = route_id;
+    
+    // Use apiClientRouteAPI which points to AI_ROUTE_API (not AI_ROUTE_API_THIRD)
+    const response = await apiClient.get('/api/route/map-data', {
+      params: queryParams
+    });
+    
+    const data = response.data;
+    
+    // Extract unique driver IDs from routes
+    const routes = data?.routes || [];
+    const driverIds = [...new Set(routes.map(route => route.driver_id).filter(Boolean))];
+    
+    // Fetch delivery executive names from User table
+    let driverNameMap = {};
+    if (driverIds.length > 0) {
+      try {
+        const users = await prisma.user.findMany({
+          where: {
+            id: { in: driverIds }
+          },
+          include: {
+            contacts: {
+              select: {
+                firstName: true,
+                lastName: true
+              },
+              take: 1 // Get first contact
+            },
+            auth: {
+              select: {
+                email: true
+              }
+            }
+          }
+        });
+        
+        // Create a map of driver_id -> name
+        driverNameMap = users.reduce((acc, user) => {
+          let name = 'Unknown';
+          
+          // Try to get name from contacts (firstName + lastName)
+          if (user.contacts && user.contacts.length > 0) {
+            const contact = user.contacts[0];
+            if (contact.firstName || contact.lastName) {
+              name = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
+            }
+          }
+          
+          // Fallback to email prefix if no contact name
+          if (name === 'Unknown' && user.auth?.email) {
+            name = user.auth.email.split('@')[0];
+          }
+          
+          acc[user.id] = name;
+          return acc;
+        }, {});
+      } catch (dbError) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch delivery executive names', {
+          error: dbError.message,
+          driverIds
+        });
+        // Continue without names if DB fetch fails
+      }
+    }
+    
+    // Enrich routes with driver names
+    const enrichedRoutes = routes.map(route => ({
+      ...route,
+      driver_name: route.driver_id ? (driverNameMap[route.driver_id] || 'Unknown') : 'Unknown'
+    }));
+    
+    // Filter by driver_name if provided (case-insensitive partial match)
+    let filteredRoutes = enrichedRoutes;
+    if (driver_name && driver_name.trim()) {
+      const searchTerm = driver_name.trim().toLowerCase();
+      filteredRoutes = enrichedRoutes.filter(route => {
+        const routeDriverName = route.driver_name?.toLowerCase() || '';
+        return routeDriverName.includes(searchTerm);
+      });
+    }
+    
+    // Create enriched response
+    const enrichedData = {
+      ...data,
+      routes: filteredRoutes,
+      total_routes: filteredRoutes.length
+    };
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route map data fetched for CXO', {
+      date,
+      session,
+      route_id,
+      driver_name,
+      hasData: !!data,
+      routesCount: routes.length,
+      filteredRoutesCount: filteredRoutes.length,
+      driversEnriched: Object.keys(driverNameMap).length
+    });
+    
+    return {
+      success: true,
+      data: enrichedData
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch route map data', {
+      error: error.message,
+      params,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch route map data',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Drivers from Route Map Data
+ * Fetches unique driver IDs from route data and returns driver information with names
+ */
+export const getDriversFromRouteMapDataService = async (params = {}) => {
+  try {
+    const { date, session } = params;
+    
+    if (!date) {
+      throw new Error('date is required');
+    }
+    
+    // First, get the route data to extract driver IDs
+    const routeData = await getRouteMapDataService({ date, session });
+    const routes = routeData.data?.routes || [];
+    
+    // Extract unique driver IDs
+    const driverIds = [...new Set(routes.map(route => route.driver_id).filter(Boolean))];
+    
+    if (driverIds.length === 0) {
+      return {
+        success: true,
+        drivers: []
+      };
+    }
+    
+    // Fetch driver information from database
+    const drivers = await prisma.user.findMany({
+      where: {
+        id: { in: driverIds }
+      },
+      include: {
+        contacts: {
+          select: {
+            firstName: true,
+            lastName: true,
+            phoneNumbers: {
+              select: {
+                number: true,
+                type: true
+              }
+            }
+          }
+        },
+        auth: {
+          select: {
+            email: true,
+            phoneNumber: true
+          }
+        },
+        deliveryExecutive: {
+          select: {
+            vehicleNumber: true,
+            status: true
+          }
+        }
+      }
+    });
+    
+    // Format driver data
+    const formattedDrivers = drivers.map(driver => {
+      const contact = driver.contacts?.[0];
+      const name = contact 
+        ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() 
+        : 'Unknown Driver';
+      
+      return {
+        driver_id: driver.id,
+        name: name || 'Unknown Driver',
+        email: driver.auth?.email || null,
+        phone: contact?.phoneNumbers?.[0]?.number || driver.auth?.phoneNumber || null,
+        vehicleNumber: driver.deliveryExecutive?.vehicleNumber || null,
+        status: driver.deliveryExecutive?.status || null
+      };
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Drivers fetched from route map data', {
+      date,
+      session,
+      driverCount: formattedDrivers.length
+    });
+    
+    return {
+      success: true,
+      drivers: formattedDrivers
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch drivers from route map data', {
+      error: error.message,
+      params
+    });
+    throw new AppError(
+      error.message || 'Failed to fetch drivers from route map data',
+      500
+    );
+  }
+};

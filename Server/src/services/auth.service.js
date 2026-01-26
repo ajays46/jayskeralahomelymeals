@@ -124,10 +124,12 @@ export const loginUser = async ({ identifier, password }) => {
             throw new AppError('User or roles not found', 404);
         }
 
+        // Get all roles as comma-separated string for JWT token
+        const allRoles = user.userRoles.map(role => role.name).join(',');
         // Get the primary role (first role or highest priority role)
         const primaryRole = user.userRoles[0];
-        const accessToken = generateAccessToken(user.id, primaryRole.name);
-        const refreshToken = generateRefreshToken(user.id, primaryRole.name);
+        const accessToken = generateAccessToken(user.id, allRoles);
+        const refreshToken = generateRefreshToken(user.id, allRoles);
 
         return {
             user: {

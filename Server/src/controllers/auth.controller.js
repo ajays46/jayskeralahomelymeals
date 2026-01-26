@@ -91,10 +91,12 @@ export const refreshToken = async (req, res, next) => {
         throw new AppError("User roles not found", 403);
       }
 
+      // Get all roles as comma-separated string for JWT token
+      const allRoles = user.userRoles.map(role => role.name).join(',');
       // Get the primary role (first role or highest priority role)
       const primaryRole = user.userRoles[0];
-      const newAccessToken = generateAccessToken(user.id, primaryRole.name);
-      const newRefreshToken = generateRefreshToken(user.id, primaryRole.name);
+      const newAccessToken = generateAccessToken(user.id, allRoles);
+      const newRefreshToken = generateRefreshToken(user.id, allRoles);
 
       setJWTCookie(res, newRefreshToken);
 

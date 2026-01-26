@@ -31,7 +31,8 @@ import {
   checkTraffic,
   getRouteOrder,
   getRouteStatusFromActualStops,
-  updateDeliveryComment
+  updateDeliveryComment,
+  getRouteMapData
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();
@@ -96,6 +97,9 @@ router.post('/address/update-geo-location', checkRole('DELIVERY_MANAGER'), updat
 
 // Delivery data comments - DELIVERY_MANAGER only
 router.put('/delivery_data/:deliveryId/comments', checkRole('DELIVERY_MANAGER'), updateDeliveryComment);
+
+// Route map data for CXO - CEO, CFO only
+router.get('/route/map-data', checkRole('CEO', 'CFO'), getRouteMapData);
 
 export default router;
 

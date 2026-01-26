@@ -30,6 +30,8 @@ export const aiRouteKeys = {
   zoneDeliveries: (zoneId, params) => [...aiRouteKeys.all, 'zoneDeliveries', zoneId, params],
   // Address
   missingGeoLocations: (limit) => [...aiRouteKeys.all, 'missingGeoLocations', limit],
+  // Route Map Data for CXO
+  routeMapData: (params) => [...aiRouteKeys.all, 'routeMapData', params],
 };
 
 /**
@@ -1175,6 +1177,53 @@ export const useUpdateDeliveryComment = () => {
     onError: (error) => {
       console.error('Error updating delivery comment:', error);
     }
+  });
+};
+
+/**
+ * Get Route Map Data for CXO
+ * Fetches route data for a specific date, session, and optionally route_id
+ */
+export const useRouteMapData = (params = {}, options = {}) => {
+  const {
+    date,
+    session,
+    route_id,
+    driver_name,
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 2 * 60 * 1000, // 2 minutes
+    cacheTime = 5 * 60 * 1000, // 5 minutes
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = { ...params, ...options };
+
+  return useQuery({
+    queryKey: aiRouteKeys.routeMapData({ date, session, route_id, driver_name }),
+    queryFn: async () => {
+      const queryParams = { date };
+      if (session) queryParams.session = session;
+      if (route_id) queryParams.route_id = route_id;
+      if (driver_name) queryParams.driver_name = driver_name;
+      
+      const response = await axiosInstance.get('/ai-routes/route/map-data', {
+        params: queryParams
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch route map data');
+      }
+      
+      return response.data;
+    },
+    enabled: enabled && !!date,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
   });
 };
 

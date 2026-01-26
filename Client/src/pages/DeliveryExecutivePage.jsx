@@ -7,9 +7,19 @@ import { toast } from 'react-toastify';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
-import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops, useRouteMapData } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { useUploadDeliveryPhoto, useCheckMultipleDeliveryImages } from '../hooks/deliverymanager';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import { isCXO, isCEO, isCFO } from '../utils/roleUtils';
+import RecentRoutesView from '../components/RecentRoutesView';
+
+// Fix for default marker icons in Leaflet with React
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 /**
  * DeliveryExecutivePage - Delivery executive dashboard with route and order management
@@ -19,9 +29,16 @@ import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 const DeliveryExecutivePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('routes'); // routes only
+  const [activeTab, setActiveTab] = useState('routes'); // routes or recent-routes (for CXO)
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
+  // Route map data state for CXO
+  const [routeMapFilters, setRouteMapFilters] = useState({
+    date: new Date().toISOString().split('T')[0], // Today's date
+    session: '',
+    route_id: '',
+    driver_name: ''
+  });
   
   // Logout confirmation state
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -38,6 +55,15 @@ const DeliveryExecutivePage = () => {
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const logout = useAuthStore((state) => state.logout);
+  
+  // Check if user has CXO role (after roles is declared)
+  const isCXOUser = isCXO(roles) || isCEO(roles) || isCFO(roles);
+  
+  // Route map data hook for CXO
+  const { data: routeMapData, isLoading: routeMapLoading, error: routeMapError, refetch: refetchRouteMap } = useRouteMapData(
+    routeMapFilters,
+    { enabled: isCXOUser && activeTab === 'recent-routes' && !!routeMapFilters.date }
+  );
   
   // Get current date string (memoized to avoid unnecessary recalculations)
   const currentDateStr = useMemo(() => {
@@ -2389,10 +2415,141 @@ const DeliveryExecutivePage = () => {
 
       {/* Main Content */}
       <div className="pt-16 sm:pt-18">
+        {/* Sidebar Navigation for CXO Users */}
+        {isCXOUser && (
+          <div className="fixed left-0 top-16 sm:top-18 w-64 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 z-30 shadow-sm">
+            <div className="p-4 h-full flex flex-col">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 px-2">Navigation</h2>
+              <nav className="space-y-2 flex-1">
+                <button
+                  onClick={() => {
+                    setActiveTab('routes');
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${
+                    activeTab === 'routes'
+                      ? 'bg-blue-50 text-blue-700 font-semibold border-l-4 border-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <FiMapPin className="w-5 h-5" />
+                  <span>My Routes</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('recent-routes');
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${
+                    activeTab === 'recent-routes'
+                      ? 'bg-blue-50 text-blue-700 font-semibold border-l-4 border-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <MdLocalShipping className="w-5 h-5" />
+                  <span>Recent Routes</span>
+                </button>
+              </nav>
+            </div>
+          </div>
+        )}
+
         {/* Dashboard Content - Full Width */}
-        <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto">
+        <div className={`px-4 sm:px-6 py-6 max-w-7xl mx-auto ${isCXOUser ? 'ml-64' : ''}`}>
 
+          {/* Recent Routes Tab Content for CXO */}
+          {isCXOUser && activeTab === 'recent-routes' && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 sm:p-8 text-white shadow-lg">
+                <h2 className="text-2xl sm:text-3xl font-bold mb-2">Recent Routes Overview</h2>
+                <p className="text-blue-50 text-sm sm:text-base">View and analyze recent delivery routes</p>
+              </div>
 
+              {/* Filters */}
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                    <input
+                      type="date"
+                      value={routeMapFilters.date}
+                      onChange={(e) => setRouteMapFilters(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Session</label>
+                    <select
+                      value={routeMapFilters.session}
+                      onChange={(e) => setRouteMapFilters(prev => ({ ...prev, session: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">All Sessions</option>
+                      <option value="BREAKFAST">Breakfast</option>
+                      <option value="LUNCH">Lunch</option>
+                      <option value="DINNER">Dinner</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Executives</label>
+                    <select
+                      value={routeMapFilters.driver_name}
+                      onChange={(e) => setRouteMapFilters(prev => ({ ...prev, driver_name: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">All Executives</option>
+                      {(() => {
+                        // Extract unique driver names from route data
+                        if (!routeMapData?.routes) return null;
+                        const uniqueDrivers = [...new Set(
+                          routeMapData.routes
+                            .map(route => route.driver_name)
+                            .filter(name => name && name !== 'Unknown')
+                        )].sort();
+                        
+                        return uniqueDrivers.map((driverName, index) => (
+                          <option key={index} value={driverName}>
+                            {driverName}
+                          </option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => refetchRouteMap()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Refresh Data
+                  </button>
+                  <button
+                    onClick={() => setRouteMapFilters({
+                      date: new Date().toISOString().split('T')[0],
+                      session: '',
+                      route_id: '',
+                      driver_name: ''
+                    })}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+
+              {/* Route Data Display - Using Separate Component */}
+              <RecentRoutesView
+                routeMapData={routeMapData}
+                routeMapLoading={routeMapLoading}
+                routeMapError={routeMapError}
+                routeMapFilters={routeMapFilters}
+                setRouteMapFilters={setRouteMapFilters}
+                refetchRouteMap={refetchRouteMap}
+              />
+            </div>
+          )}
 
           {/* Routes Tab Content */}
           {activeTab === 'routes' && (

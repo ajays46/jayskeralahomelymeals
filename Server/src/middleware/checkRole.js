@@ -20,6 +20,11 @@ export const checkRole = (...allowedRoles) => {
       // Support multiple roles (comma-separated string in token)
       const userRoles = req.user.role.split(',').map(role => role.trim());
 
+      // 🔥 CXO (CEO/CFO) has full access to all routes
+      if (userRoles.includes('CEO') || userRoles.includes('CFO')) {
+        return next();
+      }
+
       const hasPermission = userRoles.some(role => allowedRoles.includes(role));
 
       if (!hasPermission) {
