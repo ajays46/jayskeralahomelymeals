@@ -37,7 +37,8 @@ import {
   updateDeliveryComment,
   getLiveVehicleTracking,
   getCoordinatorSettings,
-  updateCoordinatorSettings
+  updateCoordinatorSettings,
+  getRouteMapData
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();
@@ -109,6 +110,8 @@ router.put('/delivery_data/:deliveryId/comments', checkRole('DELIVERY_MANAGER'),
 // Coordinator settings - DELIVERY_MANAGER only
 router.get('/coordinator/settings', checkRole('DELIVERY_MANAGER'), getCoordinatorSettings);
 router.put('/coordinator/settings', checkRole('DELIVERY_MANAGER'), updateCoordinatorSettings);
+// Route map data for CXO - CEO, CFO only
+router.get('/route/map-data', checkRole('CEO', 'CFO'), getRouteMapData);
 
 export default router;
 

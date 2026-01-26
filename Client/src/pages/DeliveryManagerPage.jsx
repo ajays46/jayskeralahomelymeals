@@ -3854,8 +3854,8 @@ const DeliveryManagerPage = () => {
                                           <div className="flex items-center">
                                             <div className="flex-shrink-0 h-8 w-8">
                                               <div className={`h-8 w-8 rounded-full flex items-center justify-center shadow-lg ${
-                                                item.session === 'Breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
-                                                item.session === 'Lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                                                item.session?.toLowerCase() === 'breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
+                                                item.session?.toLowerCase() === 'lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
                                                 'bg-gradient-to-br from-purple-400 to-purple-600'
                                               }`}>
                                                 <span className="text-white text-xs font-bold">
@@ -3889,8 +3889,8 @@ const DeliveryManagerPage = () => {
                                         {/* Session */}
                                         <td className="px-4 py-3 whitespace-nowrap text-center">
                                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                            item.session === 'Breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
-                                            item.session === 'Lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                            item.session?.toLowerCase() === 'breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                                            item.session?.toLowerCase() === 'lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
                                             'bg-purple-100 text-purple-800 border border-purple-200'
                                           }`}>
                                             {item.session || 'Unknown'}
@@ -4044,8 +4044,8 @@ const DeliveryManagerPage = () => {
                                     <div className="flex items-center justify-between mb-3">
                                       <div className="flex items-center">
                                         <div className={`h-10 w-10 rounded-full flex items-center justify-center shadow-lg ${
-                                          item.session === 'Breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
-                                          item.session === 'Lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                                          item.session?.toLowerCase() === 'breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
+                                          item.session?.toLowerCase() === 'lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
                                           'bg-gradient-to-br from-purple-400 to-purple-600'
                                         }`}>
                                           <span className="text-white text-sm font-bold">
@@ -4087,8 +4087,8 @@ const DeliveryManagerPage = () => {
                                       <div>
                                         <div className="text-gray-400 mb-1">🍽️ Session</div>
                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                          item.session === 'Breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
-                                          item.session === 'Lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                          item.session?.toLowerCase() === 'breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                                          item.session?.toLowerCase() === 'lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
                                           'bg-purple-100 text-purple-800 border border-purple-200'
                                         }`}>
                                           {item.session || 'Unknown'}

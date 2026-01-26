@@ -36,6 +36,8 @@ import {
   updateDeliveryCommentService,
   getCoordinatorSettingsService,
   updateCoordinatorSettingsService
+  getRouteMapDataService,
+  getDriversFromRouteMapDataService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import prisma from '../config/prisma.js';
@@ -1473,6 +1475,33 @@ export const updateCoordinatorSettings = async (req, res, next) => {
     logError(LOG_CATEGORIES.SYSTEM, 'Update Coordinator settings failed', {
       error: error.message,
       updates: req.body
+ * Get Route Map Data for CXO
+ * Fetches route data for a specific date, session, and optionally route_id
+ */
+export const getRouteMapData = async (req, res, next) => {
+  try {
+    const { date, session, route_id, driver_name } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'date query parameter is required'
+      });
+    }
+    
+    const result = await getRouteMapDataService({ date, session, route_id, driver_name });
+    
+    res.status(200).json({
+      success: true,
+      ...result.data
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route map data failed', {
+      error: error.message,
+      date: req.query?.date,
+      session: req.query?.session,
+      route_id: req.query?.route_id,
+      driver_name: req.query?.driver_name
     });
     next(error);
   }
