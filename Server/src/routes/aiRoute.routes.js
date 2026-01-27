@@ -31,7 +31,7 @@ import {
   checkTraffic,
   getRouteOrder,
   getRouteStatusFromActualStops,
-  updateDeliveryComment
+  updateDeliveryComment,
   getLiveVehicleTracking
 } from '../controllers/aiRoute.controller.js';
 

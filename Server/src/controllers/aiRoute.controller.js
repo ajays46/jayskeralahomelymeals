@@ -30,7 +30,7 @@ import {
   checkTrafficService,
   getRouteOrderService,
   getRouteStatusFromActualStopsService,
-  updateDeliveryCommentService
+  updateDeliveryCommentService,
   getLiveVehicleTrackingService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
