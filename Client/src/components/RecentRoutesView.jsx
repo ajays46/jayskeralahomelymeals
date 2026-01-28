@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MdLocalShipping, MdExpandMore, MdExpandLess } from 'react-icons/md';
+import { MdLocalShipping, MdExpandMore, MdExpandLess, MdPerson } from 'react-icons/md';
 import { SkeletonLoading } from './Skeleton';
 
 // Fix for default marker icons in Leaflet with React
@@ -13,181 +13,297 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+// Normalize executive from active-executives API (id, name)
+const normalizeExecutive = (e) => {
+  const id = e.id ?? e.driver_id ?? e.userId;
+  const name = e.name ?? e.driver_name ?? (e.firstName || e.lastName ? [e.firstName, e.lastName].filter(Boolean).join(' ') : null) ?? 'Unknown';
+  return { id, name };
+};
+
 /**
- * RecentRoutesView - Component for displaying recent routes with map visualization
- * Features: Interactive map, route filtering, session-based color coding, stop markers
+ * RecentRoutesView - CXO workflow: show delivery executives from route map response, then click one to view route details.
+ * - Executives list comes only from the route map API response (who had routes on the selected date/session).
+ * - No DB list: select date (and optional session) to load route data; executives shown are those in that response.
+ * - Click executive: show map + table for that executive's routes only.
  */
-const RecentRoutesView = ({ 
-  routeMapData, 
-  routeMapLoading, 
-  routeMapError, 
-  routeMapFilters, 
-  setRouteMapFilters, 
-  refetchRouteMap 
+const RecentRoutesView = ({
+  allExecutives = [],
+  allExecutivesLoading = false,
+  routeMapData,
+  routeMapLoading,
+  routeMapError,
+  routeMapFilters,
+  setRouteMapFilters,
+  refetchRouteMap
 }) => {
-  // State to track expanded delivery names for each route
   const [expandedRoutes, setExpandedRoutes] = useState(new Set());
-  
-  // Pagination state
+  const [selectedExecutiveId, setSelectedExecutiveId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [tableStatusFilter, setTableStatusFilter] = useState('all'); // 'all' | 'delivered' | 'pending' | 'partial'
+  const [tableDeliveryNameFilter, setTableDeliveryNameFilter] = useState('');
+  const [showMap, setShowMap] = useState(false); // Map closed by default; Open/Close toggle
 
-  // Session colors
   const sessionColors = {
     BREAKFAST: '#FF6B6B',
     LUNCH: '#4ECDC4',
     DINNER: '#45B7D1'
   };
 
-  // Toggle expanded state for a route
   const toggleRouteExpansion = (routeId) => {
     setExpandedRoutes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(routeId)) {
-        newSet.delete(routeId);
-      } else {
-        newSet.add(routeId);
-      }
-      return newSet;
+      const next = new Set(prev);
+      if (next.has(routeId)) next.delete(routeId);
+      else next.add(routeId);
+      return next;
     });
   };
 
-  // Extract routes from data
+  // All routes from API (route map response)
   const routes = useMemo(() => {
     if (!routeMapData) return [];
-    
-    // The API returns routes directly at the top level
-    if (Array.isArray(routeMapData.routes)) {
-      return routeMapData.routes;
-    }
-    
-    // Fallback for nested structure
+    if (Array.isArray(routeMapData.routes)) return routeMapData.routes;
     if (routeMapData.data?.routes) {
-      return Array.isArray(routeMapData.data.routes) 
-        ? routeMapData.data.routes 
-        : routeMapData.data.routes?.routes || [];
+      const r = routeMapData.data.routes;
+      return Array.isArray(r) ? r : r?.routes || [];
     }
-    
     return [];
   }, [routeMapData]);
 
-  // Calculate map center from all route points
-  const mapCenter = useMemo(() => {
-    const allPoints = routes.flatMap(route => 
-      route.path_points?.map(p => [p.latitude, p.longitude]) || 
-      route.stops?.map(s => [s.latitude, s.longitude]) || []
-    );
-
-    if (allPoints.length === 0) {
-      return [10.0, 76.3]; // Default center (Kerala, India)
-    }
-
-    const centerLat = allPoints.reduce((sum, p) => sum + p[0], 0) / allPoints.length;
-    const centerLng = allPoints.reduce((sum, p) => sum + p[1], 0) / allPoints.length;
-    
-    return [centerLat, centerLng];
+  // Show only delivery executives from the route map response (who had routes on the selected date/session)
+  const executivesToShow = useMemo(() => {
+    const seen = new Set();
+    return routes
+      .filter((r) => {
+        const id = r.driver_id;
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map((r) => normalizeExecutive({ driver_id: r.driver_id, driver_name: r.driver_name }));
   }, [routes]);
 
-  // Pagination calculations
-  const totalPages = Math.ceil(routes.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedRoutes = routes.slice(startIndex, endIndex);
+  // All shown executives come from route data, so all are clickable when we have routes
+  const executiveIdsWithRoutes = useMemo(() => new Set(executivesToShow.map((e) => e.id)), [executivesToShow]);
 
-  // Reset to page 1 when routes change
+  // Routes to display: when an executive is selected, filter to that executive only
+  const routesToDisplay = useMemo(() => {
+    if (!selectedExecutiveId) return [];
+    return routes.filter(r => r.driver_id === selectedExecutiveId);
+  }, [routes, selectedExecutiveId]);
+
+  const mapCenter = useMemo(() => {
+    const allPoints = routesToDisplay.flatMap(route =>
+      route.path_points?.map(p => [p.latitude, p.longitude]) ||
+      route.stops?.map(s => [s.latitude, s.longitude]) || []
+    );
+    if (allPoints.length === 0) return [10.0, 76.3];
+    const centerLat = allPoints.reduce((sum, p) => sum + p[0], 0) / allPoints.length;
+    const centerLng = allPoints.reduce((sum, p) => sum + p[1], 0) / allPoints.length;
+    return [centerLat, centerLng];
+  }, [routesToDisplay]);
+
+  // Filter routes by Status and Delivery Name for the table
+  const filteredRoutesForTable = useMemo(() => {
+    const nameTerm = (tableDeliveryNameFilter || '').trim().toLowerCase();
+    if (tableStatusFilter === 'all' && !nameTerm) return routesToDisplay;
+    return routesToDisplay.filter((route) => {
+      const totalStops = route.stops?.length || 0;
+      const deliveredCount = route.stops?.filter(s => s.delivery_status === 'delivered').length || 0;
+      const pendingCount = route.stops?.filter(s => s.delivery_status === 'pending').length || 0;
+      const statusMatch =
+        tableStatusFilter === 'all' ||
+        (tableStatusFilter === 'delivered' && deliveredCount === totalStops && totalStops > 0) ||
+        (tableStatusFilter === 'pending' && pendingCount === totalStops && totalStops > 0) ||
+        (tableStatusFilter === 'partial' && deliveredCount > 0 && pendingCount > 0);
+      const nameMatch =
+        !nameTerm ||
+        (route.stops || []).some((s) => (s.delivery_name || '').toLowerCase().includes(nameTerm));
+      return statusMatch && nameMatch;
+    });
+  }, [routesToDisplay, tableStatusFilter, tableDeliveryNameFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRoutesForTable.length / itemsPerPage));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const startIndex = (effectivePage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRoutes = filteredRoutesForTable.slice(startIndex, endIndex);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [routes.length]);
+  }, [filteredRoutesForTable.length, selectedExecutiveId]);
 
-  // Pagination handlers
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-
   const goToPrevious = () => goToPage(currentPage - 1);
   const goToNext = () => goToPage(currentPage + 1);
 
-  if (routeMapLoading) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
-        <SkeletonLoading />
-      </div>
-    );
-  }
+  const hasDate = !!routeMapFilters?.date;
+  const showFilteredExecutives = hasDate && routeMapData?.routes?.length > 0;
 
-  if (routeMapError) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-        <p className="text-red-700 font-medium">Error loading route data: {routeMapError.message}</p>
-      </div>
-    );
-  }
-
-  if (!routeMapData || routes.length === 0) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 text-center">
-        <MdLocalShipping className="text-4xl text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-500 font-medium">No route data available. Please select a date and try again.</p>
-      </div>
-    );
-  }
+  // Clear selected executive when date or session changes so we don't show stale route details
+  useEffect(() => {
+    setSelectedExecutiveId(null);
+  }, [routeMapFilters?.date, routeMapFilters?.session]);
 
   return (
-    <div className="space-y-4">
-      {/* Summary Card */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Route Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Total Routes</p>
-            <p className="text-2xl font-bold text-blue-700">{routes.length}</p>
-          </div>
-          <div className="bg-green-50 rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Date</p>
-            <p className="text-lg font-semibold text-green-700">{routeMapFilters.date}</p>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Session</p>
-            <p className="text-lg font-semibold text-purple-700">
-              {routeMapFilters.session || routeMapData.session || 'All Sessions'}
+    <div className="space-y-5">
+      {/* 1. Delivery Executives */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900">Delivery Executives</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            {!hasDate
+              ? 'Select a date above, then click an executive to view route details.'
+              : showFilteredExecutives
+                ? `For ${routeMapFilters.date}${routeMapFilters.session ? ` (${routeMapFilters.session})` : ''}, click an executive to view route details.`
+                : routeMapLoading
+                  ? 'Loading routes…'
+                  : 'No routes for this date/session.'}
+          </p>
+        </div>
+        <div className="p-5">
+          {hasDate && routeMapLoading ? (
+            <div className="flex items-center gap-2 text-gray-500 py-6">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+              <span className="text-sm">Loading route data…</span>
+            </div>
+          ) : executivesToShow.length === 0 ? (
+            <p className="py-6 text-sm text-gray-500">
+              {hasDate ? 'No routes for this date/session.' : 'Select a date (and optional session) to see executives with routes.'}
             </p>
-          </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {executivesToShow.map((ex) => {
+                const isSelected = selectedExecutiveId === ex.id;
+                const hasRoutesToday = executiveIdsWithRoutes.has(ex.id);
+                const canSelect = showFilteredExecutives && hasRoutesToday;
+                return (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => canSelect && setSelectedExecutiveId(isSelected ? null : ex.id)}
+                    className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium ${
+                      canSelect
+                        ? isSelected
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50'
+                        : 'cursor-default border-gray-200 bg-gray-50 text-gray-400'
+                    }`}
+                    title={!hasRoutesToday && showFilteredExecutives ? 'No routes on selected date' : hasRoutesToday ? 'View route details' : ''}
+                  >
+                    <MdPerson className="h-4 w-4 shrink-0" />
+                    {ex.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Interactive Map */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-2">
-          <h3 className="text-lg font-semibold text-gray-900">Route Map Visualization</h3>
-          <div className="flex gap-2 flex-wrap">
-            {Object.entries(sessionColors).map(([session, color]) => {
-              const sessionRoutes = routes.filter(r => r.session === session);
-              if (sessionRoutes.length === 0) return null;
-              return (
-                <div key={session} className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-lg">
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }}></div>
-                  <span className="text-xs font-medium text-gray-700">{session} ({sessionRoutes.length})</span>
-                </div>
-              );
-            })}
-          </div>
+      {/* 2. Route error */}
+      {routeMapError && hasDate && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4">
+          <p className="text-sm font-medium text-red-700">Error loading route data: {routeMapError.message}</p>
         </div>
-        <div className="h-[600px] w-full relative">
-          <MapContainer
-            center={mapCenter}
-            zoom={12}
-            style={{ height: '100%', width: '100%', zIndex: 1 }}
-            scrollWheelZoom={true}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            
-            {routes.map((route, routeIndex) => {
+      )}
+
+      {/* 3. Route details — only when an executive is selected */}
+      {!selectedExecutiveId ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-16 text-center shadow-sm">
+          <MdLocalShipping className="mb-3 h-12 w-12 text-gray-300" />
+          <p className="text-sm font-medium text-gray-500">
+            {hasDate && showFilteredExecutives
+              ? 'Select an executive above to view their route details.'
+              : 'Select a date, then an executive, to view route details.'}
+          </p>
+        </div>
+      ) : routeMapLoading ? (
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <SkeletonLoading />
+        </div>
+      ) : routesToDisplay.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-16 text-center shadow-sm">
+          <MdLocalShipping className="mb-3 h-12 w-12 text-gray-300" />
+          <p className="text-sm font-medium text-gray-500">No routes for this executive on the selected date/session.</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {/* Summary for selected executive */}
+          <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-4">
+              <h2 className="text-base font-semibold text-gray-900">
+                Route summary — {executivesToShow.find(e => e.id === selectedExecutiveId)?.name ?? 'Executive'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setSelectedExecutiveId(null)}
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 focus:outline-none"
+              >
+                Clear selection
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-3">
+              <div className="rounded-md border border-gray-100 bg-gray-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Total Routes</p>
+                <p className="mt-1 text-xl font-semibold text-gray-900">{routesToDisplay.length}</p>
+              </div>
+              <div className="rounded-md border border-gray-100 bg-gray-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Date</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">{routeMapFilters.date}</p>
+              </div>
+              <div className="rounded-md border border-gray-100 bg-gray-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Session</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {routeMapFilters.session || routeMapData?.session || 'All Sessions'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Map – collapsible, closed by default */}
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-5 py-4">
+              <h2 className="text-base font-semibold text-gray-900">Route Map</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                {Object.entries(sessionColors).map(([session, color]) => {
+                  const sessionRoutes = routesToDisplay.filter(r => r.session === session);
+                  if (sessionRoutes.length === 0) return null;
+                  return (
+                    <span key={session} className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                      {session} ({sessionRoutes.length})
+                    </span>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setShowMap((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-3 py-1.5 text-sm font-medium text-orange-700 hover:bg-orange-100 focus:outline-none"
+                >
+                  {showMap ? <MdExpandLess className="text-lg" /> : <MdExpandMore className="text-lg" />}
+                  {showMap ? 'Close map' : 'Open map'}
+                </button>
+              </div>
+            </div>
+            {showMap && (
+            <div className="h-[600px] w-full">
+              <MapContainer
+                center={mapCenter}
+                zoom={12}
+                style={{ height: '100%', width: '100%', zIndex: 1 }}
+                scrollWheelZoom={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {routesToDisplay.map((route, routeIndex) => {
               const routeColor = sessionColors[route.session] || '#666';
               const pathPoints = route.path_points?.map(p => [p.latitude, p.longitude]) || [];
               
@@ -256,38 +372,67 @@ const RecentRoutesView = ({
             })}
           </MapContainer>
         </div>
+            )}
       </div>
 
       {/* Routes Details Table */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Routes Details</h3>
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-200 px-5 py-4">
+          <h2 className="text-base font-semibold text-gray-900">Routes Details</h2>
+          {/* Filters above table */}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label htmlFor="table-status-filter" className="text-sm font-medium text-gray-700">Status</label>
+              <select
+                id="table-status-filter"
+                value={tableStatusFilter}
+                onChange={(e) => { setTableStatusFilter(e.target.value); setCurrentPage(1); }}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 min-w-[140px]"
+              >
+                <option value="all">All</option>
+                <option value="delivered">Delivered</option>
+                <option value="pending">Pending</option>
+                <option value="partial">Partial</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="table-delivery-name-filter" className="text-sm font-medium text-gray-700">Delivery Name</label>
+              <input
+                id="table-delivery-name-filter"
+                type="text"
+                value={tableDeliveryNameFilter}
+                onChange={(e) => { setTableDeliveryNameFilter(e.target.value); setCurrentPage(1); }}
+                placeholder="Search by delivery name"
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 placeholder-gray-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 min-w-[180px]"
+              />
+            </div>
+            {(tableStatusFilter !== 'all' || (tableDeliveryNameFilter || '').trim()) && (
+              <button
+                type="button"
+                onClick={() => { setTableStatusFilter('all'); setTableDeliveryNameFilter(''); setCurrentPage(1); }}
+                className="text-sm font-medium text-orange-600 hover:text-orange-700"
+              >
+                Clear filters
+              </button>
+            )}
+            <span className="text-sm text-gray-500 ml-auto">
+              Showing {filteredRoutesForTable.length} of {routesToDisplay.length} route{routesToDisplay.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Session
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Delivery Executive
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Stops
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Delivered
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Path Points
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Delivery Names
-                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Session</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Delivery Executive</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Total Stops</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Delivered</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Path Points</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Delivery Names</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {paginatedRoutes.map((route, index) => {
                 const actualIndex = startIndex + index;
                 const sessionColor = sessionColors[route.session] || '#666';
@@ -297,22 +442,18 @@ const RecentRoutesView = ({
                 const completionRate = totalStops > 0 ? Math.round((deliveredCount / totalStops) * 100) : 0;
                 
                 return (
-                  <tr key={route.route_id || actualIndex} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <tr key={route.route_id || actualIndex} className="transition-colors hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: sessionColor }}></div>
+                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: sessionColor }} />
                         <span className="text-sm font-medium text-gray-900">{route.session}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {route.driver_name || route.driver_id?.slice(-12) || 'Unknown'}
-                      </div>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                      {route.driver_name || route.driver_id?.slice(-12) || 'Unknown'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-gray-900">{totalStops}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">{totalStops}</td>
+                    <td className="whitespace-nowrap px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[100px]">
                           <div 
@@ -338,10 +479,8 @@ const RecentRoutesView = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">{route.path_points?.length || 0}</div>
-                    </td>
-                    <td className="px-6 py-4">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{route.path_points?.length || 0}</td>
+                    <td className="px-4 py-3">
                       <div className="max-w-md">
                         {route.stops && route.stops.length > 0 ? (
                           <div>
@@ -408,106 +547,100 @@ const RecentRoutesView = ({
               })}
             </tbody>
           </table>
-          {routes.length === 0 && (
+          {filteredRoutesForTable.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500">No routes found for the selected filters.</p>
+              <p className="text-gray-500">
+                {routesToDisplay.length === 0
+                  ? 'No routes for this executive.'
+                  : 'No routes match the current filters. Try changing Status or Delivery Name.'}
+              </p>
             </div>
           )}
         </div>
-        
-        {/* Pagination Controls */}
-        {routes.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-700">Show</span>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="5">5</option>
-                  <option value="10">10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-                <span className="text-sm text-gray-700">entries</span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-700">
-                  Showing {startIndex + 1} to {Math.min(endIndex, routes.length)} of {routes.length} routes
-                </span>
-              </div>
-              
+
+        {/* Pagination */}
+        {filteredRoutesForTable.length > 0 && (
+          <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-200 bg-gray-50 px-5 py-4 sm:flex-row">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Show</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="rounded-md border border-gray-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span className="text-sm text-gray-700">entries</span>
+            </div>
+            <div className="text-sm text-gray-700">
+              Showing {startIndex + 1}–{Math.min(endIndex, filteredRoutesForTable.length)} of {filteredRoutesForTable.length}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={goToPrevious}
+                disabled={effectivePage === 1}
+                className={`rounded-md border px-3 py-1.5 text-sm font-medium ${
+                  effectivePage === 1
+                    ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Previous
+              </button>
+                
               <div className="flex items-center gap-1">
-                <button
-                  onClick={goToPrevious}
-                  disabled={currentPage === 1}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    currentPage === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  Previous
-                </button>
-                
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                    // Show first page, last page, current page, and pages around current
-                    if (
-                      page === 1 ||
-                      page === totalPages ||
-                      (page >= currentPage - 1 && page <= currentPage + 1)
-                    ) {
-                      return (
-                        <button
-                          key={page}
-                          onClick={() => goToPage(page)}
-                          className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                            currentPage === page
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      );
-                    } else if (
-                      page === currentPage - 2 ||
-                      page === currentPage + 2
-                    ) {
-                      return (
-                        <span key={page} className="px-2 text-gray-500">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
-                  })}
-                </div>
-                
-                <button
-                  onClick={goToNext}
-                  disabled={currentPage === totalPages}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    currentPage === totalPages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  Next
-                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= effectivePage - 1 && page <= effectivePage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => goToPage(page)}
+                        className={`min-w-[2.25rem] rounded-md border px-2.5 py-1.5 text-sm font-medium ${
+                          effectivePage === page
+                            ? 'border-blue-600 bg-blue-600 text-white'
+                            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  } else if (page === effectivePage - 2 || page === effectivePage + 2) {
+                    return <span key={page} className="px-2 text-sm text-gray-500">…</span>;
+                  }
+                  return null;
+                })}
               </div>
+              <button
+                type="button"
+                onClick={goToNext}
+                disabled={effectivePage === totalPages}
+                className={`rounded-md border px-3 py-1.5 text-sm font-medium ${
+                  effectivePage === totalPages
+                    ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Next
+              </button>
             </div>
           </div>
         )}
       </div>
+        </div>
+      )}
     </div>
   );
 };

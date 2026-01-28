@@ -1192,9 +1192,10 @@ export const getSellersWithOrders = async (req, res, next) => {
     }
 };
 
-// Get delivery executives
+// Get delivery executives (all from DB; names from Contact when available)
 export const getDeliveryExecutives = async (req, res, next) => {
     try {
+        // Get all users with DELIVERY_EXECUTIVE role from DB, include contacts for names
         // Super admin (companyId === null) sees all; company admin sees only their company's executives
         const where = req.adminCompanyId != null
             ? { companyId: req.adminCompanyId }
@@ -1204,35 +1205,44 @@ export const getDeliveryExecutives = async (req, res, next) => {
             include: {
                 auth: true,
                 userRoles: true,
-                company: true
+                company: true,
+                contacts: { take: 1 }
             },
             orderBy: {
                 createdAt: 'desc'
             }
         });
 
-        // Filter only delivery executives with valid auth records
+        // Filter to users who have DELIVERY_EXECUTIVE in userRoles (allow multiple roles)
         const deliveryExecutives = executives
             .filter(user => {
-                // Only include users with valid auth records and DELIVERY_EXECUTIVE role
                 if (!user.auth || !user.auth.email) return false;
-                const userRole = user.userRoles[0]?.name;
-                return userRole === 'DELIVERY_EXECUTIVE';
+                const hasDeliveryRole = (user.userRoles || []).some(r => r.name === 'DELIVERY_EXECUTIVE');
+                return hasDeliveryRole;
             })
-            .map(executive => ({
-                id: executive.id,
-                name: executive.auth.email.split('@')[0],
-                email: executive.auth.email,
-                phoneNumber: executive.auth.phoneNumber || 'No phone',
-                role: executive.userRoles[0]?.name || 'DELIVERY_EXECUTIVE',
-                companyName: executive.company?.name || 'No Company',
-                companyId: executive.companyId,
-                status: executive.status,
-                currentStatus: 'Available', // You might want to track this separately
-                joinedDate: executive.createdAt,
-                lastActive: executive.updatedAt || executive.createdAt,
-                createdAt: executive.createdAt
-            }));
+            .map(executive => {
+                // Name from Contact (firstName + lastName) when available, else email prefix
+                let name = executive.auth.email.split('@')[0];
+                if (executive.contacts && executive.contacts.length > 0) {
+                    const c = executive.contacts[0];
+                    const fullName = [c.firstName, c.lastName].filter(Boolean).join(' ').trim();
+                    if (fullName) name = fullName;
+                }
+                return {
+                    id: executive.id,
+                    name,
+                    email: executive.auth.email,
+                    phoneNumber: executive.auth.phoneNumber || 'No phone',
+                    role: (executive.userRoles || []).find(r => r.name === 'DELIVERY_EXECUTIVE')?.name || 'DELIVERY_EXECUTIVE',
+                    companyName: executive.company?.name || 'No Company',
+                    companyId: executive.companyId,
+                    status: executive.status,
+                    currentStatus: 'Available',
+                    joinedDate: executive.createdAt,
+                    lastActive: executive.updatedAt || executive.createdAt,
+                    createdAt: executive.createdAt
+                };
+            });
 
         res.status(200).json({
             status: 'success',
