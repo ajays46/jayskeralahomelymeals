@@ -3247,18 +3247,36 @@ const DeliveryExecutivePage = () => {
                                     {/* Action Buttons - Swiggy Style */}
                                     <div className="mt-4">
                                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-                                        {/* Map Button */}
-                                        {stop.Map_Link && (
-                                          <a
-                                            href={stop.Map_Link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                        {/* Map Button - use Directions API with destination=lat,lng so each stop opens correct location */}
+                                        {(stop.Map_Link || (stop.Latitude != null && stop.Longitude != null)) && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const lat = stop.latitude ?? stop.Latitude;
+                                              const lng = stop.longitude ?? stop.Longitude;
+                                              const stopOrder = stop.stop_order ?? stop.Stop_No ?? index + 1;
+
+                                              if (lat != null && lng != null && (lat !== 0 || lng !== 0)) {
+                                                const navigationUrl =
+                                                  `https://www.google.com/maps/dir/?api=1` +
+                                                  `&destination=${lat},${lng}` +
+                                                  `&travelmode=driving` +
+                                                  `&stop=${stopOrder}` +
+                                                  `&t=${Date.now()}`;
+                                                window.open(navigationUrl, '_blank', 'noopener,noreferrer');
+                                              } else if (stop.Map_Link) {
+                                                const base = stop.Map_Link;
+                                                const sep = base.includes('?') ? '&' : '?';
+                                                const uniqueUrl = `${base}${sep}stop=${encodeURIComponent(stopOrder)}&t=${Date.now()}`;
+                                                window.open(uniqueUrl, '_blank', 'noopener,noreferrer');
+                                              }
+                                            }}
                                             className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all text-xs sm:text-sm"
-                                            title="Opens Google Maps with directions"
+                                            title="Opens Google Maps with directions to this stop"
                                           >
                                             <FiMapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                                             <span className="truncate">Map</span>
-                                          </a>
+                                          </button>
                                         )}
                                         
                                         {/* Mark as Reached Button */}
@@ -3752,7 +3770,7 @@ const DeliveryExecutivePage = () => {
                                   </div>
                                 </div>
                                 <a
-                                  href={routes.sessions[selectedSession].route_map_link || routes.sessions[selectedSession].map_link}
+                                  href='https://maps.app.goo.gl/Lb39YMjpLvxpHRPS9'
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg"
