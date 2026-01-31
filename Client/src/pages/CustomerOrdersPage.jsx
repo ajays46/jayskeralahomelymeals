@@ -128,9 +128,9 @@ const CustomerOrdersPage = () => {
   const applyFilters = () => {
     let filtered = [...orders];
 
-    // Status filter
+    // Status filter (case-insensitive for API variations)
     if (filters.status !== 'all') {
-      filtered = filtered.filter(order => order.status === filters.status);
+      filtered = filtered.filter(order => (order.status?.toLowerCase() === filters.status?.toLowerCase()));
     }
 
     // Date preset filter
@@ -267,14 +267,14 @@ const CustomerOrdersPage = () => {
     const filters = deliveryItemFilters[orderId];
     let filtered = [...deliveryItems];
 
-    // Status filter
+    // Status filter (case-insensitive for API variations)
     if (filters.status && filters.status !== 'all') {
-      filtered = filtered.filter(item => item.status === filters.status);
+      filtered = filtered.filter(item => (item.status?.toLowerCase() === filters.status?.toLowerCase()));
     }
 
-    // Time slot filter
+    // Time slot filter (case-insensitive so "Breakfast" matches "BREAKFAST", "breakfast", etc.)
     if (filters.timeSlot && filters.timeSlot !== 'all') {
-      filtered = filtered.filter(item => item.deliveryTimeSlot === filters.timeSlot);
+      filtered = filtered.filter(item => (item.deliveryTimeSlot?.toLowerCase() === filters.timeSlot?.toLowerCase()));
     }
 
     // Date preset filter
@@ -835,14 +835,16 @@ const CustomerOrdersPage = () => {
 
   // Get order status color and icon
   const getOrderStatusInfo = (status) => {
-    switch (status) {
-      case 'Payment_Confirmed':
+    const s = status?.toLowerCase();
+    switch (s) {
+      case 'payment_confirmed':
         return { color: 'text-green-600', bgColor: 'bg-green-100', icon: MdCheckCircle, label: 'Payment Confirmed' };
-      case 'In_Progress':
+      case 'in_progress':
         return { color: 'text-blue-600', bgColor: 'bg-blue-100', icon: MdPending, label: 'In Progress' };
-      case 'Completed':
-        return { color: 'text-green-600', bgColor: 'bg-green-100', icon: MdCheckCircle, label: 'Completed' };
-      case 'Cancelled':
+      case 'completed':
+      case 'delivered':
+        return { color: 'text-green-600', bgColor: 'bg-green-100', icon: MdCheckCircle, label: status === 'Delivered' || status === 'DELIVERED' ? 'Delivered' : 'Completed' };
+      case 'cancelled':
         return { color: 'text-red-600', bgColor: 'bg-red-100', icon: MdCancel, label: 'Cancelled' };
       default:
         return { color: 'text-gray-600', bgColor: 'bg-gray-100', icon: MdPending, label: status || 'Unknown' };
@@ -1005,7 +1007,7 @@ const CustomerOrdersPage = () => {
                     <option value="all">All Statuses</option>
                     <option value="Payment_Confirmed">Payment Confirmed</option>
                     <option value="In_Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
+                    <option value="Delivered">Delivered</option>
                     <option value="Cancelled">Cancelled</option>
                   </select>
                 </div>
@@ -1241,7 +1243,7 @@ const CustomerOrdersPage = () => {
                             </button>
                           )}
                           
-                          {order.status !== 'Cancelled' && order.status !== 'Completed' && (
+                          {!['cancelled', 'completed', 'delivered'].includes(order.status?.toLowerCase()) && (
                             <button
                               onClick={() => handleCancelOrder(order.id)}
                               disabled={loading}
@@ -1377,7 +1379,7 @@ const CustomerOrdersPage = () => {
                               </button>
                             )}
                             
-                            {order.status !== 'Cancelled' && order.status !== 'Completed' && (
+                            {!['cancelled', 'completed', 'delivered'].includes(order.status?.toLowerCase()) && (
                               <button
                                 onClick={() => handleCancelOrder(order.id)}
                                 disabled={loading}
@@ -1464,7 +1466,7 @@ const CustomerOrdersPage = () => {
                                     <option value="all">All Statuses</option>
                                     <option value="Pending">Pending</option>
                                     <option value="In_Progress">In Progress</option>
-                                    <option value="Completed">Completed</option>
+                                    <option value="Delivered">Delivered</option>
                                     <option value="Cancelled">Cancelled</option>
                                   </select>
                                 </div>
@@ -1535,8 +1537,8 @@ const CustomerOrdersPage = () => {
                                             </div>
                                           </div>
                                           <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border ${
-                                            item.status === 'Completed' ? 'bg-green-100 text-green-700 border-green-200' :
-                                            item.status === 'Cancelled' ? 'bg-red-100 text-red-700 border-red-200' :
+                                            (item.status?.toLowerCase() === 'completed' || item.status?.toLowerCase() === 'delivered') ? 'bg-green-100 text-green-700 border-green-200' :
+                                            item.status?.toLowerCase() === 'cancelled' ? 'bg-red-100 text-red-700 border-red-200' :
                                             'bg-blue-100 text-blue-700 border-blue-200'
                                           }`}>
                                             {item.status}
@@ -1595,7 +1597,7 @@ const CustomerOrdersPage = () => {
                                         )}
 
                                         {/* Actions */}
-                                        {item.status !== 'Cancelled' && item.status !== 'Completed' && (
+                                        {!['cancelled', 'completed', 'delivered'].includes(item.status?.toLowerCase()) && (
                                           <div className="flex justify-end">
                                             <button
                                               onClick={() => handleCancelDeliveryItem(item.id)}
@@ -1687,13 +1689,13 @@ const CustomerOrdersPage = () => {
                                         </div>
                                         <div className="flex items-center gap-3">
                                           <div className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                                            item.status === 'Completed' ? 'bg-green-100 text-green-700 border-green-200' :
-                                            item.status === 'Cancelled' ? 'bg-red-100 text-red-700 border-red-200' :
+                                            (item.status?.toLowerCase() === 'completed' || item.status?.toLowerCase() === 'delivered') ? 'bg-green-100 text-green-700 border-green-200' :
+                                            item.status?.toLowerCase() === 'cancelled' ? 'bg-red-100 text-red-700 border-red-200' :
                                             'bg-blue-100 text-blue-700 border-blue-200'
                                           }`}>
                                             {item.status}
                                           </div>
-                                          {item.status !== 'Cancelled' && item.status !== 'Completed' && (
+                                          {!['cancelled', 'completed', 'delivered'].includes(item.status?.toLowerCase()) && (
                                             <button
                                               onClick={() => handleCancelDeliveryItem(item.id)}
                                               disabled={loading}

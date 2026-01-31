@@ -263,13 +263,13 @@ const DeliveryManagerPage = () => {
           item.order_id?.toLowerCase().includes(deliveryDataFilters.search.toLowerCase()) ||
           item.menu_item_id?.toLowerCase().includes(deliveryDataFilters.search.toLowerCase());
 
-        // Session filter
+        // Session filter (case-insensitive so "Breakfast" matches "BREAKFAST", "breakfast", etc.)
         const sessionMatch = !deliveryDataFilters.session || 
-          item.session === deliveryDataFilters.session;
+          (item.session?.toLowerCase() === deliveryDataFilters.session?.toLowerCase());
 
-        // Status filter
+        // Status filter (case-insensitive for API variations like "PENDING" vs "Pending")
         const statusMatch = !deliveryDataFilters.status || 
-          item.status === deliveryDataFilters.status;
+          (item.status?.toLowerCase() === deliveryDataFilters.status?.toLowerCase());
 
         // Date filter - check if delivery date matches selected date
         let dateMatch = true;
@@ -1675,8 +1675,8 @@ const DeliveryManagerPage = () => {
     if (!items || items.length === 0) return [];
     
     return items.filter(item => {
-      // Status filter
-      if (filters.status !== 'all' && item.status !== filters.status) {
+      // Status filter (case-insensitive for API variations)
+      if (filters.status !== 'all' && (item.status?.toLowerCase() !== filters.status?.toLowerCase())) {
         return false;
       }
       
@@ -1707,8 +1707,8 @@ const DeliveryManagerPage = () => {
         }
       }
       
-      // Time slot filter
-      if (filters.timeSlot !== 'all' && item.deliveryTimeSlot !== filters.timeSlot) {
+      // Time slot filter (case-insensitive so "Breakfast" matches "BREAKFAST", "breakfast", etc.)
+      if (filters.timeSlot !== 'all' && (item.deliveryTimeSlot?.toLowerCase() !== filters.timeSlot?.toLowerCase())) {
         return false;
       }
       
@@ -3048,7 +3048,7 @@ const DeliveryManagerPage = () => {
                                                 >
                                                   <option value="all">All Status</option>
                                                   <option value="Pending">Pending</option>
-                                                  <option value="Completed">Completed</option>
+                                                  <option value="Delivered">Delivered</option>
                                                   <option value="Cancelled">Cancelled</option>
                                                 </select>
                                               </div>
@@ -3131,11 +3131,11 @@ const DeliveryManagerPage = () => {
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                        item.status === 'Pending' 
+                                                        (item.status?.toLowerCase() === 'pending')
                                                           ? 'bg-yellow-100 text-yellow-800'
-                                                          : item.status === 'Completed'
+                                                          : (item.status?.toLowerCase() === 'completed' || item.status?.toLowerCase() === 'delivered')
                                                           ? 'bg-green-100 text-green-800'
-                                                          : item.status === 'Cancelled'
+                                                          : (item.status?.toLowerCase() === 'cancelled')
                                                           ? 'bg-red-100 text-red-800'
                                                           : 'bg-gray-100 text-gray-800'
                                                       }`}>
@@ -3228,7 +3228,7 @@ const DeliveryManagerPage = () => {
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                       <span className="text-xs text-gray-300">Qty: 2 × ₹150</span>
-                                                      <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-800">Completed</span>
+                                                      <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-800">Delivered</span>
                                                     </div>
                                                   </div>
                                                 </div>
