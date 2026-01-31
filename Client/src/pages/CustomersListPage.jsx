@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { 
   showSuccessToast, 
   showErrorToast, 
@@ -24,7 +24,7 @@ import { useCompanyBasePath } from '../context/TenantContext';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
-import { isDeliveryManager } from '../utils/roleUtils';
+import { isDeliveryManager, isSeller, isCXO, isCEO, isCFO } from '../utils/roleUtils';
 import { getValidDrafts, cleanExpiredDrafts } from '../utils/draftOrderUtils';
 
 // Import optimized components
@@ -581,7 +581,12 @@ const CustomersListPage = () => {
     );
   }
   
-  if (!roles?.includes('SELLER')) {
+  // CXO (CEO/CFO) should not see Customers List — redirect to Seller Dashboard
+  const isCXOUser = isCXO(roles) || isCEO(roles) || isCFO(roles);
+  if (isCXOUser && !isSeller(roles)) {
+    return <Navigate to="/jkhm/seller" replace />;
+  }
+  if (!isSeller(roles)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center">
         <div className="text-center">

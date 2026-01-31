@@ -10,7 +10,7 @@ import HomePage from './pages/HomePage';
 import ProtectedRoute from './protectRoute/Protect';
 import AdminPage from './pages/admin/AdminPage';
 import SellerPage from './pages/SellerPage';
-import DeliveryManagerPage from './pages/DeliveryManagerPage';
+import DeliveryManagerRoute from './pages/DeliveryManagerRoute';
 import RouteComparisonPage from './pages/RouteComparisonPage';
 import RouteViewPage from './pages/RouteViewPage';
 import DeliveryExecutivePage from './pages/DeliveryExecutivePage';
@@ -213,7 +213,7 @@ const App = () => {
               <Route path="customer-orders" element={<CustomerOrdersPage />} />
               <Route path="edit-customer" element={<EditCustomerPage />} />
               <Route path="delivery-items/:orderId" element={<DeliveryItemsPage />} />
-              <Route path="delivery-manager" element={<DeliveryManagerPage />} />
+              <Route path="delivery-manager" element={<DeliveryManagerRoute />} />
               <Route path="route-comparison" element={<RouteComparisonPage />} />
               <Route path="route-view" element={<RouteViewPage />} />
               <Route path="delivery-executive" element={<DeliveryExecutivePage />} />
@@ -222,7 +222,6 @@ const App = () => {
               <Route path="upload-receipt/:paymentId" element={<UploadReceiptPage />} />
               <Route path="role-test" element={<RoleTestPage />} />
             </Route>
-          </Route>
 
           <Route path="/customer-portal" element={<CustomerPortalPage />} />
           <Route path="/customer-password-setup" element={<CustomerPasswordSetupPage />} />
@@ -230,6 +229,7 @@ const App = () => {
           <Route path="/customer-orders" element={<CustomerOrdersPage />} />
 
           <Route path="*" element={<NotFound />} />
+          </Route>
         </Routes>
         
         {/* Footer - Conditionally rendered (hidden on NotFound page) */}

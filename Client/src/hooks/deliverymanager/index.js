@@ -39,3 +39,5 @@ export {
   useCoordinatorSettings,
   useUpdateCoordinatorSettings
 } from './useCoordinator';
+
+export { useAllDeliveryManagersFromDb } from './useAllDeliveryManagersFromDb';

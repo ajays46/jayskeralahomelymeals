@@ -1264,6 +1264,67 @@ export const getDeliveryExecutives = async (req, res, next) => {
     }
 };
 
+// Get delivery managers (all from DB; names from Contact when available) - for CXO view
+export const getDeliveryManagers = async (req, res, next) => {
+    try {
+        const managers = await prisma.user.findMany({
+            include: {
+                auth: true,
+                userRoles: true,
+                company: true,
+                contacts: { take: 1 }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+
+        const deliveryManagers = managers
+            .filter(user => {
+                if (!user.auth || !user.auth.email) return false;
+                return (user.userRoles || []).some(r => r.name === 'DELIVERY_MANAGER');
+            })
+            .map(manager => {
+                let name = manager.auth.email.split('@')[0];
+                if (manager.contacts && manager.contacts.length > 0) {
+                    const c = manager.contacts[0];
+                    const fullName = [c.firstName, c.lastName].filter(Boolean).join(' ').trim();
+                    if (fullName) name = fullName;
+                }
+                return {
+                    id: manager.id,
+                    name,
+                    email: manager.auth.email,
+                    phoneNumber: manager.auth.phoneNumber || 'No phone',
+                    role: 'DELIVERY_MANAGER',
+                    companyName: manager.company?.name || 'No Company',
+                    companyId: manager.companyId,
+                    status: manager.status,
+                    joinedDate: manager.createdAt,
+                    lastActive: manager.updatedAt || manager.createdAt,
+                    createdAt: manager.createdAt
+                };
+            });
+
+        res.status(200).json({
+            status: 'success',
+            data: deliveryManagers,
+            total: deliveryManagers.length,
+            message: `Found ${deliveryManagers.length} delivery managers`
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching delivery managers', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch delivery managers. Please try again.',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
 // Proxy route planning endpoint
 export const proxyRoutePlanning = async (req, res, next) => {
     try {
