@@ -1320,14 +1320,11 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
       }
     });
     
-    // Determine completed sessions (all stops for that session are completed)
-    const completedSessions = Object.keys(sessionStats).filter(
-      session => sessionStats[session].total > 0 && 
-                 sessionStats[session].total === sessionStats[session].completed
-    );
+    // Do NOT auto-complete sessions when all stops are delivered.
+    // Session is completed only when driver explicitly clicks "End Session".
+    const completedSessions = [];
     
-    // Also check route_journey_summary for actual_end_time to confirm session completion
-    // This is the primary source for session completion when "End Session" is clicked
+    // Check route_journey_summary for actual_end_time - only source for session completion
     const journeySummariesQuery = driverId
       ? prisma.$queryRaw`
           SELECT session, actual_end_time
@@ -1347,18 +1344,12 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
     
     const journeySummaries = await journeySummariesQuery;
     
-    // Normalize session names to lowercase for comparison
-    const normalizedCompletedSessions = completedSessions.map(s => s?.toLowerCase());
-    
-    // Add sessions from journey_summary that have actual_end_time
-    // This ensures sessions marked as completed via "End Session" button persist after refresh
+    // Add only sessions that were explicitly ended via "End Session" button
     journeySummaries.forEach(summary => {
       if (summary.session) {
         const normalizedSession = summary.session.toLowerCase();
-        // Check if not already in completed sessions (case-insensitive)
-        if (!normalizedCompletedSessions.includes(normalizedSession)) {
+        if (!completedSessions.map(s => s?.toLowerCase()).includes(normalizedSession)) {
           completedSessions.push(normalizedSession);
-          normalizedCompletedSessions.push(normalizedSession);
         }
       }
     });
