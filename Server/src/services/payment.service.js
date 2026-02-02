@@ -287,6 +287,7 @@ export const createPaymentService = async (userId, paymentData) => {
                         totalPrice: paymentAmount,
                         deliveryAddressId: finalDeliveryAddressId,
                         deliveryNote: parsedOrderData.deliveryNote || null,
+                        orderType: parsedOrderData.orderType === 'SAMPLE' || parsedOrderData.isSample === true ? 'SAMPLE' : null,
                         status: receiptUrl ? 'Payment_Confirmed' : 'Pending' // Status based on receipt availability
                     }
                 });

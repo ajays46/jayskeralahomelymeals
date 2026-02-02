@@ -1150,7 +1150,12 @@ const CustomerOrdersPage = () => {
                               #{order.id.slice(-4)}
                             </div>
                             <div className="min-w-0">
-                              <h3 className="font-bold text-gray-900 text-xs sm:text-sm truncate">Order #{order.id.slice(-8)}</h3>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-bold text-gray-900 text-xs sm:text-sm truncate">Order #{order.id.slice(-8)}</h3>
+                                {order.orderType === 'SAMPLE' && (
+                                  <span className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800 border border-amber-200">Sample</span>
+                                )}
+                              </div>
                               <p className="text-xs text-gray-500 truncate">ID: {order.id.slice(-12)}</p>
                             </div>
                           </div>
@@ -1259,7 +1264,12 @@ const CustomerOrdersPage = () => {
                               #{order.id.slice(-4)}
                             </div>
                             <div className="min-w-0">
-                              <h3 className="font-bold text-gray-900 text-sm truncate">Order #{order.id.slice(-8)}</h3>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-bold text-gray-900 text-sm truncate">Order #{order.id.slice(-8)}</h3>
+                                {order.orderType === 'SAMPLE' && (
+                                  <span className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-800 border border-amber-200">Sample</span>
+                                )}
+                              </div>
                               <p className="text-xs text-gray-500 mt-1">ID: {order.id.slice(-12)}</p>
                             </div>
                           </div>

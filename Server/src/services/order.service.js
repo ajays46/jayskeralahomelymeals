@@ -20,10 +20,12 @@ export const createOrderService = async (orderData) => {
       orderMode,
       menuId,
       menuName,
-      skipMeals
+      skipMeals,
+      orderType,
+      isSample
     } = orderData;
 
-    // Create the order
+    // Create the order (orderType: 'SAMPLE' for sample delivery, null for normal)
     const order = await prisma.order.create({
       data: {
         userId: userId,
@@ -31,6 +33,7 @@ export const createOrderService = async (orderData) => {
         orderTimes: JSON.stringify(orderTimes),
         totalPrice: 0, // Will be calculated later
         deliveryAddressId: deliveryAddressId,
+        orderType: orderType === 'SAMPLE' || isSample === true ? 'SAMPLE' : null,
         status: 'Pending'
       }
     });

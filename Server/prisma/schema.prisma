@@ -215,6 +215,7 @@ model Order {
   totalPrice             Int            @map("total_price")
   deliveryAddressId      String?        @map("delivery_address_id") @db.VarChar(36)
   deliveryNote           String?        @map("delivery_note") @db.Text
+  orderType              String?        @map("order_type") @db.VarChar(50)
   createdAt              DateTime       @default(now()) @map("created_at")
   updatedAt              DateTime       @updatedAt @map("updated_at")
   deliveryAddress        Address?       @relation(fields: [deliveryAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)

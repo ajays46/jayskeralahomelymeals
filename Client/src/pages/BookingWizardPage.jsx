@@ -183,6 +183,7 @@ const BookingWizardPage = () => {
   // Meal skipping state
   const [skipMeals, setSkipMeals] = useState({});
   const [deliveryNote, setDeliveryNote] = useState('');
+  const [isSampleDelivery, setIsSampleDelivery] = useState(false);
   
   // Daily Flexible Plan - Store menu selection for each date
   const [dateMenuSelections, setDateMenuSelections] = useState({});
@@ -1692,6 +1693,18 @@ const BookingWizardPage = () => {
                   onDeliveryNoteChange={setDeliveryNote}
                   isMobile={isMobile}
                 />
+                <div className="mt-4 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="sample-delivery"
+                    checked={isSampleDelivery}
+                    onChange={(e) => setIsSampleDelivery(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <label htmlFor="sample-delivery" className="text-sm font-medium text-gray-700">
+                    This is a sample delivery
+                  </label>
+                </div>
               </div>
             )}
 
@@ -1741,6 +1754,7 @@ const BookingWizardPage = () => {
       orderMode,
       dietaryPreference,
       deliveryNote: deliveryNote || null,
+      isSampleDelivery: isSampleDelivery,
       customerName: selectedUser ? 
         `${selectedUser.contacts?.[0]?.firstName || ''}`.trim() :
         `${user?.contacts?.[0]?.firstName || ''}`.trim() || user?.auth?.email || 'N/A'
@@ -1776,6 +1790,7 @@ const BookingWizardPage = () => {
     setOrderMode(draft.orderMode || 'multiple');
     setDietaryPreference(draft.dietaryPreference || 'veg');
     setDeliveryNote(draft.deliveryNote || '');
+    setIsSampleDelivery(draft.isSampleDelivery === true);
     setDraftId(draft.id);
     setIsDraftMode(true);
     
@@ -2045,6 +2060,7 @@ const BookingWizardPage = () => {
         menuName: selectedMenu.name,
         skipMeals: skipMeals,
         deliveryNote: deliveryNote || null,
+        orderType: isSampleDelivery ? 'SAMPLE' : null,
 
         userId: selectedUser?.id || user?.id,
         // Include customer name for display
