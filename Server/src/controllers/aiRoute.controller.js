@@ -37,7 +37,9 @@ import {
   getCoordinatorSettingsService,
   updateCoordinatorSettingsService,
   getRouteMapDataService,
-  getDriversFromRouteMapDataService
+  getDriversFromRouteMapDataService,
+  getExecutivePerformanceService,
+  getExecutivePerformanceByDriverService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import prisma from '../config/prisma.js';
@@ -1482,16 +1484,17 @@ export const updateCoordinatorSettings = async (req, res, next) => {
 
 /**
  * Get Route Map Data for CXO
- * Fetches route data for a specific date, session, and optionally route_id
+ * Fetches route data for a specific date, session, and optionally route_id/driver_name.
+ * Either date or driver_name is required (driver_name-only returns available_dates/sessions).
  */
 export const getRouteMapData = async (req, res, next) => {
   try {
     const { date, session, route_id, driver_name } = req.query;
     
-    if (!date) {
+    if (!date && !driver_name) {
       return res.status(400).json({
         success: false,
-        message: 'date query parameter is required'
+        message: 'Either date or driver_name query parameter is required'
       });
     }
     
@@ -1509,6 +1512,47 @@ export const getRouteMapData = async (req, res, next) => {
       route_id: req.query?.route_id,
       driver_name: req.query?.driver_name
     });
+    next(error);
+  }
+};
+
+/**
+ * Get Executive Performance for CXO (all executives)
+ * Optional query: start_date, end_date, days, session, min_routes, driver_name, driver_id
+ */
+export const getExecutivePerformance = async (req, res, next) => {
+  try {
+    const filters = {
+      start_date: req.query.start_date || undefined,
+      end_date: req.query.end_date || undefined,
+      days: req.query.days != null && req.query.days !== '' ? req.query.days : undefined,
+      session: req.query.session || undefined,
+      min_routes: req.query.min_routes != null && req.query.min_routes !== '' ? req.query.min_routes : undefined,
+      driver_name: req.query.driver_name || undefined,
+      driver_id: req.query.driver_id || undefined
+    };
+    const result = await getExecutivePerformanceService(filters);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get executive performance failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
+ * Get Executive Performance by driver name for CXO (single executive)
+ * GET /executive/performance/by-driver?driver_name=...
+ */
+export const getExecutivePerformanceByDriver = async (req, res, next) => {
+  try {
+    const { driver_name } = req.query;
+    if (!driver_name) {
+      return res.status(400).json({ success: false, message: 'driver_name query parameter is required' });
+    }
+    const result = await getExecutivePerformanceByDriverService(driver_name);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get executive performance by driver failed', { error: error.message });
     next(error);
   }
 };

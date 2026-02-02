@@ -34,14 +34,24 @@ const RecentRoutesView = ({
   routeMapError,
   routeMapFilters,
   setRouteMapFilters,
-  refetchRouteMap
+  appliedRouteMapFilters,
+  refetchRouteMap,
+  hideSidebar = false,
+  selectedExecutiveId: selectedExecutiveIdProp,
+  setSelectedExecutiveId: setSelectedExecutiveIdProp
 }) => {
+  const applied = appliedRouteMapFilters ?? routeMapFilters;
   const [expandedRoutes, setExpandedRoutes] = useState(new Set());
-  const [selectedExecutiveId, setSelectedExecutiveId] = useState(null);
+  const [selectedExecutiveIdInternal, setSelectedExecutiveIdInternal] = useState(null);
+  const isControlled = selectedExecutiveIdProp !== undefined && setSelectedExecutiveIdProp != null;
+  const selectedExecutiveId = isControlled ? selectedExecutiveIdProp : selectedExecutiveIdInternal;
+  const setSelectedExecutiveId = isControlled ? setSelectedExecutiveIdProp : setSelectedExecutiveIdInternal;
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [tableStatusFilter, setTableStatusFilter] = useState('all'); // 'all' | 'delivered' | 'pending' | 'partial'
+  const [tableStatusFilter, setTableStatusFilter] = useState('all'); // applied filters (used for table)
   const [tableDeliveryNameFilter, setTableDeliveryNameFilter] = useState('');
+  const [pendingStatusFilter, setPendingStatusFilter] = useState('all'); // input values, apply on Go
+  const [pendingDeliveryNameFilter, setPendingDeliveryNameFilter] = useState('');
   const [showMap, setShowMap] = useState(false); // Map closed by default; Open/Close toggle
 
   const sessionColors = {
@@ -70,8 +80,8 @@ const RecentRoutesView = ({
     return [];
   }, [routeMapData]);
 
-  // Show only delivery executives from the route map response (who had routes on the selected date/session)
-  const executivesToShow = useMemo(() => {
+  // Delivery executives from route map (who had routes on the selected date/session)
+  const executivesFromRoutes = useMemo(() => {
     const seen = new Set();
     return routes
       .filter((r) => {
@@ -83,8 +93,20 @@ const RecentRoutesView = ({
       .map((r) => normalizeExecutive({ driver_id: r.driver_id, driver_name: r.driver_name }));
   }, [routes]);
 
-  // All shown executives come from route data, so all are clickable when we have routes
-  const executiveIdsWithRoutes = useMemo(() => new Set(executivesToShow.map((e) => e.id)), [executivesToShow]);
+  // Exclude dummy names (e.g. driver1, driver2, Driver 1, Driver 2) from UI
+  const isDummyDriverName = (name) => /^driver\s*\d+$/i.test((name || '').trim());
+
+  // Sidebar list: show ALL delivery executives (from allExecutives) when available, else those from route map
+  const executivesToShow = useMemo(() => {
+    const fromAll = (allExecutives || [])
+      .filter((e) => e && (e.id ?? e.driver_id ?? e.userId))
+      .map(normalizeExecutive)
+      .filter((e) => !isDummyDriverName(e.name));
+    if (fromAll.length > 0) return fromAll;
+    return executivesFromRoutes.filter((e) => !isDummyDriverName(e.name));
+  }, [allExecutives, executivesFromRoutes]);
+
+  const executiveIdsWithRoutes = useMemo(() => new Set(executivesFromRoutes.map((e) => e.id)), [executivesFromRoutes]);
 
   // Routes to display: when an executive is selected, filter to that executive only
   const routesToDisplay = useMemo(() => {
@@ -142,86 +164,62 @@ const RecentRoutesView = ({
   const goToPrevious = () => goToPage(currentPage - 1);
   const goToNext = () => goToPage(currentPage + 1);
 
-  const hasDate = !!routeMapFilters?.date;
-  const showFilteredExecutives = hasDate && routeMapData?.routes?.length > 0;
+  const hasDriver = !!routeMapFilters?.driver_name;
+  const hasAppliedDate = !!applied?.date;
+  const showFilteredExecutives = hasAppliedDate && routeMapData?.routes?.length > 0;
 
-  // Clear selected executive when date or session changes so we don't show stale route details
+  // Clear selected executive when applied date or session changes
   useEffect(() => {
     setSelectedExecutiveId(null);
-  }, [routeMapFilters?.date, routeMapFilters?.session]);
+  }, [applied?.date, applied?.session]);
 
-  return (
-    <div className="space-y-5">
-      {/* 1. Delivery Executives */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-200">
-          <h2 className="text-base font-semibold text-gray-900">Delivery Executives</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            {!hasDate
-              ? 'Select a date above, then click an executive to view route details.'
-              : showFilteredExecutives
-                ? `For ${routeMapFilters.date}${routeMapFilters.session ? ` (${routeMapFilters.session})` : ''}, click an executive to view route details.`
-                : routeMapLoading
-                  ? 'Loading routes…'
-                  : 'No routes for this date/session.'}
-          </p>
-        </div>
-        <div className="p-5">
-          {hasDate && routeMapLoading ? (
-            <div className="flex items-center gap-2 text-gray-500 py-6">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-              <span className="text-sm">Loading route data…</span>
-            </div>
-          ) : executivesToShow.length === 0 ? (
-            <p className="py-6 text-sm text-gray-500">
-              {hasDate ? 'No routes for this date/session.' : 'Select a date (and optional session) to see executives with routes.'}
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {executivesToShow.map((ex) => {
-                const isSelected = selectedExecutiveId === ex.id;
-                const hasRoutesToday = executiveIdsWithRoutes.has(ex.id);
-                const canSelect = showFilteredExecutives && hasRoutesToday;
-                return (
-                  <button
-                    key={ex.id}
-                    type="button"
-                    onClick={() => canSelect && setSelectedExecutiveId(isSelected ? null : ex.id)}
-                    className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium ${
-                      canSelect
-                        ? isSelected
-                          ? 'border-blue-600 bg-blue-600 text-white'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50'
-                        : 'cursor-default border-gray-200 bg-gray-50 text-gray-400'
-                    }`}
-                    title={!hasRoutesToday && showFilteredExecutives ? 'No routes on selected date' : hasRoutesToday ? 'View route details' : ''}
-                  >
-                    <MdPerson className="h-4 w-4 shrink-0" />
-                    {ex.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+  // Sync pending filters when executive changes (reset so user sees all routes until they click Go)
+  useEffect(() => {
+    setPendingStatusFilter('all');
+    setPendingDeliveryNameFilter('');
+    setTableStatusFilter('all');
+    setTableDeliveryNameFilter('');
+  }, [selectedExecutiveId]);
 
-      {/* 2. Route error */}
-      {routeMapError && hasDate && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4">
-          <p className="text-sm font-medium text-red-700">Error loading route data: {routeMapError.message}</p>
-        </div>
-      )}
+  const applyFilters = () => {
+    setTableStatusFilter(pendingStatusFilter);
+    setTableDeliveryNameFilter(pendingDeliveryNameFilter);
+    setCurrentPage(1);
+  };
 
-      {/* 3. Route details — only when an executive is selected */}
-      {!selectedExecutiveId ? (
+  // Initials for avatar (e.g. "John Doe" -> "JD")
+  const getInitials = (name) => {
+    if (!name || typeof name !== 'string') return '?';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return (name[0] || '?').toUpperCase();
+  };
+
+  const rightContent = (
+      <div className={`${hideSidebar ? '' : 'flex-1 min-w-0'} space-y-5 bg-gray-50 rounded-lg p-4 lg:p-5`}>
+        {/* Route error */}
+        {routeMapError && hasDriver && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4">
+            <p className="text-sm font-medium text-red-700">Error loading route data: {routeMapError.message}</p>
+          </div>
+        )}
+
+        {/* Route details — only when an executive is selected */}
+        {!selectedExecutiveId ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-16 text-center shadow-sm">
           <MdLocalShipping className="mb-3 h-12 w-12 text-gray-300" />
           <p className="text-sm font-medium text-gray-500">
-            {hasDate && showFilteredExecutives
-              ? 'Select an executive above to view their route details.'
-              : 'Select a date, then an executive, to view route details.'}
+            {hasDriver && !hasAppliedDate
+              ? 'Select date and session above, then click Go to view route details.'
+              : hasDriver && hasAppliedDate && !showFilteredExecutives
+                ? 'No routes for the selected date/session. Try another date or session and click Go.'
+                : 'Select a delivery executive from the sidebar to load their available dates and sessions.'}
           </p>
+        </div>
+      ) : hasDriver && !hasAppliedDate ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-16 text-center shadow-sm">
+          <MdLocalShipping className="mb-3 h-12 w-12 text-gray-300" />
+          <p className="text-sm font-medium text-gray-500">Select date and session above, then click Go to view route details.</p>
         </div>
       ) : routeMapLoading ? (
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -255,12 +253,12 @@ const RecentRoutesView = ({
               </div>
               <div className="rounded-md border border-gray-100 bg-gray-50 px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Date</p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">{routeMapFilters.date}</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">{applied.date}</p>
               </div>
               <div className="rounded-md border border-gray-100 bg-gray-50 px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Session</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {routeMapFilters.session || routeMapData?.session || 'All Sessions'}
+                  {applied.session || routeMapData?.session || 'All Sessions'}
                 </p>
               </div>
             </div>
@@ -379,14 +377,14 @@ const RecentRoutesView = ({
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-200 px-5 py-4">
           <h2 className="text-base font-semibold text-gray-900">Routes Details</h2>
-          {/* Filters above table */}
+          {/* Filters above table — apply only when Go is clicked */}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <label htmlFor="table-status-filter" className="text-sm font-medium text-gray-700">Status</label>
               <select
                 id="table-status-filter"
-                value={tableStatusFilter}
-                onChange={(e) => { setTableStatusFilter(e.target.value); setCurrentPage(1); }}
+                value={pendingStatusFilter}
+                onChange={(e) => setPendingStatusFilter(e.target.value)}
                 className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 min-w-[140px]"
               >
                 <option value="all">All</option>
@@ -400,16 +398,23 @@ const RecentRoutesView = ({
               <input
                 id="table-delivery-name-filter"
                 type="text"
-                value={tableDeliveryNameFilter}
-                onChange={(e) => { setTableDeliveryNameFilter(e.target.value); setCurrentPage(1); }}
+                value={pendingDeliveryNameFilter}
+                onChange={(e) => setPendingDeliveryNameFilter(e.target.value)}
                 placeholder="Search by delivery name"
                 className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 placeholder-gray-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 min-w-[180px]"
               />
             </div>
+            <button
+              type="button"
+              onClick={applyFilters}
+              className="inline-flex items-center rounded-md border border-transparent bg-orange-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            >
+              Go
+            </button>
             {(tableStatusFilter !== 'all' || (tableDeliveryNameFilter || '').trim()) && (
               <button
                 type="button"
-                onClick={() => { setTableStatusFilter('all'); setTableDeliveryNameFilter(''); setCurrentPage(1); }}
+                onClick={() => { setPendingStatusFilter('all'); setPendingDeliveryNameFilter(''); setTableStatusFilter('all'); setTableDeliveryNameFilter(''); setCurrentPage(1); }}
                 className="text-sm font-medium text-orange-600 hover:text-orange-700"
               >
                 Clear filters
@@ -641,6 +646,63 @@ const RecentRoutesView = ({
       </div>
         </div>
       )}
+      </div>
+  );
+
+  if (hideSidebar) return rightContent;
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-0">
+      <aside className="lg:w-64 xl:w-72 shrink-0 lg:min-h-[calc(100vh-8rem)] lg:sticky lg:top-6 flex flex-col rounded-lg overflow-hidden shadow-lg" style={{ backgroundColor: '#2A3F54' }}>
+        <div className="px-4 py-4 border-b border-white/10">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">General</p>
+          <h2 className="mt-1 text-base font-semibold text-white">Delivery Executives</h2>
+          {hasAppliedDate && applied?.date && (
+            <p className="mt-1 text-xs text-white/70">
+              Routes for {applied.date}{applied.session ? ` · ${applied.session}` : ''}
+            </p>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 max-h-[70vh] lg:max-h-[calc(100vh-14rem)]">
+          {allExecutivesLoading && executivesToShow.length === 0 ? (
+            <div className="flex items-center gap-2 text-white/70 py-6 px-2">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+              <span className="text-sm">Loading…</span>
+            </div>
+          ) : executivesToShow.length === 0 ? (
+            <p className="py-6 px-3 text-sm text-white/70">No delivery executives found.</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {executivesToShow.map((ex) => {
+                const isSelected = selectedExecutiveId === ex.id;
+                const hasRoutesToday = executiveIdsWithRoutes.has(ex.id);
+                return (
+                  <li key={ex.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedExecutiveId(isSelected ? null : ex.id)}
+                      className={`w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                        isSelected ? 'bg-teal-500/90 text-white' : 'text-white/90 hover:bg-white/10'
+                      }`}
+                      title={hasRoutesToday ? 'View route details' : 'Select date above for route data'}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-white/20" aria-hidden>
+                        {getInitials(ex.name)}
+                      </span>
+                      <span className="truncate flex-1">{ex.name}</span>
+                      {hasRoutesToday && !isSelected && (
+                        <span className="shrink-0 h-2 w-2 rounded-full bg-emerald-400" title="Has routes" />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </aside>
+      <div className="hidden lg:block w-1 shrink-0" aria-hidden />
+      {rightContent}
     </div>
   );
 };

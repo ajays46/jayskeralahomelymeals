@@ -33,6 +33,10 @@ export const aiRouteKeys = {
   missingGeoLocations: (limit) => [...aiRouteKeys.all, 'missingGeoLocations', limit],
   // Route Map Data for CXO
   routeMapData: (params) => [...aiRouteKeys.all, 'routeMapData', params],
+  // Executive Performance for CXO (all executives, optional filters)
+  executivePerformance: (filters) => [...aiRouteKeys.all, 'executivePerformance', filters ?? {}],
+  // Executive Performance by driver for CXO (single executive)
+  executivePerformanceByDriver: (driverName) => [...aiRouteKeys.all, 'executivePerformanceByDriver', driverName],
 };
 
 /**
@@ -1316,7 +1320,8 @@ export const useRouteMapData = (params = {}, options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.routeMapData({ date, session, route_id, driver_name }),
     queryFn: async () => {
-      const queryParams = { date };
+      const queryParams = {};
+      if (date) queryParams.date = date;
       if (session) queryParams.session = session;
       if (route_id) queryParams.route_id = route_id;
       if (driver_name) queryParams.driver_name = driver_name;
@@ -1331,7 +1336,90 @@ export const useRouteMapData = (params = {}, options = {}) => {
       
       return response.data;
     },
-    enabled: enabled && !!date,
+    enabled: enabled && (!!date || !!driver_name),
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Executive Performance for CXO (all executives)
+ * Optional filters: start_date, end_date, days, session, min_routes, driver_name, driver_id
+ */
+export const useExecutivePerformance = (options = {}) => {
+  const {
+    filters = {},
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 2 * 60 * 1000,
+    cacheTime = 5 * 60 * 1000,
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = options;
+
+  const params = {};
+  if (filters.start_date) params.start_date = filters.start_date;
+  if (filters.end_date) params.end_date = filters.end_date;
+  if (filters.days != null && filters.days !== '') params.days = filters.days;
+  if (filters.session) params.session = filters.session;
+  if (filters.min_routes != null && filters.min_routes !== '') params.min_routes = filters.min_routes;
+  if (filters.driver_name) params.driver_name = filters.driver_name;
+  if (filters.driver_id) params.driver_id = filters.driver_id;
+
+  return useQuery({
+    queryKey: aiRouteKeys.executivePerformance(params),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/executive/performance', {
+        params: Object.keys(params).length ? params : undefined
+      });
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch executive performance');
+      }
+      return response.data;
+    },
+    enabled,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Executive Performance by driver name for CXO (single executive)
+ * Fetches performance for one executive via /api/executive/performance?driver_name=...
+ */
+export const useExecutivePerformanceByDriver = (options = {}) => {
+  const {
+    driver_name,
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 2 * 60 * 1000,
+    cacheTime = 5 * 60 * 1000,
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = { ...options };
+
+  return useQuery({
+    queryKey: aiRouteKeys.executivePerformanceByDriver(driver_name),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/executive/performance/by-driver', {
+        params: { driver_name }
+      });
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch executive performance');
+      }
+      return response.data;
+    },
+    enabled: enabled && !!driver_name,
     refetchOnWindowFocus,
     staleTime,
     cacheTime,

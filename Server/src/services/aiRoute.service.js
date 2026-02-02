@@ -2,6 +2,7 @@ import AppError from '../utils/AppError.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import axios from 'axios';
 import prisma from '../config/prisma.js';
+import { application } from 'express';
 
 /**
  * AI Route Service
@@ -1562,33 +1563,50 @@ export const getCoordinatorSettingsService = async (companyId) => {
 
 /**
  * Get Route Map Data for CXO
- * Fetches route data for a specific date, session, and optionally route_id
- * Uses AI_ROUTE_API endpoint /api/route/map-data
- * Enriches route data with delivery executive names
+ * Fetches route data for a specific date, session, and optionally route_id/driver_name.
+ * Uses AI_ROUTE_API (apiClientRouteAPI) endpoint /api/route/map-data.
+ * - With driver_name only: returns drivers[].available_dates, drivers[].available_sessions.
+ * - With driver_name + date (+ session): returns route for that driver/date/session.
+ * Enriches route data with delivery executive names when routes are present.
  */
 export const getRouteMapDataService = async (params = {}) => {
   try {
     const { date, session, route_id, driver_name } = params;
     
-    if (!date) {
-      throw new Error('date is required');
+    if (!date && !driver_name) {
+      throw new Error('Either date or driver_name is required');
     }
     
-    // Build query parameters
-    // Convert session to lowercase if provided (database uses lowercase: breakfast, lunch, dinner)
-    const queryParams = { date };
+    // Build query parameters for external API (pass driver_name so API can return driver-specific data)
+    const queryParams = {};
+    if (date) queryParams.date = date;
     if (session) queryParams.session = session;
     if (route_id) queryParams.route_id = route_id;
+    if (driver_name && driver_name.trim()) queryParams.driver_name = driver_name.trim();
     
-    // Use apiClientRouteAPI which points to AI_ROUTE_API (not AI_ROUTE_API_THIRD)
+    // Use apiClientRouteAPI (AI_ROUTE_API) for map-data - correct external API
     const response = await apiClient.get('/api/route/map-data', {
       params: queryParams
     });
     
     const data = response.data;
     
-    // Extract unique driver IDs from routes
+    // When response has drivers only (no routes) - e.g. driver_name-only call for available_dates/sessions
     const routes = data?.routes || [];
+    if (!routes.length && data?.drivers?.length) {
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Route map data (driver availability) fetched for CXO', {
+        date,
+        session,
+        driver_name,
+        driversCount: data.drivers.length
+      });
+      return {
+        success: true,
+        data: { ...data }
+      };
+    }
+    
+    // Extract unique driver IDs from routes
     const driverIds = [...new Set(routes.map(route => route.driver_id).filter(Boolean))];
     
     // Fetch delivery executive names from User table
@@ -1866,6 +1884,71 @@ export const getDriversFromRouteMapDataService = async (params = {}) => {
     throw new AppError(
       error.message || 'Failed to fetch drivers from route map data',
       500
+    );
+  }
+};
+
+/**
+ * Get Executive Performance for CXO
+ * Fetches performance metrics for all executives from AI_ROUTE_API /api/executive/performance
+ * Optional query params: start_date, end_date, days, session, min_routes, driver_name, driver_id
+ */
+export const getExecutivePerformanceService = async (filters = {}) => {
+  try {
+    const params = {};
+    if (filters.start_date) params.start_date = filters.start_date;
+    if (filters.end_date) params.end_date = filters.end_date;
+    if (filters.days != null && filters.days !== '') params.days = filters.days;
+    if (filters.session) params.session = filters.session;
+    if (filters.min_routes != null && filters.min_routes !== '') params.min_routes = filters.min_routes;
+    if (filters.driver_name) params.driver_name = filters.driver_name;
+    if (filters.driver_id) params.driver_id = filters.driver_id;
+    const response = await apiClient.get('/api/executive/performance', { params: Object.keys(params).length ? params : undefined });
+    const data = response.data;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Executive performance fetched for CXO', {
+      total_executives: data?.total_executives ?? data?.executives?.length ?? 0
+    });
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch executive performance', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch executive performance',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Executive Performance by driver name for CXO (single executive)
+ * Fetches performance for one executive via /api/executive/performance?driver_name=...
+ * Separate from getExecutivePerformanceService - do not change the all-executives endpoint.
+ */
+export const getExecutivePerformanceByDriverService = async (driver_name) => {
+  if (!driver_name || !String(driver_name).trim()) {
+    throw new Error('driver_name is required');
+  }
+  try {
+    const response = await apiClient.get('/api/executive/performance', {
+      params: { driver_name: String(driver_name).trim() }
+    });
+    const data = response.data;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Executive performance by driver fetched for CXO', {
+      driver_name: driver_name,
+      executives_count: data?.executives?.length ?? 0
+    });
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch executive performance by driver', {
+      error: error.message,
+      driver_name: driver_name,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch executive performance',
+      error.response?.status || 500
     );
   }
 };

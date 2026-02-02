@@ -38,7 +38,9 @@ import {
   getLiveVehicleTracking,
   getCoordinatorSettings,
   updateCoordinatorSettings,
-  getRouteMapData
+  getRouteMapData,
+  getExecutivePerformance,
+  getExecutivePerformanceByDriver
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();
@@ -112,6 +114,10 @@ router.get('/coordinator/settings', checkRole('DELIVERY_MANAGER'), getCoordinato
 router.put('/coordinator/settings', checkRole('DELIVERY_MANAGER'), updateCoordinatorSettings);
 // Route map data for CXO - CEO, CFO only
 router.get('/route/map-data', checkRole('CEO', 'CFO'), getRouteMapData);
+
+// Executive performance for CXO - CEO, CFO only
+router.get('/executive/performance', checkRole('CEO', 'CFO'), getExecutivePerformance);
+router.get('/executive/performance/by-driver', checkRole('CEO', 'CFO'), getExecutivePerformanceByDriver);
 
 export default router;
 

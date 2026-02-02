@@ -9,7 +9,7 @@ import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
-import { useStartJourney, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops, useRouteMapData } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops, useRouteMapData, useExecutivePerformanceByDriver } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { useUploadDeliveryPhoto, useUploadPreDeliveryPhoto, useCheckMultipleDeliveryImages, useCheckMultiplePreDeliveryImages } from '../hooks/deliverymanager';
 import { useTextCorrection } from '../hooks/useTextCorrection';
 import { useAllDeliveryExecutivesFromDb } from '../hooks/deliverymanager/useAllDeliveryExecutivesFromDb';
@@ -19,7 +19,8 @@ import TextCorrectionSuggestion from '../components/TextCorrectionSuggestion';
 import html2canvas from 'html2canvas';
 import { isCXO, isCEO, isCFO } from '../utils/roleUtils';
 import RecentRoutesView from '../components/RecentRoutesView';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import ExecutivePerformanceView from '../components/ExecutivePerformanceView';
+import ExecutivePerformanceSingle from '../components/ExecutivePerformanceSingle';
 
 // Fix for default marker icons in Leaflet with React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -41,14 +42,29 @@ const DeliveryExecutivePage = () => {
   const [activeTab, setActiveTab] = useState('routes'); // routes for delivery execs; CXO sees only Recent Routes (no tab)
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // Route map data state for CXO
+  // Route map data state for CXO (driver-first: choose executive, then date/session from API)
   const [routeMapFilters, setRouteMapFilters] = useState({
-    date: new Date().toISOString().split('T')[0], // Today's date
+    date: '',
     session: '',
     route_id: '',
     driver_name: ''
   });
-  
+
+  // Applied filters: route API is called only when user clicks Go (not when they change date/session)
+  const [appliedRouteMapFilters, setAppliedRouteMapFilters] = useState({
+    date: '',
+    session: '',
+    route_id: '',
+    driver_name: ''
+  });
+
+  // CXO: selected delivery executive (for left sidebar → Routes & Details)
+  const [selectedExecutiveIdCXO, setSelectedExecutiveIdCXO] = useState(null);
+
+  // CXO: tab when executive is selected — 'performance' | 'routes'
+  const [executiveViewTab, setExecutiveViewTab] = useState('performance');
+
+
   // Logout confirmation state
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
@@ -72,11 +88,23 @@ const DeliveryExecutivePage = () => {
   // Check if user has CXO role (after roles is declared)
   const isCXOUser = isCXO(roles) || isCEO(roles) || isCFO(roles);
   
-  // Route map data hook for CXO (CXO always sees Recent Routes only)
-  const { data: routeMapData, isLoading: routeMapLoading, error: routeMapError, refetch: refetchRouteMap } = useRouteMapData(
-    routeMapFilters,
-    { enabled: isCXOUser && !!routeMapFilters.date }
+  // Availability only (driver_name): for Date/Session dropdowns — always shows this executive's delivered dates
+  const { data: availabilityData, isLoading: availabilityLoading, refetch: refetchAvailability } = useRouteMapData(
+    { driver_name: routeMapFilters.driver_name },
+    { enabled: isCXOUser && !!routeMapFilters.driver_name }
   );
+
+  // Route data (driver_name + date + session): for right-side route content — only when user has clicked Go (applied filters have date)
+  const { data: routeMapData, isLoading: routeMapLoading, error: routeMapError, refetch: refetchRouteMap } = useRouteMapData(
+    appliedRouteMapFilters,
+    { enabled: isCXOUser && !!appliedRouteMapFilters.driver_name && !!appliedRouteMapFilters.date }
+  );
+
+  // Single executive performance — shown when an executive is selected (before Go)
+  const { data: executivePerformanceSingleData, isLoading: executivePerformanceSingleLoading, error: executivePerformanceSingleError, refetch: refetchExecutivePerformanceSingle } = useExecutivePerformanceByDriver({
+    driver_name: routeMapFilters.driver_name,
+    enabled: isCXOUser && !!routeMapFilters.driver_name
+  });
 
   // All delivery executives from DB for CXO Recent Routes (names from Contact when available)
   const { data: allDeliveryExecutivesData, isLoading: allDeliveryExecutivesLoading } = useAllDeliveryExecutivesFromDb({
@@ -89,7 +117,81 @@ const DeliveryExecutivePage = () => {
     enabled: isCXOUser
   });
   const activeExecutives = activeExecutivesResponse?.data?.executives ?? [];
-  
+
+  // Set of executive IDs that are currently active (for green dot in sidebar)
+  const activeExecutiveIds = useMemo(() => {
+    return new Set(
+      (activeExecutives || [])
+        .filter((e) => (e.status || '').toUpperCase() === 'ACTIVE')
+        .map((e) => e.user_id ?? e.id)
+        .filter(Boolean)
+    );
+  }, [activeExecutives]);
+
+  // When executive changes (sidebar), clear applied date/session and show Performance tab first
+  useEffect(() => {
+    if (isCXOUser && routeMapFilters.driver_name) {
+      setAppliedRouteMapFilters((prev) => ({
+        ...prev,
+        driver_name: routeMapFilters.driver_name,
+        date: '',
+        session: '',
+        route_id: ''
+      }));
+      setExecutiveViewTab('performance');
+    }
+  }, [isCXOUser, routeMapFilters.driver_name]);
+
+  // Do not clear selected executive when date/session changes — executive stays selected; only filters change
+
+  // CXO sidebar: normalized list of all delivery executives for left sidebar (exclude dummy driver1/driver2, Driver 1/2)
+  const isDummyDriverName = (name) => /^driver\s*\d+$/i.test((name || '').trim());
+  const sidebarExecutives = useMemo(() => {
+    const list = allExecutives ?? [];
+    return list
+      .filter((e) => e && (e.id ?? e.driver_id ?? e.userId))
+      .map((e) => ({
+        id: e.id ?? e.driver_id ?? e.userId,
+        name: e.name ?? e.driver_name ?? (e.firstName || e.lastName ? [e.firstName, e.lastName].filter(Boolean).join(' ') : null) ?? 'Unknown'
+      }))
+      .filter((e) => !isDummyDriverName(e.name));
+  }, [allExecutives]);
+
+  // Clear CXO selected executive when date/session changes; auto-select executive when we have routes for driver_name
+  const executiveIdForDriverName = useMemo(() => {
+    if (!routeMapFilters.driver_name || !sidebarExecutives.length) return null;
+    const name = routeMapFilters.driver_name.trim().toLowerCase();
+    const found = sidebarExecutives.find((e) => (e.name || '').toLowerCase() === name);
+    return found?.id ?? null;
+  }, [routeMapFilters.driver_name, sidebarExecutives]);
+
+  // When we have routes for the selected driver_name, auto-select that executive in the sidebar
+  useEffect(() => {
+    if (isCXOUser && executiveIdForDriverName && routeMapData?.routes?.length > 0) {
+      setSelectedExecutiveIdCXO(executiveIdForDriverName);
+    }
+  }, [isCXOUser, executiveIdForDriverName, routeMapData?.routes?.length]);
+
+  // Selected driver from availability (match by name; when API returns multiple drivers with same name, prefer one that has available_dates)
+  const selectedDriverAvailability = useMemo(() => {
+    const drivers = availabilityData?.drivers ?? [];
+    if (!routeMapFilters.driver_name || !drivers.length) return null;
+    const selectedName = routeMapFilters.driver_name.trim().toLowerCase();
+    const selectedFirstWord = selectedName.split(/\s+/)[0] || selectedName;
+    const matches = drivers.filter((d) => {
+      const driverName = (d.name || d.driver_name || '').toString().trim().toLowerCase();
+      if (!driverName) return false;
+      if (driverName === selectedName) return true;
+      if (selectedName.startsWith(driverName) || driverName.startsWith(selectedName)) return true;
+      const driverFirstWord = driverName.split(/\s+/)[0] || driverName;
+      if (driverFirstWord === selectedFirstWord) return true;
+      return false;
+    });
+    // When API returns multiple drivers with same name (e.g. Adharsh Kumar: one with empty dates, one with dates), prefer the one that has available_dates
+    const withDates = matches.find((d) => (d.available_dates?.length ?? 0) > 0);
+    return withDates ?? matches[0] ?? drivers[0];
+  }, [availabilityData?.drivers, routeMapFilters.driver_name]);
+
   // Get current date string (memoized to avoid unnecessary recalculations)
   const currentDateStr = useMemo(() => {
     const today = new Date();
@@ -2733,145 +2835,268 @@ const DeliveryExecutivePage = () => {
 
       {/* Main Content */}
       <div className="pt-16 sm:pt-18">
-        {/* Dashboard Content - Full Width (CXO sees only Recent Routes, no sidebar/tabs) */}
-        <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto">
-
-          {/* CXO: Tabs to reduce scrolling — Recent Routes vs Active Now */}
-          {isCXOUser && (
-            <Tabs defaultValue="active-now" className="w-full">
-              <TabsList className="grid w-full max-w-md grid-cols-2 mb-4 bg-gray-100 p-1 rounded-lg">
-                <TabsTrigger value="active-now" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">
-                  Active Now {activeExecutives.length > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                      {activeExecutives.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="recent-routes" className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">
-                   Routes & Details
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="recent-routes" className="mt-0 space-y-5">
-                {/* Filters card */}
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-                  <div className="px-5 py-4 border-b border-gray-200">
-                    <h2 className="text-base font-semibold text-gray-900">Filters</h2>
+        {/* CXO: fixed left sidebar (full-height) + main content */}
+        {isCXOUser ? (
+          <>
+            {/* Left sidebar — fixed to viewport left, all delivery executives */}
+            <aside
+              className="fixed left-0 top-16 bottom-0 z-30 w-64 flex flex-col border-r border-white/10 shadow-xl"
+              style={{ backgroundColor: '#2A3F54' }}
+              aria-label="Delivery executives"
+            >
+              <div className="px-4 py-4 border-b border-white/10 shrink-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">General</p>
+                <h2 className="mt-1 text-base font-semibold text-white">Delivery Executives</h2>
+              </div>
+              <div className="p-2 flex-1 overflow-y-auto">
+                {allDeliveryExecutivesLoading && sidebarExecutives.length === 0 ? (
+                  <div className="flex items-center gap-2 py-6 px-2 text-white/70">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+                    <span className="text-sm">Loading…</span>
                   </div>
-                  <div className="p-5">
-                    <div className="flex flex-wrap items-end gap-4">
-                      <div className="min-w-[140px]">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                        <input
-                          type="date"
-                          value={routeMapFilters.date}
-                          onChange={(e) => setRouteMapFilters(prev => ({ ...prev, date: e.target.value }))}
-                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div className="min-w-[140px]">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Session</label>
-                        <select
-                          value={routeMapFilters.session}
-                          onChange={(e) => setRouteMapFilters(prev => ({ ...prev, session: e.target.value }))}
-                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        >
-                          <option value="">All Sessions</option>
-                          <option value="BREAKFAST">Breakfast</option>
-                          <option value="LUNCH">Lunch</option>
-                          <option value="DINNER">Dinner</option>
-                        </select>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => refetchRouteMap()}
-                          className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        >
-                          Refresh
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRouteMapFilters({
-                            date: new Date().toISOString().split('T')[0],
-                            session: '',
-                            route_id: '',
-                            driver_name: ''
-                          })}
-                          className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        >
-                          Clear
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <RecentRoutesView
-                  allExecutives={allExecutives}
-                  allExecutivesLoading={allDeliveryExecutivesLoading}
-                  routeMapData={routeMapData}
-                  routeMapLoading={routeMapLoading}
-                  routeMapError={routeMapError}
-                  routeMapFilters={routeMapFilters}
-                  setRouteMapFilters={setRouteMapFilters}
-                  refetchRouteMap={refetchRouteMap}
-                />
-              </TabsContent>
-              <TabsContent value="active-now" className="mt-0">
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-                  <div className="px-5 py-4 border-b border-gray-200">
-                    <h2 className="text-base font-semibold text-gray-900">Delivery Executives</h2>
-                  </div>
-                  <div className="p-5">
-                    {activeExecutivesLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-blue-600" />
-                      </div>
-                    ) : activeExecutivesError ? (
-                      <div className="py-6 text-center">
-                        <p className="text-sm text-red-600">{activeExecutivesError?.message || 'Failed to load active executives.'}</p>
-                        <button
-                          type="button"
-                          onClick={() => refetchActiveExecutives()}
-                          className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-700"
-                        >
-                          Retry
-                        </button>
-                      </div>
-                    ) : !activeExecutives.length ? (
-                      <p className="py-6 text-center text-sm text-gray-500">No active executives at the moment.</p>
+                ) : sidebarExecutives.length === 0 ? (
+                  <p className="py-6 px-3 text-sm text-white/70">No delivery executives.</p>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {sidebarExecutives.map((ex) => {
+                      const isSelected = selectedExecutiveIdCXO === ex.id;
+                      const initials = (() => {
+                        if (!ex.name || typeof ex.name !== 'string') return '?';
+                        const parts = ex.name.trim().split(/\s+/).filter(Boolean);
+                        if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                        return (ex.name[0] || '?').toUpperCase();
+                      })();
+                      return (
+                        <li key={ex.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedExecutiveIdCXO(null);
+                                setRouteMapFilters((prev) => ({ ...prev, driver_name: '', date: '', session: '', route_id: '' }));
+                              } else {
+                                setSelectedExecutiveIdCXO(ex.id);
+                                setRouteMapFilters((prev) => ({ ...prev, driver_name: ex.name, date: '', session: '', route_id: '' }));
+                              }
+                            }}
+                            className={`w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                              isSelected ? 'bg-teal-500/90 text-white' : 'text-white/90 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-semibold" aria-hidden>
+                              {initials}
+                            </span>
+                            <span className="truncate flex-1">{ex.name}</span>
+                            {activeExecutiveIds.has(ex.id) && (
+                              <span className="shrink-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white/30" title="Active now" aria-hidden />
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+              <div className="p-3 border-t border-white/10 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRouteMapFilters({ date: '', session: '', route_id: '', driver_name: '' });
+                    setAppliedRouteMapFilters({ date: '', session: '', route_id: '', driver_name: '' });
+                    setSelectedExecutiveIdCXO(null);
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-teal-400/80 bg-teal-500/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-500/40 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-[#2A3F54] transition-colors"
+                >
+                  See performance
+                </button>
+              </div>
+            </aside>
+            <main className="min-h-screen flex-1 pl-64">
+              <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto space-y-5">
+                    {/* No executive selected: all-executives performance */}
+                    {!routeMapFilters.driver_name ? (
+                      <ExecutivePerformanceView enabled={isCXOUser} />
                     ) : (
-                      <div className="overflow-x-auto overflow-y-auto max-h-[min(50vh,28rem)] rounded-md border border-gray-200">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="sticky top-0 z-10 bg-gray-50">
-                            <tr>
-                              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {activeExecutives.map((exec, i) => (
-                              <tr key={exec.user_id ?? exec.id ?? i} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 text-sm text-gray-500">{i + 1}</td>
-                                <td className="px-4 py-3 text-sm font-medium text-gray-900">{exec.exec_name ?? exec.name ?? '—'}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${(exec.status || '').toUpperCase() === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                                    {exec.status ?? '—'}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-sm text-gray-600">{exec.vehicle ?? '—'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      /* Executive selected: tabs — Performance | Routes */
+                      <div className="space-y-0">
+                        <div className="border-b border-gray-200">
+                          <nav className="flex gap-0" aria-label="Tabs">
+                            <button
+                              type="button"
+                              onClick={() => setExecutiveViewTab('performance')}
+                              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                executiveViewTab === 'performance'
+                                  ? 'border-teal-600 text-teal-600'
+                                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                              }`}
+                            >
+                              Performance
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setExecutiveViewTab('routes')}
+                              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                executiveViewTab === 'routes'
+                                  ? 'border-teal-600 text-teal-600'
+                                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                              }`}
+                            >
+                              Routes
+                            </button>
+                          </nav>
+                        </div>
+                        <div className="pt-5">
+                          {executiveViewTab === 'performance' ? (
+                            <ExecutivePerformanceSingle
+                              data={executivePerformanceSingleData}
+                              isLoading={executivePerformanceSingleLoading}
+                              error={executivePerformanceSingleError}
+                              refetch={refetchExecutivePerformanceSingle}
+                              driverName={routeMapFilters.driver_name}
+                            />
+                          ) : (
+                            <div className="space-y-5">
+                              {/* Filters — inside Routes tab */}
+                              <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                                <div className="px-5 py-4 border-b border-gray-200">
+                                  <h2 className="text-base font-semibold text-gray-900">Filters</h2>
+                                  <p className="mt-1 text-xs text-gray-500">Choose date and session below, then click Go to view route details.</p>
+                                </div>
+                                <div className="p-5">
+                                  <div className="flex flex-wrap items-end gap-4">
+                                    <div className="min-w-[140px]">
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                                      {(() => {
+                                        const availableDates = selectedDriverAvailability?.available_dates ?? [];
+                                        const hasDriver = !!routeMapFilters.driver_name;
+                                        if (hasDriver && availabilityLoading) {
+                                          return (
+                                            <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                                              Loading dates…
+                                            </div>
+                                          );
+                                        }
+                                        if (hasDriver && availableDates.length > 0) {
+                                          return (
+                                            <select
+                                              value={routeMapFilters.date || ''}
+                                              onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, date: e.target.value, session: '' }))}
+                                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                            >
+                                              <option value="">Select date</option>
+                                              {availableDates.map((d) => (
+                                                <option key={d} value={d}>{d}</option>
+                                              ))}
+                                            </select>
+                                          );
+                                        }
+                                        return (
+                                          <input
+                                            type="date"
+                                            value={routeMapFilters.date || ''}
+                                            onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, date: e.target.value, session: '' }))}
+                                            disabled={!hasDriver}
+                                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                                          />
+                                        );
+                                      })()}
+                                    </div>
+                                    <div className="min-w-[140px]">
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Session</label>
+                                      {(() => {
+                                        const sessionsForDate = selectedDriverAvailability?.available_sessions?.[routeMapFilters.date];
+                                        const availableSessions = Array.isArray(sessionsForDate) ? sessionsForDate : (sessionsForDate && typeof sessionsForDate === 'object' ? Object.keys(sessionsForDate) : []);
+                                        const hasDate = !!routeMapFilters.date;
+                                        if (hasDate && availableSessions.length > 0) {
+                                          return (
+                                            <select
+                                              value={routeMapFilters.session || ''}
+                                              onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, session: e.target.value }))}
+                                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                            >
+                                              <option value="">All Sessions</option>
+                                              {availableSessions.map((s) => (
+                                                <option key={s} value={s}>{s}</option>
+                                              ))}
+                                            </select>
+                                          );
+                                        }
+                                        return (
+                                          <select
+                                            value={routeMapFilters.session || ''}
+                                            onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, session: e.target.value }))}
+                                            disabled={!hasDate}
+                                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                                          >
+                                            <option value="">{hasDate ? 'All Sessions' : 'Select date first'}</option>
+                                            <option value="BREAKFAST">Breakfast</option>
+                                            <option value="LUNCH">Lunch</option>
+                                            <option value="DINNER">Dinner</option>
+                                          </select>
+                                        );
+                                      })()}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setAppliedRouteMapFilters({ ...routeMapFilters })}
+                                      disabled={!routeMapFilters.driver_name || !routeMapFilters.date}
+                                      className="inline-flex items-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      Go
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { refetchAvailability(); refetchRouteMap(); refetchExecutivePerformanceSingle(); }}
+                                      className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    >
+                                      Refresh
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setRouteMapFilters({ date: '', session: '', route_id: '', driver_name: '' });
+                                        setAppliedRouteMapFilters({ date: '', session: '', route_id: '', driver_name: '' });
+                                        setSelectedExecutiveIdCXO(null);
+                                      }}
+                                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    >
+                                      Clear
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              {!appliedRouteMapFilters.date ? (
+                                <div className="rounded-lg border border-gray-200 bg-white py-12 text-center shadow-sm">
+                                  <p className="text-sm font-medium text-gray-500">Select date and session above, then click Go to view route details.</p>
+                                </div>
+                              ) : (
+                                <RecentRoutesView
+                                  allExecutives={allExecutives}
+                                  allExecutivesLoading={allDeliveryExecutivesLoading}
+                                  routeMapData={routeMapData}
+                                  routeMapLoading={routeMapLoading}
+                                  routeMapError={routeMapError}
+                                  routeMapFilters={routeMapFilters}
+                                  setRouteMapFilters={setRouteMapFilters}
+                                  appliedRouteMapFilters={appliedRouteMapFilters}
+                                  refetchRouteMap={refetchRouteMap}
+                                  hideSidebar
+                                  selectedExecutiveId={selectedExecutiveIdCXO}
+                                  setSelectedExecutiveId={setSelectedExecutiveIdCXO}
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          )}
+              </div>
+            </main>
+          </>
+        ) : (
+        <>
+        <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto">
 
           {/* My Routes - Delivery Executive only (hidden for CXO) */}
           {!isCXOUser && activeTab === 'routes' && (
@@ -4036,7 +4261,6 @@ const DeliveryExecutivePage = () => {
             </div>
           )}
         </div>
-      </div>
 
       {/* Logout Confirmation Modal - Swiggy Style */}
       {showLogoutConfirm && (
@@ -4381,6 +4605,9 @@ const DeliveryExecutivePage = () => {
           </div>
         </div>
       )}
+      </>
+  )}
+      </div>
     </div>
   );
 };
