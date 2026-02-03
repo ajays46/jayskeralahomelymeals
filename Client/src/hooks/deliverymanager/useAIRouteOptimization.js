@@ -216,6 +216,29 @@ export const useReassignDriver = () => {
 };
 
 /**
+ * Move Stop (Mutation)
+ * Body: { from_route_id, to_route_id, stop_identifier: { delivery_id } or { stop_order }, insert_at_order? }
+ */
+export const useMoveStop = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body) => {
+      const response = await axiosInstance.post('/ai-routes/route/move-stop', body);
+      if (!response.data.success) {
+        throw new Error(response.data.message || response.data.error || 'Move stop failed');
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
+    },
+    onError: (error) => {
+      console.error('Move stop error:', error);
+    }
+  });
+};
+
+/**
  * Predict Start Time (Mutation)
  */
 export const usePredictStartTime = () => {

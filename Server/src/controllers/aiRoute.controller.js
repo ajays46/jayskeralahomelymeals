@@ -4,6 +4,7 @@ import {
   getDeliveryDataService,
   planRouteService,
   reassignDriverService,
+  moveStopService,
   predictStartTimeService,
   startJourneyService,
   stopReachedService,
@@ -252,6 +253,27 @@ export const reassignDriver = async (req, res, next) => {
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Reassign driver failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
+ * Move Stop - move one stop from one route to another
+ * Body: { from_route_id, to_route_id, stop_identifier: { delivery_id } or { stop_order }, insert_at_order? }
+ */
+export const moveStop = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (!body.from_route_id || !body.to_route_id || !body.stop_identifier) {
+      return res.status(400).json({
+        success: false,
+        message: 'from_route_id, to_route_id, and stop_identifier (delivery_id or stop_order) are required'
+      });
+    }
+    const result = await moveStopService(body);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Move stop failed', { error: error.message });
     next(error);
   }
 };

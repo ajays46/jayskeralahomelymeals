@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { FiUserPlus, FiRepeat } from 'react-icons/fi';
+import { FiUserPlus, FiRepeat, FiMapPin } from 'react-icons/fi';
 import { showSuccessToast, showErrorToast } from '../../../utils/toastConfig.jsx';
 
 const getDriverName = (route, index) => {
@@ -16,15 +16,18 @@ const getDriverName = (route, index) => {
 };
 
 /**
- * ReassignDriverTab - Reassign a route to a new driver or exchange drivers between two routes.
- * Uses route plan data (route_id, driver names). Replaces the unused Delivery Data tab.
+ * ReassignDriverTab - Reassign route, exchange drivers, or move one stop between routes.
  */
-const ReassignDriverTab = ({ routePlan, reassignMutation }) => {
-  const [mode, setMode] = useState('reassign'); // 'reassign' | 'exchange'
+const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) => {
+  const [mode, setMode] = useState('reassign'); // 'reassign' | 'exchange' | 'move_stop'
   const [routeId, setRouteId] = useState('');
   const [newDriverName, setNewDriverName] = useState('');
   const [routeId1, setRouteId1] = useState('');
   const [routeId2, setRouteId2] = useState('');
+  const [fromRouteId, setFromRouteId] = useState('');
+  const [toRouteId, setToRouteId] = useState('');
+  const [selectedDeliveryId, setSelectedDeliveryId] = useState('');
+  const [insertAtOrder, setInsertAtOrder] = useState('');
 
   const routes = routePlan?.routes?.routes ?? [];
 
@@ -41,6 +44,17 @@ const ReassignDriverTab = ({ routePlan, reassignMutation }) => {
     routes.forEach((r, i) => names.add(getDriverName(r, i)));
     return Array.from(names).filter(Boolean).sort();
   }, [routes]);
+
+  const fromRoute = useMemo(() => routes.find((r) => r.route_id === fromRouteId), [routes, fromRouteId]);
+  const stopsFromRoute = useMemo(() => {
+    if (!fromRoute?.stops?.length) return [];
+    return fromRoute.stops.map((stop, i) => ({
+      delivery_id: stop.id,
+      stop_order: i + 1,
+      label: stop.customer_name || stop.first_name || `Stop ${i + 1}`,
+      address: stop.address || stop.customer_address
+    }));
+  }, [fromRoute]);
 
   const handleReassign = async () => {
     if (mode === 'reassign') {
@@ -79,7 +93,34 @@ const ReassignDriverTab = ({ routePlan, reassignMutation }) => {
     }
   };
 
-  const isLoading = reassignMutation?.isPending;
+  const handleMoveStop = async () => {
+    if (!fromRouteId || !toRouteId || fromRouteId === toRouteId) {
+      showErrorToast('Select different From and To routes');
+      return;
+    }
+    if (!selectedDeliveryId) {
+      showErrorToast('Select a stop to move');
+      return;
+    }
+    try {
+      const body = {
+        from_route_id: fromRouteId,
+        to_route_id: toRouteId,
+        stop_identifier: { delivery_id: selectedDeliveryId },
+        insert_at_order: insertAtOrder ? parseInt(insertAtOrder, 10) : null
+      };
+      const result = await moveStopMutation.mutateAsync(body);
+      showSuccessToast(result.message || 'Stop moved successfully');
+      setFromRouteId('');
+      setToRouteId('');
+      setSelectedDeliveryId('');
+      setInsertAtOrder('');
+    } catch (err) {
+      showErrorToast(err.message || 'Move stop failed');
+    }
+  };
+
+  const isLoading = reassignMutation?.isPending || moveStopMutation?.isPending;
 
   return (
     <div className="space-y-4">
@@ -88,7 +129,7 @@ const ReassignDriverTab = ({ routePlan, reassignMutation }) => {
         <h2 className="text-xl font-bold text-white">Reassign Driver</h2>
       </div>
       <p className="text-gray-400 text-sm">
-        Reassign a route to a new driver or exchange drivers between two routes. Plan a route first to see available routes.
+        Reassign a route to a new driver, exchange drivers between two routes, or move one delivery stop from one route to another. Plan a route first to see available routes.
       </p>
 
       {routes.length === 0 ? (
@@ -117,6 +158,16 @@ const ReassignDriverTab = ({ routePlan, reassignMutation }) => {
             >
               <FiRepeat className="w-4 h-4" />
               Exchange drivers
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('move_stop')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                mode === 'move_stop' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <FiMapPin className="w-4 h-4" />
+              Move stop
             </button>
           </div>
 
@@ -158,6 +209,72 @@ const ReassignDriverTab = ({ routePlan, reassignMutation }) => {
                 />
               </div>
             </div>
+          ) : mode === 'move_stop' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">From route</label>
+                  <select
+                    value={fromRouteId}
+                    onChange={(e) => {
+                      setFromRouteId(e.target.value);
+                      setSelectedDeliveryId('');
+                    }}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select route</option>
+                    {routeOptions.map((opt) => (
+                      <option key={opt.route_id} value={opt.route_id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">To route</label>
+                  <select
+                    value={toRouteId}
+                    onChange={(e) => setToRouteId(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select route</option>
+                    {routeOptions.filter((opt) => opt.route_id !== fromRouteId).map((opt) => (
+                      <option key={opt.route_id} value={opt.route_id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {fromRouteId && stopsFromRoute.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Stop to move</label>
+                  <select
+                    value={selectedDeliveryId}
+                    onChange={(e) => setSelectedDeliveryId(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select stop</option>
+                    {stopsFromRoute.map((s) => (
+                      <option key={s.delivery_id} value={s.delivery_id}>
+                        {s.label} {s.address ? `— ${String(s.address).slice(0, 40)}…` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="max-w-xs">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Insert at position (optional)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={insertAtOrder}
+                  onChange={(e) => setInsertAtOrder(e.target.value)}
+                  placeholder="Leave empty to append at end"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -194,21 +311,39 @@ const ReassignDriverTab = ({ routePlan, reassignMutation }) => {
           )}
 
           <div className="pt-2">
-            <button
-              type="button"
-              onClick={handleReassign}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  <span>{mode === 'reassign' ? 'Reassigning...' : 'Exchanging...'}</span>
-                </>
-              ) : (
-                <span>{mode === 'reassign' ? 'Reassign driver' : 'Exchange drivers'}</span>
-              )}
-            </button>
+            {mode === 'move_stop' ? (
+              <button
+                type="button"
+                onClick={handleMoveStop}
+                disabled={isLoading || !fromRouteId || !toRouteId || !selectedDeliveryId}
+                className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <span>Moving...</span>
+                  </>
+                ) : (
+                  <span>Move stop</span>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleReassign}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <span>{mode === 'reassign' ? 'Reassigning...' : 'Exchanging...'}</span>
+                  </>
+                ) : (
+                  <span>{mode === 'reassign' ? 'Reassign driver' : 'Exchange drivers'}</span>
+                )}
+              </button>
+            )}
           </div>
         </>
       )}

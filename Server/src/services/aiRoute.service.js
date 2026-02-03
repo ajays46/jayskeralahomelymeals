@@ -204,6 +204,35 @@ export const reassignDriverService = async (body) => {
 };
 
 /**
+ * Move Stop - move one delivery stop from one route to another
+ * Body: { from_route_id, to_route_id, stop_identifier: { delivery_id } or { stop_order }, insert_at_order? }
+ */
+export const moveStopService = async (body) => {
+  try {
+    const response = await apiClient.post('/api/route/move-stop', body);
+    const data = response.data;
+    if (!data.success) {
+      throw new Error(data.error || data.message || 'Move stop failed');
+    }
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Stop moved successfully', {
+      from_route_id: body.from_route_id,
+      to_route_id: body.to_route_id
+    });
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Move stop failed', {
+      error: error.message,
+      body,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Move stop failed',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
  * Predict Start Time
  * Accepts either route_id OR (delivery_date + delivery_session + depot_location)
  */

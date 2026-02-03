@@ -17,6 +17,7 @@ import {
   useAIRouteHealth,
   usePlanRoute,
   useReassignDriver,
+  useMoveStop,
   usePredictStartTime,
   useStartJourney,
   useEndJourney,
@@ -67,6 +68,7 @@ const AIRouteOptimization = () => {
   
   const planRouteMutation = usePlanRoute();
   const reassignDriverMutation = useReassignDriver();
+  const moveStopMutation = useMoveStop();
   const predictStartTimeMutation = usePredictStartTime();
   const startJourneyMutation = useStartJourney();
   const endJourneyMutation = useEndJourney();
@@ -401,6 +403,7 @@ const AIRouteOptimization = () => {
           <ReassignDriverTab
             routePlan={routePlan}
             reassignMutation={reassignDriverMutation}
+            moveStopMutation={moveStopMutation}
           />
         )}
         
