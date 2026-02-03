@@ -8,16 +8,15 @@ import {
 } from 'react-icons/fi';
 import { showSuccessToast, showErrorToast, showWarningToast } from '../../utils/toastConfig.jsx';
 import RoutePlanningTab from './aiRoutes/RoutePlanningTab';
-import DeliveryDataTab from './aiRoutes/DeliveryDataTab';
+import ReassignDriverTab from './aiRoutes/ReassignDriverTab';
 import TrackingTab from './aiRoutes/TrackingTab';
 import AnalyticsTab from './aiRoutes/AnalyticsTab';
 import APIHealthStatus from './aiRoutes/APIHealthStatus';
 import { StartJourneyModal, StopJourneyModal } from './aiRoutes/JourneyModals';
 import {
   useAIRouteHealth,
-  useAvailableDates,
-  useDeliveryData,
   usePlanRoute,
+  useReassignDriver,
   usePredictStartTime,
   useStartJourney,
   useEndJourney,
@@ -51,14 +50,6 @@ const AIRouteOptimization = () => {
   const [routeComparison, setRouteComparison] = useState(null);
   const [predictedStartTime, setPredictedStartTime] = useState(null);
   
-  // Delivery Data State
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  });
-  const [selectedSessionFilter, setSelectedSessionFilter] = useState('lunch');
-  
   // Tracking State
   const [startJourneyData, setStartJourneyData] = useState({
     route_id: '',
@@ -74,17 +65,8 @@ const AIRouteOptimization = () => {
     enabled: true
   });
   
-  const { data: availableDatesData } = useAvailableDates({
-    limit: 30,
-    enabled: true
-  });
-  
-  const { data: deliveryDataResponse, isLoading: deliveryDataLoading } = useDeliveryData(
-    { date: selectedDate, session: selectedSessionFilter },
-    { enabled: activeTab === 'deliveries' && !!selectedDate && !!selectedSessionFilter }
-  );
-  
   const planRouteMutation = usePlanRoute();
+  const reassignDriverMutation = useReassignDriver();
   const predictStartTimeMutation = usePredictStartTime();
   const startJourneyMutation = useStartJourney();
   const endJourneyMutation = useEndJourney();
@@ -353,7 +335,7 @@ const AIRouteOptimization = () => {
   // Tab configuration
   const tabs = [
     { id: 'planning', label: 'Route Planning', icon: FiMap },
-    { id: 'deliveries', label: 'Delivery Data', icon: FiPackage },
+    { id: 'reassign', label: 'Reassign Driver', icon: FiPackage },
     { id: 'tracking', label: 'Tracking', icon: FiNavigation },
     { id: 'analytics', label: 'Analytics', icon: FiBarChart2 }
   ];
@@ -415,18 +397,10 @@ const AIRouteOptimization = () => {
           />
         )}
         
-        {activeTab === 'deliveries' && (
-          <DeliveryDataTab
-            deliveryData={deliveryDataResponse?.deliveries || deliveryDataResponse?.data || []}
-            availableDates={availableDatesData?.available_dates || []}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            selectedSessionFilter={selectedSessionFilter}
-            setSelectedSessionFilter={setSelectedSessionFilter}
-            loading={deliveryDataLoading}
-            onRefresh={() => {
-              // Refetch is handled automatically by React Query when filters change
-            }}
+        {activeTab === 'reassign' && (
+          <ReassignDriverTab
+            routePlan={routePlan}
+            reassignMutation={reassignDriverMutation}
           />
         )}
         

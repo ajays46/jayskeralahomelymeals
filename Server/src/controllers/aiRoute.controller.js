@@ -3,6 +3,7 @@ import {
   getAvailableDatesService,
   getDeliveryDataService,
   planRouteService,
+  reassignDriverService,
   predictStartTimeService,
   startJourneyService,
   stopReachedService,
@@ -222,6 +223,35 @@ export const planRoute = async (req, res, next) => {
       delivery_date: req.body?.delivery_date,
       delivery_session: req.body?.delivery_session
     });
+    next(error);
+  }
+};
+
+/**
+ * Reassign Driver - single: { route_id, new_driver_name } | exchange: { exchange: true, route_id_1, route_id_2 }
+ */
+export const reassignDriver = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (body.exchange) {
+      if (!body.route_id_1 || !body.route_id_2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Exchange requires route_id_1 and route_id_2'
+        });
+      }
+    } else {
+      if (!body.route_id || !body.new_driver_name) {
+        return res.status(400).json({
+          success: false,
+          message: 'Reassign requires route_id and new_driver_name'
+        });
+      }
+    }
+    const result = await reassignDriverService(body);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Reassign driver failed', { error: error.message });
     next(error);
   }
 };

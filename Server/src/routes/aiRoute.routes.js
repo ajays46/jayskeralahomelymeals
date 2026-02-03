@@ -6,6 +6,7 @@ import {
   getAvailableDates,
   getDeliveryData,
   planRoute,
+  reassignDriver,
   predictStartTime,
   startJourney,
   stopReached,
@@ -48,6 +49,7 @@ router.get('/delivery-data', checkRole('DELIVERY_MANAGER'), getDeliveryData);
 
 // Route planning - DELIVERY_MANAGER only
 router.post('/route/plan', checkRole('DELIVERY_MANAGER'), planRoute);
+router.post('/route/reassign-driver', checkRole('DELIVERY_MANAGER'), reassignDriver);
 router.post('/route/predict-start-time', checkRole('DELIVERY_MANAGER'), predictStartTime);
 
 // Journey management (NEW APIs matching documentation)

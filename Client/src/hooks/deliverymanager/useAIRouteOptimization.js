@@ -193,6 +193,29 @@ export const usePlanRoute = () => {
 };
 
 /**
+ * Reassign Driver (Mutation)
+ * Body: { route_id, new_driver_name } for single reassign, or { exchange: true, route_id_1, route_id_2 } for exchange
+ */
+export const useReassignDriver = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body) => {
+      const response = await axiosInstance.post('/ai-routes/route/reassign-driver', body);
+      if (!response.data.success) {
+        throw new Error(response.data.message || response.data.error || 'Reassign driver failed');
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
+    },
+    onError: (error) => {
+      console.error('Reassign driver error:', error);
+    }
+  });
+};
+
+/**
  * Predict Start Time (Mutation)
  */
 export const usePredictStartTime = () => {

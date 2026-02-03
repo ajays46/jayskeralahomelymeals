@@ -175,6 +175,35 @@ export const planRouteService = async (routeData) => {
 };
 
 /**
+ * Reassign Driver - single reassign or exchange two drivers
+ * Body: { route_id, new_driver_name } OR { exchange: true, route_id_1, route_id_2 }
+ */
+export const reassignDriverService = async (body) => {
+  try {
+    const response = await apiClient.post('/api/route/reassign-driver', body);
+    const data = response.data;
+    if (!data.success) {
+      throw new Error(data.error || data.message || 'Reassign driver failed');
+    }
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Driver reassigned successfully', {
+      route_id: body.route_id || body.route_id_1,
+      exchange: !!body.exchange
+    });
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Reassign driver failed', {
+      error: error.message,
+      body,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Reassign driver failed',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
  * Predict Start Time
  * Accepts either route_id OR (delivery_date + delivery_session + depot_location)
  */
