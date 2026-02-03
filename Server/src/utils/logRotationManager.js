@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { logInfo, logError, logWarning, LOG_CATEGORIES } from './criticalLogger.js';
+import { uploadLogsToS3, isS3Configured } from './s3LogUploader.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,6 +17,7 @@ class LogRotationManager {
   constructor() {
     this.isRunning = false;
     this.rotationSchedule = '0 0 * * *'; // Daily at midnight
+    this.s3UploadSchedule = '0 1 * * *';  // Daily at 1 AM (after rotation)
     this.cleanupSchedule = '0 2 * * *'; // Daily at 2 AM
     this.monitoringSchedule = '0 */6 * * *'; // Every 6 hours
   }
@@ -39,6 +41,16 @@ class LogRotationManager {
       timezone: "Asia/Kolkata" // Adjust to your timezone
     });
 
+    // Schedule S3 upload at 1 AM (after midnight rotation)
+    if (isS3Configured()) {
+      cron.schedule(this.s3UploadSchedule, () => {
+        this.performS3Upload();
+      }, {
+        scheduled: true,
+        timezone: "Asia/Kolkata"
+      });
+    }
+
     // Schedule cleanup at 2 AM
     cron.schedule(this.cleanupSchedule, () => {
       this.performCleanup();
@@ -57,9 +69,33 @@ class LogRotationManager {
 
     logInfo(LOG_CATEGORIES.SYSTEM, 'Log rotation system started', {
       rotationSchedule: this.rotationSchedule,
+      s3Upload: isS3Configured() ? this.s3UploadSchedule : 'disabled',
       cleanupSchedule: this.cleanupSchedule,
       monitoringSchedule: this.monitoringSchedule
     });
+  }
+
+  /**
+   * Upload log files to S3 bucket
+   */
+  async performS3Upload() {
+    try {
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Starting S3 log upload');
+      const result = await uploadLogsToS3();
+      logInfo(LOG_CATEGORIES.SYSTEM, 'S3 log upload completed', {
+        uploaded: result.uploaded,
+        failed: result.failed,
+        errors: result.errors.length ? result.errors : undefined
+      });
+      if (result.errors.length > 0) {
+        result.errors.forEach((err) => logError(LOG_CATEGORIES.SYSTEM, 'S3 upload error', { message: err }));
+      }
+    } catch (error) {
+      logError(LOG_CATEGORIES.SYSTEM, 'S3 log upload failed', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
   }
 
   /**
