@@ -625,6 +625,19 @@ const RouteDetails = ({ routes, deliverySession, deliveryDate, onStartJourney })
     });
   };
 
+  const getDriverName = (route, index) => {
+    if (route.executive?.name) return route.executive.name;
+    if (route.driver_name) return route.driver_name;
+    if (route.driver_id && route.driver_id !== `driver_${index + 1}`) {
+      const formatted = route.driver_id
+        .replace('driver_', '')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (l) => l.toUpperCase());
+      if (formatted && formatted !== `${index + 1}`) return formatted;
+    }
+    return `Driver ${index + 1}`;
+  };
+
   return (
     <div className="mt-4">
       <h4 className="text-md font-semibold text-white mb-3">Route Details</h4>
@@ -636,7 +649,7 @@ const RouteDetails = ({ routes, deliverySession, deliveryDate, onStartJourney })
                 {index + 1}
               </div>
               <div>
-                <p className="text-sm font-medium text-white">Driver: {route.driver_id}</p>
+                <p className="text-sm font-medium text-white">Driver: {getDriverName(route, index)}</p>
                 <p className="text-xs text-gray-400">
                   {route.total_stops} stops • {route.estimated_time_hours?.toFixed(1)}h • {(route.total_distance_km || route.distance_km)?.toFixed(1)} km
                 </p>
