@@ -6,7 +6,9 @@ import {
   getAllDeliveryExecutives,
   deleteDeliveryExecutiveProfile,
   uploadDeliveryPhotoService,
-  checkDeliveryImagesForStop
+  uploadPreDeliveryPhotoService,
+  checkDeliveryImagesForStop,
+  checkPreDeliveryImagesForStop
 } from '../services/deliveryExecutive.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
@@ -653,6 +655,65 @@ export const uploadDeliveryPhoto = async (req, res) => {
   }
 };
 
+// Upload pre-delivery photos/videos to external API (before delivery at stop) - same params as delivery photo: address_id, session, date
+export const uploadPreDeliveryPhoto = async (req, res) => {
+  try {
+    const { address_id, session, date, comments } = req.body;
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one image or video file is required'
+      });
+    }
+
+    if (!address_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Address ID is required'
+      });
+    }
+
+    if (!session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session is required (BREAKFAST, LUNCH, or DINNER)'
+      });
+    }
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date is required (YYYY-MM-DD format)'
+      });
+    }
+
+    const result = await uploadPreDeliveryPhotoService(files, address_id, session, date, comments || '');
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Pre-delivery photos/videos uploaded successfully to external API', {
+      address_id: address_id,
+      session: session,
+      date: date,
+      fileCount: files.length,
+      fileNames: files.map(f => f.originalname)
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Pre-delivery photo/video upload failed', {
+      address_id: req.body?.address_id,
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload pre-delivery photos/videos',
+      error: error.message
+    });
+  }
+};
+
 // Check if delivery images exist for a specific stop
 export const checkDeliveryImages = async (req, res) => {
   try {
@@ -701,6 +762,59 @@ export const checkDeliveryImages = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to check delivery images',
+      error: error.message
+    });
+  }
+};
+
+// Check pre-delivery images for a stop (calls external API by address_id, delivery_session, delivery_date; returns same shape with presignedUrl)
+export const checkPreDeliveryImages = async (req, res) => {
+  try {
+    const { address_id, delivery_date, delivery_session } = req.query;
+
+    if (!address_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Address ID is required as query parameter'
+      });
+    }
+
+    if (!delivery_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Delivery date is required as query parameter (YYYY-MM-DD format)'
+      });
+    }
+
+    if (!delivery_session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Delivery session is required as query parameter (BREAKFAST, LUNCH, or DINNER)'
+      });
+    }
+
+    const result = await checkPreDeliveryImagesForStop(address_id, delivery_date, delivery_session);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Pre-delivery images check completed', {
+      address_id: address_id,
+      delivery_date: delivery_date,
+      delivery_session: delivery_session,
+      hasImages: result.hasImages,
+      imageCount: result.imageCount
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to check pre-delivery images', {
+      address_id: req.query?.address_id,
+      delivery_date: req.query?.delivery_date,
+      delivery_session: req.query?.delivery_session,
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check pre-delivery images',
       error: error.message
     });
   }

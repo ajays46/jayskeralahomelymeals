@@ -25,6 +25,11 @@ export {
 } from './useUploadDeliveryPhoto';
 
 export {
+  useUploadPreDeliveryPhoto
+} from './useUploadPreDeliveryPhoto';
+
+export {
   useCheckDeliveryImages,
-  useCheckMultipleDeliveryImages
+  useCheckMultipleDeliveryImages,
+  useCheckMultiplePreDeliveryImages
 } from './useCheckDeliveryImages';

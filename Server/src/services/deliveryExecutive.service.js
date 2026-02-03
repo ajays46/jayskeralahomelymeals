@@ -549,6 +549,296 @@ export const uploadDeliveryPhotoService = async (files, addressId, session, date
   }
 };
 
+/**
+ * Upload pre-delivery photos/videos to external API (before delivery at stop).
+ * Same pattern as upload_delivery_pic: address_id, session, date, file(s), optional comments.
+ * API: POST /api/route/upload-pre-delivery-photo
+ */
+export const uploadPreDeliveryPhotoService = async (files, addressId, session, date, comments = '') => {
+  try {
+    if (!files || files.length === 0) {
+      throw new Error('At least one image or video file is required');
+    }
+
+    if (!addressId) {
+      throw new Error('Address ID is required');
+    }
+
+    if (!session) {
+      throw new Error('Session is required (BREAKFAST, LUNCH, or DINNER)');
+    }
+
+    if (!date) {
+      throw new Error('Date is required (YYYY-MM-DD format)');
+    }
+
+    const sessionUpper = session.toUpperCase();
+
+    // Process each file (same compression as delivery photo)
+    const MAX_SIZE_FOR_IMAGES = 1.5 * 1024 * 1024; // 1.5MB for images
+    const MAX_SIZE_FOR_VIDEOS = 10 * 1024 * 1024; // 10MB for videos
+    const MAX_SIZE_FOR_EXTERNAL_API = 5 * 1024 * 1024; // 5MB max per file for external API
+    const processedFiles = [];
+
+    for (const file of files) {
+      const isImage = file.mimetype.startsWith('image/');
+      const isVideo = file.mimetype.startsWith('video/');
+
+      if (!isImage && !isVideo) {
+        throw new Error(`Invalid file type: ${file.mimetype}. Only images and videos are allowed.`);
+      }
+
+      let processedBuffer = file.buffer;
+      let processedMimeType = file.mimetype;
+      let processedFilename = file.originalname;
+
+      // Compress images if too large
+      if (isImage && file.size > MAX_SIZE_FOR_IMAGES) {
+        try {
+          let sharpInstance = sharp(file.buffer);
+          const metadata = await sharpInstance.metadata();
+          if (metadata.width && metadata.width > 1920) {
+            sharpInstance = sharpInstance.resize(1920, null, { withoutEnlargement: true, fit: 'inside' });
+          }
+          if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/jpg') {
+            processedBuffer = await sharpInstance.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+            processedMimeType = 'image/jpeg';
+            processedFilename = file.originalname.replace(/\.(png|gif|webp)$/i, '.jpg');
+          } else if (file.mimetype === 'image/png') {
+            processedBuffer = await sharpInstance.png({ quality: 85, compressionLevel: 9 }).toBuffer();
+            processedMimeType = 'image/png';
+          } else {
+            processedBuffer = await sharpInstance.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+            processedMimeType = 'image/jpeg';
+            processedFilename = file.originalname.replace(/\.[^.]+$/, '.jpg');
+          }
+          if (processedBuffer.length > MAX_SIZE_FOR_EXTERNAL_API) {
+            sharpInstance = sharp(file.buffer);
+            if (metadata.width && metadata.width > 1280) {
+              sharpInstance = sharpInstance.resize(1280, null, { withoutEnlargement: true, fit: 'inside' });
+            }
+            processedBuffer = await sharpInstance.jpeg({ quality: 75, mozjpeg: true }).toBuffer();
+            processedMimeType = 'image/jpeg';
+            processedFilename = file.originalname.replace(/\.[^.]+$/, '.jpg');
+          }
+        } catch (compressError) {
+          console.error('Error compressing image, using original:', compressError);
+          processedBuffer = file.buffer;
+        }
+      }
+
+      if (isVideo && file.size > MAX_SIZE_FOR_VIDEOS) {
+        try {
+          const compressed = await compressVideo(file.buffer, file.originalname, file.mimetype, 10);
+          processedBuffer = compressed.buffer;
+          processedMimeType = compressed.mimetype;
+          processedFilename = compressed.filename;
+        } catch (compressError) {
+          console.error('Error compressing video, using original:', compressError);
+          processedBuffer = file.buffer;
+        }
+      }
+
+      processedFiles.push({
+        buffer: processedBuffer,
+        mimetype: processedMimeType,
+        filename: processedFilename,
+        originalName: file.originalname,
+        originalSize: file.size,
+        processedSize: processedBuffer.length,
+        isVideo: isVideo
+      });
+    }
+
+    const formData = new FormData();
+    formData.append('address_id', addressId);
+    formData.append('session', sessionUpper);
+    formData.append('date', date);
+    if (comments != null && String(comments).trim() !== '') {
+      formData.append('comments', String(comments).trim());
+    }
+    // External API (5003) expects field name "images" (or "image"), not "file"
+    processedFiles.forEach((file) => {
+      formData.append('images', file.buffer, {
+        filename: file.filename,
+        contentType: file.mimetype
+      });
+    });
+
+    const baseUrl = process.env.AI_ROUTE_API_THIRD || 'http://13.203.227.119:5003';
+    const externalApiUrl = `${baseUrl}/api/route/upload-pre-delivery-photo`;
+    const authToken = process.env.EXTERNAL_API_AUTH_TOKEN || 'mysecretkey123';
+    const formDataHeaders = formData.getHeaders();
+    const headers = { ...formDataHeaders, 'Authorization': `Bearer ${authToken}` };
+
+    const response = await fetch(externalApiUrl, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    if (!response.ok) {
+      let errorDetails = '';
+      try {
+        errorDetails = await response.text();
+      } catch (e) {}
+      if (response.status === 401 || response.status === 403) {
+        console.error('Authorization failed for pre-delivery photo API:', { status: response.status, errorDetails });
+        throw new Error(`External API authentication failed (${response.status}). Check EXTERNAL_API_AUTH_TOKEN.`);
+      }
+      throw new Error(`External API returned ${response.status}: ${response.statusText}. Details: ${errorDetails}`);
+    }
+
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (e) {
+      responseData = { success: true };
+    }
+    if (responseData && responseData.success !== false) {
+      const uploadedFiles = responseData.uploaded_files || [];
+      if (uploadedFiles.length > 0) {
+        const dateForDb = new Date(String(date).slice(0, 10) + 'T00:00:00.000Z');
+        for (const f of uploadedFiles) {
+          try {
+            await prisma.deliveryImage.create({
+              data: {
+                ...(f.id && { id: f.id }),
+                addressId,
+                contentType: (f.content_type || 'image/jpeg').slice(0, 100),
+                deliveryDate: dateForDb,
+                deliverySession: sessionUpper,
+                fileSize: BigInt(f.file_size || 0),
+                fileType: (f.file_type || 'image').toString().toLowerCase() === 'video' ? 'video' : 'image',
+                filename: (f.filename || 'image').slice(0, 255),
+                s3Key: (f.s3_key || '').slice(0, 500),
+                s3Url: (f.s3_url || '').slice(0, 500),
+                presignedUrl: f.presigned_url ? String(f.presigned_url).slice(0, 500) : null,
+                isPreDelivery: true,
+                ...(f.uploaded_at && { uploadedAt: new Date(f.uploaded_at) })
+              }
+            });
+          } catch (dbErr) {
+            if (dbErr.code === 'P2002') {
+              // Unique constraint (e.g. id already exists) - skip
+            } else {
+              console.error('Error saving pre-delivery image to DB:', dbErr);
+            }
+          }
+        }
+      }
+      return {
+        success: true,
+        message: `${processedFiles.length} file(s) uploaded successfully (pre-delivery)`,
+        externalResponse: responseData,
+        fileInfo: processedFiles.map(f => ({
+          originalName: f.originalName,
+          originalSize: f.originalSize,
+          processedSize: f.processedSize,
+          mimeType: f.mimetype,
+          isVideo: f.isVideo
+        }))
+      };
+    }
+    throw new Error('External API returned unsuccessful response');
+  } catch (error) {
+    console.error('Error in uploadPreDeliveryPhotoService:', error);
+    if (error.message) throw new Error('Failed to upload pre-delivery files: ' + error.message);
+    throw new Error('Failed to upload pre-delivery files to external API');
+  }
+};
+
+/**
+ * Check pre-delivery images for a stop via DB (DeliveryImage table).
+ * Same pattern as checkDeliveryImagesForStop: addressId, delivery_date, delivery_session.
+ * Filters by isPreDelivery: true and returns images with presignedUrl.
+ */
+export const checkPreDeliveryImagesForStop = async (addressId, deliveryDate, deliverySession) => {
+  try {
+    if (!addressId) {
+      throw new Error('Address ID is required');
+    }
+
+    if (!deliveryDate) {
+      throw new Error('Delivery date is required');
+    }
+
+    if (!deliverySession) {
+      throw new Error('Delivery session is required');
+    }
+
+    const sessionUpper = deliverySession.toUpperCase();
+    const validSessions = ['BREAKFAST', 'LUNCH', 'DINNER'];
+    if (!validSessions.includes(sessionUpper)) {
+      throw new Error('Invalid delivery session. Must be BREAKFAST, LUNCH, or DINNER');
+    }
+
+    let dateToCheck;
+    if (typeof deliveryDate === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate)) {
+        dateToCheck = new Date(deliveryDate + 'T00:00:00.000Z');
+      } else {
+        dateToCheck = new Date(deliveryDate);
+      }
+    } else {
+      dateToCheck = new Date(deliveryDate);
+    }
+
+    if (isNaN(dateToCheck.getTime())) {
+      throw new Error('Invalid delivery date format. Expected YYYY-MM-DD format');
+    }
+
+    const startOfDay = new Date(dateToCheck);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(dateToCheck);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    const images = await prisma.deliveryImage.findMany({
+      where: {
+        addressId,
+        deliveryDate: {
+          gte: startOfDay,
+          lte: endOfDay
+        },
+        deliverySession: sessionUpper,
+        isPreDelivery: true
+      },
+      select: {
+        id: true,
+        filename: true,
+        fileType: true,
+        fileSize: true,
+        s3Url: true,
+        presignedUrl: true,
+        uploadedAt: true,
+        contentType: true
+      },
+      orderBy: {
+        uploadedAt: 'desc'
+      }
+    });
+
+    const hasValidImages = images.length > 0 && images.some(img => img.s3Url && img.s3Url.trim() !== '');
+    const status = hasValidImages ? 'uploaded' : 'not_uploaded';
+
+    const serializedImages = images.map(img => ({
+      ...img,
+      fileSize: img.fileSize ? String(img.fileSize) : null
+    }));
+
+    return {
+      success: true,
+      status,
+      hasImages: hasValidImages,
+      imageCount: images.length,
+      images: serializedImages
+    };
+  } catch (error) {
+    console.error('Error in checkPreDeliveryImagesForStop:', error);
+    throw new Error('Failed to check pre-delivery images: ' + error.message);
+  }
+};
+
 // Check if delivery images exist for a specific stop
 export const checkDeliveryImagesForStop = async (addressId, deliveryDate, deliverySession) => {
   try {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { FiArrowLeft, FiLogOut, FiMapPin, FiPlay } from 'react-icons/fi';
 import { MdLocalShipping } from 'react-icons/md';
 import { message } from 'antd';
@@ -8,7 +9,7 @@ import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
 import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
-import { useUploadDeliveryPhoto, useCheckMultipleDeliveryImages } from '../hooks/deliverymanager';
+import { useUploadDeliveryPhoto, useUploadPreDeliveryPhoto, useCheckMultipleDeliveryImages, useCheckMultiplePreDeliveryImages } from '../hooks/deliverymanager';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 
 /**
@@ -17,6 +18,7 @@ import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
  * Features: Route management, order status updates, location tracking, delivery analytics
  */
 const DeliveryExecutivePage = () => {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('routes'); // routes only
@@ -132,7 +134,29 @@ const DeliveryExecutivePage = () => {
   
   // Hook for uploading delivery photos
   const uploadDeliveryPhotoMutation = useUploadDeliveryPhoto();
-  
+  const uploadPreDeliveryPhotoMutation = useUploadPreDeliveryPhoto();
+
+  // Pre-delivery image upload state (which stop index is open for pre-delivery upload)
+  const [uploadingPreDeliveryImage, setUploadingPreDeliveryImage] = useState(null);
+  // Track pre-delivery uploaded stops by address_id + session + date (same key format as delivery photo)
+  const [preDeliveryUploadedStops, setPreDeliveryUploadedStops] = useState(() => {
+    try {
+      const saved = localStorage.getItem('preDeliveryUploadedStops');
+      if (!saved) return {};
+      const data = JSON.parse(saved);
+      const t = new Date();
+      const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+      const cleaned = {};
+      Object.keys(data).forEach(key => {
+        const parts = key.split('_');
+        if (parts.length >= 2 && parts[parts.length - 1] === today) cleaned[key] = true;
+      });
+      return cleaned;
+    } catch (e) {
+      return {};
+    }
+  });
+
   // Delivery status state
   const [deliveryStatus, setDeliveryStatus] = useState({});
   const [loadingStatus, setLoadingStatus] = useState({});
@@ -209,6 +233,31 @@ const DeliveryExecutivePage = () => {
       } catch (error) {
         console.error('Error saving uploaded photos to localStorage:', error);
       }
+      return newData;
+    });
+  };
+
+  // Pre-delivery: same pattern as delivery photo - key by address_id + session + date
+  const getPreDeliveryKey = (addressId, session) => getPhotoKey(addressId, session);
+  const isPreDeliveryUploaded = (addressId, session) => {
+    if (!addressId || !session) return false;
+    const key = getPreDeliveryKey(addressId, session);
+    // 1) Check API status (from check-pre-delivery-images)
+    if (preDeliveryImagesStatus && preDeliveryImagesStatus[key]) {
+      const entry = preDeliveryImagesStatus[key];
+      if (entry.status === 'uploaded' || entry.hasImages === true) return true;
+    }
+    // 2) Fallback to localStorage (after user uploads in same session)
+    if (preDeliveryUploadedStops[key] === true) return true;
+    return false;
+  };
+  const markPreDeliveryUploaded = (addressId, session) => {
+    const key = getPreDeliveryKey(addressId, session);
+    setPreDeliveryUploadedStops(prev => {
+      const newData = { ...prev, [key]: true };
+      try {
+        localStorage.setItem('preDeliveryUploadedStops', JSON.stringify(newData));
+      } catch (e) {}
       return newData;
     });
   };
@@ -439,6 +488,16 @@ const DeliveryExecutivePage = () => {
       enabled: stopsForImageCheck.length > 0,
       refetchInterval: 30000, // Refetch every 30 seconds
       staleTime: 15 * 1000 // 15 seconds
+    }
+  );
+
+  // Check pre-delivery images status for all stops (calls external API via backend)
+  const { data: preDeliveryImagesStatus, refetch: refetchPreDeliveryImageStatus } = useCheckMultiplePreDeliveryImages(
+    stopsForImageCheck,
+    {
+      enabled: stopsForImageCheck.length > 0,
+      refetchInterval: 30000,
+      staleTime: 15 * 1000
     }
   );
 
@@ -1046,6 +1105,68 @@ const DeliveryExecutivePage = () => {
       );
       
       setImageUploadError(apiError.response?.data?.message || apiError.message || 'Failed to upload image. Please try again.');
+    }
+  };
+
+  const handlePreDeliveryImageUpload = async (stopIndex) => {
+    if (!selectedFiles || selectedFiles.length === 0) {
+      setImageUploadError('Please select at least one image or video first.');
+      return;
+    }
+    setImageUploadError(null);
+    try {
+      const currentStop = routes.sessions[selectedSession].stops.filter(stop => stop.Delivery_Name !== 'Return to Hub')[stopIndex];
+      const addressId =
+        (currentStop?.address_id && currentStop.address_id !== '') ? currentStop.address_id :
+        (currentStop?.Address_ID && currentStop.Address_ID !== '') ? currentStop.Address_ID :
+        (currentStop?.addressId && currentStop.addressId !== '') ? currentStop.addressId :
+        (currentStop?._original?.address_id && currentStop._original.address_id !== '') ? currentStop._original.address_id :
+        (currentStop?._original?.Address_ID && currentStop._original.Address_ID !== '') ? currentStop._original.Address_ID :
+        (currentStop?._original?.addressId && currentStop._original.addressId !== '') ? currentStop._original.addressId :
+        null;
+      if (!addressId) {
+        setImageUploadError('No address ID found for this delivery stop.');
+        toast.error('No address ID found for this stop. Cannot upload pre-delivery photo.');
+        return;
+      }
+      const sessionUpper = selectedSession.toUpperCase();
+      const date = getTodayDateString();
+      await uploadPreDeliveryPhotoMutation.mutateAsync({
+        images: selectedFiles,
+        address_id: addressId,
+        session: sessionUpper,
+        date,
+        comments: ''
+      });
+      const fileCount = selectedFiles.length;
+      const key = getPreDeliveryKey(addressId, sessionUpper);
+      markPreDeliveryUploaded(addressId, sessionUpper);
+      // Optimistic update: show "uploaded" immediately (in case external GET returns 404)
+      const stopsKey = stopsForImageCheck.length > 0
+        ? stopsForImageCheck.map(s => `${s.addressId}_${s.deliveryDate}_${s.deliverySession}`).sort().join('|')
+        : 'empty';
+      queryClient.setQueryData(['preDeliveryImages', 'batch', stopsKey], (prev) => ({
+        ...(prev || {}),
+        [key]: { status: 'uploaded', hasImages: true, imageCount: fileCount }
+      }));
+      refetchPreDeliveryImageStatus();
+      clearImageUpload();
+      setUploadingPreDeliveryImage(null);
+      toast.success(
+        <div className="flex items-center gap-3">
+          <svg className="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <div>
+            <div className="font-semibold text-green-800 text-base">✅ Pre-delivery: {fileCount} file{fileCount > 1 ? 's' : ''} uploaded</div>
+            <div className="text-sm text-green-700 mt-1">Pre-delivery photo(s) uploaded successfully.</div>
+          </div>
+        </div>,
+        { position: "top-right", autoClose: 4000, hideProgressBar: false, theme: "light" }
+      );
+    } catch (apiError) {
+      setImageUploadError(apiError.response?.data?.message || apiError.message || 'Failed to upload pre-delivery photo.');
+      toast.error(apiError.response?.data?.message || apiError.message || 'Failed to upload pre-delivery photo.');
     }
   };
 
@@ -2847,6 +2968,54 @@ const DeliveryExecutivePage = () => {
                                     {/* Action Buttons - Swiggy Style */}
                                     <div className="mt-4">
                                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+                                        {/* Pre-delivery Photo Button (before Map - upload before delivery) */}
+                                        {deliveryStatus[index]?.status !== 'Delivered' && (() => {
+                                          const stopAddressId =
+                                            (stop?.address_id && stop.address_id !== '') ? stop.address_id :
+                                            (stop?.Address_ID && stop.Address_ID !== '') ? stop.Address_ID :
+                                            (stop?.addressId && stop.addressId !== '') ? stop.addressId :
+                                            (stop?._original?.address_id && stop._original.address_id !== '') ? stop._original.address_id :
+                                            (stop?._original?.Address_ID && stop._original.Address_ID !== '') ? stop._original.Address_ID :
+                                            (stop?._original?.addressId && stop._original.addressId !== '') ? stop._original.addressId :
+                                            null;
+                                          const preDeliveryUploaded = stopAddressId ? isPreDeliveryUploaded(stopAddressId, selectedSession) : false;
+                                          if (!stopAddressId) return null;
+                                          return (
+                                            <button
+                                              onClick={() => {
+                                                if (!preDeliveryUploaded) {
+                                                  setUploadingImage(null);
+                                                  setUploadingPreDeliveryImage(uploadingPreDeliveryImage === index ? null : index);
+                                                  clearImageUpload();
+                                                }
+                                              }}
+                                              disabled={preDeliveryUploaded}
+                                              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all text-xs sm:text-sm ${
+                                                preDeliveryUploaded
+                                                  ? 'bg-green-600 hover:bg-green-700 text-white cursor-default'
+                                                  : 'bg-amber-600 hover:bg-amber-700 text-white'
+                                              }`}
+                                              title={preDeliveryUploaded ? 'Pre-delivery photo already uploaded' : 'Upload photo before delivery'}
+                                            >
+                                              {preDeliveryUploaded ? (
+                                                <>
+                                                  <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                  </svg>
+                                                  <span className="truncate">Pre-uploaded</span>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                  </svg>
+                                                  <span className="truncate">Pre-delivery</span>
+                                                </>
+                                              )}
+                                            </button>
+                                          );
+                                        })()}
+
                                         {/* Map Button - use Directions API with destination=lat,lng so each stop opens correct location */}
                                         {(stop.Map_Link || (stop.Latitude != null && stop.Longitude != null)) && (
                                           <button
@@ -2923,7 +3092,7 @@ const DeliveryExecutivePage = () => {
                                           );
                                         })()}
                                         
-                                        {/* Photo Button */}
+                                        {/* Photo Button (delivery photo) */}
                                         {deliveryStatus[index]?.status !== 'Delivered' && (() => {
                                           // Get address_id from stop
                                           const stopAddressId = 
@@ -2941,6 +3110,7 @@ const DeliveryExecutivePage = () => {
                                             <button
                                               onClick={() => {
                                                 if (!photoUploaded) {
+                                                  setUploadingPreDeliveryImage(null);
                                                   setUploadingImage(uploadingImage === index ? null : index);
                                                 }
                                               }}
@@ -3104,7 +3274,7 @@ const DeliveryExecutivePage = () => {
                                     )}
 
                                     {/* Action UI - Compact Style */}
-                                    {(completingDelivery === index || uploadingImage === index) && (
+                                    {(completingDelivery === index || uploadingImage === index || uploadingPreDeliveryImage === index) && (
                                       <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
                                         {/* Delivery Completion UI */}
                                         {completingDelivery === index && (
@@ -3174,7 +3344,103 @@ const DeliveryExecutivePage = () => {
                                           </>
                                         )}
 
-                                        {/* Image/Video Upload UI */}
+                                        {/* Pre-delivery Image/Video Upload UI */}
+                                        {uploadingPreDeliveryImage === index && (
+                                          <>
+                                            <h6 className="text-gray-900 font-bold mb-4 flex items-center gap-2 text-base">
+                                              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                              </svg>
+                                              Upload Pre-Delivery Photos/Videos
+                                            </h6>
+                                            <div className="space-y-4">
+                                              <div className="bg-white rounded-xl p-4 border-2 border-dashed border-gray-300">
+                                                <label className="block cursor-pointer">
+                                                  <input
+                                                    type="file"
+                                                    accept="image/*,video/*"
+                                                    multiple
+                                                    onChange={handleFileSelect}
+                                                    className="hidden"
+                                                    id={`pre-delivery-upload-${index}`}
+                                                  />
+                                                  <div className="flex flex-col items-center justify-center py-6">
+                                                    <svg className="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                    </svg>
+                                                    <p className="text-gray-700 font-semibold text-sm mb-1">
+                                                      {selectedFiles.length > 0 ? `Add More Files (${selectedFiles.length} selected)` : 'Select Images/Videos'}
+                                                    </p>
+                                                    <p className="text-gray-500 text-xs">Photo before delivery at this stop</p>
+                                                  </div>
+                                                </label>
+                                              </div>
+                                              {selectedFiles.length > 0 && (
+                                                <div className="bg-white rounded-xl p-4 border border-gray-200">
+                                                  <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-gray-700 font-semibold text-sm">Selected Files ({selectedFiles.length}):</span>
+                                                    <button onClick={clearImageUpload} className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1">
+                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                      Clear All
+                                                    </button>
+                                                  </div>
+                                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                    {selectedFiles.map((file, fileIndex) => {
+                                                      const preview = filePreviews[fileIndex];
+                                                      const isVideo = file.type.startsWith('video/');
+                                                      return (
+                                                        <div key={fileIndex} className="relative group">
+                                                          <div className="relative rounded-lg border border-gray-200 overflow-hidden bg-gray-100">
+                                                            {preview ? (isVideo ? <video src={preview.url} className="w-full h-24 object-cover" controls={false} /> : <img src={preview.url} alt={file.name} className="w-full h-24 object-cover" />) : (
+                                                              <div className="w-full h-24 flex items-center justify-center">
+                                                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                              </div>
+                                                            )}
+                                                            <button onClick={() => removeFile(fileIndex)} className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove file">
+                                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                            </button>
+                                                          </div>
+                                                          <p className="text-xs text-gray-600 mt-1 truncate" title={file.name}>{file.name}</p>
+                                                          <p className="text-xs text-gray-400">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                                        </div>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              {imageUploadError && (
+                                                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3">
+                                                  <p className="text-red-700 text-sm font-medium">{imageUploadError}</p>
+                                                </div>
+                                              )}
+                                              <div className="pt-2">
+                                                <button
+                                                  onClick={() => handlePreDeliveryImageUpload(index)}
+                                                  disabled={selectedFiles.length === 0 || uploadPreDeliveryPhotoMutation.isPending}
+                                                  className={`w-full px-5 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
+                                                    selectedFiles.length > 0 && !uploadPreDeliveryPhotoMutation.isPending ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                  }`}
+                                                >
+                                                  {uploadPreDeliveryPhotoMutation.isPending ? (
+                                                    <>
+                                                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                                                      Uploading {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''}...
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                      </svg>
+                                                      Upload Pre-Delivery {selectedFiles.length > 0 ? `${selectedFiles.length} ` : ''}File{selectedFiles.length !== 1 ? 's' : ''}
+                                                    </>
+                                                  )}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </>
+                                        )}
+
+                                        {/* Image/Video Upload UI (delivery photo) */}
                                         {uploadingImage === index && (
                                           <>
                                             <h6 className="text-gray-900 font-bold mb-4 flex items-center gap-2 text-base">

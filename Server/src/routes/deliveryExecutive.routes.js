@@ -10,7 +10,9 @@ import {
   getRoutes,
   getRoutesByDriverId,
   uploadDeliveryPhoto,
-  checkDeliveryImages
+  uploadPreDeliveryPhoto,
+  checkDeliveryImages,
+  checkPreDeliveryImages
 } from '../controllers/deliveryExecutive.controller.js';
 
 const router = express.Router();
@@ -58,8 +60,14 @@ router.get('/routes', getRoutesByDriverId);
 // Upload delivery photos/videos to external API (accepts multiple files with 'images[]' key)
 router.post('/upload-delivery-photo', upload.array('images[]', 10), uploadDeliveryPhoto);
 
+// Upload pre-delivery photos/videos to external API (same pattern as upload_delivery_pic: address_id, session, date, file(s), optional comments)
+router.post('/upload-pre-delivery-photo', upload.array('file', 10), uploadPreDeliveryPhoto);
+
 // Check if delivery images exist for a specific stop
 // Query params: address_id, delivery_date (YYYY-MM-DD), delivery_session (BREAKFAST/LUNCH/DINNER)
 router.get('/check-delivery-images', checkDeliveryImages);
+
+// Check pre-delivery images for a stop (calls external API; same params, returns images with presignedUrl)
+router.get('/check-pre-delivery-images', checkPreDeliveryImages);
 
 export default router;
