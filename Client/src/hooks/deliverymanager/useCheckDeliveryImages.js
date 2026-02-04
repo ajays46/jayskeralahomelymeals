@@ -48,7 +48,9 @@ export const useCheckDeliveryImages = (addressId, deliveryDate, deliverySession,
 };
 
 /**
- * Hook to check multiple stops at once (batch check)
+ * Hook to check multiple stops at once (batch check).
+ * Uses GET /delivery-executives/check-delivery-images (backend returns only delivery photos,
+ * i.e. is_pre_delivery = false; pre-delivery photos are excluded).
  * @param {Array} stops - Array of { addressId, deliveryDate, deliverySession }
  * @param {Object} options - React Query options
  * @returns {Object} Query object with data as a map of addressId_session_date -> status
@@ -128,7 +130,8 @@ export const useCheckMultipleDeliveryImages = (stops = [], options = {}) => {
 };
 
 /**
- * Hook to check pre-delivery images for multiple stops (calls GET /check-pre-delivery-images)
+ * Hook to check pre-delivery images for multiple stops (calls GET /check-pre-delivery-images).
+ * Backend returns only pre-delivery photos (is_pre_delivery = true).
  * Same key format as delivery images: addressId_session_date
  * @param {Array} stops - Array of { addressId, deliveryDate, deliverySession }
  * @param {Object} options - React Query options
