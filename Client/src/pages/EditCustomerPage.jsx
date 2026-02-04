@@ -82,14 +82,7 @@ const EditCustomerPage = () => {
       newErrors.phoneNumber = 'Phone number must be 10 digits';
     }
     
-    if (!formData.city || !String(formData.city).trim()) {
-      newErrors.city = 'City is required';
-    }
-    
-    if (!formData.pincode || !String(formData.pincode).trim()) {
-      newErrors.pincode = 'Pincode is required';
-    }
-    
+    // Address fields are optional when editing; only basic info is required to save
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -356,40 +349,30 @@ const EditCustomerPage = () => {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City *
+                    City
                   </label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.city ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter city"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter city (optional)"
                   />
-                  {errors.city && (
-                    <p className="text-red-500 text-xs mt-1">{errors.city}</p>
-                  )}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pincode *
+                    Pincode
                   </label>
                   <input
                     type="text"
                     name="pincode"
                     value={formData.pincode}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.pincode ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter pincode"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter pincode (optional)"
                   />
-                  {errors.pincode && (
-                    <p className="text-red-500 text-xs mt-1">{errors.pincode}</p>
-                  )}
                 </div>
               </div>
             </div>
