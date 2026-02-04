@@ -114,12 +114,11 @@ const CustomerLoginPage = () => {
       const response = await axios.post(`${baseURL}/auth/login`, {
         identifier: formData.phoneNumber,
         password: formData.password
-      });
+      }, { withCredentials: true });
 
       if (response.data.success) {
-        // Store auth token in both localStorage and Zustand store
+        // Store access token in memory only (Zustand); refresh token is in HttpOnly cookie
         const accessToken = response.data.accessToken;
-        localStorage.setItem('accessToken', accessToken);
         setAccessToken(accessToken);
         
         showSuccessToast('Login successful! Redirecting...');

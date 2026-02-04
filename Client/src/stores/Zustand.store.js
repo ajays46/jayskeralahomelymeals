@@ -42,7 +42,18 @@ const useAuthStore = create(
                 activeRole: null,
                 showRoleSelector: false
             })
-        }),{name:"_app"},
+        }),
+        {
+            name: "_app",
+            // Never persist accessToken - memory only; refresh token is in HttpOnly cookie
+            partialize: (state) => ({
+                user: state.user,
+                isAuthenticated: state.isAuthenticated,
+                roles: state.roles,
+                activeRole: state.activeRole,
+                showRoleSelector: state.showRoleSelector,
+            }),
+        }
     )
 )
 

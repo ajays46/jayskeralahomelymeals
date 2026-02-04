@@ -29,7 +29,7 @@ const CustomerPortalPage = () => {
   const [searchParams] = useSearchParams();
   const [token, setToken] = useState(null);
   const [isAuthenticatedMode, setIsAuthenticatedMode] = useState(false);
-  const { setAccessToken, accessToken: storeAccessToken } = useAuthStore();
+  const { accessToken: storeAccessToken } = useAuthStore();
 
   // State management
   const [customerInfo, setCustomerInfo] = useState(null);
@@ -40,48 +40,33 @@ const CustomerPortalPage = () => {
   const [error, setError] = useState(null);
   const [expandedOrders, setExpandedOrders] = useState({});
 
-  // Initialize token and hide it from URL
+  // Initialize token and hide it from URL - access token from store (memory) only; no token in localStorage/sessionStorage
   useEffect(() => {
-    // Support both 't' (short token) and 'token' (legacy JWT) parameters
+    // Support both 't' (short token) and 'token' (legacy JWT) parameters for one-time link access
     const urlToken = searchParams.get('t') || searchParams.get('token');
-    
-    // Check if user is logged in with accessToken
-    const localAccessToken = localStorage.getItem('accessToken');
-    
-    if (localAccessToken) {
-      // User is logged in - use authenticated mode
+
+    // Logged in: use access token from Zustand store (memory only)
+    if (storeAccessToken) {
       setIsAuthenticatedMode(true);
-      // Sync token to Zustand store if not already set
-      if (!storeAccessToken) {
-        setAccessToken(localAccessToken);
-      }
-      setLoading(false);
-      return;
-    }
-    
-    if (!urlToken) {
-      // Try to get token from sessionStorage (for page refresh)
-      const storedToken = sessionStorage.getItem('customerPortalToken');
-      if (storedToken) {
-        setToken(storedToken);
-        return;
-      }
-      
-      setError('No access token provided. Please use a valid link.');
       setLoading(false);
       return;
     }
 
-    // Store token in sessionStorage and remove from URL for security
-    sessionStorage.setItem('customerPortalToken', urlToken);
+    if (!urlToken) {
+      setError('No access token provided. Please log in or use a valid link.');
+      setLoading(false);
+      return;
+    }
+
+    // One-time URL token: keep in React state only (not in sessionStorage)
     setToken(urlToken);
-    
+
     // Remove token from URL without page reload
     const url = new URL(window.location);
     url.searchParams.delete('t');
     url.searchParams.delete('token');
     window.history.replaceState({}, document.title, url.pathname);
-  }, [searchParams, setAccessToken, storeAccessToken]);
+  }, [searchParams, storeAccessToken]);
 
   // Fetch customer data
   useEffect(() => {
@@ -91,13 +76,6 @@ const CustomerPortalPage = () => {
       fetchCustomerData();
     }
   }, [token, isAuthenticatedMode]);
-
-  // Cleanup sessionStorage on component unmount
-  useEffect(() => {
-    return () => {
-      sessionStorage.removeItem('customerPortalToken');
-    };
-  }, []);
 
   // Helper function to decode JWT token and get userId
   const getUserIdFromToken = (token) => {
@@ -121,15 +99,14 @@ const CustomerPortalPage = () => {
       setLoading(true);
       setError(null);
 
-      const localAccessToken = localStorage.getItem('accessToken') || storeAccessToken;
-      if (!localAccessToken) {
+      if (!storeAccessToken) {
         setError('No access token found');
         setLoading(false);
         return;
       }
 
       // Decode token to get userId
-      const userId = getUserIdFromToken(localAccessToken);
+      const userId = getUserIdFromToken(storeAccessToken);
       if (!userId) {
         setError('Invalid token format');
         setLoading(false);
@@ -192,8 +169,8 @@ const CustomerPortalPage = () => {
     } catch (error) {
       console.error('Error fetching customer data:', error);
       if (error.response?.status === 401) {
-        // Token expired or invalid - redirect to login
-        localStorage.removeItem('accessToken');
+        // Token expired or invalid - clear store and redirect to login
+        useAuthStore.getState().logout();
         navigate('/customer-login');
         showErrorToast('Session expired. Please login again.');
       } else {

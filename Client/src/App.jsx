@@ -46,6 +46,7 @@ import { initializeDraftCleanup } from './utils/draftOrderUtils';
 import RoleSelectionSidebar from './components/RoleSelectionSidebar';
 import Footer from './components/Footer';
 import useAuthStore from './stores/Zustand.store';
+import api from './api/axios';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,7 +86,22 @@ const ConditionalFooter = () => {
  */
 const App = () => {
   const { showRoleSelector, setShowRoleSelector, roles } = useAuthStore();
-  
+
+  // After persist rehydration: if we have user/roles but no accessToken (memory-only), get new token via refresh cookie
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      const state = useAuthStore.getState();
+      if (state.accessToken) return;
+      if (!state.user && !state.isAuthenticated) return;
+      api.post('/auth/refresh-token')
+        .then((res) => {
+          if (res.data?.accessToken) state.setAccessToken(res.data.accessToken);
+        })
+        .catch(() => { state.logout(); });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Initialize draft cleanup on app startup
   React.useEffect(() => {
     initializeDraftCleanup();
