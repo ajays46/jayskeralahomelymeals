@@ -1320,11 +1320,14 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
       }
     });
     
-    // Do NOT auto-complete sessions when all stops are delivered.
-    // Session is completed only when driver explicitly clicks "End Session".
-    const completedSessions = [];
+    // Determine completed sessions (all stops for that session are completed)
+    const completedSessions = Object.keys(sessionStats).filter(
+      session => sessionStats[session].total > 0 &&
+                 sessionStats[session].total === sessionStats[session].completed
+    );
     
-    // Check route_journey_summary for actual_end_time - only source for session completion
+    // Also check route_journey_summary for actual_end_time to confirm session completion
+    // This is the primary source for session completion when "End Session" is clicked
     const journeySummariesQuery = driverId
       ? prisma.$queryRaw`
           SELECT session, actual_end_time
@@ -1344,12 +1347,17 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
     
     const journeySummaries = await journeySummariesQuery;
     
-    // Add only sessions that were explicitly ended via "End Session" button
+    // Normalize session names to lowercase for comparison
+    const normalizedCompletedSessions = completedSessions.map(s => s?.toLowerCase());
+    
+    // Add sessions from journey_summary that have actual_end_time
+    // This ensures sessions marked as completed via "End Session" button persist after refresh
     journeySummaries.forEach(summary => {
       if (summary.session) {
         const normalizedSession = summary.session.toLowerCase();
-        if (!completedSessions.map(s => s?.toLowerCase()).includes(normalizedSession)) {
+        if (!normalizedCompletedSessions.includes(normalizedSession)) {
           completedSessions.push(normalizedSession);
+          normalizedCompletedSessions.push(normalizedSession);
         }
       }
     });

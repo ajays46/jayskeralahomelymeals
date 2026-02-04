@@ -887,17 +887,17 @@ export const checkDeliveryImagesForStop = async (addressId, deliveryDate, delive
     const endOfDay = new Date(dateToCheck);
     endOfDay.setUTCHours(23, 59, 59, 999);
 
-    // Get the actual images if they exist
-    // Check by ALL THREE - addressId, exact deliveryDate, and deliverySession
-    // Using date range to handle DATE field properly in Prisma
+    // Get the actual images if they exist (delivery photos only - exclude pre-delivery)
+    // Check by addressId, deliveryDate, deliverySession, and isPreDelivery: false
     const images = await prisma.deliveryImage.findMany({
       where: {
-        addressId: addressId, // Exact address match
+        addressId: addressId,
         deliveryDate: {
           gte: startOfDay,
           lte: endOfDay
-        }, // Exact date match (DATE field) - only images for this specific date
-        deliverySession: sessionUpper // Exact session match (BREAKFAST, LUNCH, or DINNER) - only images for this session
+        },
+        deliverySession: sessionUpper,
+        isPreDelivery: false // Only delivery photos (after delivery), not pre-delivery
       },
       select: {
         id: true,
