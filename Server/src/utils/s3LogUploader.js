@@ -1,10 +1,11 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import fs from 'fs';
 import path from 'path';
 
 /**
  * Upload log files to S3 using env: AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET
  * Keys in bucket: logs/{category}/{date}/{filename}
+ * Creates the bucket if it does not exist (so logs can be uploaded without manual bucket creation).
  */
 
 const getS3Config = () => {
@@ -30,6 +31,35 @@ const createS3Client = () => {
     config.credentials = { accessKeyId, secretAccessKey };
   }
   return new S3Client(config);
+};
+
+/**
+ * Ensure the S3 bucket exists; create it if it does not (so logs can be uploaded).
+ * Call this before uploading. Handles NoSuchBucket from PutObject by creating the bucket.
+ */
+export const ensureS3BucketExists = async () => {
+  if (!isS3Configured()) return false;
+  const { bucket, region } = getS3Config();
+  const client = createS3Client();
+  try {
+    await client.send(new HeadBucketCommand({ Bucket: bucket }));
+    return true;
+  } catch (err) {
+    const isNoSuchBucket = err.name === 'NoSuchBucket' || err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404;
+    if (isNoSuchBucket) {
+      try {
+        await client.send(new CreateBucketCommand({
+          Bucket: bucket,
+          ...(region && region !== 'us-east-1' ? { CreateBucketConfiguration: { LocationConstraint: region } } : {})
+        }));
+        return true;
+      } catch (createErr) {
+        console.error('S3: Failed to create bucket', bucket, createErr.message);
+        return false;
+      }
+    }
+    throw err;
+  }
 };
 
 /**
@@ -60,11 +90,16 @@ export const uploadLogFileToS3 = async (filePath, category) => {
   const datePart = getDateFromLogFilename(filename) || new Date().toISOString().split('T')[0];
   const key = `logs/${category}/${datePart}/${filename}`;
 
+  let body;
   try {
-    const body = fs.readFileSync(filePath);
-    if (body.length === 0) return null;
+    body = fs.readFileSync(filePath);
+  } catch (readErr) {
+    throw new Error(`S3 upload failed for ${filePath}: ${readErr.message}`);
+  }
+  if (!body || body.length === 0) return null;
 
-    const client = createS3Client();
+  const client = createS3Client();
+  try {
     await client.send(
       new PutObjectCommand({
         Bucket: bucket,
@@ -74,8 +109,20 @@ export const uploadLogFileToS3 = async (filePath, category) => {
       })
     );
     return { key };
-  } catch (error) {
-    throw new Error(`S3 upload failed for ${filePath}: ${error.message}`);
+  } catch (err) {
+    if (err.name === 'NoSuchBucket') {
+      await ensureS3BucketExists();
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: body,
+          ContentType: 'text/plain'
+        })
+      );
+      return { key };
+    }
+    throw new Error(`S3 upload failed for ${filePath}: ${err.message}`);
   }
 };
 
@@ -86,6 +133,14 @@ export const uploadLogFileToS3 = async (filePath, category) => {
 export const uploadLogsToS3 = async () => {
   const result = { uploaded: 0, failed: 0, errors: [] };
   if (!isS3Configured()) {
+    return result;
+  }
+
+  // Ensure bucket exists (create if missing) so uploads succeed
+  try {
+    await ensureS3BucketExists();
+  } catch (err) {
+    result.errors.push(`Bucket check/create failed: ${err.message}`);
     return result;
   }
 

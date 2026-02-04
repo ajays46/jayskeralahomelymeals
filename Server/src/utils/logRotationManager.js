@@ -49,6 +49,12 @@ class LogRotationManager {
         scheduled: true,
         timezone: "Asia/Kolkata"
       });
+      // Run one S3 upload shortly after startup so logs appear in S3 without waiting for 1 AM
+      setTimeout(() => {
+        this.performS3Upload();
+      }, 15000); // 15 seconds after start
+    } else {
+      logWarning(LOG_CATEGORIES.SYSTEM, 'S3 log upload disabled: set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET in .env to enable');
     }
 
     // Schedule cleanup at 2 AM
