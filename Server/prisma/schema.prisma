@@ -996,9 +996,10 @@ enum actual_route_stops_route_type {
 }
 
 enum delivery_items_delivery_time_slot {
-  BREAKFAST 
+  BREAKFAST
   LUNCH
   DINNER
+  ANY
 }
 
 model DeliveryImage {

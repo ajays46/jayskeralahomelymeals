@@ -38,16 +38,20 @@ const createDeliveryItemsInTransaction = async (prismaClient, orderId, orderData
         continue;
       }
       
-      // Map meal type to delivery time slot
-      let deliveryTimeSlot = 'Breakfast'; // Default
-      if (item.mealType === 'breakfast') deliveryTimeSlot = 'BREAKFAST';
-      else if (item.mealType === 'lunch') deliveryTimeSlot = 'LUNCH';
-      else if (item.mealType === 'dinner') deliveryTimeSlot = 'DINNER';
-      else deliveryTimeSlot = 'Breakfast'; // Fallback default
-      
-      // Use meal-specific address if available, otherwise use primary address
+      // Map meal type to delivery time slot (ANY = no specific session / flexible)
+      let deliveryTimeSlot = 'BREAKFAST'; // Default
+      if (item.mealType === 'any') {
+        deliveryTimeSlot = 'ANY';
+      } else if (item.mealType === 'breakfast') {
+        deliveryTimeSlot = 'BREAKFAST';
+      } else if (item.mealType === 'lunch') {
+        deliveryTimeSlot = 'LUNCH';
+      } else if (item.mealType === 'dinner') {
+        deliveryTimeSlot = 'DINNER';
+      }
+      // Use meal-specific address if available; for 'any' use primary only
       let itemAddressId = orderData.deliveryAddressId;
-      if (deliveryLocations && deliveryLocations[item.mealType]) {
+      if (item.mealType !== 'any' && deliveryLocations && deliveryLocations[item.mealType]) {
         itemAddressId = deliveryLocations[item.mealType];
       }
 

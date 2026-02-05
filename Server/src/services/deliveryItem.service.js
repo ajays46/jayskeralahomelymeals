@@ -80,51 +80,63 @@ export const createDeliveryItemsAfterPaymentService = async (orderId, orderData)
             throw new AppError('No menu item found in order', 400);
         }
 
-        // Map order times to delivery time slots
+        // Map order times to delivery time slots (ANY = no specific session)
         const timeSlotMap = {
-            'Morning': 'Breakfast',
-            'Noon': 'Lunch', 
-            'Night': 'Dinner'
+            'Morning': 'BREAKFAST',
+            'Noon': 'LUNCH',
+            'Night': 'DINNER',
+            'Breakfast': 'BREAKFAST',
+            'Lunch': 'LUNCH',
+            'Dinner': 'DINNER',
+            'ANY': 'ANY'
         };
 
         const deliveryItemsData = [];
+        const isNoSession = orderTimes && orderTimes.length > 0 && (orderTimes[0] === 'ANY' || orderTimes[0] === 'any');
 
-        // Create delivery items for each selected date and each meal time
-        for (const dateStr of selectedDates) {
-            const deliveryDate = new Date(dateStr);
-            const dateKey = dateStr; // Use the date string as key for skipMeals
-            
-            // Get skipped meals for this date
-            const skippedMealsForDate = skipMeals?.[dateKey] || {};
-            
-            for (const orderTime of orderTimes) {
-                const deliveryTimeSlot = timeSlotMap[orderTime];
-                
-                // Check if this meal is skipped
-                const isSkipped = skippedMealsForDate[deliveryTimeSlot.toLowerCase()];
-                
-                if (!isSkipped) {
-                    // Get the appropriate address for this meal time
-                    let addressId = deliveryAddressId;
-                    if (deliveryLocations) {
-                        const mealAddress = deliveryLocations[deliveryTimeSlot.toLowerCase()];
-                        if (mealAddress) {
-                            addressId = mealAddress;
+        if (isNoSession) {
+            // One delivery item per date with session ANY
+            for (const dateStr of selectedDates) {
+                deliveryItemsData.push({
+                    orderId: orderId,
+                    userId: order.userId,
+                    menuItemId: menuItemId,
+                    quantity: 1,
+                    deliveryDate: new Date(dateStr),
+                    deliveryTimeSlot: 'ANY',
+                    addressId: deliveryAddressId,
+                    status: 'Pending'
+                });
+            }
+        } else {
+            // Create delivery items for each selected date and each meal time
+            for (const dateStr of selectedDates) {
+                const deliveryDate = new Date(dateStr);
+                const dateKey = dateStr;
+                const skippedMealsForDate = skipMeals?.[dateKey] || {};
+
+                for (const orderTime of orderTimes) {
+                    const deliveryTimeSlot = timeSlotMap[orderTime] || orderTime?.toUpperCase?.() || 'BREAKFAST';
+                    const isSkipped = skippedMealsForDate[deliveryTimeSlot.toLowerCase()];
+
+                    if (!isSkipped) {
+                        let addressId = deliveryAddressId;
+                        if (deliveryLocations) {
+                            const mealKey = deliveryTimeSlot.toLowerCase();
+                            const mealAddress = deliveryLocations[mealKey] || deliveryLocations.full;
+                            if (mealAddress) addressId = mealAddress;
                         }
+                        deliveryItemsData.push({
+                            orderId: orderId,
+                            userId: order.userId,
+                            menuItemId: menuItemId,
+                            quantity: 1,
+                            deliveryDate: deliveryDate,
+                            deliveryTimeSlot: deliveryTimeSlot,
+                            addressId: addressId,
+                            status: 'Pending'
+                        });
                     }
-
-                    const deliveryItem = {
-                        orderId: orderId,
-                        userId: order.userId,
-                        menuItemId: menuItemId,
-                        quantity: 1, // Default quantity per meal
-                        deliveryDate: deliveryDate,
-                        deliveryTimeSlot: deliveryTimeSlot,
-                        addressId: addressId,
-                        status: 'Pending'
-                    };
-
-                    deliveryItemsData.push(deliveryItem);
                 }
             }
         }

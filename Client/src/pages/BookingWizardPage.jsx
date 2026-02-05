@@ -150,7 +150,7 @@ const BookingWizardPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
   const [dietaryPreference, setDietaryPreference] = useState('veg');
-  const [menuCategory, setMenuCategory] = useState('popular');
+  const [selectedMenuIdForFilter, setSelectedMenuIdForFilter] = useState(null); // null = All menus; or menuId to show only that menu's items
   const [expandedSections, setExpandedSections] = useState({
     menus: true,
     dateSelection: false
@@ -184,6 +184,8 @@ const BookingWizardPage = () => {
   const [skipMeals, setSkipMeals] = useState({});
   const [deliveryNote, setDeliveryNote] = useState('');
   const [isSampleDelivery, setIsSampleDelivery] = useState(false);
+  // No specific session: tick checkbox to send orderTimes: ['ANY'] (flexible delivery)
+  const [noSession, setNoSession] = useState(false);
   
   // Daily Flexible Plan - Store menu selection for each date
   const [dateMenuSelections, setDateMenuSelections] = useState({});
@@ -426,6 +428,20 @@ const BookingWizardPage = () => {
     return selectedMenu.price || 0;
   };
 
+  // Unique menus (by menuId) for the "Select Menu" filter
+  const uniqueMenusForFilter = React.useMemo(() => {
+    if (!menus || menus.length === 0) return [];
+    const seen = new Set();
+    return menus
+      .filter((item) => {
+        const key = item.menuId || item.menuName;
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((item) => ({ menuId: item.menuId, menuName: item.menuName || 'Other' }));
+  }, [menus]);
+
   const getFilteredMenus = () => {
     if (!menus || menus.length === 0) {
       return [];
@@ -433,48 +449,11 @@ const BookingWizardPage = () => {
 
     let filteredMenus = menus;
 
-    // Filter by dietary preference
-    filteredMenus = filteredMenus.filter(menuItem => {
-        if (menuItem.categories && menuItem.categories.length > 0) {
-          const categoryNames = menuItem.categories.map(cat => cat.name.toLowerCase());
-          
-          if (dietaryPreference === 'veg') {
-            const isVeg = categoryNames.some(name => name.includes('veg') && !name.includes('non'));
-            return isVeg;
-          } else if (dietaryPreference === 'non-veg') {
-            const isNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
-            return isNonVeg;
-          }
-        }
-        
-        // If no categories or categories don't match, be more lenient
-        if (dietaryPreference === 'veg') {
-          const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
-          const hasNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
-          const isVeg = !hasNonVeg;
-          return isVeg;
-        } else if (dietaryPreference === 'non-veg') {
-          const categoryNames = menuItem.categories?.map(cat => cat.name.toLowerCase()) || [];
-          const hasNonVeg = categoryNames.some(name => name.includes('non') || name.includes('non-veg'));
-          return hasNonVeg;
-        }
-        
-        return true;
-      });
+    // Filter by selected menu (show only items belonging to this menu)
+    if (selectedMenuIdForFilter) {
+      filteredMenus = filteredMenus.filter((item) => item.menuId === selectedMenuIdForFilter);
+    }
 
-    // Filter by menu category (Popular, Premium, etc.)
-    filteredMenus = filteredMenus.filter(menuItem => {
-        const menuName = menuItem.name?.toLowerCase() || '';
-        
-        if (menuCategory === 'popular') {
-          return menuName.includes('popular') || menuName.includes('basic') || menuName.includes('standard');
-        } else if (menuCategory === 'premium') {
-          return menuName.includes('premium') || menuName.includes('deluxe') || menuName.includes('luxury');
-        }
-        
-        return true;
-      });
-    
     if (filteredMenus.length === 0 && menus.length > 0) {
       return menus;
     }
@@ -488,6 +467,21 @@ const BookingWizardPage = () => {
     const startIndex = (menuCurrentPage - 1) * menuItemsPerPage;
     const endIndex = startIndex + menuItemsPerPage;
     return filteredMenus.slice(startIndex, endIndex);
+  };
+
+  // Group paginated items by menu (menu_id) for display: Menu name → list of menu items
+  const getMenusGroupedByMenu = () => {
+    const items = getPaginatedMenus();
+    const byMenu = new Map();
+    items.forEach((item) => {
+      const key = item.menuId || item.menuName || item.id;
+      const menuName = item.menuName || 'Other';
+      if (!byMenu.has(key)) {
+        byMenu.set(key, { menuId: item.menuId, menuName, categories: item.categories || [], items: [] });
+      }
+      byMenu.get(key).items.push(item);
+    });
+    return Array.from(byMenu.values());
   };
 
   // Menu pagination calculations
@@ -508,7 +502,7 @@ const BookingWizardPage = () => {
   // Reset menu pagination when filters change
   React.useEffect(() => {
     setMenuCurrentPage(1);
-  }, [dietaryPreference, menuCategory]);
+  }, [selectedMenuIdForFilter]);
 
   // Adjust items per page based on screen size
   React.useEffect(() => {
@@ -715,14 +709,15 @@ const BookingWizardPage = () => {
     switch (currentStep) {
       case 1: return isSeller ? selectedUser : true; // For sellers, need to select user; for others, can proceed
       case 2: return selectedMenu;
-      case 3: 
+      case 3:
+        // No specific session: only primary address required
+        if (noSession) return !!deliveryLocations.full;
         // Check if this is a single meal item
         const singleMealType = getSingleMealType(selectedMenu);
         if (singleMealType) {
           // For single meal items, require only that specific meal address
           return !!deliveryLocations[singleMealType];
         }
-        
         // For daily flexible rates, require individual meal addresses (no primary address needed)
         if (selectedMenu && selectedMenu.isDailyRateItem) {
           if (selectedMenu.hasBreakfast && !deliveryLocations.breakfast) return false;
@@ -1182,43 +1177,33 @@ const BookingWizardPage = () => {
               <p className="text-gray-600 text-xs sm:text-sm">Select the meal plan for your customer</p>
             </div>
             
-            {/* Category and Dietary Preference Filters */}
+            {/* Menu name and Dietary Preference Filters */}
             <div className="max-w-4xl mx-auto space-y-4">
-              {/* Menu Category Tabs */}
+              {/* Select Menu (menu names - each menu contains menu items) */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Menu Category</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Menu</label>
                 <div className="flex gap-2 flex-wrap">
-                  {['popular', 'premium'].map((category) => (
+                  <button
+                    onClick={() => setSelectedMenuIdForFilter(null)}
+                    className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm min-h-[44px] sm:min-h-0 ${
+                      selectedMenuIdForFilter === null
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All menus
+                  </button>
+                  {uniqueMenusForFilter.map((m) => (
                     <button
-                      key={category}
-                      onClick={() => setMenuCategory(category)}
-                      className={`px-3 sm:px-4 py-2 sm:py-2 rounded-lg font-medium transition-all text-xs sm:text-sm min-h-[44px] sm:min-h-0 ${
-                        menuCategory === category
+                      key={m.menuId}
+                      onClick={() => setSelectedMenuIdForFilter(m.menuId)}
+                      className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm min-h-[44px] sm:min-h-0 ${
+                        selectedMenuIdForFilter === m.menuId
                           ? 'bg-blue-500 text-white shadow-md'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {category === 'popular' ? 'Popular' : 'Premium'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Dietary Preference Filter */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Dietary Preference</label>
-                <div className="flex gap-2">
-                  {['veg', 'non-veg'].map((pref) => (
-                    <button
-                      key={pref}
-                      onClick={() => setDietaryPreference(pref)}
-                      className={`px-3 py-2 rounded-lg font-medium transition-all text-xs sm:text-sm min-h-[44px] sm:min-h-0 ${
-                        dietaryPreference === pref
-                          ? 'bg-green-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {pref === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'}
+                      {m.menuName}
                     </button>
                   ))}
                 </div>
@@ -1228,7 +1213,8 @@ const BookingWizardPage = () => {
             {/* Results Counter */}
             <div className="text-center mb-4">
               <p className="text-xs sm:text-sm text-gray-600">
-                Showing {menuTotalItems} menu{menuTotalItems !== 1 ? 's' : ''} in {menuCategory} category ({dietaryPreference === 'veg' ? 'Vegetarian' : 'Non-Vegetarian'})
+                Showing {menuTotalItems} item{menuTotalItems !== 1 ? 's' : ''}
+                {selectedMenuIdForFilter ? ` in "${uniqueMenusForFilter.find(m => m.menuId === selectedMenuIdForFilter)?.menuName || ''}"` : ''}
               </p>
             </div>
 
@@ -1249,10 +1235,7 @@ const BookingWizardPage = () => {
                   Try adjusting your filters to see more options
                 </p>
                 <button
-                  onClick={() => {
-                    setMenuCategory('popular');
-                    setDietaryPreference('veg');
-                  }}
+                  onClick={() => setSelectedMenuIdForFilter(null)}
                   className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium min-h-[44px] sm:min-h-0"
                 >
                   Reset to Default
@@ -1260,57 +1243,78 @@ const BookingWizardPage = () => {
               </div>
             ) : (
               <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {getPaginatedMenus().map((menu) => {
-                const productQuantity = getProductQuantity(menu);
-                const isOutOfStock = productQuantity && productQuantity.quantity === 0;
-                
-                return (
-                  <div
-                    key={menu.id}
-                    onClick={() => !isOutOfStock && handleMenuSelection(menu)}
-                    className={`p-2 sm:p-3 border-2 rounded-lg cursor-pointer transition-all min-h-[120px] sm:min-h-0 ${
-                      isOutOfStock
-                        ? 'border-red-200 bg-red-50 cursor-not-allowed opacity-60'
-                        : selectedMenu?.id === menu.id
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-xs sm:text-sm break-words">{menu.name}</h3>
-                        {/* Category Badge */}
-                        {(() => {
-                          const menuName = menu.name?.toLowerCase() || '';
-                          if (menuName.includes('premium') || menuName.includes('deluxe') || menuName.includes('luxury')) {
-                            return <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full mt-1 inline-block">Premium</span>;
-                          } else if (menuName.includes('popular') || menuName.includes('basic') || menuName.includes('standard')) {
-                            return <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full mt-1 inline-block">Popular</span>;
-                          }
-                          return null;
-                        })()}
-                      </div>
-                      {isOutOfStock && (
-                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full flex-shrink-0">
-                          Out of Stock
-                        </span>
-                      )}
+              <div className="space-y-6">
+                {getMenusGroupedByMenu().map((group) => (
+                  <div key={group.menuId || group.menuName}>
+                    <h3 className="text-sm font-semibold text-gray-800 mb-2 pb-1 border-b border-gray-200">
+                      {group.menuName}
+                    </h3>
+                    {group.categories && group.categories.length > 0 && (
+                      <p className="text-xs text-gray-500 mb-2">
+                        {group.categories.map(cat => cat.name).join(', ')}
+                      </p>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {group.items.map((item) => {
+                        const productQuantity = getProductQuantity(item);
+                        const isOutOfStock = productQuantity && productQuantity.quantity === 0;
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => !isOutOfStock && handleMenuSelection(item)}
+                            className={`p-2 sm:p-3 border-2 rounded-lg cursor-pointer transition-all min-h-[120px] sm:min-h-0 ${
+                              isOutOfStock
+                                ? 'border-red-200 bg-red-50 cursor-not-allowed opacity-60'
+                                : selectedMenu?.id === item.id
+                                ? 'border-green-500 bg-green-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 text-xs sm:text-sm break-words">{item.name}</h4>
+                                {/* Category Badge (Popular / Premium / LG) */}
+                                {(() => {
+                                  const itemName = item.name?.toLowerCase() || '';
+                                  if (itemName.includes('premium') || itemName.includes('deluxe') || itemName.includes('luxury')) {
+                                    return <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full mt-1 inline-block">Premium</span>;
+                                  } else if (itemName.includes('popular') || itemName.includes('basic') || itemName.includes('standard')) {
+                                    return <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full mt-1 inline-block">Popular</span>;
+                                  } else if (itemName.includes(' lg')) {
+                                    return <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full mt-1 inline-block">LG</span>;
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+                              {isOutOfStock && (
+                                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full flex-shrink-0">
+                                  Out of Stock
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-green-600 font-bold text-sm sm:text-base">₹{item.price}</p>
+                            {/* Menu categories (from Menu.menuCategories via menu_id) */}
+                            {item.categories && item.categories.length > 0 && (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                <span className="text-xs text-gray-500">Menu category:</span>
+                                {item.categories.map((cat) => (
+                                  <span key={cat.id || cat.name} className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
+                                    {cat.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {productQuantity && productQuantity.quantity > 0 && (
+                              <div className="text-xs text-blue-600 mt-1">
+                                Available: {productQuantity.quantity}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <p className="text-green-600 font-bold text-sm sm:text-base">₹{menu.price}</p>
-                    {menu.categories && (
-                      <div className="text-xs text-gray-600 mt-1 break-words">
-                        {menu.categories.map(cat => cat.name).join(', ')}
-                      </div>
-                    )}
-                    {productQuantity && productQuantity.quantity > 0 && (
-                      <div className="text-xs text-blue-600 mt-1">
-                        Available: {productQuantity.quantity}
-                      </div>
-                    )}
                   </div>
-                );
-              })}
+                ))}
               </div>
               
               {/* Menu Pagination */}
@@ -1349,9 +1353,25 @@ const BookingWizardPage = () => {
               <p className="text-gray-600 text-xs sm:text-sm">Set delivery addresses and preferences</p>
             </div>
             
+            {/* No specific session: one checkbox → send orderTimes: ['ANY'] to payment */}
+            {selectedMenu && (
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={noSession}
+                    onChange={(e) => setNoSession(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">No specific session (Flexible delivery)</span>
+                </label>
+                <p className="text-xs text-gray-500 mt-1 ml-6">One delivery per day; session = ANY. Only primary address needed.</p>
+              </div>
+            )}
+            
             <div className="space-y-4">
-              {/* Primary Address - Only show for non-daily rate items */}
-              {selectedMenu && !selectedMenu.isDailyRateItem && (
+              {/* Primary Address - show for non-daily rate items, or when no session (always need one address) */}
+              {selectedMenu && (!selectedMenu.isDailyRateItem || noSession) && (
                 <div className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1393,8 +1413,8 @@ const BookingWizardPage = () => {
                 </div>
               )}
 
-              {/* Meal-Specific Addresses */}
-              {selectedMenu && (
+              {/* Meal-Specific Addresses - hidden when "No specific session" is ticked */}
+              {selectedMenu && !noSession && (
                 <div className="space-y-3">
                   {(() => {
                     const singleMealType = getSingleMealType(selectedMenu);
@@ -1851,7 +1871,12 @@ const BookingWizardPage = () => {
       // Check address requirements based on menu type
       const singleMealType = getSingleMealType(selectedMenu);
       
-      if (singleMealType) {
+      if (noSession) {
+        if (!deliveryLocations.full) {
+          showErrorToast('Please select a primary delivery address for flexible delivery.');
+          return;
+        }
+      } else if (singleMealType) {
         // For single meal items, require only that specific meal address
         if (!deliveryLocations[singleMealType]) {
           const mealName = singleMealType.charAt(0).toUpperCase() + singleMealType.slice(1);
@@ -1888,9 +1913,17 @@ const BookingWizardPage = () => {
 
       const orderItems = [];
       
-      // Create order items based on menu type
-      // Priority: Single meal items first, then comprehensive, then daily rate, then regular
-      if (singleMealType) {
+      // No specific session: one item per date with session ANY
+      if (noSession) {
+        const menuItemId = selectedMenu.menuItem?.id || selectedMenu.id;
+        if (menuItemId) {
+          orderItems.push({
+            menuItemId,
+            quantity: selectedDates.length,
+            mealType: 'any'
+          });
+        }
+      } else if (singleMealType) {
         // For single meal items, create order item for that specific meal
         if (selectedMenu.menuItem) {
           orderItems.push({
@@ -1985,9 +2018,11 @@ const BookingWizardPage = () => {
         }
       }
 
-      // Create order times
+      // Create order times (no session → send ['ANY'])
       const orderTimes = [];
-      if (singleMealType) {
+      if (noSession) {
+        orderTimes.push('ANY');
+      } else if (singleMealType) {
         // For single meal items, only add that specific meal time
         orderTimes.push(singleMealType.charAt(0).toUpperCase() + singleMealType.slice(1));
       } else {
@@ -1999,7 +2034,9 @@ const BookingWizardPage = () => {
 
       // Use primary address if available, otherwise use the first meal-specific address
       let primaryAddressId;
-      if (singleMealType) {
+      if (noSession) {
+        primaryAddressId = deliveryLocations.full;
+      } else if (singleMealType) {
         // For single meal items, use the specific meal address
         primaryAddressId = deliveryLocations[singleMealType];
       } else {
@@ -2038,16 +2075,19 @@ const BookingWizardPage = () => {
       
       const orderData = {
         orderDate: orderDateToday, // Use today's date as order date (when order is placed)
-        orderTimes: orderTimes,
+        orderTimes: orderTimes,    // ['ANY'] when noSession, else e.g. ['Breakfast','Lunch','Dinner']
         orderItems: orderItems,
+        noSession: noSession,
         deliveryAddressId: primaryAddressId,
-        deliveryLocations: singleMealType ? {
-          [singleMealType]: deliveryLocations[singleMealType] || null,
-        } : {
-          breakfast: deliveryLocations.breakfast || null,
-          lunch: deliveryLocations.lunch || null,
-          dinner: deliveryLocations.dinner || null,
-        },
+        deliveryLocations: noSession
+          ? { full: deliveryLocations.full || null, breakfast: null, lunch: null, dinner: null }
+          : singleMealType
+            ? { [singleMealType]: deliveryLocations[singleMealType] || null }
+            : {
+                breakfast: deliveryLocations.breakfast || null,
+                lunch: deliveryLocations.lunch || null,
+                dinner: deliveryLocations.dinner || null,
+              },
         selectedDates: sortedSelectedDates.map(date => {
           // Use local date components instead of toISOString() to avoid timezone issues
           const y = date.getFullYear();
