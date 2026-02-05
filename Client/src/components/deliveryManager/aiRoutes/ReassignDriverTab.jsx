@@ -19,9 +19,9 @@ const getDriverName = (route, index) => {
  * ReassignDriverTab - Reassign route, exchange drivers, or move one stop between routes.
  */
 const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) => {
-  const [mode, setMode] = useState('exchange'); // 'exchange' | 'move_stop' (reassign route option commented out)
-  // const [routeId, setRouteId] = useState('');
-  // const [newDriverName, setNewDriverName] = useState('');
+  const [mode, setMode] = useState('exchange'); // 'reassign' | 'exchange' | 'move_stop'
+  const [routeId, setRouteId] = useState('');
+  const [newDriverName, setNewDriverName] = useState('');
   const [routeId1, setRouteId1] = useState('');
   const [routeId2, setRouteId2] = useState('');
   const [fromRouteId, setFromRouteId] = useState('');
@@ -57,41 +57,40 @@ const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) =>
   }, [fromRoute]);
 
   const handleReassign = async () => {
-    // Reassign route option commented out
-    // if (mode === 'reassign') {
-    //   if (!routeId || !newDriverName?.trim()) {
-    //     showErrorToast('Select a route and enter the new driver name');
-    //     return;
-    //   }
-    //   try {
-    //     const result = await reassignMutation.mutateAsync({
-    //       route_id: routeId,
-    //       new_driver_name: newDriverName.trim()
-    //     });
-    //     showSuccessToast(result.message || 'Driver reassigned successfully');
-    //     setRouteId('');
-    //     setNewDriverName('');
-    //   } catch (err) {
-    //     showErrorToast(err.message || 'Reassign failed');
-    //   }
-    // } else {
-    if (!routeId1 || !routeId2 || routeId1 === routeId2) {
-      showErrorToast('Select two different routes to exchange');
-      return;
+    if (mode === 'reassign') {
+      if (!routeId || !newDriverName?.trim()) {
+        showErrorToast('Select a route and enter the new driver name');
+        return;
+      }
+      try {
+        const result = await reassignMutation.mutateAsync({
+          route_id: routeId,
+          new_driver_name: newDriverName.trim()
+        });
+        showSuccessToast(result.message || 'Driver reassigned successfully');
+        setRouteId('');
+        setNewDriverName('');
+      } catch (err) {
+        showErrorToast(err.message || 'Reassign failed');
+      }
+    } else {
+      if (!routeId1 || !routeId2 || routeId1 === routeId2) {
+        showErrorToast('Select two different routes to exchange');
+        return;
+      }
+      try {
+        const result = await reassignMutation.mutateAsync({
+          exchange: true,
+          route_id_1: routeId1,
+          route_id_2: routeId2
+        });
+        showSuccessToast(result.message || 'Drivers exchanged successfully');
+        setRouteId1('');
+        setRouteId2('');
+      } catch (err) {
+        showErrorToast(err.message || 'Exchange failed');
+      }
     }
-    try {
-      const result = await reassignMutation.mutateAsync({
-        exchange: true,
-        route_id_1: routeId1,
-        route_id_2: routeId2
-      });
-      showSuccessToast(result.message || 'Drivers exchanged successfully');
-      setRouteId1('');
-      setRouteId2('');
-    } catch (err) {
-      showErrorToast(err.message || 'Exchange failed');
-    }
-    // }
   };
 
   const handleMoveStop = async () => {
@@ -140,7 +139,6 @@ const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) =>
       ) : (
         <>
           <div className="flex gap-2 mb-4">
-            {/* Reassign route option commented out
             <button
               type="button"
               onClick={() => setMode('reassign')}
@@ -151,7 +149,6 @@ const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) =>
               <FiUserPlus className="w-4 h-4" />
               Reassign route
             </button>
-            */}
             <button
               type="button"
               onClick={() => setMode('exchange')}
@@ -174,13 +171,35 @@ const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) =>
             </button>
           </div>
 
-          {/* Reassign route form commented out
           {mode === 'reassign' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              ...
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Route</label>
+                <select
+                  value={routeId}
+                  onChange={(e) => setRouteId(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select route</option>
+                  {routeOptions.map((opt) => (
+                    <option key={opt.route_id} value={opt.route_id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">New driver name</label>
+                <input
+                  type="text"
+                  value={newDriverName}
+                  onChange={(e) => setNewDriverName(e.target.value)}
+                  placeholder="Enter new driver name"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
-          ) : */
-          mode === 'move_stop' ? (
+          ) : mode === 'move_stop' ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -302,16 +321,16 @@ const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) =>
               <button
                 type="button"
                 onClick={handleReassign}
-                disabled={isLoading}
+                disabled={isLoading || (mode === 'reassign' ? (!routeId || !newDriverName?.trim()) : (!routeId1 || !routeId2 || routeId1 === routeId2))}
                 className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 {isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    <span>Exchanging...</span>
+                    <span>{mode === 'reassign' ? 'Reassigning...' : 'Exchanging...'}</span>
                   </>
                 ) : (
-                  <span>Exchange drivers</span>
+                  <span>{mode === 'reassign' ? 'Reassign route' : 'Exchange drivers'}</span>
                 )}
               </button>
             )}
