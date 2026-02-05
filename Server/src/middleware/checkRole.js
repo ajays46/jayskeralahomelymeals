@@ -20,7 +20,9 @@ export const checkRole = (...allowedRoles) => {
       // Support multiple roles (comma-separated string in token)
       const userRoles = req.user.role.split(',').map(role => role.trim());
 
-      const hasPermission = userRoles.some(role => allowedRoles.includes(role));
+      // Case-insensitive match so 'ADMIN' and 'admin' both work
+      const allowedLower = allowedRoles.map(r => (r && r.toUpperCase?.()) || r);
+      const hasPermission = userRoles.some(role => allowedLower.includes((role && role.toUpperCase?.()) || role));
 
       if (!hasPermission) {
         throw new AppError('You do not have permission to perform this action', 403);

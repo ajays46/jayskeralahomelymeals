@@ -2,194 +2,196 @@ import express from 'express';
 // import { verifyToken } from '../middleware/verifyToken.js';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
+import { resolveAdminCompany } from '../middleware/resolveAdminCompany.js';
 import { adminLogin } from '../controllers/auth.controller.js';
 import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder, createAdminUser, getAdminUsers, addUserRoles, removeUserRoles, getOrphanedUsers, cleanupOrphanedUsers, getSellersWithOrders, getDeliveryExecutives, proxyRoutePlanning, proxyExecutiveCount, proxyRunScript, proxySendRoutes, proxyFileContent, proxySessionData, getProductQuantitiesForMenus, getActiveExecutives, updateExecutiveStatus, saveAllRoutes, getVehicles, assignVehicleToExecutive, unassignVehicleFromExecutive} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
-// Example of a route that requires admin role
+// Example of a route that requires admin role (use 'ADMIN' to match DB enum / JWT)
 router.get('/dashboard',
     authenticateToken,
-    checkRole('admin'),
+    checkRole('ADMIN'),
+    resolveAdminCompany,
     adminLogin
 );
 
 router.post('/company-create',
     authenticateToken,
-    // checkRole('admin/'),
+    resolveAdminCompany,
     createCompany
 );
 
 router.get('/company-list',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     companyList
 );
 
 router.put('/company-delete',
     authenticateToken,
-    // checkRole('admin'),
+    resolveAdminCompany,
     companyDelete
 );
 
 router.post('/product-create',
     authenticateToken,
-    // checkRole('admin'),
+    resolveAdminCompany,
     createProduct
 );
 
 router.get('/product-list',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     productList
 );
 
 router.get('/product/:productId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     getProductById
 );
 
 router.put('/product/:productId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     updateProduct
 );
 
 router.delete('/product/:productId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     deleteProduct
 );
 
 // Menu routes
 router.post('/menu-create',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     createMenu
 );
 
 router.get('/menu-list',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     menuList
 );
 
 router.get('/menu/:menuId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     getMenuById
 );
 
 router.put('/menu/:menuId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     updateMenu
 );
 
 router.delete('/menu/:menuId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     deleteMenu
 );
 
 // Menu Item routes
 router.post('/menu-item-create',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     createMenuItem
 );
 
 router.get('/menu-item-list',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     menuItemList
 );
 
 router.get('/menu-item/:menuItemId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     getMenuItemById
 );
 
 router.put('/menu-item/:menuItemId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     updateMenuItem
 );
 
 router.delete('/menu-item/:menuItemId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     deleteMenuItem
 );
 
 // Menu Category routes
 router.post('/menu-category-create',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     createMenuCategory
 );
 
 router.get('/menu-category-list',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     menuCategoryList
 );
 
 router.get('/menu-category/:menuCategoryId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     getMenuCategoryById
 );
 
 router.put('/menu-category/:menuCategoryId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     updateMenuCategory
 );
 
 router.delete('/menu-category/:menuCategoryId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     deleteMenuCategory
 );
 
 // Menu Item Price routes
 router.post('/menu-item-price-create',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     createMenuItemPrice
 );
 
 router.get('/menu-item-price-list',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     menuItemPriceList
 );
 
 router.get('/menu-item-price/:menuItemPriceId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     getMenuItemPriceById
 );
 
 router.put('/menu-item-price/:menuItemPriceId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     updateMenuItemPrice
 );
 
 router.delete('/menu-item-price/:menuItemPriceId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     deleteMenuItemPrice
 );
 
 // Meals route
 router.get('/meals',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     getMealsByDay
 );
 
@@ -202,20 +204,20 @@ router.get('/menus-for-booking',
 
 // Admin Order Management routes
 router.get('/orders',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     getAllOrders
 );
 
 router.put('/orders/:orderId/status',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     updateOrderStatus
 );
 
 router.delete('/orders/:orderId',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     deleteOrder
 );
 
@@ -223,12 +225,14 @@ router.delete('/orders/:orderId',
 router.post('/users/create',
     authenticateToken,
     checkRole('ADMIN'),
+    resolveAdminCompany,
     createAdminUser
 );
 
 router.get('/users/list',
     authenticateToken,
     checkRole('ADMIN'),
+    resolveAdminCompany,
     getAdminUsers
 );
 
@@ -236,38 +240,40 @@ router.get('/users/list',
 router.post('/users/:userId/roles',
     authenticateToken,
     checkRole('ADMIN'),
+    resolveAdminCompany,
     addUserRoles
 );
 
 router.delete('/users/:userId/roles',
     authenticateToken,
     checkRole('ADMIN'),
+    resolveAdminCompany,
     removeUserRoles
 );
 
 // Utility routes for orphaned users
 router.get('/users/orphaned',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     getOrphanedUsers
 );
 
 router.delete('/users/orphaned',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     cleanupOrphanedUsers
 );
 
 // Delivery Manager Dashboard Routes
 router.get('/sellers-with-orders',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     getSellersWithOrders
 );
 
 router.get('/delivery-executives',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     getDeliveryExecutives
 );
 
@@ -315,8 +321,8 @@ router.get('/proxy-session-data',
 
 // Product quantities for menus route
 router.get('/product-quantities-for-menus',
-    // authenticateToken,
-    // checkRole('admin'),
+    authenticateToken,
+    resolveAdminCompany,
     getProductQuantitiesForMenus
 );
 

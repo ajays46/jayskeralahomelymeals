@@ -12,6 +12,10 @@ import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 export const createCompany = async (req, res, next) => {
     try {
+        // Only super admin (companyId === null) can create companies
+        if (req.adminCompanyId != null) {
+            throw new AppError('Only super admin can create companies', 403);
+        }
         const { name, address } = req.body;
       
         const company = await createCompanyService({ name, address });
@@ -26,7 +30,8 @@ export const createCompany = async (req, res, next) => {
 
 export const companyList = async (req, res, next) => {
     try {
-        const companies = await companyListService();
+        const adminCompanyId = req.adminCompanyId;
+        const companies = await companyListService(adminCompanyId);
         res.status(200).json({
             status: 'success',
             data: companies
@@ -39,6 +44,9 @@ export const companyList = async (req, res, next) => {
 export const companyDelete = async (req, res, next) => {
     try {
         const { id } = req.body;
+        if (req.adminCompanyId != null && id !== req.adminCompanyId) {
+            throw new AppError('You can only delete your own company', 403);
+        }
         const company = await companyDeleteService(id);
         res.status(200).json({
             status: 'success',
@@ -56,6 +64,10 @@ export const createProduct = async (req, res, next) => {
         // Validate required fields
         if (!productData.productName || !productData.code || !productData.companyId) {
             throw new AppError('Missing required fields: productName, code, companyId', 400);
+        }
+        // Company-scoped admin can only create for their company
+        if (req.adminCompanyId != null && productData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create products for your company', 403);
         }
 
         // Check if product code already exists
@@ -90,7 +102,8 @@ export const createProduct = async (req, res, next) => {
 
 export const productList = async (req, res, next) => {
     try {
-        const products = await productListService();
+        const adminCompanyId = req.adminCompanyId;
+        const products = await productListService(adminCompanyId);
         res.status(200).json({
             status: 'success',
             data: products
@@ -104,6 +117,9 @@ export const getProductById = async (req, res, next) => {
     try {
         const { productId } = req.params;
         const product = await getProductByIdService(productId);
+        if (req.adminCompanyId != null && product.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this product', 403);
+        }
         res.status(200).json({
             status: 'success',
             data: product
@@ -122,6 +138,13 @@ export const updateProduct = async (req, res, next) => {
         if (!productData.productName || !productData.code || !productData.companyId) {
             throw new AppError('Missing required fields: productName, code, companyId', 400);
         }
+        if (req.adminCompanyId != null && productData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only update products for your company', 403);
+        }
+        const existing = await getProductByIdService(productId);
+        if (req.adminCompanyId != null && existing.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this product', 403);
+        }
 
         const product = await updateProductService(productId, productData);
         
@@ -138,6 +161,10 @@ export const updateProduct = async (req, res, next) => {
 export const deleteProduct = async (req, res, next) => {
     try {
         const { productId } = req.params;
+        const existing = await getProductByIdService(productId);
+        if (req.adminCompanyId != null && existing.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this product', 403);
+        }
         const deletedProduct = await deleteProductService(productId);
         
         res.status(200).json({
@@ -159,6 +186,9 @@ export const createMenu = async (req, res, next) => {
         if (!menuData.name || !menuData.companyId) {
             throw new AppError('Missing required fields: name, companyId', 400);
         }
+        if (req.adminCompanyId != null && menuData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create menus for your company', 403);
+        }
 
         const menu = await createMenuService(menuData);
         
@@ -174,7 +204,8 @@ export const createMenu = async (req, res, next) => {
 
 export const menuList = async (req, res, next) => {
     try {
-        const menus = await menuListService();
+        const adminCompanyId = req.adminCompanyId;
+        const menus = await menuListService(adminCompanyId);
         res.status(200).json({
             status: 'success',
             data: menus
@@ -188,6 +219,9 @@ export const getMenuById = async (req, res, next) => {
     try {
         const { menuId } = req.params;
         const menu = await getMenuByIdService(menuId);
+        if (req.adminCompanyId != null && menu.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu', 403);
+        }
         res.status(200).json({
             status: 'success',
             data: menu
@@ -206,6 +240,13 @@ export const updateMenu = async (req, res, next) => {
         if (!menuData.name || !menuData.companyId) {
             throw new AppError('Missing required fields: name, companyId', 400);
         }
+        if (req.adminCompanyId != null && menuData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only update menus for your company', 403);
+        }
+        const existingMenu = await getMenuByIdService(menuId);
+        if (req.adminCompanyId != null && existingMenu.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu', 403);
+        }
 
         const menu = await updateMenuService(menuId, menuData);
         
@@ -222,6 +263,10 @@ export const updateMenu = async (req, res, next) => {
 export const deleteMenu = async (req, res, next) => {
     try {
         const { menuId } = req.params;
+        const existingMenu = await getMenuByIdService(menuId);
+        if (req.adminCompanyId != null && existingMenu.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu', 403);
+        }
         const deletedMenu = await deleteMenuService(menuId);
         
         res.status(200).json({
@@ -243,6 +288,12 @@ export const createMenuItem = async (req, res, next) => {
         if (!menuItemData.name || !menuItemData.menuId) {
             throw new AppError('Missing required fields: name, menuId', 400);
         }
+        if (req.adminCompanyId != null) {
+            const menu = await getMenuByIdService(menuItemData.menuId);
+            if (menu.companyId !== req.adminCompanyId) {
+                throw new AppError('You can only add menu items to menus in your company', 403);
+            }
+        }
 
         const menuItem = await createMenuItemService(menuItemData);
         
@@ -258,7 +309,8 @@ export const createMenuItem = async (req, res, next) => {
 
 export const menuItemList = async (req, res, next) => {
     try {
-        const menuItems = await menuItemListService();
+        const adminCompanyId = req.adminCompanyId;
+        const menuItems = await menuItemListService(adminCompanyId);
         res.status(200).json({
             status: 'success',
             data: menuItems
@@ -272,6 +324,9 @@ export const getMenuItemById = async (req, res, next) => {
     try {
         const { menuItemId } = req.params;
         const menuItem = await getMenuItemByIdService(menuItemId);
+        if (req.adminCompanyId != null && menuItem.menu?.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item', 403);
+        }
         res.status(200).json({
             status: 'success',
             data: menuItem
@@ -290,6 +345,14 @@ export const updateMenuItem = async (req, res, next) => {
         if (!menuItemData.name || !menuItemData.menuId) {
             throw new AppError('Missing required fields: name, menuId', 400);
         }
+        const existingMenuItem = await getMenuItemByIdService(menuItemId);
+        if (req.adminCompanyId != null && existingMenuItem.menu?.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item', 403);
+        }
+        const menu = await getMenuByIdService(menuItemData.menuId);
+        if (req.adminCompanyId != null && menu.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only assign menu items to menus in your company', 403);
+        }
 
         const menuItem = await updateMenuItemService(menuItemId, menuItemData);
         
@@ -306,6 +369,10 @@ export const updateMenuItem = async (req, res, next) => {
 export const deleteMenuItem = async (req, res, next) => {
     try {
         const { menuItemId } = req.params;
+        const existingMenuItem = await getMenuItemByIdService(menuItemId);
+        if (req.adminCompanyId != null && existingMenuItem.menu?.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item', 403);
+        }
         const deletedMenuItem = await deleteMenuItemService(menuItemId);
         
         res.status(200).json({
@@ -327,6 +394,9 @@ export const createMenuCategory = async (req, res, next) => {
         if (!menuCategoryData.name || !menuCategoryData.companyId || !menuCategoryData.menuId) {
             throw new AppError('Missing required fields: name, companyId, menuId', 400);
         }
+        if (req.adminCompanyId != null && menuCategoryData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create menu categories for your company', 403);
+        }
 
         const menuCategory = await createMenuCategoryService(menuCategoryData);
         
@@ -342,7 +412,8 @@ export const createMenuCategory = async (req, res, next) => {
 
 export const menuCategoryList = async (req, res, next) => {
     try {
-        const menuCategories = await menuCategoryListService();
+        const adminCompanyId = req.adminCompanyId;
+        const menuCategories = await menuCategoryListService(adminCompanyId);
         res.status(200).json({
             status: 'success',
             data: menuCategories
@@ -356,6 +427,9 @@ export const getMenuCategoryById = async (req, res, next) => {
     try {
         const { menuCategoryId } = req.params;
         const menuCategory = await getMenuCategoryByIdService(menuCategoryId);
+        if (req.adminCompanyId != null && menuCategory.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu category', 403);
+        }
         res.status(200).json({
             status: 'success',
             data: menuCategory
@@ -374,6 +448,13 @@ export const updateMenuCategory = async (req, res, next) => {
         if (!menuCategoryData.name || !menuCategoryData.companyId || !menuCategoryData.menuId) {
             throw new AppError('Missing required fields: name, companyId, menuId', 400);
         }
+        if (req.adminCompanyId != null && menuCategoryData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only update menu categories for your company', 403);
+        }
+        const existingCategory = await getMenuCategoryByIdService(menuCategoryId);
+        if (req.adminCompanyId != null && existingCategory.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu category', 403);
+        }
 
         const menuCategory = await updateMenuCategoryService(menuCategoryId, menuCategoryData);
         
@@ -390,6 +471,10 @@ export const updateMenuCategory = async (req, res, next) => {
 export const deleteMenuCategory = async (req, res, next) => {
     try {
         const { menuCategoryId } = req.params;
+        const existingCategory = await getMenuCategoryByIdService(menuCategoryId);
+        if (req.adminCompanyId != null && existingCategory.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu category', 403);
+        }
         const deletedMenuCategory = await deleteMenuCategoryService(menuCategoryId);
         
         res.status(200).json({
@@ -411,6 +496,9 @@ export const createMenuItemPrice = async (req, res, next) => {
         if (!menuItemPriceData.companyId || !menuItemPriceData.menuItemId || !menuItemPriceData.totalPrice) {
             throw new AppError('Missing required fields: companyId, menuItemId, totalPrice', 400);
         }
+        if (req.adminCompanyId != null && menuItemPriceData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create menu item prices for your company', 403);
+        }
 
         const menuItemPrice = await createMenuItemPriceService(menuItemPriceData);
         
@@ -426,7 +514,8 @@ export const createMenuItemPrice = async (req, res, next) => {
 
 export const menuItemPriceList = async (req, res, next) => {
     try {
-        const menuItemPrices = await menuItemPriceListService();
+        const adminCompanyId = req.adminCompanyId;
+        const menuItemPrices = await menuItemPriceListService(adminCompanyId);
         res.status(200).json({
             status: 'success',
             data: menuItemPrices
@@ -440,6 +529,9 @@ export const getMenuItemPriceById = async (req, res, next) => {
     try {
         const { menuItemPriceId } = req.params;
         const menuItemPrice = await getMenuItemPriceByIdService(menuItemPriceId);
+        if (req.adminCompanyId != null && menuItemPrice.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item price', 403);
+        }
         res.status(200).json({
             status: 'success',
             data: menuItemPrice
@@ -458,6 +550,13 @@ export const updateMenuItemPrice = async (req, res, next) => {
         if (!menuItemPriceData.companyId || !menuItemPriceData.menuItemId || !menuItemPriceData.totalPrice) {
             throw new AppError('Missing required fields: companyId, menuItemId, totalPrice', 400);
         }
+        if (req.adminCompanyId != null && menuItemPriceData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only update menu item prices for your company', 403);
+        }
+        const existingPrice = await getMenuItemPriceByIdService(menuItemPriceId);
+        if (req.adminCompanyId != null && existingPrice.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item price', 403);
+        }
 
         const menuItemPrice = await updateMenuItemPriceService(menuItemPriceId, menuItemPriceData);
         
@@ -474,6 +573,10 @@ export const updateMenuItemPrice = async (req, res, next) => {
 export const deleteMenuItemPrice = async (req, res, next) => {
     try {
         const { menuItemPriceId } = req.params;
+        const existingPrice = await getMenuItemPriceByIdService(menuItemPriceId);
+        if (req.adminCompanyId != null && existingPrice.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item price', 403);
+        }
         const deletedMenuItemPrice = await deleteMenuItemPriceService(menuItemPriceId);
         
         res.status(200).json({
@@ -503,7 +606,8 @@ export const getMealsByDay = async (req, res, next) => {
             throw new AppError('Invalid day. Must be one of: monday, tuesday, wednesday, thursday, friday, saturday, sunday', 400);
         }
 
-        const mealsData = await getMealsByDayService(day);
+        const adminCompanyId = req.adminCompanyId ?? undefined;
+        const mealsData = await getMealsByDayService(day, adminCompanyId);
         
         res.status(200).json({
             status: 'success',
@@ -541,8 +645,9 @@ export const getAllOrders = async (req, res, next) => {
             page: parseInt(page),
             limit: parseInt(limit)
         };
+        const adminCompanyId = req.adminCompanyId ?? undefined;
 
-        const orders = await getAllOrdersService(filters);
+        const orders = await getAllOrdersService(filters, adminCompanyId);
         
         res.status(200).json({
             status: 'success',
@@ -562,6 +667,17 @@ export const updateOrderStatus = async (req, res, next) => {
             throw new AppError('Status is required', 400);
         }
 
+        // Company-scoped admin can only update orders for their company's users
+        if (req.adminCompanyId != null) {
+            const existingOrder = await prisma.order.findUnique({
+                where: { id: orderId },
+                include: { user: { select: { companyId: true } } }
+            });
+            if (!existingOrder || existingOrder.user.companyId !== req.adminCompanyId) {
+                throw new AppError('You do not have access to this order', 403);
+            }
+        }
+
         const order = await updateOrderStatusService(orderId, status);
         
         res.status(200).json({
@@ -577,6 +693,17 @@ export const updateOrderStatus = async (req, res, next) => {
 export const deleteOrder = async (req, res, next) => {
     try {
         const { orderId } = req.params;
+
+        // Company-scoped admin can only delete orders for their company's users
+        if (req.adminCompanyId != null) {
+            const existingOrder = await prisma.order.findUnique({
+                where: { id: orderId },
+                include: { user: { select: { companyId: true } } }
+            });
+            if (!existingOrder || existingOrder.user.companyId !== req.adminCompanyId) {
+                throw new AppError('You do not have access to this order', 403);
+            }
+        }
         
         const deletedOrder = await deleteOrderService(orderId);
         
@@ -624,6 +751,11 @@ export const createAdminUser = async (req, res, next) => {
         // Validate contact information if provided
         if (contact && (!contact.firstName || !contact.lastName)) {
             throw new AppError('Contact information requires both firstName and lastName', 400);
+        }
+
+        // Company-scoped admin can only create users for their company
+        if (req.adminCompanyId != null && companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create users for your company', 403);
         }
 
         // Check if company exists
@@ -745,8 +877,12 @@ export const createAdminUser = async (req, res, next) => {
 
 export const getAdminUsers = async (req, res, next) => {
     try {
-        // First, get all users with their relationships
+        // Super admin (companyId === null) sees all; company admin sees only their company's users
+        const where = req.adminCompanyId != null
+            ? { companyId: req.adminCompanyId }
+            : {};
         const users = await prisma.user.findMany({
+            where,
             include: {
                 auth: true,
                 userRoles: true,
@@ -817,8 +953,13 @@ export const getAdminUsers = async (req, res, next) => {
 // Get sellers with their orders for users
 export const getSellersWithOrders = async (req, res, next) => {
     try {
-        // Get all users with SELLER role
+        // Super admin (companyId === null) sees all; company admin sees only their company's sellers
+        const where = req.adminCompanyId != null
+            ? { companyId: req.adminCompanyId }
+            : {};
+        // Get users with SELLER role (optionally scoped by company)
         const sellers = await prisma.user.findMany({
+            where,
             include: {
                 auth: true,
                 userRoles: true,
@@ -1012,8 +1153,12 @@ export const getSellersWithOrders = async (req, res, next) => {
 // Get delivery executives
 export const getDeliveryExecutives = async (req, res, next) => {
     try {
-        // Get all users with DELIVERY_EXECUTIVE role
+        // Super admin (companyId === null) sees all; company admin sees only their company's executives
+        const where = req.adminCompanyId != null
+            ? { companyId: req.adminCompanyId }
+            : {};
         const executives = await prisma.user.findMany({
+            where,
             include: {
                 auth: true,
                 userRoles: true,
@@ -1486,8 +1631,12 @@ export const proxySessionData = async (req, res, next) => {
 // Utility function to identify orphaned users (users without valid auth records)
 export const getOrphanedUsers = async (req, res, next) => {
     try {
-        // Find users whose authId doesn't correspond to an existing Auth record
+        // Super admin sees all; company admin sees only their company's users
+        const where = req.adminCompanyId != null
+            ? { companyId: req.adminCompanyId }
+            : {};
         const allUsers = await prisma.user.findMany({
+            where,
             select: {
                 id: true,
                 authId: true,
@@ -1546,8 +1695,12 @@ export const cleanupOrphanedUsers = async (req, res, next) => {
             });
         }
 
-        // Find all users first
+        // Super admin cleans all; company admin cleans only their company's users
+        const where = req.adminCompanyId != null
+            ? { companyId: req.adminCompanyId }
+            : {};
         const allUsers = await prisma.user.findMany({
+            where,
             select: {
                 id: true,
                 authId: true
@@ -1610,7 +1763,8 @@ export const cleanupOrphanedUsers = async (req, res, next) => {
 // Get product quantities for menus
 export const getProductQuantitiesForMenus = async (req, res, next) => {
     try {
-        const productQuantities = await getProductQuantitiesForMenusService();
+        const adminCompanyId = req.adminCompanyId ?? undefined;
+        const productQuantities = await getProductQuantitiesForMenusService(adminCompanyId);
         
         res.status(200).json({
             status: 'success',
@@ -1646,6 +1800,11 @@ export const addUserRoles = async (req, res, next) => {
 
         if (!user) {
             throw new AppError('User not found', 404);
+        }
+
+        // Company-scoped admin can only manage users in their company
+        if (req.adminCompanyId != null && user.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this user', 403);
         }
 
         // Get existing role names
@@ -1719,6 +1878,11 @@ export const removeUserRoles = async (req, res, next) => {
 
         if (!user) {
             throw new AppError('User not found', 404);
+        }
+
+        // Company-scoped admin can only manage users in their company
+        if (req.adminCompanyId != null && user.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this user', 403);
         }
 
         // Get existing role names

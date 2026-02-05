@@ -8,6 +8,10 @@ import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CAT
  * Features: Company management, product management, menu management, user management, inventory tracking
  */
 
+/** True when admin is scoped to a company (non-empty string); false = super admin, see all */
+const hasCompanyScope = (adminCompanyId) =>
+  typeof adminCompanyId === 'string' && adminCompanyId.trim() !== '';
+
 /**
  * Get or create a system user for company addresses
  * This ensures we have a valid user_id for addresses that belong to companies
@@ -143,8 +147,10 @@ export const createCompanyService = async ({ name, address }) => {
   };
 };
 
-export const companyListService = async () => {
-  const companies = await prisma.company.findMany();
+export const companyListService = async (adminCompanyId) => {
+  const scopeByCompany = hasCompanyScope(adminCompanyId);
+  const where = scopeByCompany ? { id: (adminCompanyId || '').trim() } : {};
+  const companies = await prisma.company.findMany({ where });
   
   // Fetch address details for each company
   const companiesWithAddresses = await Promise.all(
@@ -345,8 +351,10 @@ export const createProductService = async (productData) => {
   }
 };
 
-export const productListService = async () => {
+export const productListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId) ? { companyId: (adminCompanyId || '').trim() } : {};
   const products = await prisma.product.findMany({
+    where,
     include: {
       company: true,
       categories: true,
@@ -706,8 +714,10 @@ export const createMenuService = async (menuData) => {
   return menu;
 };
 
-export const menuListService = async () => {
+export const menuListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId) ? { companyId: (adminCompanyId || '').trim() } : {};
   const menus = await prisma.menu.findMany({
+    where,
     include: {
       company: true,
       menuItems: {
@@ -862,8 +872,12 @@ export const createMenuItemService = async (menuItemData) => {
   return menuItem;
 };
 
-export const menuItemListService = async () => {
+export const menuItemListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId)
+    ? { menu: { companyId: (adminCompanyId || '').trim() } }
+    : {};
   const menuItems = await prisma.menuItem.findMany({
+    where,
     include: {
       menu: {
         include: {
@@ -1019,8 +1033,10 @@ export const createMenuCategoryService = async (menuCategoryData) => {
   return menuCategory;
 };
 
-export const menuCategoryListService = async () => {
+export const menuCategoryListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId) ? { companyId: (adminCompanyId || '').trim() } : {};
   const menuCategories = await prisma.menuCategory.findMany({
+    where,
     include: {
       company: true,
       menu: true,
@@ -1162,8 +1178,10 @@ export const createMenuItemPriceService = async (menuItemPriceData) => {
   return menuItemPrice;
 };
 
-export const menuItemPriceListService = async () => {
+export const menuItemPriceListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId) ? { companyId: (adminCompanyId || '').trim() } : {};
   const menuItemPrices = await prisma.menuItemPrice.findMany({
+    where,
     include: {
       company: true,
       menuItem: {
@@ -1282,31 +1300,25 @@ export const deleteMenuItemPriceService = async (menuItemPriceId) => {
 };
 
 // Get meals by day of the week
-export const getMealsByDayService = async (dayOfWeek) => {
+export const getMealsByDayService = async (dayOfWeek, adminCompanyId) => {
   // Convert day to proper format (e.g., "Monday" to "MONDAY")
   const formattedDay = dayOfWeek.toUpperCase();
   
-  // Get all menu items that start with the day name (case insensitive)
+  // Base filter: menu item name matches day
+  const nameFilter = {
+    OR: [
+      { name: { startsWith: dayOfWeek } },
+      { name: { startsWith: dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1) } },
+      { name: { startsWith: dayOfWeek.toUpperCase() } }
+    ]
+  };
+  // Super admin sees all; company admin sees only their company's menu items (via menu.companyId)
+  const where = hasCompanyScope(adminCompanyId)
+    ? { ...nameFilter, menu: { companyId: (adminCompanyId || '').trim() } }
+    : nameFilter;
+
   const menuItems = await prisma.menuItem.findMany({
-    where: {
-      OR: [
-        {
-          name: {
-            startsWith: dayOfWeek
-          }
-        },
-        {
-          name: {
-            startsWith: dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)
-          }
-        },
-        {
-          name: {
-            startsWith: dayOfWeek.toUpperCase()
-          }
-        }
-      ]
-    },
+    where,
     include: {
       product: true, // Include product relation
       menu: {
@@ -1522,7 +1534,7 @@ export const getMenusForBookingService = async () => {
 };
 
 // Admin Order Management Services
-export const getAllOrdersService = async (filters) => {
+export const getAllOrdersService = async (filters, adminCompanyId) => {
   const { status, startDate, endDate, orderTime, page = 1, limit = 10 } = filters;
   
   const skip = (page - 1) * limit;
@@ -1543,6 +1555,11 @@ export const getAllOrdersService = async (filters) => {
   
   if (orderTime && orderTime !== 'all' && orderTime !== null) {
     where.orderTimes = orderTime;
+  }
+
+  // Super admin sees all; company admin sees only their company's orders (via order's user)
+  if (hasCompanyScope(adminCompanyId)) {
+    where.user = { companyId: (adminCompanyId || '').trim() };
   }
 
   // Get orders with pagination (without including problematic relations)
@@ -1701,15 +1718,17 @@ export const deleteOrderService = async (orderId) => {
 };
 
 // Get product quantities for menu items
-export const getProductQuantitiesForMenusService = async () => {
+export const getProductQuantitiesForMenusService = async (adminCompanyId) => {
   try {
-    // Get all menu items with their associated products and quantities
+    // Super admin sees all; company admin sees only their company's menu items (via menu.companyId)
+    const where = {
+      productId: { not: null }
+    };
+    if (hasCompanyScope(adminCompanyId)) {
+      where.menu = { companyId: (adminCompanyId || '').trim() };
+    }
     const menuItemsWithQuantities = await prisma.menuItem.findMany({
-      where: {
-        productId: {
-          not: null
-        }
-      },
+      where,
       include: {
         product: {
           include: {
