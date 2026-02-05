@@ -222,7 +222,7 @@ const AddProductPage = () => {
         price: [
           {
             date: form.priceDate,
-            price: parseInt(form.price)
+            price: parseFloat(form.price)
           }
         ],
         quantity: [
@@ -615,7 +615,7 @@ const AddProductPage = () => {
                         min="0"
                         step="0.01"
                         className={getFieldClassName('price', "w-full bg-gray-700 border border-gray-600 rounded-lg p-2 sm:p-3 text-gray-100 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors")}
-                        placeholder="Enter price"
+                        placeholder="e.g. 37.50"
                         disabled={isCreating || isUpdating || productLoading} 
                       />
                       {getFieldError('price') && (

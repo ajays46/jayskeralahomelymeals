@@ -376,7 +376,7 @@ const MenuItemPage = () => {
       // Call the create menu item price API
       createMenuItemPrice({
         ...menuItemPriceForm,
-        totalPrice: parseInt(menuItemPriceForm.totalPrice) || 0
+        totalPrice: parseFloat(menuItemPriceForm.totalPrice) || 0
       });
     } catch (err) {
       console.error('Menu item price form submission error:', err);
@@ -428,7 +428,7 @@ const MenuItemPage = () => {
         menuItemPriceId: editingPrice.id,
         menuItemPriceData: {
           ...editPriceForm,
-          totalPrice: parseInt(editPriceForm.totalPrice) || 0
+          totalPrice: parseFloat(editPriceForm.totalPrice) || 0
         }
       });
     } catch (err) {
@@ -722,10 +722,11 @@ const MenuItemPage = () => {
                       value={menuItemPriceForm.totalPrice}
                       onChange={handleMenuItemPriceChange}
                       onBlur={handleMenuItemPriceBlur}
-                      min="1"
+                      min="0"
                       max="999999"
+                      step="0.01"
                       className={getMenuItemPriceFieldClassName('totalPrice', 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-white placeholder-gray-400')}
-                      placeholder="Enter total price"
+                      placeholder="e.g. 37.50"
                     />
                     {getMenuItemPriceFieldError('totalPrice') && (
                       <p className="mt-1 text-sm text-red-400">{getMenuItemPriceFieldError('totalPrice')}</p>
@@ -840,10 +841,11 @@ const MenuItemPage = () => {
                     name="totalPrice"
                     value={editPriceForm.totalPrice}
                     onChange={handleEditPriceChange}
-                    min="1"
+                    min="0"
                     max="999999"
+                    step="0.01"
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400"
-                    placeholder="Enter total price"
+                    placeholder="e.g. 37.50"
                     required
                   />
                 </div>
