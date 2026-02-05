@@ -146,6 +146,7 @@ const BookingWizardPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedMenu, setSelectedMenu] = useState(null);
+  const [menuQuantity, setMenuQuantity] = useState(1); // Quantity for selected menu (plus/minus)
   const [selectedDates, setSelectedDates] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
@@ -372,27 +373,25 @@ const BookingWizardPage = () => {
   };
 
   const getTotalItems = () => {
-    // For comprehensive menus, count the menu items automatically
+    const qty = Math.max(1, menuQuantity || 1);
+    // For comprehensive menus, count the menu items × quantity
     if (selectedMenu && selectedMenu.isComprehensiveMenu) {
-   
       let total = 0;
-      if (selectedMenu.mealTypes.breakfast) total += selectedMenu.mealTypes.breakfast.length;
-      if (selectedMenu.mealTypes.lunch) total += selectedMenu.mealTypes.lunch.length;
-      if (selectedMenu.mealTypes.dinner) total += selectedMenu.mealTypes.dinner.length;
-      return total;
+      if (selectedMenu.mealTypes?.breakfast) total += selectedMenu.mealTypes.breakfast.length;
+      if (selectedMenu.mealTypes?.lunch) total += selectedMenu.mealTypes.lunch.length;
+      if (selectedMenu.mealTypes?.dinner) total += selectedMenu.mealTypes.dinner.length;
+      return total * qty;
     }
-    
-    // For daily rates, count based on selected dates and meal types
+    // For daily rates, count based on selected dates and meal types × quantity
     if (selectedMenu && selectedMenu.isDailyRateItem) {
       let total = 0;
       if (selectedMenu.hasBreakfast) total += selectedDates.length;
       if (selectedMenu.hasLunch) total += selectedDates.length;
       if (selectedMenu.hasDinner) total += selectedDates.length;
-      return total;
+      return total * qty;
     }
-    
-    // For other regular menus, return 1 (the selected menu item)
-    return 1;
+    // For other regular menus, return quantity
+    return qty;
   };
 
   const getTotalPrice = () => {
@@ -421,11 +420,18 @@ const BookingWizardPage = () => {
     if (selectedMenu.isDailyRateItem) {
       const basePrice = selectedMenu.price || 0;
       const numberOfDays = selectedDates.length;
-      return basePrice * numberOfDays;
+      const qty = Math.max(1, menuQuantity || 1);
+      return basePrice * numberOfDays * qty;
     }
     
-    // For comprehensive menus (monthly/weekly/weekday): Keep original price
-    return selectedMenu.price || 0;
+    // For comprehensive menus: price × quantity
+    if (selectedMenu.isComprehensiveMenu) {
+      return (selectedMenu.price || 0) * Math.max(1, menuQuantity || 1);
+    }
+    
+    // Regular/single: price × quantity (delivery items are created per date with this quantity)
+    const qty = Math.max(1, menuQuantity || 1);
+    return (selectedMenu.price || 0) * qty;
   };
 
   // Unique menus (by menuId) for the "Select Menu" filter
@@ -632,6 +638,8 @@ const BookingWizardPage = () => {
         // Load draft data
         setSelectedUser(draftOrder.selectedUser);
         setSelectedMenu(draftOrder.selectedMenu);
+        setMenuQuantity(draftOrder.menuQuantity ?? 1);
+        setNoSession(draftOrder.noSession === true);
         // Parse dates in local timezone to avoid timezone conversion issues
         const parsedDates = draftOrder.selectedDates.map(dateStr => {
           // Parse date string as YYYY-MM-DD in local timezone
@@ -957,8 +965,8 @@ const BookingWizardPage = () => {
     if (productQuantity && productQuantity.quantity === 0) {
       return;
     }
-    
     setSelectedMenu(menu);
+    setMenuQuantity(1); // Reset quantity when changing menu
     
     // Auto-select dates based on menu type - works for both veg and non-veg
     const autoSelectionDays = getAutoSelectionDays(menu);
@@ -1307,6 +1315,32 @@ const BookingWizardPage = () => {
                             {productQuantity && productQuantity.quantity > 0 && (
                               <div className="text-xs text-blue-600 mt-1">
                                 Available: {productQuantity.quantity}
+                              </div>
+                            )}
+                            {/* Quantity selector when this menu is selected */}
+                            {selectedMenu?.id === item.id && (
+                              <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                                <span className="text-xs font-medium text-gray-700">Quantity</span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setMenuQuantity((q) => Math.max(1, q - 1))}
+                                    className="w-7 h-7 rounded border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-100 flex items-center justify-center"
+                                  >
+                                    −
+                                  </button>
+                                  <span className="min-w-[1.75rem] text-center text-sm font-semibold">{menuQuantity}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const maxQty = productQuantity?.quantity != null ? Math.min(99, productQuantity.quantity) : 99;
+                                      setMenuQuantity((q) => Math.min(maxQty, q + 1));
+                                    }}
+                                    className="w-7 h-7 rounded border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-100 flex items-center justify-center"
+                                  >
+                                    +
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1766,6 +1800,7 @@ const BookingWizardPage = () => {
       id: draftId || `draft_${Date.now()}`,
       selectedUser,
       selectedMenu,
+      menuQuantity: menuQuantity || 1,
       selectedDates: selectedDates.map(date => dateToLocalString(date)),
       deliveryLocations,
       deliveryLocationNames,
@@ -1775,6 +1810,7 @@ const BookingWizardPage = () => {
       dietaryPreference,
       deliveryNote: deliveryNote || null,
       isSampleDelivery: isSampleDelivery,
+      noSession: noSession,
       customerName: selectedUser ? 
         `${selectedUser.contacts?.[0]?.firstName || ''}`.trim() :
         `${user?.contacts?.[0]?.firstName || ''}`.trim() || user?.auth?.email || 'N/A'
@@ -1795,6 +1831,8 @@ const BookingWizardPage = () => {
   const loadDraftOrder = (draft) => {
     setSelectedUser(draft.selectedUser);
     setSelectedMenu(draft.selectedMenu);
+    setMenuQuantity(draft.menuQuantity ?? 1);
+    setNoSession(draft.noSession === true);
     // Parse dates in local timezone to avoid timezone conversion issues
     const parsedDates = draft.selectedDates.map(dateStr => {
       // Parse date string as YYYY-MM-DD in local timezone
@@ -1913,13 +1951,14 @@ const BookingWizardPage = () => {
 
       const orderItems = [];
       
+      const qty = Math.max(1, menuQuantity || 1); // Per-delivery quantity (from plus/minus)
       // No specific session: one item per date with session ANY
       if (noSession) {
         const menuItemId = selectedMenu.menuItem?.id || selectedMenu.id;
         if (menuItemId) {
           orderItems.push({
             menuItemId,
-            quantity: selectedDates.length,
+            quantity: qty,
             mealType: 'any'
           });
         }
@@ -1928,14 +1967,13 @@ const BookingWizardPage = () => {
         if (selectedMenu.menuItem) {
           orderItems.push({
             menuItemId: selectedMenu.menuItem.id,
-            quantity: selectedDates.length,
+            quantity: qty,
             mealType: singleMealType
           });
         } else if (selectedMenu.id) {
-          // Fallback: use the menu itself as the menu item
           orderItems.push({
             menuItemId: selectedMenu.id,
-            quantity: selectedDates.length,
+            quantity: qty,
             mealType: singleMealType
           });
         }
@@ -1944,7 +1982,7 @@ const BookingWizardPage = () => {
           selectedMenu.mealTypes.breakfast.forEach(item => {
             orderItems.push({
               menuItemId: item.id,
-              quantity: 1,
+              quantity: qty,
               mealType: 'breakfast'
             });
           });
@@ -1953,7 +1991,7 @@ const BookingWizardPage = () => {
           selectedMenu.mealTypes.lunch.forEach(item => {
             orderItems.push({
               menuItemId: item.id,
-              quantity: 1,
+              quantity: qty,
               mealType: 'lunch'
             });
           });
@@ -1962,59 +2000,24 @@ const BookingWizardPage = () => {
           selectedMenu.mealTypes.dinner.forEach(item => {
             orderItems.push({
               menuItemId: item.id,
-              quantity: 1,
+              quantity: qty,
               mealType: 'dinner'
             });
           });
         }
       } else if (selectedMenu.isDailyRateItem) {
         if (selectedMenu.menuItem) {
-          if (selectedMenu.hasBreakfast) {
-            orderItems.push({
-              menuItemId: selectedMenu.menuItem.id,
-              quantity: selectedDates.length,
-              mealType: 'breakfast'
-            });
-          }
-          if (selectedMenu.hasLunch) {
-            orderItems.push({
-              menuItemId: selectedMenu.menuItem.id,
-              quantity: selectedDates.length,
-              mealType: 'lunch'
-            });
-          }
-          if (selectedMenu.hasDinner) {
-            orderItems.push({
-              menuItemId: selectedMenu.menuItem.id,
-              quantity: selectedDates.length,
-              mealType: 'dinner'
-            });
-          }
+          if (selectedMenu.hasBreakfast) orderItems.push({ menuItemId: selectedMenu.menuItem.id, quantity: qty, mealType: 'breakfast' });
+          if (selectedMenu.hasLunch) orderItems.push({ menuItemId: selectedMenu.menuItem.id, quantity: qty, mealType: 'lunch' });
+          if (selectedMenu.hasDinner) orderItems.push({ menuItemId: selectedMenu.menuItem.id, quantity: qty, mealType: 'dinner' });
         }
       } else {
         // Regular menu
-        if (selectedMenu.menuItem) {
-          if (selectedMenu.hasBreakfast) {
-            orderItems.push({
-              menuItemId: selectedMenu.menuItem.id,
-              quantity: selectedDates.length,
-              mealType: 'breakfast'
-            });
-          }
-          if (selectedMenu.hasLunch) {
-            orderItems.push({
-              menuItemId: selectedMenu.menuItem.id,
-              quantity: selectedDates.length,
-              mealType: 'lunch'
-            });
-          }
-          if (selectedMenu.hasDinner) {
-            orderItems.push({
-              menuItemId: selectedMenu.menuItem.id,
-              quantity: selectedDates.length,
-              mealType: 'dinner'
-            });
-          }
+        const menuItemId = selectedMenu.menuItem?.id || selectedMenu.id;
+        if (menuItemId) {
+          if (selectedMenu.hasBreakfast) orderItems.push({ menuItemId, quantity: qty, mealType: 'breakfast' });
+          if (selectedMenu.hasLunch) orderItems.push({ menuItemId, quantity: qty, mealType: 'lunch' });
+          if (selectedMenu.hasDinner) orderItems.push({ menuItemId, quantity: qty, mealType: 'dinner' });
         }
       }
 

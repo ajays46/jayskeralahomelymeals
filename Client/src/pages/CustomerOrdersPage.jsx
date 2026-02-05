@@ -1515,12 +1515,12 @@ const CustomerOrdersPage = () => {
                                         {/* Item Header */}
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center gap-2 sm:gap-3">
-                                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
-                                              {item.quantity}
+                                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md" title="Quantity">
+                                              {item.quantity ?? 1}
                                             </div>
                                             <div className="min-w-0 flex-1">
                                               <h4 className="font-semibold text-gray-900 text-xs sm:text-sm truncate">
-                                                {item.menuItem?.name || 'Unknown Item'}
+                                                <span className="text-gray-500 font-normal">{(item.quantity ?? 1)}×</span> {item.menuItem?.name || 'Unknown Item'}
                                               </h4>
                                               <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-600 mt-1">
                                                 <div className="flex items-center gap-1">
@@ -1615,12 +1615,12 @@ const CustomerOrdersPage = () => {
                                       {/* Desktop Layout */}
                                       <div className="hidden lg:flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md">
-                                            {item.quantity}
+                                          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md" title="Quantity">
+                                            {item.quantity ?? 1}
                                           </div>
                                           <div className="flex-1">
                                             <h4 className="font-semibold text-gray-900 text-sm">
-                                              {item.menuItem?.name || 'Unknown Item'}
+                                              <span className="text-gray-500 font-normal">{(item.quantity ?? 1)}×</span> {item.menuItem?.name || 'Unknown Item'}
                                             </h4>
                                             <div className="flex items-center gap-3 text-xs text-gray-600 mt-1">
                                               <div className="flex items-center gap-1">
