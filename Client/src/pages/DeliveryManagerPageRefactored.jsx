@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { useNavigate } from 'react-router-dom';
 import { FiMenu, FiX } from 'react-icons/fi';
 import useAuthStore from '../stores/Zustand.store';
@@ -135,7 +136,7 @@ const DeliveryManagerPageRefactored = () => {
   useEffect(() => {
     const checkUserAuth = async () => {
       if (!user || !isSeller(roles)) {
-        navigate('/jkhm');
+        navigate(basePath);
         return;
       }
       await fetchSellersData();

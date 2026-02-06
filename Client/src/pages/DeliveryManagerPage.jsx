@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin, FiTrendingDown, FiClock, FiCheckCircle, FiBarChart2, FiActivity, FiPieChart, FiTarget, FiShield, FiPackage, FiX, FiDownload, FiEye, FiEyeOff, FiMessageCircle, FiMaximize2, FiMinimize2, FiEdit2, FiSave } from 'react-icons/fi';
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney } from 'react-icons/md';
 import { Modal, message } from 'antd';
@@ -19,6 +20,8 @@ import ExecutivesAndRoutes from '../components/deliveryManager/ExecutivesAndRout
  * Features: Real-time analytics, route planning, WhatsApp integration, executive management, order tracking
  */
 const DeliveryManagerPage = () => {
+  const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const { user, roles } = useAuthStore();
   const location = useLocation();
   const [sellers, setSellers] = useState([]);
@@ -151,7 +154,6 @@ const DeliveryManagerPage = () => {
       vehicleChoices: vehicleChoicesArray
     };
   }, [activeExecutivesData]);  
-  const navigate = useNavigate(); 
   const [cancellingItems, setCancellingItems] = useState(new Set());
   const [showCancelItemModal, setShowCancelItemModal] = useState(false);
   const [itemToCancel, setItemToCancel] = useState(null);
@@ -1539,7 +1541,7 @@ const DeliveryManagerPage = () => {
 
   const handleAddExecutive = () => {
     // Navigate to the admin users page to create a new delivery executive
-    navigate('/jkhm/admin/users');
+    navigate(`${basePath}/admin/users`);
     message.info('Redirecting to user creation page. Please select DELIVERY_EXECUTIVE role.');
   };
 
@@ -1569,7 +1571,7 @@ const DeliveryManagerPage = () => {
         message.success('Logged out successfully');
         
         // Navigate to home page
-        navigate('/jkhm');
+        navigate(basePath);
         
         // Force page reload to clear any remaining state
         window.location.reload();
@@ -1607,7 +1609,7 @@ const DeliveryManagerPage = () => {
 
   const handleEditExecutive = (executive) => {
     // Navigate to the admin users page to edit the delivery executive
-    navigate('/jkhm/admin/users');
+    navigate(`${basePath}/admin/users`);
     message.info(`Redirecting to edit ${executive.name}'s profile. You can update their phone number and other details.`);
   };
 
@@ -2159,7 +2161,7 @@ const DeliveryManagerPage = () => {
       <div className="fixed top-0 left-0 right-0 h-16 sm:h-20 lg:h-24 bg-gray-800 border-b border-gray-700 z-40 flex items-center justify-between px-3 sm:px-4 lg:px-8 overflow-hidden">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 max-w-[calc(100%-2rem)]">
           <button
-            onClick={() => navigate('/jkhm')}
+            onClick={() => navigate(basePath)}
             className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
             aria-label="Go back to home"
           >
@@ -2175,7 +2177,7 @@ const DeliveryManagerPage = () => {
         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
           {isSeller(roles) && (
             <button
-              onClick={() => navigate('/jkhm/seller/customers')}
+              onClick={() => navigate(`${basePath}/seller/customers`)}
               className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
               title="Go to Customers List"
             >

@@ -116,7 +116,8 @@ export const loginUser = async ({ identifier, password }) => {
         const user = await prisma.user.findUnique({ 
             where: { authId: auth.id },
             include: {
-                userRoles: true
+                userRoles: true,
+                company: { select: { id: true, name: true } }
             }
         });
 
@@ -129,6 +130,11 @@ export const loginUser = async ({ identifier, password }) => {
         const accessToken = generateAccessToken(user.id, primaryRole.name);
         const refreshToken = generateRefreshToken(user.id, primaryRole.name);
 
+        // Company path for redirect: company admins go to their company URL (e.g. JKHM -> /jkhm)
+        const companyPath = user.company?.name
+            ? String(user.company.name).trim().toLowerCase()
+            : null;
+
         return {
             user: {
                 id: user.id,
@@ -137,7 +143,9 @@ export const loginUser = async ({ identifier, password }) => {
                 api_key: auth.apiKey,
                 status: auth.status,
                 role: primaryRole.name,
-                roles: user.userRoles.map(role => role.name) // Include all roles
+                roles: user.userRoles.map(role => role.name), // Include all roles
+                companyId: user.companyId ?? undefined,
+                companyPath // e.g. "jkhm" or "jlg" for redirect after login
             },
             token: {
                 accessToken,

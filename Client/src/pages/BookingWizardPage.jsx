@@ -22,6 +22,7 @@ import {
   MdClear,
   MdInfo
 } from 'react-icons/md';
+import { useTenant, useCompanyBasePath } from '../context/TenantContext';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import { useMenusForBooking, useProductQuantitiesForMenus } from '../hooks/adminHook/adminHook';
 import { useAddress } from '../hooks/userHooks/userAddress';
@@ -200,9 +201,12 @@ const BookingWizardPage = () => {
   const [menuItemsPerPage, setMenuItemsPerPage] = useState(6);
 
 
-  // Hooks
+  // Hooks (companyId from tenant so booking shows only this company's menus)
+  const tenant = useTenant();
+  const companyId = tenant?.companyId ?? null;
+  const basePath = useCompanyBasePath();
   const { sellerUsers, loading: sellerUsersLoading, getSellerUsers, isSeller } = useSeller();
-  const { data: menusData, isLoading: menusLoading, error: menusError } = useMenusForBooking();
+  const { data: menusData, isLoading: menusLoading, error: menusError } = useMenusForBooking(companyId);
   const { data: productQuantitiesData, isLoading: productQuantitiesLoading } = useProductQuantitiesForMenus();
   const { createOrder, isCreating } = useOrder();
   const { addresses: userAddresses } = useAddress();
@@ -2152,7 +2156,7 @@ const BookingWizardPage = () => {
       localStorage.setItem('savedOrder', JSON.stringify(orderDataForPayment));
       
       // Redirect to payment page with order data
-      navigate('/jkhm/process-payment', { 
+      navigate(`${basePath}/process-payment`, { 
         state: { orderData: orderDataForPayment } 
       });
 
@@ -2202,7 +2206,7 @@ const BookingWizardPage = () => {
                   </button>
                 )}
                 <button
-                  onClick={() => navigate('/jkhm/seller')}
+                  onClick={() => navigate(`${basePath}/seller`)}
                   className="px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
                 >
                   <MdDashboard className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -2211,7 +2215,7 @@ const BookingWizardPage = () => {
                 </button>
                 {isSeller && (
                   <button
-                    onClick={() => navigate('/jkhm/seller/customers')}
+                    onClick={() => navigate(`${basePath}/seller/customers`)}
                     className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
                   >
                     <MdPeople className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -2658,7 +2662,7 @@ const BookingWizardPage = () => {
             deleteDraftOrder(draftId);
           }
           setIsModalOpen(false);
-          navigate('/jkhm/seller/customers');
+          navigate(`${basePath}/seller/customers`);
         }}
         onCancel={() => {
           setIsModalOpen(false);

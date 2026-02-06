@@ -17,12 +17,14 @@ import {
   MdShoppingCart,
   MdAttachMoney
 } from 'react-icons/md';
+import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 
 const EditCustomerPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const basePath = useCompanyBasePath();
   const { user, roles } = useAuthStore();
   const { updateCustomer } = useSeller();
   
@@ -137,7 +139,7 @@ const EditCustomerPage = () => {
       
       if (result.success) {
         showSuccessToast('Customer updated successfully!');
-        navigate('/jkhm/seller/customers');
+        navigate(`${basePath}/seller/customers`);
       } else {
         showErrorToast(result.message || 'Failed to update customer');
       }
@@ -151,7 +153,7 @@ const EditCustomerPage = () => {
 
   // Handle cancel
   const handleCancel = () => {
-    navigate('/jkhm/seller/customers');
+    navigate(`${basePath}/seller/customers`);
   };
 
 
@@ -165,7 +167,7 @@ const EditCustomerPage = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-4">You don't have permission to edit customers.</p>
           <button
-            onClick={() => navigate('/jkhm')}
+            onClick={() => navigate(basePath)}
             className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
           >
             Go to Home
@@ -184,7 +186,7 @@ const EditCustomerPage = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Customer Not Found</h2>
           <p className="text-gray-600 mb-4">No customer data available for editing.</p>
           <button
-            onClick={() => navigate('/jkhm/seller/customers')}
+            onClick={() => navigate(`${basePath}/seller/customers`)}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Back to Customers
@@ -203,7 +205,7 @@ const EditCustomerPage = () => {
             {/* Left Side - Back Button and Title */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate('/jkhm/seller/customers')}
+                onClick={() => navigate(`${basePath}/seller/customers`)}
                 className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Back to Customers"
               >
@@ -437,7 +439,7 @@ const EditCustomerPage = () => {
               
               <div className="space-y-2 sm:space-y-3">
                 <button
-                  onClick={() => navigate('/jkhm/place-order', { 
+                  onClick={() => navigate(`${basePath}/place-order`, { 
                     state: { 
                       selectedUser: {
                         id: customer.id,
@@ -456,7 +458,7 @@ const EditCustomerPage = () => {
                 </button>
                 
                 <button
-                  onClick={() => navigate('/jkhm/seller/customers')}
+                  onClick={() => navigate(`${basePath}/seller/customers`)}
                   className="w-full px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   <MdArrowBack className="w-4 h-4" />

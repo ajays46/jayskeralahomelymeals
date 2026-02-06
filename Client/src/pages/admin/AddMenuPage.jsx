@@ -3,12 +3,14 @@ import { FaPlus, FaUtensils, FaBuilding, FaCalendar, FaSave, FaTimes, FaArrowLef
 import AdminSlide from '../../components/AdminSlide';
 import { useCompanyList, useCreateMenu, useMenuList, useCreateMenuCategory, useMenuCategoryList, useUpdateMenu, useDeleteMenu, useUpdateMenuCategory, useDeleteMenuCategory } from '../../hooks/adminHook/adminHook';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../../context/TenantContext';
 import { validateMenuForm, validateField, menuSchema } from '../../validations/menuValidation';
 import { validateMenuCategoryForm, validateField as validateMenuCategoryField, menuCategorySchema } from '../../validations/menuCategoryValidation';
 import 'antd/dist/reset.css';
 
 const AddMenuPage = () => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   
   const [form, setForm] = useState({
     name: '',
@@ -85,7 +87,7 @@ const AddMenuPage = () => {
       // Show success message and navigate
       setTimeout(() => {
         setIsSuccess(false);
-        navigate('/jkhm/admin');
+        navigate(`${basePath}/admin`);
       }, 2000);
     }
   }, [menuCreated, navigate]);
@@ -512,7 +514,7 @@ const AddMenuPage = () => {
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
               <button
-                onClick={() => navigate('/jkhm/admin')}
+                onClick={() => navigate(`${basePath}/admin`)}
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <FaArrowLeft size={20} />
@@ -605,7 +607,7 @@ const AddMenuPage = () => {
                             <p>No companies available. Please create a company first.</p>
                             <button
                               type="button"
-                              onClick={() => navigate('/jkhm/admin/company-create')}
+                              onClick={() => navigate(`${basePath}/admin/company-create`)}
                               className="text-blue-400 hover:text-blue-300 underline mt-1"
                             >
                               Go to Create Company

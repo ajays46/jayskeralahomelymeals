@@ -12,10 +12,12 @@ import {
 } from 'react-icons/md';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import axiosInstance from '../api/axios.js';
+import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store.js';
 
 const UploadReceiptPage = () => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const { paymentId } = useParams();
   const { user } = useAuthStore();
   
@@ -39,12 +41,12 @@ const UploadReceiptPage = () => {
         setPayment(response.data.data.payment);
       } else {
         showErrorToast('Failed to fetch payment details');
-        navigate('/jkhm/seller/customers');
+        navigate(`${basePath}/seller/customers`);
       }
     } catch (error) {
       console.error('Error fetching payment details:', error);
       showErrorToast('Failed to fetch payment details');
-      navigate('/jkhm/seller/customers');
+      navigate(`${basePath}/seller/customers`);
     } finally {
       setLoading(false);
     }
@@ -129,7 +131,7 @@ const UploadReceiptPage = () => {
       if (response.data.success) {
         // Navigate back to customer list with success state
         // Don't show toast here - let CustomersListPage handle it
-        navigate('/jkhm/seller/customers', {
+        navigate(`${basePath}/seller/customers`, {
           state: {
             showReceiptSuccess: true,
             receiptUploaded: true,
@@ -186,7 +188,7 @@ const UploadReceiptPage = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Payment Not Found</h2>
           <p className="text-gray-600 mb-4">The payment you're looking for doesn't exist.</p>
           <button
-            onClick={() => navigate('/jkhm/seller/customers')}
+            onClick={() => navigate(`${basePath}/seller/customers`)}
             className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
           >
             Go to Customers
@@ -204,7 +206,7 @@ const UploadReceiptPage = () => {
           <div className="flex items-center justify-between py-4">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate('/jkhm/seller/customers')}
+                onClick={() => navigate(`${basePath}/seller/customers`)}
                 className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Back to Customers"
               >

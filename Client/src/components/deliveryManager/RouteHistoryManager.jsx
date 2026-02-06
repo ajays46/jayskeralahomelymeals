@@ -1,5 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../../context/TenantContext';
 import { Popconfirm } from 'antd';
 import { 
   MdHistory, 
@@ -24,6 +25,7 @@ const RouteHistoryManager = forwardRef(({
   showErrorToast 
 }, ref) => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const [routeHistory, setRouteHistory] = useState([]);
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [expandedRouteId, setExpandedRouteId] = useState(null);
@@ -151,7 +153,7 @@ const RouteHistoryManager = forwardRef(({
   // Navigate to comparison page
   const navigateToComparison = () => {
     localStorage.setItem('routeHistory', JSON.stringify(routeHistory));
-    navigate('/jkhm/route-comparison');
+    navigate(`${basePath}/route-comparison`);
   };
 
   // Navigate to route view page
@@ -171,7 +173,7 @@ const RouteHistoryManager = forwardRef(({
     }));
 
     // Navigate to route view page
-    navigate('/jkhm/route-view', {
+    navigate(`${basePath}/route-view`, {
       state: {
         routeData,
         routeInfo

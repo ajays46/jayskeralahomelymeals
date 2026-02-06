@@ -8,7 +8,8 @@ import { useForgotPassword } from '../hooks/userHooks/useLogin';
  * Handles password reset requests with email/phone validation
  * Features: Input validation, success/error states, email sending
  */
-const ForgotPassword = ({ onBackToLogin }) => {
+const ForgotPassword = ({ onBackToLogin, accent: accentProp }) => {
+  const accent = accentProp || '#FE8C00';
   const [identifier, setIdentifier] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -33,7 +34,7 @@ const ForgotPassword = ({ onBackToLogin }) => {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-6 md:bg-white md:rounded-xl md:shadow-md">
+    <div className="w-full max-w-md mx-auto p-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
       <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Forgot Password?</h2>
       <p className="text-gray-500 mb-6 text-sm text-center">Enter your email or phone number to reset your password.</p>
       {success ? (
@@ -48,7 +49,7 @@ const ForgotPassword = ({ onBackToLogin }) => {
               id="identifier"
               name="identifier"
               type="text"
-              className={`block w-full rounded-lg border ${error ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900`}
+              className={`block w-full rounded-lg border ${error ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
               placeholder="Enter your email or phone number"
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
@@ -59,7 +60,8 @@ const ForgotPassword = ({ onBackToLogin }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold text-lg shadow-md transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-full py-3 rounded-full text-white font-semibold text-lg shadow-md transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            style={{ backgroundColor: accent }}
           >
             {isLoading ? 'Sending...' : 'Send Reset Link'}
           </button>
@@ -68,7 +70,8 @@ const ForgotPassword = ({ onBackToLogin }) => {
       <div className="mt-6 text-center">
         <button
           type="button"
-          className="text-orange-500 hover:underline text-sm font-medium"
+          className="hover:underline text-sm font-medium"
+          style={{ color: accent }}
           onClick={onBackToLogin}
         >
           Back to Login

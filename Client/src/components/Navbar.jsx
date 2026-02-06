@@ -8,6 +8,8 @@ import {
 import { FaUserCircle } from 'react-icons/fa';
 import useAuthStore from '../stores/Zustand.store';
 import { useNavigate, Link } from 'react-router-dom';
+import { useCompanyBasePath, useTenant } from '../context/TenantContext';
+import { getThemeForCompany } from '../config/tenantThemes';
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLogout } from '../hooks/userHooks/useLogin';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
@@ -37,6 +39,9 @@ const Navbar = ({ onSignInClick }) => {
   const userIsDeliveryExecutive = isDeliveryExecutive(roles);
   const userIsCEO = isCEO(roles);
   const userIsCFO = isCFO(roles);
+  const base = useCompanyBasePath();
+  const tenant = useTenant();
+  const theme = tenant?.theme ?? getThemeForCompany(null, null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -74,39 +79,41 @@ const Navbar = ({ onSignInClick }) => {
     }
   }, [menuOpen]);
 
+  const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+
   return (
-    <nav className={`bg-[#989494]/50 shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`}>
+    <nav className={`tenant-nav ${theme.navBg || 'bg-[#989494]/50'} shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`} style={{ ['--tenant-accent']: accent }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-3">
         <div className="flex justify-between items-center h-20 lg:h-24">
-          {/* Logo */}
+          {/* Logo - company theme */}
           <div className="flex items-center">
-            <Link to="/jkhm" className="flex items-center group">
+            <Link to={base} className="flex items-center group">
               <motion.img
-                src="/logo.png"
+                src={theme.logoUrl || '/logo.png'}
                 alt="Logo"
                 className="w-16 h-16 lg:w-20 lg:h-20 object-contain rounded-full shadow-lg group-hover:scale-105 transition-transform duration-300"
                 whileHover={{ rotate: 5 }}
               />
-              <span className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 ml-3">
-                <span className="text-lg sm:text-xl md:text-[26px] text-[#FE8C00] tracking-wider whitespace-nowrap font-leagueSpartan font-black" style={{ textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>
-                  Jay's Kerala Homely Meals
+              <span className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 ml-3">
+                <span className="text-lg sm:text-xl md:text-[26px] tracking-wider whitespace-nowrap font-leagueSpartan font-black" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.5)', color: accent }}>
+                  {theme.brandName || "Jay's Kerala Homely Meals"}
                 </span>
               </span>
             </Link>
           </div>
 
-          {/* Desktop Navigation - use Link for client-side navigation (no full page reload) */}
+          {/* Desktop Navigation - hover uses --tenant-accent */}
           <div className="hidden md:flex items-center space-x-6">
-            <Link to="/jkhm" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+            <Link to={base} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
             </Link>
-            <Link to="/jkhm/menu" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+            <Link to={`${base}/menu`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> Menu
             </Link>
-            <Link to="/jkhm/place-order" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+            <Link to={`${base}/place-order`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> Place Order
             </Link>
-            <Link to="/help" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group">
+            <Link to="/help" className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
               <MdHelp className="text-xl group-hover:scale-110 transition-transform duration-300" /> Help
             </Link>
 
@@ -158,10 +165,10 @@ const Navbar = ({ onSignInClick }) => {
                       </div>
 
                       {/* User Profile Options */}
-                      <Link to="/jkhm/profile" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                      <Link to={`${base}/profile`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
                         <MdPerson className="text-xl" /> Profile
                       </Link>
-                      <Link to="/jkhm/customer-orders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                      <Link to={`${base}/customer-orders`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
                         <MdRestaurantMenu className="text-xl" /> My Orders
                       </Link>
 
@@ -171,7 +178,7 @@ const Navbar = ({ onSignInClick }) => {
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Admin Panel</div>
-                          <Link to="/jkhm/admin" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                          <Link to={`${base}/admin`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
                             <MdAdminPanelSettings className="text-xl" /> Admin Dashboard
                           </Link>
                         </>
@@ -182,7 +189,7 @@ const Navbar = ({ onSignInClick }) => {
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Management Panel</div>
-                          <Link to="/jkhm/management-dashboard" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                          <Link to={`${base}/management-dashboard`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
                             <MdDashboard className="text-xl" /> Management Dashboard
                           </Link>
                         </>
@@ -193,7 +200,7 @@ const Navbar = ({ onSignInClick }) => {
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Seller Panel</div>
-                          <Link to="/jkhm/seller/customers" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                          <Link to={`${base}/seller/customers`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
                             <MdStore className="text-xl" /> Customers List
                           </Link>
                         </>
@@ -204,7 +211,7 @@ const Navbar = ({ onSignInClick }) => {
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Delivery Panel</div>
-                          <Link to="/jkhm/delivery-manager" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                          <Link to={`${base}/delivery-manager`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
                             <MdLocalShipping className="text-xl" /> Delivery Manager Dashboard
                           </Link>
                         </>
@@ -215,7 +222,7 @@ const Navbar = ({ onSignInClick }) => {
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Delivery Panel</div>
-                          <Link to="/jkhm/delivery-executive" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                          <Link to={`${base}/delivery-executive`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
                             <MdLocalShipping className="text-xl" /> Delivery Executive Dashboard
                           </Link>
                         </>
@@ -295,24 +302,25 @@ const Navbar = ({ onSignInClick }) => {
               onClick={() => setMenuOpen(false)}
             />
             
-            {/* Mobile Menu */}
+            {/* Mobile Menu - company theme (JLG gets green branding, JKHM orange) */}
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="md:hidden fixed top-0 right-0 w-80 h-screen z-50 bg-gradient-to-b from-white to-gray-50 shadow-2xl overflow-y-auto"
+              style={{ ['--sidebar-accent']: accent }}
             >
-              {/* Header with Logo and Close button */}
-              <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gradient-to-r from-[#FE8C00] to-orange-500">
+              {/* Header with Logo and Close button - theme colors & brand */}
+              <div className="flex justify-between items-center p-6 border-b border-gray-100" style={{ background: `linear-gradient(to right, ${accent}, ${accent})` }}>
                 <div className="flex items-center">
                   <img
-                    src="/logo.png"
+                    src={theme.logoUrl || '/logo.png'}
                     alt="Logo"
                     className="w-14 h-14 object-contain rounded-full shadow-lg"
                   />
-                  <span className="ml-3 font-bold text-white text-lg font-leagueSpartan " style={{ textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>
-                    Jay's Kerala Homely Meals
+                  <span className="ml-3 font-bold text-white text-lg font-leagueSpartan" style={{ textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>
+                    {theme.brandName || "Jay's Kerala Homely Meals"}
                   </span>
                 </div>
                 <motion.button
@@ -332,7 +340,7 @@ const Navbar = ({ onSignInClick }) => {
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Search food..."
-                    className="pl-12 pr-4 py-3 w-full rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#FE8C00] focus:border-transparent text-gray-700 bg-gray-50 transition-all duration-300"
+                    className="pl-12 pr-4 py-3 w-full rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:border-transparent text-gray-700 bg-gray-50 transition-all duration-300 focus:ring-[var(--sidebar-accent)]"
                   />
                   <span className="absolute left-4 top-3.5 text-gray-400">
                     <MdSearch className="w-5 h-5" />
@@ -340,18 +348,18 @@ const Navbar = ({ onSignInClick }) => {
                 </div>
               </div>
 
-              {/* Quick Actions */}
+              {/* Quick Actions - hover uses --sidebar-accent */}
               <div className="p-4">
                 <div className="grid grid-cols-2 gap-2">
-                  <Link to="/jkhm" className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200" onClick={() => setMenuOpen(false)}>
+                  <Link to={base} className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-[color:var(--sidebar-accent)]/30 [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                     <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
                     <span className="font-medium text-xs text-center">Home</span>
                   </Link>
-                  <Link to="/jkhm/menu" className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200" onClick={() => setMenuOpen(false)}>
+                  <Link to={`${base}/menu`} className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-[color:var(--sidebar-accent)]/30 [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                     <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
                     <span className="font-medium text-xs text-center">Menu</span>
                   </Link>
-                  <Link to="/jkhm/place-order" className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200" onClick={() => setMenuOpen(false)}>
+                  <Link to={`${base}/place-order`} className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-[color:var(--sidebar-accent)]/30 [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                     <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> 
                     <span className="font-medium text-xs text-center">Place Order</span>
                   </Link>
@@ -360,19 +368,19 @@ const Navbar = ({ onSignInClick }) => {
 
               {/* Additional Links */}
               <div className="px-4 pb-2">
-                <Link to="/help" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group" onClick={() => setMenuOpen(false)}>
+                <Link to="/help" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                   <MdHelp className="text-base group-hover:scale-110 transition-transform duration-300" /> 
                   <span className="font-medium text-sm">Help</span>
                 </Link>
               </div>
 
                             {/* User Section */}
-              {user ? (
-                <div className="border-t border-gray-100 p-4 bg-gradient-to-b from-orange-50/50 to-white">
+                            {user ? (
+                <div className="border-t border-gray-100 p-4 bg-gradient-to-b from-gray-50/50 to-white">
                   {/* User Info in Mobile Menu */}
                   <div className="mb-4 pb-3 border-b border-gray-200">
                     <div className="flex items-center gap-2">
-                      <FaUserCircle className="text-2xl text-[#FE8C00] flex-shrink-0" />
+                      <FaUserCircle className="text-2xl flex-shrink-0" style={{ color: accent }} />
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-gray-800 text-sm truncate">
                           {user?.name || user?.contacts?.[0]?.firstName 
@@ -402,11 +410,11 @@ const Navbar = ({ onSignInClick }) => {
                   
                   {/* Primary Actions */}
                   <div className="grid grid-cols-3 gap-2 mb-3">
-                    <Link to="/jkhm/profile" className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200" onClick={() => setMenuOpen(false)}>
+                    <Link to={`${base}/profile`} className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-[color:var(--sidebar-accent)]/30 [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                       <MdPerson className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
                       <span className="font-medium text-xs text-center">Profile</span>
                     </Link>
-                    <Link to="/jkhm/customer-orders" className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-orange-200" onClick={() => setMenuOpen(false)}>
+                    <Link to={`${base}/customer-orders`} className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-[color:var(--sidebar-accent)]/30 [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                       <MdRestaurantMenu className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
                       <span className="font-medium text-xs text-center">Orders</span>
                     </Link>
@@ -417,31 +425,31 @@ const Navbar = ({ onSignInClick }) => {
                     <div className="mb-3">
                       <div className="space-y-1">
                         {(userIsCEO || userIsCFO) && (
-                          <Link to="/jkhm/management-dashboard" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group" onClick={() => setMenuOpen(false)}>
+                          <Link to={`${base}/management-dashboard`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                             <MdDashboard className="text-base group-hover:scale-110 transition-transform duration-300" /> 
                             <span className="font-medium text-xs">Management Dashboard</span>
                           </Link>
                         )}
                         {userIsAdmin && (
-                          <Link to="/jkhm/admin" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group" onClick={() => setMenuOpen(false)}>
+                          <Link to={`${base}/admin`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                             <MdAdminPanelSettings className="text-base group-hover:scale-110 transition-transform duration-300" /> 
                             <span className="font-medium text-xs">Admin</span>
                           </Link>
                         )}
                         {userIsSeller && (
-                          <Link to="/jkhm/seller" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group" onClick={() => setMenuOpen(false)}>
+                          <Link to={`${base}/seller`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                             <MdStore className="text-base group-hover:scale-110 transition-transform duration-300" /> 
                             <span className="text-sm font-medium">Seller</span>
                           </Link>
                         )}
                         {userIsDeliveryManager && (
-                          <Link to="/jkhm/delivery-manager" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group" onClick={() => setMenuOpen(false)}>
+                          <Link to={`${base}/delivery-manager`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                             <MdLocalShipping className="text-base group-hover:scale-110 transition-transform duration-300" /> 
                             <span className="font-medium text-xs">Delivery Manager</span>
                           </Link>
                         )}
                         {userIsDeliveryExecutive && (
-                          <Link to="/jkhm/delivery-executive" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#FE8C00] hover:bg-orange-50 rounded-lg transition-all duration-300 group" onClick={() => setMenuOpen(false)}>
+                          <Link to={`${base}/delivery-executive`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                             <MdLocalShipping className="text-base group-hover:scale-110 transition-transform duration-300" /> 
                             <span className="font-medium text-xs">Delivery Executive</span>
                           </Link>
@@ -467,14 +475,15 @@ const Navbar = ({ onSignInClick }) => {
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
                       <MdPerson className="text-xl text-gray-400" />
                     </div>
-                    <p className="text-xs text-gray-500 mb-2">Welcome to Jay's Kerala</p>
+                    <p className="text-xs text-gray-500 mb-2">Welcome to {theme.brandName || "Jay's Kerala"}</p>
                   </div>
                   <motion.button
                     onClick={() => {
                       onSignInClick();
                       setMenuOpen(false);
                     }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-white bg-gradient-to-r from-[#FE8C00] to-orange-500 rounded-lg font-medium hover:shadow-lg transition-all duration-300 group"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-300 group"
+                    style={{ background: accent }}
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                   >

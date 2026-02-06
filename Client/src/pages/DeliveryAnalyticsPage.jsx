@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiTrendingUp, FiTrendingDown, FiBarChart2, FiPieChart, FiActivity, FiTarget, FiCalendar } from 'react-icons/fi';
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney, MdAnalytics, MdDashboard, MdAssessment, MdBusinessCenter } from 'react-icons/md';
@@ -153,7 +154,7 @@ const DeliveryAnalyticsPage = () => {
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => navigate('/jkhm')}
+                  onClick={() => navigate(basePath)}
                   className="text-gray-400 hover:text-white transition-colors"
                   aria-label="Go back to home"
                 >

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import Navbar from '../components/Navbar';
 import ChangePassword from '../components/ChangePassword';
@@ -26,6 +27,7 @@ import { ExclamationCircleOutlined } from '@ant-design/icons';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const user = useAuthStore((state) => state.user);
   const logoutMutation = useLogout();
   const [activeTab, setActiveTab] = useState('profile');
@@ -341,7 +343,7 @@ const ProfilePage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Back Button */}
         <button
-          onClick={() => navigate('/jkhm')}
+          onClick={() => navigate(basePath)}
           className="flex items-center gap-2 text-[#FE8C00] hover:text-orange-600 mb-6 transition"
         >
           <MdArrowBack className="text-xl" />

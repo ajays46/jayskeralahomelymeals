@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -145,14 +146,14 @@ const RoleTestPage = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Button 
                   variant="outline" 
-                  onClick={() => navigate('/jkhm/management-dashboard')}
+                  onClick={() => navigate(`${basePath}/management-dashboard`)}
                   className="text-xs"
                 >
                   Management Dashboard
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => navigate('/jkhm/financial-dashboard')}
+                  onClick={() => navigate(`${basePath}/financial-dashboard`)}
                   className="text-xs"
                 >
                   Financial Dashboard
@@ -166,7 +167,7 @@ const RoleTestPage = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => navigate('/jkhm/seller/customers')}
+                  onClick={() => navigate(`${basePath}/seller/customers`)}
                   className="text-xs"
                 >
                   Seller Dashboard
@@ -180,7 +181,7 @@ const RoleTestPage = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => navigate('/jkhm/delivery-executive')}
+                  onClick={() => navigate(`${basePath}/delivery-executive`)}
                   className="text-xs"
                 >
                   Delivery Executive

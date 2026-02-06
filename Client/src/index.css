@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Company-wise theme: different UI per company, same functionality (vars set in TenantLayout) */
+.tenant-nav .tenant-link:hover {
+  color: var(--tenant-accent, #FE8C00) !important;
+}
+.tenant-root .ant-btn-primary {
+  background-color: var(--tenant-primary, #FE8C00) !important;
+  border-color: var(--tenant-primary, #FE8C00) !important;
+}
+.tenant-root .ant-btn-primary:hover {
+  filter: brightness(0.9);
+}
+
 body {
     @apply font-roboto
 }

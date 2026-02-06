@@ -1,5 +1,6 @@
 import React, { memo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../../context/TenantContext';
 import { 
   MdPhone, 
   MdEmail, 
@@ -37,6 +38,7 @@ const CustomerCard = memo(({
   getPendingPayment 
 }) => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const customerDraft = getDraftForCustomer(customer.id);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [generatedLink, setGeneratedLink] = useState(null);
@@ -56,7 +58,7 @@ const CustomerCard = memo(({
   const handleUploadReceipt = () => {
     const pendingPayment = getPendingPayment(customer);
     if (pendingPayment) {
-      navigate('/jkhm/process-payment', {
+      navigate(`${basePath}/process-payment`, {
         state: {
           paymentId: pendingPayment.id,
           goToReceiptUpload: true,
@@ -67,7 +69,7 @@ const CustomerCard = memo(({
   };
 
   const handleBookOrder = () => {
-    navigate('/jkhm/place-order', { 
+    navigate(`${basePath}/place-order`, { 
       state: { 
         selectedUser: customer,
         skipToMenuSelection: true
@@ -76,7 +78,7 @@ const CustomerCard = memo(({
   };
 
   const handleViewOrders = () => {
-    navigate('/jkhm/customer-orders', { 
+    navigate(`${basePath}/customer-orders`, { 
       state: { 
         customer: customer
       } 

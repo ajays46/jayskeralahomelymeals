@@ -1400,11 +1400,12 @@ export const getMealsByDayService = async (dayOfWeek, adminCompanyId) => {
   };
 };
 
-// Get menus with categories and menu items for booking page
-export const getMenusForBookingService = async () => {
+// Get menus with categories and menu items for booking page (optionally scoped by companyId for multi-tenant)
+export const getMenusForBookingService = async (companyId = null) => {
   const menus = await prisma.menu.findMany({
     where: {
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      ...(companyId ? { companyId } : {})
     },
     include: {
       company: true,

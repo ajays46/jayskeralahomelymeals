@@ -10,9 +10,9 @@ import { useLogin } from '../hooks/userHooks/useLogin';
  * Handles user login with email/phone, password validation, and form state management
  * Features: Form validation, password visibility toggle, error handling, loading states
  */
-const Login = ({ onClose, onForgotPassword }) => {
-  // const { login } = useAuth();
+const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
   const { mutate: loginMutation, isPending } = useLogin();
+  const accent = accentProp || '#FE8C00';
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
@@ -77,7 +77,7 @@ const Login = ({ onClose, onForgotPassword }) => {
   return (
     <>
       <h2 className="text-3xl font-bold text-gray-900 mb-4 lg:text-start text-center">Login to your account</h2>
-      <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md">
+      <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
         <p className="text-gray-500 mb-6 text-sm">Welcome back! Please login to your account</p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
@@ -86,7 +86,7 @@ const Login = ({ onClose, onForgotPassword }) => {
               id="identifier"
               name="identifier"
               type="text"
-              className={`block w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900`}
+              className={`block w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
               placeholder="Enter your email or phone number"
               value={formData.identifier}
               onChange={handleChange}
@@ -101,7 +101,7 @@ const Login = ({ onClose, onForgotPassword }) => {
               id="password"
               name="password"
               type={showPassword ? 'text' : 'password'}
-              className={`block w-full rounded-lg border ${errors.password ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 pr-10`}
+              className={`block w-full rounded-lg border ${errors.password ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900 pr-10`}
               placeholder="********"
               value={formData.password}
               onChange={handleChange}
@@ -134,7 +134,8 @@ const Login = ({ onClose, onForgotPassword }) => {
                 id="remember"
                 name="remember"
                 type="checkbox"
-                className="h-4 w-4 text-orange-500 focus:ring-orange-400 border-gray-300 rounded"
+                className="h-4 w-4 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded"
+                style={{ accentColor: accent }}
                 disabled={isPending}
               />
               <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
@@ -143,7 +144,8 @@ const Login = ({ onClose, onForgotPassword }) => {
             </div>
             <button
               type="button"
-              className="text-sm text-orange-500 hover:underline bg-transparent border-none p-0"
+              className="text-sm hover:underline bg-transparent border-none p-0"
+              style={{ color: accent }}
               onClick={onForgotPassword}
               disabled={isPending}
             >
@@ -154,7 +156,8 @@ const Login = ({ onClose, onForgotPassword }) => {
           <button
             type="submit"
             disabled={isPending}
-            className={`w-full py-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold text-lg shadow-md transition-colors ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-full py-3 rounded-full text-white font-semibold text-lg shadow-md transition-colors ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            style={{ backgroundColor: accent }}
           >
             {isPending ? (
               <span className="flex items-center justify-center gap-2">

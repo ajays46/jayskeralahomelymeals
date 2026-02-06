@@ -4,14 +4,10 @@ import { showLoginError } from '../../utils/toastConfig.jsx';
 import useAuthStore from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardRoute } from '../../utils/roleBasedRouting';
+import { useCompanyBasePath } from '../../context/TenantContext';
+import { getCompanyBasePathFallback } from '../../utils/companyPaths';
 
-/**
- * useLogin - Custom hook for user authentication and login management
- * Handles login API calls, token management, and role-based navigation
- * Features: Credential validation, token storage, role-based routing, error handling
- */
 export const useLogin = () => {
-
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const setRoles = useAuthStore((state) => state.setRoles);
   const setActiveRole = useAuthStore((state) => state.setActiveRole);
@@ -19,6 +15,7 @@ export const useLogin = () => {
   const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
   const setShowRoleSelector = useAuthStore((state) => state.setShowRoleSelector);
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
 
   return useMutation({
     mutationFn: async (credentials) => {
@@ -38,14 +35,17 @@ export const useLogin = () => {
         
         // Small delay to ensure AuthSlider closes first
         setTimeout(() => {
-          // Check if user has multiple roles
+          // Company admin: redirect to their company URL so URL + data + UI match (production-friendly)
+          const userCompanyPath = data.data?.companyPath;
+          const targetBasePath = userCompanyPath ? `/${userCompanyPath}` : basePath;
+
           if (roles.length > 1) {
-            // Show role selection sidebar
+            // Redirect to user's company first so role selector navigates to correct company
+            if (userCompanyPath) navigate(targetBasePath, { replace: true });
             setShowRoleSelector(true);
           } else {
-            // Navigate directly to role-specific dashboard
-            const dashboardRoute = getDashboardRoute(roles);
-            navigate(dashboardRoute);
+            const dashboardRoute = getDashboardRoute(roles, targetBasePath);
+            navigate(dashboardRoute, { replace: true });
           }
         }, 100);
       }
@@ -64,6 +64,7 @@ export const useLogin = () => {
 export const useLogout = () => {
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath(); // Stay on current company after logout (e.g. /jlg)
 
   return useMutation({
     mutationFn: async () => {
@@ -72,14 +73,11 @@ export const useLogout = () => {
     },
     onSuccess: () => {
       logout();
-      // Navigate to home page after logout
-      navigate('/jkhm');
+      navigate(basePath);
     },
     onError: (error) => {
-      // Even if the API call fails, we should still logout locally
       logout();
-      // Navigate to home page after logout
-      navigate('/jkhm');
+      navigate(basePath);
     }
   });
 };

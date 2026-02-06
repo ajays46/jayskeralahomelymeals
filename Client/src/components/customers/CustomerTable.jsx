@@ -25,7 +25,8 @@ const CustomerTable = memo(({
   clearFilters, 
   filters, 
   sortBy, 
-  navigate 
+  navigate,
+  basePath = '/jkhm'
 }) => {
   if (sellerUsersLoading) {
     return (
@@ -44,7 +45,7 @@ const CustomerTable = memo(({
         <p className="text-gray-500">No customers found</p>
         <p className="text-sm text-gray-400 mt-2">Start by adding your first customer</p>
         <button
-          onClick={() => navigate('/jkhm/create-user')}
+          onClick={() => navigate(`${basePath}/create-user`)}
           className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           Add Customer

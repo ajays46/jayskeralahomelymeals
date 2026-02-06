@@ -20,6 +20,7 @@ import {
   MdLocalShipping
 } from 'react-icons/md';
 import { FiLogOut } from 'react-icons/fi';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
@@ -37,6 +38,7 @@ import { SkeletonTable, SkeletonFilters, SkeletonHeader, SkeletonPagination, Ske
 const CustomersListPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const basePath = useCompanyBasePath();
   const { user, roles, logout } = useAuthStore();
   const { sellerUsers, loading: sellerUsersLoading, getSellerUsers } = useSeller();
 
@@ -275,7 +277,7 @@ const CustomersListPage = () => {
   // Memoized callbacks for event handlers
   const handleEditUser = useCallback((user) => {
     setEditingUsers(prev => new Set(prev).add(user.id));
-    navigate('/jkhm/edit-customer', { 
+    navigate(`${basePath}/edit-customer`, { 
       state: { editUser: user } 
     });
   }, [navigate]);
@@ -344,7 +346,7 @@ const CustomersListPage = () => {
     try {
       if (action === 'edit') {
         // Navigate to booking wizard to edit the draft order
-        navigate('/jkhm/place-order', {
+        navigate(`${basePath}/place-order`, {
           state: {
             draftOrder: draftOrder,
             resumeDraft: true,
@@ -428,7 +430,7 @@ const CustomersListPage = () => {
       localStorage.setItem('savedOrder', JSON.stringify(orderDataForPayment));
       localStorage.setItem('fromDraft', 'true');
       
-      navigate('/jkhm/process-payment');
+      navigate(`${basePath}/process-payment`);
       
     } catch (error) {
       showErrorToast('Failed to resume order. Please try again.');
@@ -484,7 +486,7 @@ const CustomersListPage = () => {
       showSuccessToast('Logged out successfully');
       
       // Navigate to home page
-      navigate('/jkhm');
+      navigate(basePath);
       
       // Force page reload to clear any remaining state
       window.location.reload();
@@ -587,7 +589,7 @@ const CustomersListPage = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-4">You don't have permission to access the customers list.</p>
           <button
-            onClick={() => navigate('/jkhm')}
+            onClick={() => navigate(basePath)}
             className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
           >
             Go to Home
@@ -606,7 +608,7 @@ const CustomersListPage = () => {
             {/* Left Side - Back Button and Title */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate('/jkhm/seller')}
+                onClick={() => navigate(`${basePath}/seller`)}
                 className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Go to Seller Dashboard"
               >
@@ -621,7 +623,7 @@ const CustomersListPage = () => {
             {/* Right Side - Action Buttons */}
             <div className="flex flex-row items-center gap-2">
               <button
-                onClick={() => navigate('/jkhm/seller')}
+                onClick={() => navigate(`${basePath}/seller`)}
                 className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-sm"
               >
                 <MdDashboard className="w-4 h-4" />
@@ -629,7 +631,7 @@ const CustomersListPage = () => {
               </button>
               {isDeliveryManager(roles) && (
                 <button
-                  onClick={() => navigate('/jkhm/delivery-manager')}
+                  onClick={() => navigate(`${basePath}/delivery-manager`)}
                   className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-all duration-200 shadow-sm"
                   title="Go to Delivery Manager Dashboard"
                 >
@@ -645,7 +647,7 @@ const CustomersListPage = () => {
                 <span className="hidden sm:inline">Refresh</span>
               </button>
               <button
-                onClick={() => navigate('/jkhm/create-user')}
+                onClick={() => navigate(`${basePath}/create-user`)}
                 className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
               >
                 <MdAdd className="w-4 h-4" />
@@ -743,6 +745,7 @@ const CustomersListPage = () => {
                 filters={filters}
                 sortBy={sortBy}
                 navigate={navigate}
+                basePath={basePath}
               />
               
               {/* Pagination */}

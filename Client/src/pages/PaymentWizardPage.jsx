@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { Modal } from 'antd';
 import { 
   MdCreditCard, 
@@ -48,6 +49,7 @@ import AddressPicker from '../components/AddressPicker';
  */
 const PaymentWizardPage = () => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const location = useLocation();
   const { user } = useAuthStore();
   const [currentStep, setCurrentStep] = useState(1);
@@ -187,7 +189,7 @@ const PaymentWizardPage = () => {
           localStorage.removeItem('fromDraft'); // Clear the flag
         }
       } else {
-        navigate('/jkhm/place-order');
+        navigate(`${basePath}/place-order`);
       }
     }
   }, [location.state, navigate]);
@@ -980,7 +982,7 @@ const PaymentWizardPage = () => {
       
       if (response.data.success) {
         // Navigate back to customer list with success state
-        navigate('/jkhm/seller/customers', {
+        navigate(`${basePath}/seller/customers`, {
           state: {
             showReceiptSuccess: true,
             receiptUploaded: true,
@@ -1111,7 +1113,7 @@ const PaymentWizardPage = () => {
         }
         
         // Navigate to Customer List Page with success state
-        navigate('/jkhm/seller/customers', { 
+        navigate(`${basePath}/seller/customers`, { 
           state: { 
             showOrderSuccess: true,
             timestamp: Date.now(), // Add timestamp to prevent showing on refresh
@@ -1785,7 +1787,7 @@ const PaymentWizardPage = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">No Order Found</h2>
           <p className="text-gray-600 mb-4">Please complete your booking first.</p>
           <button
-            onClick={() => navigate('/jkhm/place-order')}
+            onClick={() => navigate(`${basePath}/place-order`)}
             className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
           >
             Go to Bookings
@@ -1827,7 +1829,7 @@ const PaymentWizardPage = () => {
                   <span className="sm:hidden">Cancel</span>
                 </button>
                 <button
-                  onClick={() => navigate('/jkhm/place-order')}
+                  onClick={() => navigate(`${basePath}/place-order`)}
                   className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
                 >
                   <MdEdit className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -2118,7 +2120,7 @@ const PaymentWizardPage = () => {
           if (isReceiptUploadMode) {
             // For receipt upload mode, just navigate back without clearing any data
             // The order and payment data should remain intact for future receipt uploads
-            navigate('/jkhm/seller/customers');
+            navigate(`${basePath}/seller/customers`);
             return;
           }
           
@@ -2148,7 +2150,7 @@ const PaymentWizardPage = () => {
           }
           
           // Navigate to customers list
-          navigate('/jkhm/seller/customers');
+          navigate(`${basePath}/seller/customers`);
         }}
         onCancel={() => setShowCancelModal(false)}
         okText={location.state?.goToReceiptUpload ? "Yes, Go Back" : "Yes, Cancel Order"}

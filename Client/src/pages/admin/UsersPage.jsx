@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../../context/TenantContext';
 import AdminSlide from '../../components/AdminSlide';
 import Pagination from '../../components/Pagination';
 import { FiArrowLeft, FiUser, FiMail, FiPhone, FiLock, FiPlus, FiHome } from 'react-icons/fi';
@@ -21,6 +22,7 @@ import { useCompanyList, useUserRoles, useAdminUsers, useCreateAdminUser } from 
 
 const UsersPage = () => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const [showCreateForm, setShowCreateForm] = useState(false);
   
   // Pagination state
@@ -249,7 +251,7 @@ const UsersPage = () => {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate('/jkhm/admin')}
+                onClick={() => navigate(`${basePath}/admin`)}
                 className="text-gray-400 hover:text-white transition-colors"
                 aria-label="Go back to admin dashboard"
               >

@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import Terms from './components/Terms';
@@ -47,6 +47,8 @@ import RoleSelectionSidebar from './components/RoleSelectionSidebar';
 import Footer from './components/Footer';
 import useAuthStore from './stores/Zustand.store';
 import api from './api/axios';
+import { TenantProvider, useTenant } from './context/TenantContext';
+import { getCompanyBasePathFallback } from './utils/companyPaths';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,26 +60,84 @@ const queryClient = new QueryClient({
 });
 
 /**
- * ConditionalFooter - Conditionally renders Footer based on current route
- * Only shows Footer on HomePage and MenuPage, hides on all other pagesc
+ * ConditionalFooter - Renders Footer on tenant home and menu (any company path)
  */
 const ConditionalFooter = () => {
   const location = useLocation();
-  
-  // Only show footer on these specific routes
-  const allowedRoutes = [
-    '/jkhm',           // HomePage (exact match)
-    '/jkhm/menu',      // MenuPage (exact match)
-  ];
-  
-  // Check if current pathname is in the allowed routes
-  if (allowedRoutes.includes(location.pathname)) {
-    return <Footer />;
-  }
-  
-  // Hide footer on all other pages
+  const pathname = location.pathname;
+  const isHome = /^\/[^/]+$/.test(pathname);
+  const isMenu = /^\/[^/]+\/menu$/.test(pathname);
+  if (isHome || isMenu) return <Footer />;
   return null;
 };
+
+/** Wraps tenant routes: resolves company from URL, provides TenantContext, injects theme CSS vars for different UI per company. */
+function TenantLayout() {
+  const tenant = useTenant();
+  const theme = tenant?.theme ?? {};
+  const primary = theme.primaryColor || theme.buttonPrimary || '#FE8C00';
+  const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+
+  // Set browser tab title and favicon from company theme – e.g. JLG: "Jay's Leafy Greens" + logo2.png
+  useEffect(() => {
+    const title = theme?.brandName || "Jay's Kerala Homely Meals";
+    const faviconHref = theme?.logoUrl || '/logo.png';
+    document.title = title;
+    let link = document.querySelector('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.setAttribute('href', faviconHref);
+    return () => {
+      document.title = "Jay's Kerala Homely Meals";
+      link.setAttribute('href', '/logo.png');
+    };
+  }, [theme?.brandName, theme?.logoUrl]);
+
+  if (tenant?.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+  if (tenant?.error && !tenant?.companyId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 gap-4">
+        <p className="text-red-600">Company not found.</p>
+        <button
+          type="button"
+          onClick={tenant.redirectToDefault}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Go to home
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div
+      className="tenant-root"
+      style={{
+        ['--tenant-primary']: primary,
+        ['--tenant-accent']: accent,
+      }}
+    >
+      <Outlet />
+    </div>
+  );
+}
+
+/** Provider + layout for routes under /:companyPath */
+function TenantProviderWrapper() {
+  return (
+    <TenantProvider>
+      <TenantLayout />
+    </TenantProvider>
+  );
+}
 
 /**
  * App - Main application component with routing and authentication
@@ -122,58 +182,53 @@ const App = () => {
         />
         
         <Routes>
-          {/* <Route path="/register" element={<RegisterPage />} /> */}
           <Route path="/terms" element={<Terms />} />
-          {/* <Route path="/login" element={<LoginPage />} /> */}
-          {/* <Route path="/" element={<GustPage />} /> */}
-          <Route path='/' element={<Navigate to='/jkhm' replace />} ></Route>
-          <Route path="/jkhm" element={<HomePage />} />
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
-          <Route path="/jkhm/menu" element={<MenuPage />} />
-          <Route path="/jkhm/place-order" element={<BookingWizardPage />} />
-          <Route path="/jkhm/process-payment" element={<PaymentWizardPage />} />
+          <Route path="/" element={<Navigate to={getCompanyBasePathFallback()} replace />} />
 
-          {/* ✅ Protected Route */}
-          <Route element={<ProtectedRoute />}>
-     
-            <Route path='/jkhm/management-dashboard' element={<ManagementDashboardPage/>} ></Route>
-            <Route path='/jkhm/financial-dashboard' element={<FinancialDashboardPage/>} ></Route>
-            <Route path='/jkhm/delivery-dashboard' element={<DeliveryDashboardPage/>} ></Route>
-            <Route path='/jkhm/seller-performance-dashboard' element={<SellerPerformanceDashboardPage/>} ></Route>
-            <Route path='/jkhm/admin' element={<AdminPage/>} ></Route>
-            <Route path='/jkhm/admin/company-create' element={<CompanyCreatePage/>} ></Route>
-            <Route path='/jkhm/admin/add-product' element={<AddProductPage/>} ></Route>
-            <Route path='/jkhm/admin/add-product/:productId' element={<AddProductPage/>} ></Route>
-            <Route path='/jkhm/admin/products' element={<ProductsPage/>} ></Route>
-            <Route path='/jkhm/admin/add-menu' element={<AddMenuPage/>} ></Route>
-            <Route path='/jkhm/admin/menu-items' element={<MenuItemPage/>} ></Route>
-            <Route path='/jkhm/admin/menu-items/:menuItemId' element={<MenuItemPage/>} ></Route>
-            <Route path='/jkhm/admin/menu-items-table' element={<MenuItemsTablePage/>} ></Route>
-            <Route path='/jkhm/admin/users' element={<UsersPage/>} ></Route>
-    
-    
-            <Route path='/jkhm/seller' element={<SellerPage />}></Route>
-            <Route path='/jkhm/seller/customers' element={<CustomersListPage />}></Route>
-            <Route path='/jkhm/customer-orders' element={<CustomerOrdersPage />}></Route>
-            <Route path='/jkhm/edit-customer' element={<EditCustomerPage />}></Route>
-            <Route path='/jkhm/delivery-items/:orderId' element={<DeliveryItemsPage />}></Route>
-            <Route path='/jkhm/delivery-manager' element={<DeliveryManagerPage />}></Route>
-            <Route path='/jkhm/route-comparison' element={<RouteComparisonPage />}></Route>
-            <Route path='/jkhm/route-view' element={<RouteViewPage />}></Route>
-            <Route path='/jkhm/delivery-executive' element={<DeliveryExecutivePage />}></Route>
-            <Route path='/jkhm/profile' element={<ProfilePage />}></Route>
-            <Route path='/jkhm/create-user' element={<CreateUserPage />}></Route>
-            <Route path='/jkhm/upload-receipt/:paymentId' element={<UploadReceiptPage />}></Route>
-            <Route path='/jkhm/role-test' element={<RoleTestPage />}></Route>
+          {/* Multi-tenant: /:companyPath (e.g. /jkhm, /jlg) - TenantProvider resolves company by name */}
+          <Route path="/:companyPath" element={<TenantProviderWrapper />}>
+            <Route index element={<HomePage />} />
+            <Route path="menu" element={<MenuPage />} />
+            <Route path="place-order" element={<BookingWizardPage />} />
+            <Route path="process-payment" element={<PaymentWizardPage />} />
+
+            <Route element={<ProtectedRoute />}>
+              <Route path="management-dashboard" element={<ManagementDashboardPage />} />
+              <Route path="financial-dashboard" element={<FinancialDashboardPage />} />
+              <Route path="delivery-dashboard" element={<DeliveryDashboardPage />} />
+              <Route path="seller-performance-dashboard" element={<SellerPerformanceDashboardPage />} />
+              <Route path="admin" element={<AdminPage />} />
+              <Route path="admin/company-create" element={<CompanyCreatePage />} />
+              <Route path="admin/add-product" element={<AddProductPage />} />
+              <Route path="admin/add-product/:productId" element={<AddProductPage />} />
+              <Route path="admin/products" element={<ProductsPage />} />
+              <Route path="admin/add-menu" element={<AddMenuPage />} />
+              <Route path="admin/menu-items" element={<MenuItemPage />} />
+              <Route path="admin/menu-items/:menuItemId" element={<MenuItemPage />} />
+              <Route path="admin/menu-items-table" element={<MenuItemsTablePage />} />
+              <Route path="admin/users" element={<UsersPage />} />
+              <Route path="seller" element={<SellerPage />} />
+              <Route path="seller/customers" element={<CustomersListPage />} />
+              <Route path="customer-orders" element={<CustomerOrdersPage />} />
+              <Route path="edit-customer" element={<EditCustomerPage />} />
+              <Route path="delivery-items/:orderId" element={<DeliveryItemsPage />} />
+              <Route path="delivery-manager" element={<DeliveryManagerPage />} />
+              <Route path="route-comparison" element={<RouteComparisonPage />} />
+              <Route path="route-view" element={<RouteViewPage />} />
+              <Route path="delivery-executive" element={<DeliveryExecutivePage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="create-user" element={<CreateUserPage />} />
+              <Route path="upload-receipt/:paymentId" element={<UploadReceiptPage />} />
+              <Route path="role-test" element={<RoleTestPage />} />
+            </Route>
           </Route>
 
-          {/* Customer Portal Routes (No authentication required - uses token) */}
-          <Route path='/customer-portal' element={<CustomerPortalPage />}></Route>
-          <Route path='/customer-password-setup' element={<CustomerPasswordSetupPage />}></Route>
-          <Route path='/customer-login' element={<CustomerLoginPage />}></Route>
-          <Route path='/customer-orders' element={<CustomerOrdersPage />}></Route>
+          <Route path="/customer-portal" element={<CustomerPortalPage />} />
+          <Route path="/customer-password-setup" element={<CustomerPasswordSetupPage />} />
+          <Route path="/customer-login" element={<CustomerLoginPage />} />
+          <Route path="/customer-orders" element={<CustomerOrdersPage />} />
 
-          {/* Catch-all route for undefined routes */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         

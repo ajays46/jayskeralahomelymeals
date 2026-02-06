@@ -4,6 +4,7 @@ import AdminSlide from '../../components/AdminSlide';
 import Pagination from '../../components/Pagination';
 import { useProductList, useDeleteProduct } from '../../hooks/adminHook/adminHook';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../../context/TenantContext';
 import { Button, Popconfirm, message } from 'antd';
 
 /**
@@ -13,6 +14,7 @@ import { Button, Popconfirm, message } from 'antd';
  */
 const ProductsPage = () => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const { data: productListData, isLoading, error, refetch } = useProductList();
   const deleteProductMutation = useDeleteProduct();
   const [searchTerm, setSearchTerm] = useState('');
@@ -164,7 +166,7 @@ const ProductsPage = () => {
                   </div>
                 </div>
                 <Button
-                  onClick={() => navigate('/jkhm/admin/add-product')}
+                  onClick={() => navigate(`${basePath}/admin/add-product`)}
                   className="bg-teal-600 hover:bg-teal-700 border-teal-600 text-white flex items-center gap-2"
                 >
                   <FaPlus className="text-sm" />
@@ -270,7 +272,7 @@ const ProductsPage = () => {
                 </p>
                 {products.length === 0 && (
                   <Button
-                    onClick={() => navigate('/jkhm/admin/add-product')}
+                    onClick={() => navigate(`${basePath}/admin/add-product`)}
                     className="bg-teal-600 hover:bg-teal-700 border-teal-600 text-white"
                   >
                     Add Your First Product
@@ -375,7 +377,7 @@ const ProductsPage = () => {
                           size="small"
                           className="flex-1 bg-yellow-600 hover:bg-yellow-700 border-yellow-600 text-white"
                           icon={<FaEdit />}
-                          onClick={() => navigate(`/jkhm/admin/add-product/${product.id}`)}
+                          onClick={() => navigate(`${basePath}/admin/add-product/${product.id}`)}
                         >
                           Edit
                         </Button>

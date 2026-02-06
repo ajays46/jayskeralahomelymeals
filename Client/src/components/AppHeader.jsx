@@ -4,6 +4,7 @@ import { ArrowRightOnRectangleIcon, UserIcon } from '@heroicons/react/24/outline
 import { Button } from './ui/button';
 import RoleSwitcher from './RoleSwitcher';
 import useAuthStore from '../stores/Zustand.store';
+import { useCompanyBasePath } from '../context/TenantContext';
 
 /**
  * AppHeader - Common header component for authenticated pages
@@ -13,11 +14,12 @@ import useAuthStore from '../stores/Zustand.store';
 
 const AppHeader = ({ title, subtitle, showRoleSwitcher = true }) => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
-    navigate('/jkhm');
+    navigate(basePath);
   };
 
   return (

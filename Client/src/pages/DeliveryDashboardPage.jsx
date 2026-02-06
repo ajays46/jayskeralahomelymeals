@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { 
   TruckIcon, 
   UsersIcon, 
@@ -151,7 +152,7 @@ const DeliveryDashboardPage = () => {
         <SidebarHeader>
           <div className="flex items-center justify-between mb-4">
             <Button
-              onClick={() => navigate('/jkhm/management-dashboard')}
+              onClick={() => navigate(`${basePath}/management-dashboard`)}
               variant="outline"
               size="icon"
             >

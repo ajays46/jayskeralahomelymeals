@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   XMarkIcon, 
   UserIcon, 
@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import useAuthStore from '../stores/Zustand.store';
 import { getDashboardRoute } from '../utils/roleBasedRouting';
+import { getCompanyBasePathFallback } from '../utils/companyPaths';
 
 /**
  * RoleSelectionSidebar - Component for users to select their active role when they have multiple roles
@@ -76,8 +77,11 @@ const roleConfig = {
 
 const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setActiveRole, setUser, user } = useAuthStore();
   const [selectedRole, setSelectedRole] = useState(null);
+  const pathSegment = location.pathname.split('/')[1];
+  const basePath = pathSegment ? `/${pathSegment}` : getCompanyBasePathFallback();
 
     // Filter out roles that don't have configuration
   const availableRoles = userRoles.filter(role => roleConfig[role.toUpperCase()]);
@@ -99,7 +103,7 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
       setActiveRole(selectedRole); // Set the selected role as active
       
       // Navigate to the role-specific dashboard
-      const dashboardRoute = getDashboardRoute([selectedRole]);
+      const dashboardRoute = getDashboardRoute([selectedRole], basePath);
       navigate(dashboardRoute);
       
       // Close the sidebar

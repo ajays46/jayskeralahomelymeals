@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MdLock, MdVisibility, MdVisibilityOff, MdCheckCircle } from 'react-icons/md';
 import axios from 'axios';
@@ -173,7 +174,7 @@ const CustomerPasswordSetupPage = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Error</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={() => navigate('/jkhm')}
+            onClick={() => navigate(basePath)}
             className="bg-orange-500 text-white px-6 py-3 rounded-md hover:bg-orange-600 transition-colors font-medium"
           >
             Go to Home

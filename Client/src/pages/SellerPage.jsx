@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { useNavigate } from 'react-router-dom';
 import { 
   showSuccessToast, 
@@ -50,6 +51,7 @@ import { SkeletonTable, SkeletonCard, SkeletonDashboard, SkeletonOrderCard } fro
 const SellerPage = () => {
   try {
     const navigate = useNavigate();
+    const basePath = useCompanyBasePath();
     const { user, roles } = useAuthStore();
     const { sellerUsers, loading: sellerUsersLoading, getSellerUsers } = useSeller();
   
@@ -449,7 +451,7 @@ const SellerPage = () => {
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
             <p className="text-gray-600 mb-4">You don't have permission to access the seller dashboard.</p>
             <button
-              onClick={() => navigate('/jkhm')}
+              onClick={() => navigate(basePath)}
               className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
             >
               Go to Home
@@ -487,21 +489,21 @@ const SellerPage = () => {
                   <span className="hidden sm:inline">Refresh Data</span>
                 </button>
                 <button
-                  onClick={() => navigate('/jkhm/place-order')}
+                  onClick={() => navigate(`${basePath}/place-order`)}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
                 >
                   <MdAdd className="w-4 h-4" />
                   <span className="hidden sm:inline">New Booking</span>
                 </button>
                 <button
-                  onClick={() => navigate('/jkhm/seller/customers')}
+                  onClick={() => navigate(`${basePath}/seller/customers`)}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm"
                 >
                   <MdPeople className="w-4 h-4" />
                   <span className="hidden sm:inline">View All Customers</span>
                 </button>
                 <button
-                  onClick={() => navigate('/jkhm/create-user')}
+                  onClick={() => navigate(`${basePath}/create-user`)}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-sm"
                 >
                   <MdPerson className="w-4 h-4" />
@@ -831,7 +833,7 @@ const SellerPage = () => {
                                      onClick={() => {
                                        // Scroll to top before navigation
                                        window.scrollTo(0, 0);
-                                       navigate(`/jkhm/delivery-items/${order.id}`, { state: { orderData: order } });
+                                       navigate(`${basePath}/delivery-items/${order.id}`, { state: { orderData: order } });
                                      }}
                                      className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 whitespace-nowrap"
                                    >

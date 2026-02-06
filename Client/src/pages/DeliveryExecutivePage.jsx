@@ -5,6 +5,7 @@ import { FiArrowLeft, FiLogOut, FiMapPin, FiPlay } from 'react-icons/fi';
 import { MdLocalShipping } from 'react-icons/md';
 import { message } from 'antd';
 import { toast } from 'react-toastify';
+import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
@@ -37,6 +38,7 @@ const DeliveryExecutivePage = () => {
   
   // Get user and roles first (before hooks that use them)
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const logout = useAuthStore((state) => state.logout);
@@ -549,7 +551,7 @@ const DeliveryExecutivePage = () => {
   useEffect(() => {
     if (!user || !roles.includes('DELIVERY_EXECUTIVE')) {
       message.error('Access denied. Delivery Executive role required.');
-      navigate('/jkhm');
+      navigate(basePath);
       return;
     }
     // Simulate loading for profile data
@@ -1500,7 +1502,7 @@ const DeliveryExecutivePage = () => {
       message.success('Logged out successfully');
       
       // Navigate to home page
-      navigate('/jkhm');
+      navigate(basePath);
       
       // Force page reload to clear any remaining state
       window.location.reload();
@@ -2475,7 +2477,7 @@ const DeliveryExecutivePage = () => {
       <div className="fixed top-0 left-0 w-full h-16 sm:h-18 bg-white border-b border-gray-200 shadow-sm z-40 flex items-center px-4 sm:px-6">
         <div className="flex items-center gap-3 flex-1">
           <button
-            onClick={() => navigate('/jkhm')}
+            onClick={() => navigate(basePath)}
             className="text-gray-600 hover:text-blue-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
             aria-label="Go back to home"
           >

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ChevronDownIcon,
   UserIcon, 
@@ -14,6 +14,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import useAuthStore from '../stores/Zustand.store';
 import { getDashboardRoute } from '../utils/roleBasedRouting';
+import { getCompanyBasePathFallback } from '../utils/companyPaths';
 
 /**
  * RoleSwitcher - Component for switching between user roles in the navigation
@@ -68,8 +69,11 @@ const roleConfig = {
 
 const RoleSwitcher = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { roles, activeRole, switchRole } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
+  const pathSegment = location.pathname.split('/')[1];
+  const basePath = pathSegment ? `/${pathSegment}` : getCompanyBasePathFallback();
 
   // Filter out roles that don't have configuration and exclude current active role
   const availableRoles = roles.filter(role => 
@@ -81,7 +85,7 @@ const RoleSwitcher = () => {
     setIsOpen(false);
     
     // Navigate to the new role's dashboard
-    const dashboardRoute = getDashboardRoute([newRole]);
+    const dashboardRoute = getDashboardRoute([newRole], basePath);
     navigate(dashboardRoute);
   };
 

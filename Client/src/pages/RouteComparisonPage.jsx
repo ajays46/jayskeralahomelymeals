@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { FiArrowLeft, FiX } from 'react-icons/fi';
 import { MdPeople, MdHistory, MdSave, MdClear, MdCheckCircle, MdSchedule, MdExpandMore, MdExpandLess } from 'react-icons/md';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
@@ -300,7 +301,7 @@ const RouteComparisonPage = () => {
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/jkhm/delivery-manager?tab=routeManagement')}
+            onClick={() => navigate(`${basePath}/delivery-manager?tab=routeManagement`)}
             className="text-gray-600 hover:text-gray-900 transition-colors"
           >
             <FiArrowLeft className="w-5 h-5" />

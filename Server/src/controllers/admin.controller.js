@@ -618,11 +618,12 @@ export const getMealsByDay = async (req, res, next) => {
     }
 }
 
-// Get menus with categories and menu items for booking page
+// Get menus with categories and menu items for booking page (filter by companyId for multi-tenant)
 export const getMenusForBooking = async (req, res, next) => {
     try {
-        const menus = await getMenusForBookingService();
-        
+        const companyId = req.query.companyId || null;
+        const menus = await getMenusForBookingService(companyId);
+
         res.status(200).json({
             status: 'success',
             data: menus

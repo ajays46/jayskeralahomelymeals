@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../stores/Zustand.store';
+import { useCompanyBasePath } from '../../context/TenantContext';
 
 export const useAdminOrderBlock = () => {
   const [showAdminBlockModal, setShowAdminBlockModal] = useState(false);
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const logout = useAuthStore((state) => state.logout);
 
   const handleOrderError = (error) => {
@@ -32,7 +34,7 @@ export const useAdminOrderBlock = () => {
     localStorage.removeItem('user');
     
     // Navigate to home page
-    navigate('/jkhm');
+    navigate(basePath);
   };
 
   const closeAdminBlockModal = () => {

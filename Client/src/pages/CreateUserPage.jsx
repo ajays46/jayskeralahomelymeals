@@ -11,12 +11,14 @@ import {
   MdAdd,
   MdEdit
 } from 'react-icons/md';
+import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 
 const CreateUserPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const basePath = useCompanyBasePath();
   const { user, roles } = useAuthStore();
   const { createContact, updateCustomer } = useSeller();
   
@@ -153,7 +155,7 @@ const CreateUserPage = () => {
           setSuccessMessage('Customer updated successfully!');
           // Navigate back to customers list after a short delay
           setTimeout(() => {
-            navigate('/jkhm/seller/customers');
+            navigate(`${basePath}/seller/customers`);
           }, 1500);
         }
       } else {
@@ -181,7 +183,7 @@ const CreateUserPage = () => {
           setSuccessMessage('Customer created successfully! Redirecting to booking...');
           // Navigate to BookingWizardPage with the newly created customer pre-selected and go to menu selection
           setTimeout(() => {
-            navigate('/jkhm/place-order', { 
+            navigate(`${basePath}/place-order`, { 
               state: { 
                 selectedUser: result.data,
                 fromCreateUser: true,
@@ -223,7 +225,7 @@ const CreateUserPage = () => {
 
   // Handle cancel
   const handleCancel = () => {
-    navigate('/jkhm/seller/customers');
+    navigate(`${basePath}/seller/customers`);
   };
 
   // Check if user has access
@@ -235,7 +237,7 @@ const CreateUserPage = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-4">You don't have permission to create customers.</p>
           <button
-            onClick={() => navigate('/jkhm')}
+            onClick={() => navigate(basePath)}
             className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
           >
             Go to Home
@@ -254,7 +256,7 @@ const CreateUserPage = () => {
             {/* Left Side - Back Button and Title */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate('/jkhm/seller/customers')}
+                onClick={() => navigate(`${basePath}/seller/customers`)}
                 className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Back to Customers"
               >
@@ -590,7 +592,7 @@ const CreateUserPage = () => {
               
               <div className="space-y-2 sm:space-y-3">
                 <button
-                  onClick={() => navigate('/jkhm/customers')}
+                  onClick={() => navigate(`${basePath}/customers`)}
                   className="w-full px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   <MdArrowBack className="w-4 h-4" />

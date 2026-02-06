@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useCompanyBasePath } from '../../context/TenantContext';
 import AdminSlide from '../../components/AdminSlide';
 import { FiArrowLeft, FiPlus, FiSave, FiX, FiEdit } from 'react-icons/fi';
 import { useCompanyList, useMenuList, useProductList, useCreateMenuItem, useMenuItemById, useUpdateMenuItem, useCreateMenuItemPrice, useMenuItemPriceList, useMenuItemList, useUpdateMenuItemPrice, useDeleteMenuItemPrice } from '../../hooks/adminHook/adminHook';
@@ -8,6 +9,7 @@ import { validateMenuItemPriceForm, validateField as validateMenuItemPriceField,
 
 const MenuItemPage = () => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const { menuItemId } = useParams();
   const isEditMode = !!menuItemId;
   
@@ -194,7 +196,7 @@ const MenuItemPage = () => {
       // Show success message
       setTimeout(() => {
         setIsSuccess(false);
-        navigate('/jkhm/admin/menu-items-table');
+        navigate(`${basePath}/admin/menu-items-table`);
       }, 2000);
     }
   }, [menuItemUpdated, navigate]);
@@ -480,7 +482,7 @@ const MenuItemPage = () => {
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
               <button
-                onClick={() => navigate('/jkhm/admin')}
+                onClick={() => navigate(`${basePath}/admin`)}
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <FiArrowLeft size={20} />
@@ -576,7 +578,7 @@ const MenuItemPage = () => {
                       <p>No products available. Please create products first.</p>
                       <button
                         type="button"
-                        onClick={() => window.location.href = '/jkhm/admin/add-product'}
+                        onClick={() => window.location.href = `${basePath}/admin/add-product`}
                         className="text-blue-400 hover:text-blue-300 underline mt-1"
                       >
                         Go to Create Product

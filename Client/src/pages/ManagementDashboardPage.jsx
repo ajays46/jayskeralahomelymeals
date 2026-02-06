@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { 
   ChartBarIcon, 
   UsersIcon, 
@@ -135,21 +136,21 @@ const ManagementDashboardPage = () => {
       name: 'Financial Reports',
       description: 'View detailed financial analytics',
       icon: ChartBarIcon,
-      href: '/jkhm/financial-dashboard',
+      href: `${basePath}/financial-dashboard`,
       availableFor: ['CEO', 'CFO']
     },
     {
       name: 'Delivery Dashboard',
       description: 'Monitor delivery operations and executives',
       icon: TruckIcon,
-      href: '/jkhm/delivery-dashboard',
+      href: `${basePath}/delivery-dashboard`,
       availableFor: ['CEO']
     },
     {
       name: 'Seller Performance',
       description: 'Monitor seller performance and analytics',
       icon: BuildingOfficeIcon,
-      href: '/jkhm/seller-performance-dashboard',
+      href: `${basePath}/seller-performance-dashboard`,
       availableFor: ['CEO']
     },
     {

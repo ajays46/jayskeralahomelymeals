@@ -437,14 +437,16 @@ export const useMealsByDay = (day) => {
     });
 };
 
-// Get menus with categories and menu items for booking page
-export const useMenusForBooking = () => {
+// Get menus with categories and menu items for booking page (scoped by company for multi-tenant)
+export const useMenusForBooking = (companyId = null) => {
     return useQuery({
-        queryKey: ['menusForBooking'],
+        queryKey: ['menusForBooking', companyId],
         queryFn: async () => {
-            const response = await api.get('/admin/menus-for-booking');
+            const params = companyId ? { companyId } : {};
+            const response = await api.get('/admin/menus-for-booking', { params });
             return response.data;
         },
+        enabled: !!companyId,
         staleTime: 10 * 60 * 1000, // 10 minutes
         cacheTime: 30 * 60 * 1000, // 30 minutes
         refetchOnWindowFocus: false,

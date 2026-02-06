@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../../context/TenantContext';
 import AdminSlide from '../../components/AdminSlide';
 import Pagination from '../../components/Pagination';
 import ConfirmationModal from '../../components/ConfirmationModal';
@@ -9,6 +10,7 @@ import { useMenuItemList, useDeleteMenuItem } from '../../hooks/adminHook/adminH
 
 const MenuItemsTablePage = () => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMealType, setFilterMealType] = useState('');
   const [sortBy, setSortBy] = useState('name');
@@ -156,7 +158,7 @@ const MenuItemsTablePage = () => {
 
   const handleEdit = useCallback((menuItemId) => {
     if (!menuItemId) return;
-    navigate(`/jkhm/admin/menu-items/${menuItemId}`);
+    navigate(`${basePath}/admin/menu-items/${menuItemId}`);
   }, [navigate]);
 
   const handleDelete = useCallback((menuItemId, menuItemName) => {
@@ -266,7 +268,7 @@ const MenuItemsTablePage = () => {
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
               <button
-                onClick={() => navigate('/jkhm/admin')}
+                onClick={() => navigate(`${basePath}/admin`)}
                 className="text-gray-400 hover:text-white transition-colors"
                 aria-label="Go back to admin dashboard"
               >

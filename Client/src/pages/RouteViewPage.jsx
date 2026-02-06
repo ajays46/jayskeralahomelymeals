@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdPeople, MdSchedule, MdCheckCircle } from 'react-icons/md';
+import { useCompanyBasePath } from '../context/TenantContext';
 
 const RouteViewPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const [routeData, setRouteData] = useState(null);
   const [routeInfo, setRouteInfo] = useState(null);
   const [selectedMealType, setSelectedMealType] = useState('breakfast');
@@ -32,7 +34,7 @@ const RouteViewPage = () => {
 
   const goBack = () => {
     // Navigate back to Route & Management tab in Delivery Manager page
-    navigate('/jkhm/delivery-manager?tab=routeManagement');
+    navigate(`${basePath}/delivery-manager?tab=routeManagement`);
   };
 
   const generateMapLink = (location) => {

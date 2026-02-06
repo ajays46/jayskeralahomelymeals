@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCompanyBasePath } from '../context/TenantContext';
 import { 
   ChartBarIcon, 
   CurrencyDollarIcon, 
@@ -44,6 +45,7 @@ import {
  */
 const FinancialDashboardPage = () => {
   const navigate = useNavigate();
+  const basePath = useCompanyBasePath();
   const { user, roles } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -301,7 +303,7 @@ const FinancialDashboardPage = () => {
         <SidebarHeader>
           <div className="flex items-center justify-between mb-4">
             <Button
-              onClick={() => navigate('/jkhm/management-dashboard')}
+              onClick={() => navigate(`${basePath}/management-dashboard`)}
               variant="outline"
               size="icon"
             >

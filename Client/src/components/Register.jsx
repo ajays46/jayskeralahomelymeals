@@ -9,7 +9,8 @@ import { useRegister } from '../hooks/userHooks/useRegister';
  * Handles new user registration with email, phone, and password validation
  * Features: Form validation, terms agreement, password visibility toggle, error handling
  */
-const Register = () => {
+const Register = ({ accent: accentProp }) => {
+  const accent = accentProp || '#FE8C00';
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -102,7 +103,7 @@ const Register = () => {
   return (
     <>
       <h2 className="text-3xl font-bold text-gray-900 mb-4 lg:text-start text-center">Create an Account</h2>
-      <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md">
+      <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
         <p className="text-gray-500 mb-6 text-sm">Create an account to start looking for the food you like</p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
@@ -111,7 +112,7 @@ const Register = () => {
               id="email"
               name="email"
               type="email"
-              className={`block w-full rounded-lg border ${errors.email ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900`}
+              className={`block w-full rounded-lg border ${errors.email ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
               placeholder="Albertstevano@gmail.com"
               value={formData.email}
               onChange={handleChange}
@@ -129,7 +130,7 @@ const Register = () => {
               id="phone"
               name="phone"
               type="tel"
-              className={`block w-full rounded-lg border ${errors.phone ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900`}
+              className={`block w-full rounded-lg border ${errors.phone ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
               placeholder="+91 9876543210"
               value={formData.phone}
               onChange={handleChange}
@@ -147,7 +148,7 @@ const Register = () => {
               id="password"
               name="password"
               type={showPassword ? 'text' : 'password'}
-              className={`block w-full rounded-lg border ${errors.password ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 pr-10`}
+              className={`block w-full rounded-lg border ${errors.password ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900 pr-10`}
               placeholder="********"
               value={formData.password}
               onChange={handleChange}
@@ -176,11 +177,12 @@ const Register = () => {
               checked={formData.agree}
               onChange={handleChange}
               onBlur={handleBlur}
-              className={`h-4 w-4 text-orange-500 focus:ring-orange-400 border-gray-300 rounded ${errors.agree ? 'border-red-500' : ''}`}
+              className={`h-4 w-4 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded ${errors.agree ? 'border-red-500' : ''}`}
+              style={{ accentColor: accent }}
               required
             />
             <label htmlFor="agree" className="ml-2 text-sm text-gray-700">
-              I Agree with <button type="button" onClick={() => setShowTerms(true)} className="text-orange-500 font-medium hover:underline">Terms of Service</button> and <a href="#" className="text-orange-500 font-medium hover:underline">Privacy Policy</a>
+              I Agree with <button type="button" onClick={() => setShowTerms(true)} className="font-medium hover:underline" style={{ color: accent }}>Terms of Service</button> and <a href="#" className="font-medium hover:underline" style={{ color: accent }}>Privacy Policy</a>
             </label>
           </div>
           {errors.agree && <p className="mt-1 text-sm text-red-500">{errors.agree}</p>}
@@ -188,7 +190,8 @@ const Register = () => {
           <button
             type="submit"
             disabled={isPending}
-            className={`w-full py-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold text-lg shadow-md transition-colors ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-full py-3 rounded-full text-white font-semibold text-lg shadow-md transition-colors ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            style={{ backgroundColor: accent }}
           >
             {isPending ? 'Registering...' : 'Register'}
           </button>

@@ -32,6 +32,7 @@ import {
   MdClose,
   MdArrowForward
 } from 'react-icons/md';
+import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import { SkeletonTable, SkeletonCard, SkeletonOrderList } from '../components/Skeleton';
@@ -361,7 +362,7 @@ const CustomerOrdersPage = () => {
 
   // Handle back navigation
   const handleBack = () => {
-    navigate('/jkhm/seller/customers');
+    navigate(`${basePath}/seller/customers`);
   };
 
   // Handle cancel order
@@ -860,7 +861,7 @@ const CustomerOrdersPage = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-4">You don't have permission to view customer orders.</p>
           <button
-            onClick={() => navigate('/jkhm')}
+            onClick={() => navigate(basePath)}
             className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
           >
             Go to Home

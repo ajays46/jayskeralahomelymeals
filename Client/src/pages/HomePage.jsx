@@ -2,9 +2,12 @@
  * Copyright (c) 2025 JAYS KERALA INNOVATIONS PRIVATE LIMITED. All rights reserved.
  */
 
-import React, { useState } from 'react'
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
+import { useCompanyBasePath, useTenant } from '../context/TenantContext';
+import { getThemeForCompany } from '../config/tenantThemes';
 import vegBreakfastData from '../data/veg-breakfast.json';
 import vegLunchData from '../data/veg-lunch.json';
 import vegDinnerData from '../data/veg-dinner.json';
@@ -19,6 +22,11 @@ import nonVegDinnerData from '../data/non-veg-dinner.json';
  */
 const HomePage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
+  const base = useCompanyBasePath();
+  const tenant = useTenant();
+  const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
+  const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+  const gradient = theme.homeGradient || 'from-orange-50 via-white to-orange-50';
 
   // Handle authentication slider open/close
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);
@@ -33,31 +41,41 @@ const HomePage = () => {
   const sampleNonVegDinner = nonVegDinnerData.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50">
+    <div className={`min-h-screen bg-gradient-to-br ${gradient}`}>
       <Navbar onSignInClick={handleOpenAuthSlider} />
       <AuthSlider isOpen={authSliderOpen} onClose={handleCloseAuthSlider} />
       
-            {/* Hero Section */}
+      {/* Hero Section - company theme */}
       <div className="relative overflow-hidden">
-        <div className="bg-[url('/banner_one.jpg')] bg-cover bg-center bg-no-repeat h-64 sm:h-80 md:h-96 lg:h-[400px] xl:h-[500px] flex items-center justify-center pt-16 sm:pt-18 md:pt-20 lg:pt-22">
+        <div
+          className="bg-cover bg-center bg-no-repeat h-64 sm:h-80 md:h-96 lg:h-[400px] xl:h-[500px] flex items-center justify-center pt-16 sm:pt-18 md:pt-20 lg:pt-22"
+          style={{ backgroundImage: `url('${theme.heroImage || '/banner_one.jpg'}')` }}
+        >
           <div className="absolute inset-0 bg-black/40 sm:bg-black/35 md:bg-black/30"></div>
           <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-20 xl:py-24">
             <div className="text-left sm:text-center max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto pl-2">
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
-                Discover Authentic
-                <span className="block text-yellow-300 mt-1 sm:mt-2">Kerala Cuisine</span>
+                {theme.heroTitle || 'Discover Authentic'}
+                <span className="block mt-1 sm:mt-2" style={{ color: accent }}>{theme.heroSubtitle || 'Kerala Cuisine'}</span>
               </h1>
               <p className="hidden sm:block text-sm sm:text-base md:text-lg lg:text-xl text-white/90 mb-6 sm:mb-8 leading-relaxed px-2 sm:px-4">
-                Experience the rich flavors and traditional recipes from God's Own Country. 
-                From spicy curries to aromatic rice dishes, every bite tells a story.
+                {theme.heroDescription || "Experience the rich flavors and traditional recipes from God's Own Country. From spicy curries to aromatic rice dishes, every bite tells a story."}
               </p>
               <div className="flex flex-row gap-3 sm:gap-4 justify-start sm:justify-center items-start sm:items-center">
-                <a href="/jkhm/menu" className="w-auto">
-                  <button className="w-auto bg-white hover:bg-gray-100 text-orange-600 px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full font-semibold text-xs sm:text-sm md:text-base transition-all duration-300 transform hover:scale-105 shadow-lg">
+                <Link to={`${base}/menu`} className="w-auto">
+                  <button
+                    className="w-auto bg-white hover:bg-gray-100 px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full font-semibold text-xs sm:text-sm md:text-base transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    style={{ color: accent }}
+                  >
                     Explore Menu
                   </button>
-                </a>
-                <button className="w-auto border-2 border-white text-white hover:bg-white hover:text-orange-600 px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full font-semibold text-xs sm:text-sm md:text-base transition-all duration-300">
+                </Link>
+                <button
+                  className="w-auto border-2 border-white text-white hover:bg-white px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full font-semibold text-xs sm:text-sm md:text-base transition-all duration-300"
+                  style={{ ['--tw-bg-opacity']: 1, color: 'inherit' }}
+                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = accent; }}
+                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = 'white'; }}
+                >
                   Learn More
                 </button>
               </div>
@@ -71,21 +89,44 @@ const HomePage = () => {
         <div className="absolute inset-0 bg-[url('/pattern.jpg')] bg-repeat opacity-5"></div>
         <div className="relative z-10">
         <div className="container mx-auto px-4">
-          {/* Section Header */}
+          {/* Section Header - company theme */}
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Our Featured Dishes
+              {theme.featuredSectionTitle || 'Our Featured Dishes'}
             </h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Explore our carefully curated selection of traditional Kerala dishes by meal type
+              {theme.featuredSectionSubtitle || 'Explore our carefully curated selection of traditional Kerala dishes by meal type'}
             </p>
           </div>
 
+          {/* JLG: product grid (6 items). JKHM: breakfast/lunch/dinner sections */}
+          {theme.featuredProducts?.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
+              {theme.featuredProducts.map((product, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
+                >
+                  <div className="relative overflow-hidden aspect-square">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="p-3 sm:p-4 text-center">
+                    <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm sm:text-base">{product.name}</h3>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+          <>
           {/* Breakfast Section */}
           <div className="mb-16">
             <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-yellow-600 mb-2">Breakfast Delights</h3>
-              <p className="text-gray-600">Start your day with traditional Kerala breakfast items</p>
+              <h3 className="text-2xl font-bold text-yellow-600 mb-2">{theme.breakfastTitle || 'Breakfast Delights'}</h3>
+              <p className="text-gray-600">{theme.breakfastSubtitle || 'Start your day with traditional Kerala breakfast items'}</p>
             </div>
             
             {/* Vegetarian Breakfast */}
@@ -156,8 +197,8 @@ const HomePage = () => {
           {/* Lunch Section */}
           <div className="mb-16">
             <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-green-600 mb-2">Lunch Specials</h3>
-              <p className="text-gray-600">Traditional Kerala lunch with rice, curries, and sides</p>
+              <h3 className="text-2xl font-bold text-green-600 mb-2">{theme.lunchTitle || 'Lunch Specials'}</h3>
+              <p className="text-gray-600">{theme.lunchSubtitle || 'Traditional Kerala lunch with rice, curries, and sides'}</p>
             </div>
             
             {/* Vegetarian Lunch */}
@@ -228,8 +269,8 @@ const HomePage = () => {
           {/* Dinner Section */}
           <div className="mb-16">
             <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-purple-600 mb-2">Dinner Favorites</h3>
-              <p className="text-gray-600">Light and delicious dinner options with traditional flavors</p>
+              <h3 className="text-2xl font-bold text-purple-600 mb-2">{theme.dinnerTitle || 'Dinner Favorites'}</h3>
+              <p className="text-gray-600">{theme.dinnerSubtitle || 'Light and delicious dinner options with traditional flavors'}</p>
             </div>
             
             {/* Vegetarian Dinner */}
@@ -296,26 +337,29 @@ const HomePage = () => {
               </div>
             </div>
           </div>
+          </>
+          )}
         </div>
         </div>
       </section>
 
-      {/* Featured Meals Advertisement Section */}
-      <section className="py-16 lg:py-20 bg-gradient-to-br from-orange-50 to-yellow-50">
+      {/* Featured Meals Advertisement Section + CTA - hidden for JLG (hideRatesAndCta) */}
+      {!theme.hideRatesAndCta && (
+      <section className={`py-16 lg:py-20 bg-gradient-to-br ${theme.adSectionGradient || 'from-orange-50 to-yellow-50'}`}>
         <div className="container mx-auto px-4">
-          {/* Section Header */}
+          {/* Section Header - company theme */}
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              JAY'S KERALA HOMELY MEALS
+              {theme.adSectionTitle || theme.brandName || "JAY'S KERALA HOMELY MEALS"}
             </h2>
-            <p className="text-xl font-semibold text-orange-600 mb-2">
-              Homely Meals Network
+            <p className="text-xl font-semibold mb-2" style={{ color: accent }}>
+              {theme.adTagline || 'Homely Meals Network'}
             </p>
             <p className="text-lg font-semibold text-blue-600 mb-2">
-              NEW BREAKFAST-LUNCH-DINNER RATES
+              {theme.adRatesLine || 'NEW BREAKFAST-LUNCH-DINNER RATES'}
             </p>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Premium Homely Meals Network • Popular Menu Rates 5.0 ⭐
+              {theme.adFooterLine || 'Premium Homely Meals Network • Popular Menu Rates 5.0 ⭐'}
             </p>
           </div>
 
@@ -720,14 +764,21 @@ const HomePage = () => {
             <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-2xl p-8 text-center text-white relative overflow-hidden">
               <div className="absolute inset-0 bg-black/10"></div>
               <div className="relative z-10">
-                <h3 className="text-2xl md:text-3xl font-bold mb-4">Start Your Meal Journey Today!</h3>
-                <p className="text-lg mb-6 opacity-90">Experience authentic Kerala cuisine with our flexible meal plans. Choose what works best for you!</p>
+                <h3 className="text-2xl md:text-3xl font-bold mb-4">{theme.ctaTitle || "Start Your Meal Journey Today!"}</h3>
+                <p className="text-lg mb-6 opacity-90">{theme.ctaDescription || "Experience authentic Kerala cuisine with our flexible meal plans. Choose what works best for you!"}</p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button className="bg-white text-orange-600 hover:bg-gray-100 px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg">
-                    Order Now
+                  <button
+                    className="bg-white hover:bg-gray-100 px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    style={{ color: accent }}
+                  >
+                    {theme.ctaOrderText || 'Order Now'}
                   </button>
-                  <button className="border-2 border-white text-white hover:bg-white hover:text-orange-600 px-8 py-3 rounded-full font-semibold transition-all duration-300">
-                    Contact Us
+                  <button
+                    className="border-2 border-white text-white hover:bg-white px-8 py-3 rounded-full font-semibold transition-all duration-300"
+                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = accent; }}
+                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = 'white'; }}
+                  >
+                    {theme.ctaContactText || 'Contact Us'}
                   </button>
                 </div>
               </div>
@@ -735,6 +786,7 @@ const HomePage = () => {
           </div>
         </div>
       </section>
+      )}
     </div>
   );
 }
