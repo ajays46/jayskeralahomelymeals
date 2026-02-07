@@ -47,7 +47,7 @@ import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
  */
 export const checkApiHealth = async (req, res, next) => {
   try {
-    const result = await checkApiHealthService();
+    const result = await checkApiHealthService(req.companyId);
     
     res.status(200).json({
       success: result.success,
@@ -73,7 +73,7 @@ export const getAvailableDates = async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit) || 30;
     
-    const result = await getAvailableDatesService(limit);
+    const result = await getAvailableDatesService(limit, req.companyId);
     
     res.status(200).json({
       success: true,
@@ -101,7 +101,7 @@ export const getDeliveryData = async (req, res, next) => {
       });
     }
     
-    const result = await getDeliveryDataService({ date, session });
+    const result = await getDeliveryDataService({ date, session }, req.companyId);
     
     // Structure response according to documentation
     const deliveries = result.data || result.deliveries || [];
@@ -140,7 +140,7 @@ export const planRoute = async (req, res, next) => {
       delivery_session,
       num_drivers,
       depot_location
-    });
+    }, req.companyId);
     
     // Extract routes data according to documentation structure
     // Documentation shows: data.routes.routes[0].stops[]
@@ -249,7 +249,7 @@ export const reassignDriver = async (req, res, next) => {
         });
       }
     }
-    const result = await reassignDriverService(body);
+    const result = await reassignDriverService(body, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Reassign driver failed', { error: error.message });
@@ -270,7 +270,13 @@ export const moveStop = async (req, res, next) => {
         message: 'from_route_id, to_route_id, and stop_identifier (delivery_id or stop_order) are required'
       });
     }
-    const result = await moveStopService(body);
+    if (!req.companyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'company_id is required for move-stop. Send X-Company-ID header or ensure your user has a company.'
+      });
+    }
+    const result = await moveStopService(body, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Move stop failed', { error: error.message });
@@ -288,7 +294,7 @@ export const predictStartTime = async (req, res, next) => {
     
     // If route_id is provided, use it; otherwise require date and session
     if (route_id) {
-      const result = await predictStartTimeService({ route_id });
+      const result = await predictStartTimeService({ route_id }, req.companyId);
       return res.status(200).json(result);
     }
     
@@ -303,7 +309,7 @@ export const predictStartTime = async (req, res, next) => {
       delivery_date,
       delivery_session,
       depot_location
-    });
+    }, req.companyId);
     
     res.status(200).json(result);
   } catch (error) {
@@ -331,7 +337,7 @@ export const startJourney = async (req, res, next) => {
     const result = await startJourneyService({
       driver_id,
       route_id // Include route_id if provided
-    });
+    }, req.companyId);
     // Ensure response matches documentation structure
     const responseData = {
       success: result.success !== undefined ? result.success : true,
@@ -443,7 +449,7 @@ export const stopReached = async (req, res, next) => {
       serviceData.comments = comments.trim();
     }
     
-    const result = await stopReachedService(serviceData);
+    const result = await stopReachedService(serviceData, req.companyId);
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Stop reached marked successfully', {
       route_id,
@@ -481,7 +487,7 @@ export const endJourney = async (req, res, next) => {
       route_id,
       latitude,
       longitude
-    });
+    }, req.companyId);
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Journey ended successfully', {
       route_id,
@@ -511,7 +517,7 @@ export const getJourneyStatus = async (req, res, next) => {
       });
     }
     
-    const result = await getJourneyStatusService(routeId);
+    const result = await getJourneyStatusService(routeId, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Get journey status failed', {
@@ -536,7 +542,7 @@ export const getTrackingStatus = async (req, res, next) => {
       });
     }
     
-    const result = await getTrackingStatusService(routeId);
+    const result = await getTrackingStatusService(routeId, req.companyId);
     
     res.status(200).json(result);
   } catch (error) {
@@ -578,7 +584,7 @@ export const vehicleTracking = async (req, res, next) => {
       driver_id,
       session_id,
       tracking_points
-    });
+    }, req.companyId);
     
     // Ensure response includes all documented fields
     const responseData = {
@@ -609,7 +615,7 @@ export const vehicleTracking = async (req, res, next) => {
 
 export const getAllVehicleTracking = async (req, res, next) => {
   try {
-    const result = await getAllVehicleTrackingService();
+    const result = await getAllVehicleTrackingService(req.companyId);
     logInfo(LOG_CATEGORIES.SYSTEM, 'All vehicle tracking fetched', {
       data: result
     });
@@ -639,7 +645,7 @@ export const getCurrentWeather = async (req, res, next) => {
     if (zone_id && (!lat || !lng)) {
       try {
         // Fetch zone details to get coordinates
-        const zoneData = await getZoneByIdService(zone_id);
+        const zoneData = await getZoneByIdService(zone_id, req.companyId);
         if (zoneData?.zone?.boundaries) {
           // Calculate center point from boundaries
           const boundaries = zoneData.zone.boundaries;
@@ -665,7 +671,7 @@ export const getCurrentWeather = async (req, res, next) => {
         // If zone_id was provided but we couldn't get coordinates, try passing zone_id directly
         const result = await getCurrentWeatherService({ 
           zone_id
-        });
+        }, req.companyId);
         return res.status(200).json(result);
       } else {
         return res.status(400).json({
@@ -679,7 +685,7 @@ export const getCurrentWeather = async (req, res, next) => {
       zone_id, 
       latitude: finalLat, 
       longitude: finalLng 
-    });
+    }, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch current weather', {
@@ -702,7 +708,7 @@ export const getWeatherForecast = async (req, res, next) => {
       longitude, 
       days: days ? parseInt(days) : 5,
       session 
-    });
+    }, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch weather forecast', {
@@ -722,7 +728,7 @@ export const getWeatherZones = async (req, res, next) => {
     const result = await getWeatherZonesService({ 
       priority: priority ? parseInt(priority) : undefined,
       is_active: is_active !== undefined ? parseInt(is_active) : 1
-    });
+    }, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zones weather', {
@@ -751,7 +757,7 @@ export const getWeatherPredictions = async (req, res, next) => {
       longitude: parseFloat(longitude),
       days: days ? parseInt(days) : 7,
       session
-    });
+    }, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch weather predictions', {
@@ -771,7 +777,7 @@ export const getZones = async (req, res, next) => {
     const result = await getZonesService({
       is_active: is_active !== undefined ? parseInt(is_active) : undefined,
       zone_type
-    });
+    }, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zones', {
@@ -795,7 +801,7 @@ export const getZoneById = async (req, res, next) => {
       });
     }
     
-    const result = await getZoneByIdService(zoneId);
+    const result = await getZoneByIdService(zoneId, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zone', {
@@ -829,7 +835,7 @@ export const createZone = async (req, res, next) => {
       priority: priority || 1,
       zone_type: zone_type || 'delivery',
       is_active: is_active !== undefined ? is_active : 1
-    });
+    }, req.companyId);
     
     res.status(201).json(result);
   } catch (error) {
@@ -855,7 +861,7 @@ export const updateZone = async (req, res, next) => {
       });
     }
     
-    const result = await updateZoneService(zoneId, updateData);
+    const result = await updateZoneService(zoneId, updateData, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to update zone', {
@@ -880,7 +886,7 @@ export const deleteZone = async (req, res, next) => {
       });
     }
     
-    const result = await deleteZoneService(zoneId);
+    const result = await deleteZoneService(zoneId, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to delete zone', {
@@ -906,7 +912,7 @@ export const getZoneDeliveries = async (req, res, next) => {
       });
     }
     
-    const result = await getZoneDeliveriesService(zoneId, { date, session });
+    const result = await getZoneDeliveriesService(zoneId, { date, session }, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zone deliveries', {
@@ -937,7 +943,7 @@ export const reoptimizeRoute = async (req, res, next) => {
       delay_minutes,
       traffic_data,
       weather_data
-    });
+    }, req.companyId);
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Route reoptimization completed', {
       route_id,
@@ -973,7 +979,7 @@ export const checkTraffic = async (req, res, next) => {
       route_id,
       current_location,
       check_all_segments: check_all_segments !== false // default to true
-    });
+    }, req.companyId);
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Traffic check completed', {
       route_id,
@@ -1006,7 +1012,7 @@ export const getRouteOrder = async (req, res, next) => {
       });
     }
     
-    const result = await getRouteOrderService(routeId);
+    const result = await getRouteOrderService(routeId, req.companyId);
     
     res.status(200).json(result);
   } catch (error) {
@@ -1034,7 +1040,7 @@ export const completeDriverSession = async (req, res, next) => {
     
     const result = await completeDriverSessionService({
       route_id
-    });
+    }, req.companyId);
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Driver session completed', {
       route_id
@@ -1057,7 +1063,7 @@ export const getMissingGeoLocations = async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit) || 100;
     
-    const result = await getMissingGeoLocationsService(limit);
+    const result = await getMissingGeoLocationsService(limit, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch missing geo locations', {
@@ -1191,7 +1197,7 @@ export const updateGeoLocation = async (req, res, next) => {
       address_id: finalAddressId,
       delivery_item_id: finalDeliveryItemId,
       geo_location
-    });
+    }, req.companyId);
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Geo location updated successfully', {
       address_id: result.address_id,
@@ -1223,7 +1229,7 @@ export const getDriverNextStopMaps = async (req, res, next) => {
       });
     }
     
-    const result = await getDriverNextStopMapsService({ date, session });
+    const result = await getDriverNextStopMapsService({ date, session }, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Get driver next stop maps failed', {
@@ -1250,7 +1256,7 @@ export const getDriverRouteOverviewMaps = async (req, res, next) => {
       });
     }
     
-    const result = await getDriverRouteOverviewMapsService({ date, session });
+    const result = await getDriverRouteOverviewMapsService({ date, session }, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Get driver route overview maps failed', {
@@ -1322,7 +1328,7 @@ export const updateDeliveryComment = async (req, res, next) => {
       });
     }
     
-    const result = await updateDeliveryCommentService(deliveryId, comments);
+    const result = await updateDeliveryCommentService(deliveryId, comments, req.companyId);
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery comment updated successfully', {
       delivery_id: deliveryId

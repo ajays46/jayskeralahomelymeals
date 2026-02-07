@@ -30,12 +30,21 @@ const apiClientRouteAPI = axios.create({
   }
 });
 
+/** Build request config with company_id (X-Company-ID header) for multi-tenant external APIs */
+const withCompanyId = (companyId, config = {}) => {
+  const headers = { ...(config.headers || {}) };
+  if (companyId && typeof companyId === 'string' && companyId.trim()) {
+    headers['X-Company-ID'] = companyId.trim();
+  }
+  return { ...config, headers };
+};
+
 /**
  * Check API Health
  */
-export const checkApiHealthService = async () => {
+export const checkApiHealthService = async (companyId = null) => {
   try {
-    const response = await apiClient.get('/api/health');
+    const response = await apiClient.get('/api/health', withCompanyId(companyId));
     const data = response.data;
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'AI Route API health check', {
@@ -68,11 +77,11 @@ export const checkApiHealthService = async () => {
 /**
  * Get Available Dates
  */
-export const getAvailableDatesService = async (limit = 30) => {
+export const getAvailableDatesService = async (limit = 30, companyId = null) => {
   try {
-    const response = await apiClient.get('/api/delivery_data/available-dates', {
+    const response = await apiClient.get('/api/delivery_data/available-dates', withCompanyId(companyId, {
       params: { limit }
-    });
+    }));
     const data = response.data;
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Available dates fetched', {
@@ -98,14 +107,14 @@ export const getAvailableDatesService = async (limit = 30) => {
 /**
  * Get Delivery Data
  */
-export const getDeliveryDataService = async (filters = {}) => {
+export const getDeliveryDataService = async (filters = {}, companyId = null) => {
   try {
     const { date, session } = filters;
     const params = {};
     if (date) params.date = date;
     if (session) params.session = session;
     
-    const response = await apiClient.get('/api/delivery_data', { params });
+    const response = await apiClient.get('/api/delivery_data', withCompanyId(companyId, { params }));
     const data = response.data;
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery data fetched', {
@@ -134,7 +143,7 @@ export const getDeliveryDataService = async (filters = {}) => {
 /**
  * Plan Route
  */
-export const planRouteService = async (routeData) => {
+export const planRouteService = async (routeData, companyId = null) => {
   try {
     const { delivery_date, delivery_session, num_drivers, depot_location } = routeData;
 
@@ -143,7 +152,7 @@ export const planRouteService = async (routeData) => {
       delivery_session,
       num_drivers,
       depot_location
-    });
+    }, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -178,9 +187,9 @@ export const planRouteService = async (routeData) => {
  * Reassign Driver - single reassign or exchange two drivers
  * Body: { route_id, new_driver_name } OR { exchange: true, route_id_1, route_id_2 }
  */
-export const reassignDriverService = async (body) => {
+export const reassignDriverService = async (body, companyId = null) => {
   try {
-    const response = await apiClient.post('/api/route/reassign-driver', body);
+    const response = await apiClient.post('/api/route/reassign-driver', body, withCompanyId(companyId));
     const data = response.data;
     if (!data.success) {
       throw new Error(data.error || data.message || 'Reassign driver failed');
@@ -206,10 +215,21 @@ export const reassignDriverService = async (body) => {
 /**
  * Move Stop - move one delivery stop from one route to another
  * Body: { from_route_id, to_route_id, stop_identifier: { delivery_id } or { stop_order }, insert_at_order? }
+ * External API (Flask) requires company_id for SQL bind - send in body, header, and query so Flask can read it.
  */
-export const moveStopService = async (body) => {
+export const moveStopService = async (body, companyId = null) => {
   try {
-    const response = await apiClient.post('/api/route/move-stop', body);
+    const payload = { ...body };
+    if (companyId) payload.company_id = companyId;
+    const config = withCompanyId(companyId);
+    if (companyId) config.params = { ...(config.params || {}), company_id: companyId };
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Move stop: sending to external API', {
+      company_id: companyId || '(none)',
+      has_header: !!companyId,
+      has_body: !!payload.company_id,
+      has_query: !!config.params?.company_id
+    });
+    const response = await apiClient.post('/api/route/move-stop', payload, config);
     const data = response.data;
     if (!data.success) {
       throw new Error(data.error || data.message || 'Move stop failed');
@@ -236,7 +256,7 @@ export const moveStopService = async (body) => {
  * Predict Start Time
  * Accepts either route_id OR (delivery_date + delivery_session + depot_location)
  */
-export const predictStartTimeService = async (predictionData) => {
+export const predictStartTimeService = async (predictionData, companyId = null) => {
   try {
     const { route_id, delivery_date, delivery_session, depot_location } = predictionData;
     
@@ -245,7 +265,7 @@ export const predictStartTimeService = async (predictionData) => {
       ? { route_id }
       : { delivery_date, delivery_session, depot_location };
     
-    const response = await apiClient.post('/api/route/predict-start-time', requestBody);
+    const response = await apiClient.post('/api/route/predict-start-time', requestBody, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -295,7 +315,7 @@ export const startJourneyService = async (journeyData) => {
     }
     
     // Send driver_id and route_id to the external API
-    const response = await apiClient.post('/api/journey/start', requestBody);
+    const response = await apiClient.post('/api/journey/start', requestBody, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -335,7 +355,7 @@ export const startJourneyService = async (journeyData) => {
  * Mark delivery stop as reached/delivered
  * Supports both new format (current_location) and legacy format (latitude, longitude)
  */
-export const stopReachedService = async (stopData) => {
+export const stopReachedService = async (stopData, companyId = null) => {
   try {
     const { 
       route_id, 
@@ -406,7 +426,7 @@ export const stopReachedService = async (stopData) => {
     }
     
     // Use only the mark-stop endpoint (no fallback)
-    const response = await apiClient.post('/api/journey/mark-stop', requestBody);
+    const response = await apiClient.post('/api/journey/mark-stop', requestBody, withCompanyId(companyId));
     
     const data = response.data;
     
@@ -438,7 +458,7 @@ export const stopReachedService = async (stopData) => {
  * End Journey (NEW API: /api/journey/end)
  * End journey with final location
  */
-export const endJourneyService = async (journeyData) => {
+export const endJourneyService = async (journeyData, companyId = null) => {
   try {
     const { user_id, route_id, latitude, longitude } = journeyData;
     
@@ -447,7 +467,7 @@ export const endJourneyService = async (journeyData) => {
       route_id,
       latitude,
       longitude
-    });
+    }, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -476,9 +496,9 @@ export const endJourneyService = async (journeyData) => {
 /**
  * Get Journey Status (NEW API: /api/journey/status/:route_id)
  */
-export const getJourneyStatusService = async (routeId) => {
+export const getJourneyStatusService = async (routeId, companyId = null) => {
   try {
-    const response = await apiClient.get(`/api/journey/status/${routeId}`);
+    const response = await apiClient.get(`/api/journey/status/${routeId}`, withCompanyId(companyId));
     const data = response.data;    
     if (!data.success) {
       throw new Error(data.error || 'Failed to get journey status');
@@ -501,9 +521,9 @@ export const getJourneyStatusService = async (routeId) => {
 /**
  * Get Tracking Status
  */
-export const getTrackingStatusService = async (routeId) => {
+export const getTrackingStatusService = async (routeId, companyId = null) => {
   try {
-    const response = await apiClient.get(`/api/route/tracking-status/${routeId}`);
+    const response = await apiClient.get(`/api/route/tracking-status/${routeId}`, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -531,7 +551,7 @@ export const getTrackingStatusService = async (routeId) => {
  * Vehicle Tracking
  * Save vehicle GPS tracking points (complete journey tracking)
  */
-export const vehicleTrackingService = async (trackingData) => {
+export const vehicleTrackingService = async (trackingData, companyId = null) => {
   try {
     const { route_id, driver_id, session_id, tracking_points } = trackingData;
     
@@ -544,7 +564,7 @@ export const vehicleTrackingService = async (trackingData) => {
       driver_id,
       session_id,
       tracking_points
-    });
+    }, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -575,9 +595,9 @@ export const vehicleTrackingService = async (trackingData) => {
   }
 };
 
-export const getAllVehicleTrackingService = async () => {
+export const getAllVehicleTrackingService = async (companyId = null) => {
   try {
-    const response = await apiClient.get('/api/vehicles/tracking/all');
+    const response = await apiClient.get('/api/vehicles/tracking/all', withCompanyId(companyId));
     const data = response.data;
     logInfo(LOG_CATEGORIES.SYSTEM, 'All vehicle tracking fetched', {
       data: data
@@ -597,9 +617,9 @@ export const getAllVehicleTrackingService = async () => {
 /**
  * Get Current Weather
  */
-export const getCurrentWeatherService = async (params) => {
+export const getCurrentWeatherService = async (params, companyId = null) => {
   try {
-    const response = await apiClient.get('/api/weather/current', { params });
+    const response = await apiClient.get('/api/weather/current', withCompanyId(companyId, { params }));
     const data = response.data;
     
     if (!data.success) {
@@ -629,9 +649,9 @@ export const getCurrentWeatherService = async (params) => {
 /**
  * Get Weather Forecast
  */
-export const getWeatherForecastService = async (params) => {
+export const getWeatherForecastService = async (params, companyId = null) => {
   try {
-    const response = await apiClient.get('/api/weather/forecast', { params });
+    const response = await apiClient.get('/api/weather/forecast', withCompanyId(companyId, { params }));
     const data = response.data;
     
     if (!data.success) {
@@ -660,9 +680,9 @@ export const getWeatherForecastService = async (params) => {
 /**
  * Get Weather for All Zones
  */
-export const getWeatherZonesService = async (params = {}) => {
+export const getWeatherZonesService = async (params = {}, companyId = null) => {
   try {
-    const response = await apiClient.get('/api/weather/zones', { params });
+    const response = await apiClient.get('/api/weather/zones', withCompanyId(companyId, { params }));
     const data = response.data;
     
     if (!data.success) {
@@ -689,9 +709,9 @@ export const getWeatherZonesService = async (params = {}) => {
 /**
  * Get Weather Predictions
  */
-export const getWeatherPredictionsService = async (params) => {
+export const getWeatherPredictionsService = async (params, companyId = null) => {
   try {
-    const response = await apiClient.get('/api/weather/predictions', { params });
+    const response = await apiClient.get('/api/weather/predictions', withCompanyId(companyId, { params }));
     const data = response.data;
     
     if (!data.success) {
@@ -720,9 +740,9 @@ export const getWeatherPredictionsService = async (params) => {
 /**
  * Get All Zones
  */
-export const getZonesService = async (params = {}) => {
+export const getZonesService = async (params = {}, companyId = null) => {
   try {
-    const response = await apiClient.get('/api/zones', { params });
+    const response = await apiClient.get('/api/zones', withCompanyId(companyId, { params }));
     const data = response.data;
     
     if (!data.success) {
@@ -749,9 +769,9 @@ export const getZonesService = async (params = {}) => {
 /**
  * Get Zone by ID
  */
-export const getZoneByIdService = async (zoneId) => {
+export const getZoneByIdService = async (zoneId, companyId = null) => {
   try {
-    const response = await apiClient.get(`/api/zones/${zoneId}`);
+    const response = await apiClient.get(`/api/zones/${zoneId}`, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -775,9 +795,9 @@ export const getZoneByIdService = async (zoneId) => {
 /**
  * Create Zone
  */
-export const createZoneService = async (zoneData) => {
+export const createZoneService = async (zoneData, companyId = null) => {
   try {
-    const response = await apiClient.post('/api/zones', zoneData);
+    const response = await apiClient.post('/api/zones', zoneData, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -804,9 +824,9 @@ export const createZoneService = async (zoneData) => {
 /**
  * Update Zone
  */
-export const updateZoneService = async (zoneId, zoneData) => {
+export const updateZoneService = async (zoneId, zoneData, companyId = null) => {
   try {
-    const response = await apiClient.put(`/api/zones/${zoneId}`, zoneData);
+    const response = await apiClient.put(`/api/zones/${zoneId}`, zoneData, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -834,9 +854,9 @@ export const updateZoneService = async (zoneId, zoneData) => {
 /**
  * Delete Zone
  */
-export const deleteZoneService = async (zoneId) => {
+export const deleteZoneService = async (zoneId, companyId = null) => {
   try {
-    const response = await apiClient.delete(`/api/zones/${zoneId}`);
+    const response = await apiClient.delete(`/api/zones/${zoneId}`, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -864,9 +884,9 @@ export const deleteZoneService = async (zoneId) => {
 /**
  * Get Zone Deliveries
  */
-export const getZoneDeliveriesService = async (zoneId, params = {}) => {
+export const getZoneDeliveriesService = async (zoneId, params = {}, companyId = null) => {
   try {
-    const response = await apiClient.get(`/api/zones/${zoneId}/deliveries`, { params });
+    const response = await apiClient.get(`/api/zones/${zoneId}/deliveries`, withCompanyId(companyId, { params }));
     const data = response.data;
     
     if (!data.success) {
@@ -895,9 +915,9 @@ export const getZoneDeliveriesService = async (zoneId, params = {}) => {
 /**
  * Re-optimize Route
  */
-export const reoptimizeRouteService = async (reoptimizeData) => {
+export const reoptimizeRouteService = async (reoptimizeData, companyId = null) => {
   try {
-    const response = await apiClient.post('/api/route/reoptimize', reoptimizeData);
+    const response = await apiClient.post('/api/route/reoptimize', reoptimizeData, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -927,7 +947,7 @@ export const reoptimizeRouteService = async (reoptimizeData) => {
  * Check Traffic and Auto-Reoptimize (NEW API: /api/journey/check-traffic)
  * Checks traffic on remaining route segments and auto-reoptimizes if heavy traffic (≥1.5x) detected
  */
-export const checkTrafficService = async (trafficData) => {
+export const checkTrafficService = async (trafficData, companyId = null) => {
   try {
     const { route_id, current_location, check_all_segments } = trafficData;
     
@@ -939,7 +959,7 @@ export const checkTrafficService = async (trafficData) => {
       route_id,
       current_location,
       check_all_segments: check_all_segments !== false
-    });
+    }, withCompanyId(companyId));
     
     const data = response.data;
     
@@ -982,13 +1002,13 @@ export const checkTrafficService = async (trafficData) => {
  * Get Route Order (NEW API: /api/journey/route-order/:route_id)
  * Get current route order with stop status
  */
-export const getRouteOrderService = async (routeId) => {
+export const getRouteOrderService = async (routeId, companyId = null) => {
   try {
     if (!routeId) {
       throw new Error('routeId is required');
     }
     
-    const response = await apiClient.get(`/api/journey/route-order/${routeId}`);
+    const response = await apiClient.get(`/api/journey/route-order/${routeId}`, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -1022,11 +1042,11 @@ export const getRouteOrderService = async (routeId) => {
 /**
  * Get Missing Geo Locations
  */
-export const getMissingGeoLocationsService = async (limit = 100) => {
+export const getMissingGeoLocationsService = async (limit = 100, companyId = null) => {
   try {
-    const response = await apiClient.get('/api/address/get-missing-geo-locations', {
+    const response = await apiClient.get('/api/address/get-missing-geo-locations', withCompanyId(companyId, {
       params: { limit }
-    });
+    }));
     const data = response.data;
     
     if (!data.success) {
@@ -1053,9 +1073,9 @@ export const getMissingGeoLocationsService = async (limit = 100) => {
 /**
  * Update Geo Location
  */
-export const updateGeoLocationService = async (updateData) => {
+export const updateGeoLocationService = async (updateData, companyId = null) => {
   try {
-    const response = await apiClient.post('/api/address/update-geo-location', updateData);
+    const response = await apiClient.post('/api/address/update-geo-location', updateData, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -1084,7 +1104,7 @@ export const updateGeoLocationService = async (updateData) => {
 /**
  * Complete Driver Session
  */
-export const completeDriverSessionService = async (sessionData) => {
+export const completeDriverSessionService = async (sessionData, companyId = null) => {
   try {
     const { route_id } = sessionData;
     
@@ -1094,7 +1114,7 @@ export const completeDriverSessionService = async (sessionData) => {
     
     const response = await apiClient.post(`/api/driver-session/${sessionId}/complete`, {
       route_id
-    });
+    }, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -1124,7 +1144,7 @@ export const completeDriverSessionService = async (sessionData) => {
  * Get Driver Next Stop Maps
  * Fetch individual stop map links for drivers
  */
-export const getDriverNextStopMapsService = async (params) => {
+export const getDriverNextStopMapsService = async (params, companyId = null) => {
   try {
     const { date, session } = params;
     
@@ -1132,9 +1152,9 @@ export const getDriverNextStopMapsService = async (params) => {
       throw new Error('date and session are required');
     }
     
-    const response = await apiClient.get('/api/drivers/next-stop-maps', {
+    const response = await apiClient.get('/api/drivers/next-stop-maps', withCompanyId(companyId, {
       params: { date, session }
-    });
+    }));
     
     const data = response.data;
     
@@ -1161,7 +1181,7 @@ export const getDriverNextStopMapsService = async (params) => {
  * Get Driver Route Overview Maps
  * Fetch route overview map links for drivers
  */
-export const getDriverRouteOverviewMapsService = async (params) => {
+export const getDriverRouteOverviewMapsService = async (params, companyId = null) => {
   try {
     const { date, session } = params;
     
@@ -1169,9 +1189,9 @@ export const getDriverRouteOverviewMapsService = async (params) => {
       throw new Error('date and session are required');
     }
     
-    const response = await apiClient.get('/api/drivers/route-overview-maps', {
+    const response = await apiClient.get('/api/drivers/route-overview-maps', withCompanyId(companyId, {
       params: { date, session }
-    });
+    }));
     
     const data = response.data;
     
@@ -1199,7 +1219,7 @@ export const getDriverRouteOverviewMapsService = async (params) => {
  * Updates the comment for a specific delivery using delivery_id
  * Uses AI_ROUTE_API from .env (different from AI_ROUTE_API_THIRD)
  */
-export const updateDeliveryCommentService = async (deliveryId, comments) => {
+export const updateDeliveryCommentService = async (deliveryId, comments, companyId = null) => {
   try {
     if (!AI_ROUTE_API) {
       throw new Error('AI_ROUTE_API environment variable is not set');
@@ -1207,7 +1227,7 @@ export const updateDeliveryCommentService = async (deliveryId, comments) => {
     
     const response = await apiClientRouteAPI.put(`/delivery_data/${deliveryId}/comments`, {
       comments
-    });
+    }, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {

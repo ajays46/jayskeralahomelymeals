@@ -335,7 +335,7 @@ const compressVideo = async (inputBuffer, originalName, originalMimetype, maxSiz
 };
 
 // Upload delivery photos/videos to external API
-export const uploadDeliveryPhotoService = async (files, addressId, session, date) => {
+export const uploadDeliveryPhotoService = async (files, addressId, session, date, companyId = null) => {
   try {
     if (!files || files.length === 0) {
       throw new Error('At least one image or video file is required');
@@ -485,12 +485,15 @@ export const uploadDeliveryPhotoService = async (files, addressId, session, date
     // Get authorization token from environment variable or use default
     const authToken = process.env.EXTERNAL_API_AUTH_TOKEN || 'mysecretkey123';
     
-    // Get FormData headers first, then add Authorization
+    // Get FormData headers first, then add Authorization and optional company_id
     const formDataHeaders = formData.getHeaders();
     const headers = {
       ...formDataHeaders,
       'Authorization': `Bearer ${authToken}`
     };
+    if (companyId) {
+      headers['X-Company-ID'] = companyId;
+    }
     
     const response = await fetch(externalApiUrl, {
       method: 'POST',
@@ -554,7 +557,7 @@ export const uploadDeliveryPhotoService = async (files, addressId, session, date
  * Same pattern as upload_delivery_pic: address_id, session, date, file(s), optional comments.
  * API: POST /api/route/upload-pre-delivery-photo
  */
-export const uploadPreDeliveryPhotoService = async (files, addressId, session, date, comments = '') => {
+export const uploadPreDeliveryPhotoService = async (files, addressId, session, date, comments = '', companyId = null) => {
   try {
     if (!files || files.length === 0) {
       throw new Error('At least one image or video file is required');
@@ -670,6 +673,9 @@ export const uploadPreDeliveryPhotoService = async (files, addressId, session, d
     const authToken = process.env.EXTERNAL_API_AUTH_TOKEN || 'mysecretkey123';
     const formDataHeaders = formData.getHeaders();
     const headers = { ...formDataHeaders, 'Authorization': `Bearer ${authToken}` };
+    if (companyId) {
+      headers['X-Company-ID'] = companyId;
+    }
 
     const response = await fetch(externalApiUrl, {
       method: 'POST',

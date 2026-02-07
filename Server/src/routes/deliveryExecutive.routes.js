@@ -1,5 +1,6 @@
 import express from 'express';
 import multer from 'multer';
+import { resolveCompanyId } from '../middleware/resolveCompanyId.js';
 import {
   createOrUpdateProfile,
   getProfile,
@@ -16,6 +17,9 @@ import {
 } from '../controllers/deliveryExecutive.controller.js';
 
 const router = express.Router();
+
+// Resolve company_id from X-Company-ID header, query, or body (for multi-tenant external AI APIs)
+router.use(resolveCompanyId);
 
 // Configure multer for memory storage (for delivery photo/video uploads)
 const upload = multer({

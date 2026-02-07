@@ -280,14 +280,14 @@ router.get('/delivery-executives',
 // Route planning proxy endpoint
 router.post('/proxy-route-planning',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     proxyRoutePlanning
 );
 
 // Executive count proxy endpoint
 router.post('/proxy-executive-count',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     proxyExecutiveCount
 );
 
@@ -301,21 +301,21 @@ router.post('/proxy-file-content',
 // Run script proxy endpoint for program execution
 router.post('/proxy-run-script',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     proxyRunScript
 );
 
 // Send routes proxy endpoint for WhatsApp messaging
 router.post('/proxy-send-routes',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     proxySendRoutes
 );
 
 // Session data proxy endpoint
 router.get('/proxy-session-data',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     proxySessionData
 );
 
@@ -329,21 +329,21 @@ router.get('/product-quantities-for-menus',
 // Active executives route
 router.get('/active-executives',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     getActiveExecutives
 );
 
 // Update executive status route
 router.post('/update-executive-status',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     updateExecutiveStatus
 );
 
 // Save all routes route
 router.post('/save-all-routes',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     saveAllRoutes
 );
 
@@ -356,13 +356,13 @@ router.get('/vehicles',
 
 router.post('/vehicles/assign',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     assignVehicleToExecutive
 );
 
 router.post('/vehicles/unassign',
     authenticateToken,
-    // checkRole('admin', 'delivery_manager'), // Temporarily disabled for testing
+    resolveAdminCompany,
     unassignVehicleFromExecutive
 );
 

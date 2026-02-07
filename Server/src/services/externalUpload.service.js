@@ -7,24 +7,20 @@ import FormData from 'form-data';
  * Features: External API integration, image processing, form data handling, error management
  */
 
-// Upload image to external API
-export const uploadImageToExternalAPI = async (file, userId, expectedAmount) => {
+// Upload image to external API (companyId for multi-tenant)
+export const uploadImageToExternalAPI = async (file, userId, expectedAmount, companyId = null) => {
   try {
-    
     const formData = new FormData();
     formData.append('image', file.buffer, {
       filename: file.originalname,
       contentType: file.mimetype
     });
-    
-    // Add expected amount to the form data
     formData.append('expected_amount', expectedAmount.toString());
-    
+    const headers = { 'Authorization': 'Bearer mysecretkey123' };
+    if (companyId) headers['X-Company-ID'] = companyId;
     const response = await fetch(`${process.env.AI_ROUTE_API}/api/upload-image`, {
       method: 'POST',
-      headers: {
-        'Authorization': 'Bearer mysecretkey123'
-      },
+      headers,
       body: formData
     });
     

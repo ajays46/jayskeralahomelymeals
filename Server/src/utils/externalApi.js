@@ -1,14 +1,13 @@
 // External API configuration
 const EXTERNAL_API_BASE_URL = process.env.AI_ROUTE_API_SECOND;
 /**
- * Call external API to save address
+ * Call external API to save address (companyId for multi-tenant)
  * @param {Object} addressData - The address data to send
+ * @param {string|null} companyId - Optional company ID for multi-tenant
  * @returns {Promise<Object>} - Response from external API
  */
-export const saveAddressToExternalApi = async (addressData) => {
+export const saveAddressToExternalApi = async (addressData, companyId = null) => {
     try {
-        // Clean up the data - convert empty strings to null for optional fields
-        // and map field names to match external API expectations
         const cleanedData = {
             id: addressData.id,
             user_id: addressData.userId,
@@ -19,14 +18,12 @@ export const saveAddressToExternalApi = async (addressData) => {
             geo_location: addressData.geoLocation || null,
             google_maps_url: addressData.googleMapsUrl || null,
             address_type: addressData.addressType
-            // Note: createdAt and updatedAt are ignored by external API
         };
-        
+        const headers = { 'Content-Type': 'application/json' };
+        if (companyId) headers['X-Company-ID'] = companyId;
         const response = await fetch(`${EXTERNAL_API_BASE_URL}/save-address`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify(cleanedData)
         });
         

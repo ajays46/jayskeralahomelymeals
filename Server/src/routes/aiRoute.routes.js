@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
+import { resolveCompanyId } from '../middleware/resolveCompanyId.js';
 import {
   checkApiHealth,
   getAvailableDates,
@@ -40,6 +41,8 @@ const router = express.Router();
 
 // All routes require authentication
 router.use(authenticateToken);
+// Resolve company_id from X-Company-ID header, query, body, or user's companyId (for multi-tenant AI APIs)
+router.use(resolveCompanyId);
 
 // Health check
 router.get('/health', checkApiHealth);

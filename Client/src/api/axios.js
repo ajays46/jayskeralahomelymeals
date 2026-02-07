@@ -18,10 +18,23 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   config => {
     const store = useAuthStore.getState();
-    const accessToken = store.accessToken; // Adjust this based on your store structure
+    const accessToken = store.accessToken;
 
     if (accessToken) {
       config.headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    
+    // Add X-Company-ID only for AI and delivery-executive APIs (Node proxies to AI_ROUTE_*).
+    // Do NOT send for /api/admin/delivery-executives (admin list) — only for ai-routes and delivery-executives (exec API).
+    // Paths may be relative to baseURL (e.g. /delivery-executives/routes, /delivery-executives/:id/location) so match by segment.
+    const url = config.url || '';
+    const isAiApi = url.includes('ai-routes');
+    const isDeliveryExecutiveApi = url.includes('delivery-executives') && !url.includes('/api/admin');
+    if (isAiApi || isDeliveryExecutiveApi) {
+      const companyId = store.user?.companyId || localStorage.getItem('company_id');
+      if (companyId) {
+        config.headers['X-Company-ID'] = companyId;
+      }
     }
     
     // Add API Key if available (for AI Route Optimization API)

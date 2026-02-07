@@ -32,6 +32,10 @@ export const useLogin = () => {
         setActiveRole(primaryRole);
         setUser(data.data);
         setIsAuthenticated(true);
+        // Store company_id for multi-tenant API (X-Company-ID header)
+        if (data.data?.companyId) {
+          localStorage.setItem('company_id', data.data.companyId);
+        }
         
         // Small delay to ensure AuthSlider closes first
         setTimeout(() => {
@@ -72,10 +76,12 @@ export const useLogout = () => {
       return response.data;
     },
     onSuccess: () => {
+      localStorage.removeItem('company_id');
       logout();
       navigate(basePath);
     },
     onError: (error) => {
+      localStorage.removeItem('company_id');
       logout();
       navigate(basePath);
     }

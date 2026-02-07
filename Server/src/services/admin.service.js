@@ -1793,7 +1793,7 @@ export const getVehiclesService = async (filters = {}) => {
 };
 
 // Assign vehicle to executive
-export const assignVehicleToExecutiveService = async (vehicleIdOrNumber, userId) => {
+export const assignVehicleToExecutiveService = async (vehicleIdOrNumber, userId, companyId = null) => {
   try {
     // Get the vehicle to get its registration number
     // vehicleIdOrNumber can be either vehicle ID (UUID) or vehicle registration number (string)
@@ -1841,13 +1841,15 @@ export const assignVehicleToExecutiveService = async (vehicleIdOrNumber, userId)
     //   // Continue - vehicle assignment still succeeds
     // }
     
-    // Update external API (primary operation)
+    // Update external API (primary operation) - include company_id for multi-tenant
+    const assignHeaders = {
+      'Authorization': 'Bearer mysecretkey123',
+      'Content-Type': 'application/json'
+    };
+    if (companyId) assignHeaders['X-Company-ID'] = companyId;
     const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
       method: 'POST',
-      headers: {
-        'Authorization': 'Bearer mysecretkey123',
-        'Content-Type': 'application/json'
-      },
+      headers: assignHeaders,
       body: JSON.stringify({
         user_id: userId,
         vehicle_registration_number: vehicleNumber
@@ -1895,7 +1897,7 @@ export const assignVehicleToExecutiveService = async (vehicleIdOrNumber, userId)
 };
 
 // Unassign vehicle from executive
-export const unassignVehicleFromExecutiveService = async (vehicleIdOrNumber, userId) => {
+export const unassignVehicleFromExecutiveService = async (vehicleIdOrNumber, userId, companyId = null) => {
   try {
     // Get user_id from parameter (required for unassignment)
     const executiveUserId = userId;
@@ -1935,14 +1937,15 @@ export const unassignVehicleFromExecutiveService = async (vehicleIdOrNumber, use
     //   }
     // }
     
-    // Update external API (primary operation)
-    // For unassignment, set vehicle_registration_number to null or empty string
+    // Update external API (primary operation) - include company_id for multi-tenant
+    const unassignHeaders = {
+      'Authorization': 'Bearer mysecretkey123',
+      'Content-Type': 'application/json'
+    };
+    if (companyId) unassignHeaders['X-Company-ID'] = companyId;
     const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
       method: 'POST',
-      headers: {
-        'Authorization': 'Bearer mysecretkey123',
-        'Content-Type': 'application/json'
-      },
+      headers: unassignHeaders,
       body: JSON.stringify({
         user_id: executiveUserId,
         vehicle_registration_number: null // Set to null for unassignment

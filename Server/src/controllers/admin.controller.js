@@ -1221,13 +1221,15 @@ export const proxyRoutePlanning = async (req, res, next) => {
     try {
 
         
-        // Call the external route planning API
+        // Call the external route planning API (include company_id for multi-tenant)
+        const triggerHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) triggerHeaders['X-Company-ID'] = req.adminCompanyId;
         const response = await fetch(`${process.env.AI_ROUTE_API}/trigger`, {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer mysecretkey123',
-                'Content-Type': 'application/json'
-            },
+            headers: triggerHeaders,
             body: JSON.stringify({
                 timestamp: new Date().toISOString(),
                 source: req.body.source || 'delivery-manager-dashboard',
@@ -1281,13 +1283,15 @@ export const proxyExecutiveCount = async (req, res, next) => {
             });
         }
         
-        // Send executive count to EC2 instance (one-way POST, no response needed)
+        // Send executive count to EC2 instance (include company_id for multi-tenant)
+        const ecHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) ecHeaders['X-Company-ID'] = req.adminCompanyId;
         await fetch(`${process.env.AI_ROUTE_API}/executive-count`, {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer mysecretkey123',
-                'Content-Type': 'application/json'
-            },
+            headers: ecHeaders,
             body: JSON.stringify({
                 executiveCount: executiveCount,
                 timestamp: timestamp || new Date().toISOString(),
@@ -1323,18 +1327,18 @@ export const proxyExecutiveCount = async (req, res, next) => {
     }
 };
 
-// Poll for results from external API
-const pollForResults = async (requestId, maxAttempts = 30, intervalMs = 2000) => {
-    
+// Poll for results from external API (companyId for multi-tenant)
+const pollForResults = async (requestId, maxAttempts = 30, intervalMs = 2000, companyId = null) => {
+    const statusHeaders = {
+        'Authorization': 'Bearer mysecretkey123',
+        'Content-Type': 'application/json'
+    };
+    if (companyId) statusHeaders['X-Company-ID'] = companyId;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            
             const statusResponse = await fetch(`${process.env.AI_ROUTE_API}/status/${requestId}`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer mysecretkey123',
-                    'Content-Type': 'application/json'
-                }
+                headers: statusHeaders
             });
             
             if (!statusResponse.ok) {
@@ -1411,13 +1415,15 @@ export const proxyRunScript = async (req, res, next) => {
         };
         
         
-        // Call the external run-script API
+        // Call the external run-script API (include company_id for multi-tenant)
+        const runScriptHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) runScriptHeaders['X-Company-ID'] = req.adminCompanyId;
         const response = await fetch(`${process.env.AI_ROUTE_API}/run-script`, {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer mysecretkey123',
-                'Content-Type': 'application/json'
-            },
+            headers: runScriptHeaders,
             body: JSON.stringify(requestBody)
         });
         
@@ -1429,9 +1435,8 @@ export const proxyRunScript = async (req, res, next) => {
         
         // Check if the program is running in background and needs polling
         if (data.status === 'processing' && data.requestId) {
-            
-            // Start polling for results
-            const finalResult = await pollForResults(data.requestId);
+            // Start polling for results (pass company_id for multi-tenant)
+            const finalResult = await pollForResults(data.requestId, 30, 2000, req.adminCompanyId);
             
             res.status(200).json({
                 success: true,
@@ -1486,13 +1491,15 @@ export const proxySendRoutes = async (req, res, next) => {
             });
         }
         
-        // Call the external send_routes API
+        // Call the external send_routes API (include company_id for multi-tenant)
+        const sendReportsHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) sendReportsHeaders['X-Company-ID'] = req.adminCompanyId;
         const response = await fetch(`${process.env.AI_ROUTE_API}/send-reports`, {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer mysecretkey123',
-                'Content-Type': 'application/json'
-            },
+            headers: sendReportsHeaders,
             body: JSON.stringify({
                 executiveCount: executiveCount,
                 timestamp: timestamp || new Date().toISOString(),
@@ -1590,13 +1597,15 @@ export const proxyFileContent = async (req, res, next) => {
 
 export const proxySessionData = async (req, res, next) => {
     try {
-        // Call the external delivery_data API with specific parameters
+        // Call the external delivery_data API (include company_id for multi-tenant)
+        const sessionHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) sessionHeaders['X-Company-ID'] = req.adminCompanyId;
         const response = await fetch(`${process.env.AI_ROUTE_API}/delivery_data`, {
             method: 'GET',
-            headers: {
-                'Authorization': 'Bearer mysecretkey123',
-                'Content-Type': 'application/json'
-            }
+            headers: sessionHeaders
         });
         
         if (!response.ok) {
@@ -1945,11 +1954,11 @@ export const removeUserRoles = async (req, res, next) => {
 // Fetch active executives from external API
 export const getActiveExecutives = async (req, res, next) => {
     try {
+        const execHeaders = { 'Authorization': 'Bearer mysecretkey123' };
+        if (req.adminCompanyId) execHeaders['X-Company-ID'] = req.adminCompanyId;
         const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
             method: 'GET',
-            headers: {
-                'Authorization': 'Bearer mysecretkey123'
-            }
+            headers: execHeaders
         });
         
         if (!response.ok) {
@@ -2038,12 +2047,14 @@ export const updateExecutiveStatus = async (req, res, next) => {
                 action: 'bulk_status_update'
             };
             
+            const updateExecHeaders = {
+                'Authorization': 'Bearer mysecretkey123',
+                'Content-Type': 'application/json'
+            };
+            if (req.adminCompanyId) updateExecHeaders['X-Company-ID'] = req.adminCompanyId;
             const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer mysecretkey123',
-                    'Content-Type': 'application/json'
-                },
+                headers: updateExecHeaders,
                 body: JSON.stringify(requestBody)
             });
 
@@ -2083,14 +2094,16 @@ export const updateExecutiveStatus = async (req, res, next) => {
             const results = [];
             const errors = [];
             
+            const fallbackHeaders = {
+                'Authorization': 'Bearer mysecretkey123',
+                'Content-Type': 'application/json'
+            };
+            if (req.adminCompanyId) fallbackHeaders['X-Company-ID'] = req.adminCompanyId;
             for (const update of updates) {
                 try {
                     const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
                         method: 'POST',
-                        headers: {
-                            'Authorization': 'Bearer mysecretkey123',
-                            'Content-Type': 'application/json'
-                        },
+                        headers: fallbackHeaders,
                         body: JSON.stringify({
                             user_id: update.user_id,
                             date: update.date,
@@ -2164,13 +2177,15 @@ export const saveAllRoutes = async (req, res, next) => {
             });
         }
 
-        // Call external API to save routes
+        // Call external API to save routes (include company_id for multi-tenant)
+        const saveRoutesHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) saveRoutesHeaders['X-Company-ID'] = req.adminCompanyId;
         const response = await fetch(`${process.env.AI_ROUTE_API}/save-all-routes`, {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer mysecretkey123',
-                'Content-Type': 'application/json'
-            },
+            headers: saveRoutesHeaders,
             body: JSON.stringify({
                 requestId: requestId
             })
@@ -2239,7 +2254,7 @@ export const assignVehicleToExecutive = async (req, res, next) => {
             });
         }
         
-        const result = await assignVehicleToExecutiveService(vehicleId, userId);
+        const result = await assignVehicleToExecutiveService(vehicleId, userId, req.adminCompanyId);
         
         res.status(200).json({
             success: result.success,
@@ -2271,7 +2286,7 @@ export const unassignVehicleFromExecutive = async (req, res, next) => {
             });
         }
         
-        const result = await unassignVehicleFromExecutiveService(vehicleId, userId);
+        const result = await unassignVehicleFromExecutiveService(vehicleId, userId, req.adminCompanyId);
         
         res.status(200).json({
             success: result.success,

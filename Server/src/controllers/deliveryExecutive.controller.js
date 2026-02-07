@@ -305,15 +305,18 @@ export const getRoutes = async (req, res) => {
       });
     }
 
-    // Make request to external API
+    // Make request to external API (include company_id for multi-tenant)
     const externalApiUrl = `${process.env.AI_ROUTE_API}/get-routes/${phoneNumber}`;
-    
+    const headers = {
+      'Authorization': 'Bearer mysecretkey123',
+      'Content-Type': 'application/json'
+    };
+    if (req.companyId) {
+      headers['X-Company-ID'] = req.companyId;
+    }
     const response = await fetch(externalApiUrl, {
       method: 'GET',
-      headers: {
-        'Authorization': 'Bearer mysecretkey123',
-        'Content-Type': 'application/json'
-      }
+      headers
     });
 
     const data = await response.json();
@@ -384,15 +387,18 @@ export const getRoutesByDriverId = async (req, res) => {
       });
     }
 
-    // Make request to external API
+    // Make request to external API (include company_id for multi-tenant)
     const externalApiUrl = `${process.env.AI_ROUTE_API_THIRD}/api/executive/routes?driver_id=${driver_id}`;
-    
+    const headers = {
+      'Authorization': 'Bearer mysecretkey123',
+      'Content-Type': 'application/json'
+    };
+    if (req.companyId) {
+      headers['X-Company-ID'] = req.companyId;
+    }
     const response = await fetch(externalApiUrl, {
       method: 'GET',
-      headers: {
-        'Authorization': 'Bearer mysecretkey123',
-        'Content-Type': 'application/json'
-      }
+      headers
     });
 
     // Check if response is JSON before parsing
@@ -627,7 +633,7 @@ export const uploadDeliveryPhoto = async (req, res) => {
       });
     }
 
-    const result = await uploadDeliveryPhotoService(files, address_id, session, date);
+    const result = await uploadDeliveryPhotoService(files, address_id, session, date, req.companyId);
 
     logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery photos/videos uploaded successfully to external API', {
       address_id: address_id,
@@ -689,7 +695,7 @@ export const uploadPreDeliveryPhoto = async (req, res) => {
       });
     }
 
-    const result = await uploadPreDeliveryPhotoService(files, address_id, session, date, comments || '');
+    const result = await uploadPreDeliveryPhotoService(files, address_id, session, date, comments || '', req.companyId);
 
     logInfo(LOG_CATEGORIES.SYSTEM, 'Pre-delivery photos/videos uploaded successfully to external API', {
       address_id: address_id,
