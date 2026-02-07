@@ -2,15 +2,17 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
 import { Link } from 'react-router-dom';
-// import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
 import { useLogin } from '../hooks/userHooks/useLogin';
 
 /**
  * Login - Authentication form component with validation and error handling
  * Handles user login with email/phone, password validation, and form state management
  * Features: Form validation, password visibility toggle, error handling, loading states
+ * Sends companyPath for phone login so same phone can be used in multiple companies.
  */
 const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
+  const tenant = useTenant();
   const { mutate: loginMutation, isPending } = useLogin();
   const accent = accentProp || '#FE8C00';
   const [formData, setFormData] = useState({
@@ -45,8 +47,8 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
       // Validate all fields
       loginSchema.parse(formData);
 
-      // If validation passes, proceed with login
-      await loginMutation(formData, {
+      // If validation passes, proceed with login (include companyPath for phone login per company)
+      await loginMutation({ ...formData, companyPath: tenant?.companyPath }, {
         onSuccess: () => {
           // Close the auth slider on successful login
           onClose();

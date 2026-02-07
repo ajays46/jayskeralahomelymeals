@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
 import nodemailer from 'nodemailer';
+import { getCompanyByPath } from './tenant.service.js';
 dotenv.config();
 
 /**
@@ -14,23 +15,42 @@ dotenv.config();
  * Features: User registration, login validation, password management, role assignment, JWT token generation
  */
 
-export const registerUser = async ({ email, password, phone }) => {
+export const registerUser = async ({ email, password, phone, companyPath }) => {
     if (!email || !password) {
         throw new AppError('Email and password are required', 400);
     }
 
-    const existingAuth = await prisma.auth.findUnique({ 
-        where: { email } 
+    const existingAuth = await prisma.auth.findUnique({
+        where: { email }
     });
     if (existingAuth) {
         throw new AppError('Email already registered', 409);
     }
 
-    const existingPhone = await prisma.auth.findFirst({ 
-        where: { phoneNumber: phone } 
-    });
-    if (existingPhone) {
-        throw new AppError('This phone number is already registered. Please login instead.', 400);
+    // Phone unique per company: when companyPath provided, check only within that company
+    let companyId = null;
+    if (companyPath && String(companyPath).trim()) {
+        const company = await getCompanyByPath(String(companyPath).trim());
+        if (company) companyId = company.id;
+    }
+    if (companyId && phone) {
+        const existingPhoneInCompany = await prisma.auth.findFirst({
+            where: {
+                phoneNumber: phone,
+                user: { companyId }
+            }
+        });
+        if (existingPhoneInCompany) {
+            throw new AppError('This phone number is already registered in this company. Please login instead.', 400);
+        }
+    } else if (phone) {
+        // No company context: global phone check (backward compat for users without company)
+        const existingPhone = await prisma.auth.findFirst({
+            where: { phoneNumber: phone }
+        });
+        if (existingPhone) {
+            throw new AppError('This phone number is already registered. Please login instead.', 400);
+        }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -50,7 +70,8 @@ export const registerUser = async ({ email, password, phone }) => {
         const user = await prisma.user.create({
             data: {
                 authId: auth.id,
-                status: 'ACTIVE'
+                status: 'ACTIVE',
+                ...(companyId && { companyId })
             }
         });
 
@@ -85,16 +106,30 @@ export const registerUser = async ({ email, password, phone }) => {
     }
 };
 
-export const loginUser = async ({ identifier, password }) => {
+export const loginUser = async ({ identifier, password, companyPath }) => {
     try {
-        let where = {};
+        let auth = null;
         if (validator.isEmail(identifier)) {
-            where.email = identifier;
+            auth = await prisma.auth.findUnique({ where: { email: identifier } });
         } else {
-            where.phoneNumber = identifier;
+            // Phone login: scope by company when companyPath provided (same phone can exist in multiple companies)
+            if (companyPath && String(companyPath).trim()) {
+                const company = await getCompanyByPath(String(companyPath).trim());
+                if (company) {
+                    auth = await prisma.auth.findFirst({
+                        where: {
+                            phoneNumber: identifier,
+                            user: { companyId: company.id }
+                        }
+                    });
+                }
+                if (!auth) {
+                    auth = await prisma.auth.findFirst({ where: { phoneNumber: identifier } });
+                }
+            } else {
+                auth = await prisma.auth.findFirst({ where: { phoneNumber: identifier } });
+            }
         }
-
-        const auth = await prisma.auth.findFirst({ where });
 
         if (!auth) {
             throw new AppError('Invalid credentials Please try again', 401);
@@ -358,25 +393,37 @@ export const hasRole = async (userId, roleName) => {
     }
 };
 
-export const createUserWithContact = async ({ firstName, lastName, phoneNumber, email, password }) => {
+export const createUserWithContact = async ({ firstName, lastName, phoneNumber, email, password, companyId: companyIdParam }) => {
     if (!firstName || !lastName || !phoneNumber || !email || !password) {
         throw new AppError('All fields are required: firstName, lastName, phoneNumber, email, password', 400);
     }
 
     // Check if email already exists
-    const existingAuth = await prisma.auth.findUnique({ 
-        where: { email } 
+    const existingAuth = await prisma.auth.findUnique({
+        where: { email }
     });
     if (existingAuth) {
         throw new AppError('Email already registered', 409);
     }
 
-    // Check if phone number already exists
-    const existingPhone = await prisma.auth.findFirst({ 
-        where: { phoneNumber } 
-    });
-    if (existingPhone) {
-        throw new AppError('This phone number is already registered', 400);
+    // Phone unique per company: when companyId provided, check only within that company
+    if (companyIdParam && phoneNumber) {
+        const existingPhoneInCompany = await prisma.auth.findFirst({
+            where: {
+                phoneNumber,
+                user: { companyId: companyIdParam }
+            }
+        });
+        if (existingPhoneInCompany) {
+            throw new AppError('This phone number is already registered in this company', 400);
+        }
+    } else if (phoneNumber) {
+        const existingPhone = await prisma.auth.findFirst({
+            where: { phoneNumber }
+        });
+        if (existingPhone) {
+            throw new AppError('This phone number is already registered', 400);
+        }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -396,11 +443,12 @@ export const createUserWithContact = async ({ firstName, lastName, phoneNumber, 
                 }
             });
 
-            // 2. Create User record
+            // 2. Create User record (with company when provided)
             const user = await tx.user.create({
                 data: {
                     authId: auth.id,
-                    status: 'ACTIVE'
+                    status: 'ACTIVE',
+                    ...(companyIdParam && { companyId: companyIdParam })
                 }
             });
 

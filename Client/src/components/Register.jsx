@@ -2,14 +2,16 @@ import { useState } from 'react';
 import Terms from './Terms';
 import { z } from 'zod';
 import { registerSchema, validateField } from '../validations/registerValidation';
+import { useTenant } from '../context/TenantContext';
 import { useRegister } from '../hooks/userHooks/useRegister';
 
 /**
  * Register - User registration form component with validation
  * Handles new user registration with email, phone, and password validation
- * Features: Form validation, terms agreement, password visibility toggle, error handling
+ * Sends companyPath so phone is unique per company (same phone allowed in different companies).
  */
 const Register = ({ accent: accentProp }) => {
+  const tenant = useTenant();
   const accent = accentProp || '#FE8C00';
   const [formData, setFormData] = useState({
     email: '',
@@ -50,10 +52,11 @@ const Register = ({ accent: accentProp }) => {
       // Validate all fields
       registerSchema.parse(formData);
 
-      // Add default name based on email
+      // Add default name and companyPath for per-company phone uniqueness
       const registrationData = {
         ...formData,
-        name: formData.email.split('@')[0] // Use part of email as default name
+        name: formData.email.split('@')[0], // Use part of email as default name
+        companyPath: tenant?.companyPath
       };
 
       // If validation passes, proceed with registration

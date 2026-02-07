@@ -14,12 +14,12 @@ dotenv.config();
  * Features: User registration, login, password reset, role management, JWT token handling
  */
 
-// Register new user
+// Register new user (companyPath from frontend for per-company phone uniqueness)
 export const register = async (req, res, next) => {
   try {
-    const { email, password, phone } = req.body;
+    const { email, password, phone, companyPath } = req.body;
 
-    const user = await registerUser({ email, password, phone });
+    const user = await registerUser({ email, password, phone, companyPath });
     res.status(201).json({
       status: 'success',
       data: user
@@ -29,11 +29,11 @@ export const register = async (req, res, next) => {
   }
 };
 
-// Login user
+// Login user (companyPath from frontend for phone login when same phone in multiple companies)
 export const login = async (req, res, next) => {
   try {
-    const { identifier, password } = req.body;
-    const userData = await loginUser({ identifier, password });
+    const { identifier, password, companyPath } = req.body;
+    const userData = await loginUser({ identifier, password, companyPath });
 
     const { accessToken, refreshToken } = userData.token;
 

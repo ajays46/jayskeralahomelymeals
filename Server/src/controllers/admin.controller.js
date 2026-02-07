@@ -776,12 +776,15 @@ export const createAdminUser = async (req, res, next) => {
             throw new AppError('Email already registered', 409);
         }
 
-        // Check if phone number already exists
-        const existingPhone = await prisma.auth.findFirst({ 
-            where: { phoneNumber: phone } 
+        // Phone unique per company: check only within this company
+        const existingPhoneInCompany = await prisma.auth.findFirst({
+            where: {
+                phoneNumber: phone,
+                user: { companyId }
+            }
         });
-        if (existingPhone) {
-            throw new AppError('This phone number is already registered', 400);
+        if (existingPhoneInCompany) {
+            throw new AppError('This phone number is already registered in this company', 400);
         }
 
         // Hash password and generate API key

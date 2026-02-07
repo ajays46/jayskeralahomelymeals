@@ -30,27 +30,8 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
 
   try {
     logInfo(LOG_CATEGORIES.SYSTEM, 'Creating contact for seller', logContext);
-    
-    // Check if phone number already exists in contacts
-    const existingContact = await prisma.contact.findFirst({
-      where: {
-        phoneNumbers: {
-          some: {
-            number: phoneNumber
-          }
-        }
-      }
-    });
 
-    if (existingContact) {
-      logError(LOG_CATEGORIES.SYSTEM, 'Phone number already registered', {
-        ...logContext,
-        existingContactId: existingContact.id
-      });
-      throw new AppError('This phone number is already registered', 400);
-    }
-
-    // First, get the seller's company ID
+    // First, get the seller's company ID (needed for per-company phone check)
     const seller = await prisma.user.findUnique({
       where: { id: sellerId },
       select: { companyId: true }
@@ -68,6 +49,24 @@ export const createContactOnly = async ({ firstName, lastName, phoneNumber, addr
       ...logContext,
       companyId: seller.companyId
     });
+
+    // Phone unique per company: check only within seller's company
+    const existingContactInCompany = await prisma.contact.findFirst({
+      where: {
+        user: { companyId: seller.companyId },
+        phoneNumbers: {
+          some: { number: phoneNumber }
+        }
+      }
+    });
+
+    if (existingContactInCompany) {
+      logError(LOG_CATEGORIES.SYSTEM, 'Phone number already registered in this company', {
+        ...logContext,
+        existingContactId: existingContactInCompany.id
+      });
+      throw new AppError('This phone number is already registered in this company', 400);
+    }
 
     // Use a transaction to ensure all records are created together
     const result = await prisma.$transaction(async (tx) => {
