@@ -298,24 +298,22 @@ export const predictStartTimeService = async (predictionData, companyId = null) 
 
 /**
  * Start Journey (NEW API: /api/journey/start)
- * Executive starts journey with route_id and driver_id
+ * Sends: POST /api/journey/start with body { route_id, driver_id } and headers Authorization, X-Company-ID, Content-Type
  */
-export const startJourneyService = async (journeyData) => {
+export const startJourneyService = async (journeyData, companyId = null) => {
   try {
     const { driver_id, route_id } = journeyData;
     
-    // Build request body - include route_id if provided
+    // Request body format expected by external API: { route_id, driver_id }
     const requestBody = {
+      route_id: route_id || null,
       driver_id
     };
     
-    // Include route_id if provided (required for session-specific routes)
-    if (route_id) {
-      requestBody.route_id = route_id;
-    }
-    
-    // Send driver_id and route_id to the external API
-    const response = await apiClient.post('/api/journey/start', requestBody, withCompanyId(companyId));
+    const config = withCompanyId(companyId);
+    config.headers = config.headers || {};
+    config.headers['Authorization'] = 'Bearer mysecretkey123';
+    const response = await apiClient.post('/api/journey/start', requestBody, config);
     const data = response.data;
     
     if (!data.success) {
@@ -1328,22 +1326,33 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
     `;
     
     const allStops = await allStopsQuery;
-    
-    // Group by session and check completion
+
+    // Normalize session key: empty string, null, or 'ANY' -> 'ANY' (flexible delivery)
+    const normalizeSession = (s) => {
+      const v = (s && String(s).trim()) || '';
+      return v.toUpperCase() === 'ANY' || v === '' ? 'ANY' : v.toUpperCase();
+    };
+
+    // Group by session and check completion (include ANY for flexible delivery)
     const sessionStats = {};
     allStops.forEach(stop => {
-      const session = stop.session;
+      const session = normalizeSession(stop.session);
       if (!sessionStats[session]) {
         sessionStats[session] = { total: 0, completed: 0 };
       }
       sessionStats[session].total++;
     });
-    
+
     markedStops.forEach(stop => {
-      if (stop.session && sessionStats[stop.session]) {
-        sessionStats[stop.session].completed++;
+      const session = normalizeSession(stop.session);
+      if (sessionStats[session]) {
+        sessionStats[session].completed++;
       }
     });
+    // For 'ANY' (flexible delivery): planned stops with session ''/ANY are completed by any marked stop
+    if (sessionStats['ANY'] && sessionStats['ANY'].total > 0 && markedStops.length > 0) {
+      sessionStats['ANY'].completed = Math.min(sessionStats['ANY'].total, markedStops.length);
+    }
     
     // Determine completed sessions (all stops for that session are completed)
     const completedSessions = Object.keys(sessionStats).filter(
@@ -1374,12 +1383,11 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
 
     // Add sessions from route_journey_summary (actual_end_time = driver clicked "End Session")
     journeySummaries.forEach(summary => {
-      if (summary.session) {
-        const normalizedSession = summary.session.toLowerCase();
-        if (!normalizedCompletedSessions.includes(normalizedSession)) {
-          completedSessions.push(normalizedSession);
-          normalizedCompletedSessions.push(normalizedSession);
-        }
+      const raw = summary.session != null ? String(summary.session).trim() : '';
+      const normalizedSession = (raw.toUpperCase() === 'ANY' || raw === '') ? 'any' : raw.toLowerCase();
+      if (normalizedSession && !normalizedCompletedSessions.includes(normalizedSession)) {
+        completedSessions.push(normalizedSession);
+        normalizedCompletedSessions.push(normalizedSession);
       }
     });
 

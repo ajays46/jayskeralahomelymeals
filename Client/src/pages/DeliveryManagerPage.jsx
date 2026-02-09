@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useCompanyBasePath } from '../context/TenantContext';
+import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin, FiTrendingDown, FiClock, FiCheckCircle, FiBarChart2, FiActivity, FiPieChart, FiTarget, FiShield, FiPackage, FiX, FiDownload, FiEye, FiEyeOff, FiMessageCircle, FiMaximize2, FiMinimize2, FiEdit2, FiSave } from 'react-icons/fi';
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney } from 'react-icons/md';
 import { Modal, message } from 'antd';
@@ -22,6 +22,8 @@ import ExecutivesAndRoutes from '../components/deliveryManager/ExecutivesAndRout
 const DeliveryManagerPage = () => {
   const navigate = useNavigate();
   const basePath = useCompanyBasePath();
+  const tenant = useTenant();
+  const companyId = tenant?.companyId ?? null;
   const { user, roles } = useAuthStore();
   const location = useLocation();
   const [sellers, setSellers] = useState([]);
@@ -1456,7 +1458,8 @@ const DeliveryManagerPage = () => {
         try {
           await unassignVehicleMutation.mutateAsync({ 
             vehicleId: currentVehicle.id,
-            userId: executiveId 
+            userId: executiveId,
+            ...(companyId && { companyId })
           });
           setExecutiveVehicles(prev => {
             const newState = { ...prev };
@@ -1471,7 +1474,7 @@ const DeliveryManagerPage = () => {
     }
     
     try {
-      await assignVehicleMutation.mutateAsync({ vehicleId, userId: executiveId });
+      await assignVehicleMutation.mutateAsync({ vehicleId, userId: executiveId, ...(companyId && { companyId }) });
       setExecutiveVehicles(prev => ({
         ...prev,
         [executiveId]: vehicleId
@@ -4344,14 +4347,16 @@ const DeliveryManagerPage = () => {
                                                 if (!newVehicleNumber) {
                                                   // Unassign vehicle
                                                   await unassignVehicleMutation.mutateAsync({ 
-                                                    vehicleId: null, // Not needed for unassignment, but required by API
-                                                    userId: executive.user_id 
+                                                    vehicleId: executive.vehicle_registration_number || null,
+                                                    userId: executive.user_id,
+                                                    ...(companyId && { companyId })
                                                   });
                                                 } else {
                                                   // Assign vehicle - pass vehicle number directly (service accepts it)
                                                   await assignVehicleMutation.mutateAsync({ 
-                                                    vehicleId: newVehicleNumber, // Service accepts vehicle number
-                                                    userId: executive.user_id 
+                                                    vehicleId: newVehicleNumber,
+                                                    userId: executive.user_id,
+                                                    ...(companyId && { companyId })
                                                   });
                                                 }
                                                 // Refetch active executives to update the display with latest data

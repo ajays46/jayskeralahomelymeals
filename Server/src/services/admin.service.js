@@ -1841,19 +1841,24 @@ export const assignVehicleToExecutiveService = async (vehicleIdOrNumber, userId,
     //   // Continue - vehicle assignment still succeeds
     // }
     
-    // Update external API (primary operation) - include company_id for multi-tenant
+    // External API format: POST /api/executives/{user_id}/vehicle with body {"registration_number": "..."}
+    const assignPayload = { registration_number: vehicleNumber };
     const assignHeaders = {
       'Authorization': 'Bearer mysecretkey123',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-Company-ID': companyId || ''
     };
-    if (companyId) assignHeaders['X-Company-ID'] = companyId;
-    const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+    const assignUrl = `${process.env.AI_ROUTE_API}/api/executives/${userId}/vehicle`;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Vehicle assign: outgoing request to external API', {
+      url: assignUrl,
+      method: 'POST',
+      headers: { 'Content-Type': assignHeaders['Content-Type'], 'X-Company-ID': assignHeaders['X-Company-ID'] || '(empty)' },
+      body: assignPayload
+    });
+    const response = await fetch(assignUrl, {
       method: 'POST',
       headers: assignHeaders,
-      body: JSON.stringify({
-        user_id: userId,
-        vehicle_registration_number: vehicleNumber
-      })
+      body: JSON.stringify(assignPayload)
     });
 
     if (!response.ok) {
@@ -1937,19 +1942,24 @@ export const unassignVehicleFromExecutiveService = async (vehicleIdOrNumber, use
     //   }
     // }
     
-    // Update external API (primary operation) - include company_id for multi-tenant
+    // External API format: POST /api/executives/{user_id}/vehicle with body {"registration_number": null} for unassign
+    const unassignPayload = { registration_number: null };
     const unassignHeaders = {
       'Authorization': 'Bearer mysecretkey123',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-Company-ID': companyId || ''
     };
-    if (companyId) unassignHeaders['X-Company-ID'] = companyId;
-    const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+    const unassignUrl = `${process.env.AI_ROUTE_API}/api/executives/${executiveUserId}/vehicle`;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Vehicle unassign: outgoing request to external API', {
+      url: unassignUrl,
+      method: 'POST',
+      headers: { 'Content-Type': unassignHeaders['Content-Type'], 'X-Company-ID': unassignHeaders['X-Company-ID'] || '(empty)' },
+      body: unassignPayload
+    });
+    const response = await fetch(unassignUrl, {
       method: 'POST',
       headers: unassignHeaders,
-      body: JSON.stringify({
-        user_id: executiveUserId,
-        vehicle_registration_number: null // Set to null for unassignment
-      })
+      body: JSON.stringify(unassignPayload)
     });
 
     if (!response.ok) {
