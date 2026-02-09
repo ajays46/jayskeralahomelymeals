@@ -1956,6 +1956,11 @@ export const getActiveExecutives = async (req, res, next) => {
     try {
         const execHeaders = { 'Authorization': 'Bearer mysecretkey123' };
         if (req.adminCompanyId) execHeaders['X-Company-ID'] = req.adminCompanyId;
+        logInfo(LOG_CATEGORIES.SYSTEM, 'getActiveExecutives: request to external API', {
+            hasCompanyId: !!req.adminCompanyId,
+            xCompanyId: req.adminCompanyId || '(not set)',
+            url: `${process.env.AI_ROUTE_API}/api/executives`
+        });
         const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
             method: 'GET',
             headers: execHeaders
@@ -2245,7 +2250,8 @@ export const getVehicles = async (req, res, next) => {
 // Assign vehicle to executive
 export const assignVehicleToExecutive = async (req, res, next) => {
     try {
-        const { vehicleId, userId } = req.body;
+        const { vehicleId, userId, company_id: bodyCompanyId } = req.body;
+        const companyId = bodyCompanyId ?? req.adminCompanyId;
         
         if (!vehicleId || !userId) {
             return res.status(400).json({
@@ -2254,7 +2260,7 @@ export const assignVehicleToExecutive = async (req, res, next) => {
             });
         }
         
-        const result = await assignVehicleToExecutiveService(vehicleId, userId, req.adminCompanyId);
+        const result = await assignVehicleToExecutiveService(vehicleId, userId, companyId);
         
         res.status(200).json({
             success: result.success,
@@ -2277,7 +2283,8 @@ export const assignVehicleToExecutive = async (req, res, next) => {
 // Unassign vehicle from executive
 export const unassignVehicleFromExecutive = async (req, res, next) => {
     try {
-        const { vehicleId, userId } = req.body;
+        const { vehicleId, userId, company_id: bodyCompanyId } = req.body;
+        const companyId = bodyCompanyId ?? req.adminCompanyId;
         
         if (!vehicleId) {
             return res.status(400).json({
@@ -2286,7 +2293,7 @@ export const unassignVehicleFromExecutive = async (req, res, next) => {
             });
         }
         
-        const result = await unassignVehicleFromExecutiveService(vehicleId, userId, req.adminCompanyId);
+        const result = await unassignVehicleFromExecutiveService(vehicleId, userId, companyId);
         
         res.status(200).json({
             success: result.success,

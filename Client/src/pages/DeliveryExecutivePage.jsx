@@ -54,6 +54,12 @@ const DeliveryExecutivePage = () => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   };
+
+  // Show "Delivery" for ANY session (flexible delivery), keep Breakfast/Lunch/Dinner as-is
+  const getSessionDisplayName = (s) => {
+    if (!s) return s;
+    return String(s).toLowerCase() === 'any' ? 'Delivery' : (s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
+  };
   
   // Use React Query hooks for driver maps
   const isMapsEnabled = !!user?.id && !!selectedSession && routes.sessions && Object.keys(routes.sessions).length > 0;
@@ -2054,7 +2060,7 @@ const DeliveryExecutivePage = () => {
         localStorage.setItem('activeRouteId', activeRouteId);
       }
       
-      showSuccessToast(`${selectedSession.charAt(0).toUpperCase() + selectedSession.slice(1)} journey started successfully!`);
+      showSuccessToast(`${getSessionDisplayName(selectedSession)} journey started successfully!`);
       setShowStartJourneyModal(false);
       setStartJourneyData({
         route_id: '',
@@ -2582,7 +2588,7 @@ const DeliveryExecutivePage = () => {
                             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
-                            <span className="text-sm sm:text-base">{selectedSession.charAt(0).toUpperCase() + selectedSession.slice(1)} Completed</span>
+                            <span className="text-sm sm:text-base">{getSessionDisplayName(selectedSession)} Completed</span>
                           </div>
                         );
                       }
@@ -2730,7 +2736,7 @@ const DeliveryExecutivePage = () => {
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   {Object.entries(routes.sessions).map(([session, data]) => (
                     <div key={session} className="bg-white rounded-xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-shadow border border-gray-100">
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{session}</div>
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{getSessionDisplayName(session)}</div>
                       <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-0.5">
                         {data.stops.filter(stop => stop.Delivery_Name !== 'Return to Hub').length}
                       </div>
@@ -2816,13 +2822,13 @@ const DeliveryExecutivePage = () => {
                                   }`}
                                   title={
                                     isSessionCompleted 
-                                      ? `${session.charAt(0).toUpperCase() + session.slice(1)} - Completed`
+                                      ? `${getSessionDisplayName(session)} - Completed`
                                       : isActiveRoute
-                                      ? `${session.charAt(0).toUpperCase() + session.slice(1)} - Journey Active`
-                                      : `${session.charAt(0).toUpperCase() + session.slice(1)} - Click to view`
+                                      ? `${getSessionDisplayName(session)} - Journey Active`
+                                      : `${getSessionDisplayName(session)} - Click to view`
                                   }
                                 >
-                                  {session.charAt(0).toUpperCase() + session.slice(1)}
+                                  {getSessionDisplayName(session)}
                                   {isSessionCompleted && (
                                     <span className="ml-1 text-green-600">✓</span>
                                   )}
@@ -2842,7 +2848,7 @@ const DeliveryExecutivePage = () => {
                                 <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                                   <div>
                                     <h4 className="text-xl font-bold text-gray-900 capitalize mb-1">
-                                      {selectedSession} Route
+                                      {getSessionDisplayName(selectedSession)} Route
                                     </h4>
                                     <div className="flex items-center gap-3">
                                       <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">

@@ -33,10 +33,11 @@ export const useAssignVehicle = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ vehicleId, userId }) => {
+    mutationFn: async ({ vehicleId, userId, companyId }) => {
       const response = await axiosInstance.post('/admin/vehicles/assign', {
         vehicleId,
-        userId
+        userId,
+        ...(companyId && { company_id: companyId })
       });
       return response.data;
     },
@@ -57,10 +58,11 @@ export const useUnassignVehicle = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ vehicleId, userId }) => {
+    mutationFn: async ({ vehicleId, userId, companyId }) => {
       const response = await axiosInstance.post('/admin/vehicles/unassign', {
         vehicleId,
-        userId // Optional - service will use vehicle.user_id if not provided
+        userId,
+        ...(companyId && { company_id: companyId })
       });
       return response.data;
     },

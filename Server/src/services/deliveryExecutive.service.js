@@ -769,14 +769,14 @@ export const checkPreDeliveryImagesForStop = async (addressId, deliveryDate, del
       throw new Error('Delivery date is required');
     }
 
-    if (!deliverySession) {
-      throw new Error('Delivery session is required');
-    }
-
-    const sessionUpper = deliverySession.toUpperCase();
-    const validSessions = ['BREAKFAST', 'LUNCH', 'DINNER'];
-    if (!validSessions.includes(sessionUpper)) {
-      throw new Error('Invalid delivery session. Must be BREAKFAST, LUNCH, or DINNER');
+    // Session can be empty (treat as "any session"), or BREAKFAST, LUNCH, DINNER, ANY
+    const sessionUpper = (deliverySession != null && deliverySession !== '')
+      ? deliverySession.toString().trim().toUpperCase()
+      : '';
+    const validSessions = ['BREAKFAST', 'LUNCH', 'DINNER', 'ANY'];
+    const isAnyOrEmpty = sessionUpper === '' || sessionUpper === 'ANY';
+    if (!isAnyOrEmpty && !validSessions.includes(sessionUpper)) {
+      throw new Error('Invalid delivery session. Must be BREAKFAST, LUNCH, DINNER, ANY, or empty (any session)');
     }
 
     let dateToCheck;
@@ -799,6 +799,11 @@ export const checkPreDeliveryImagesForStop = async (addressId, deliveryDate, del
     const endOfDay = new Date(dateToCheck);
     endOfDay.setUTCHours(23, 59, 59, 999);
 
+    // For session empty or ANY, match images from any session (BREAKFAST, LUNCH, DINNER, ANY)
+    const sessionWhere = isAnyOrEmpty
+      ? { in: ['BREAKFAST', 'LUNCH', 'DINNER', 'ANY'] }
+      : sessionUpper;
+
     const images = await prisma.deliveryImage.findMany({
       where: {
         addressId,
@@ -806,7 +811,7 @@ export const checkPreDeliveryImagesForStop = async (addressId, deliveryDate, del
           gte: startOfDay,
           lte: endOfDay
         },
-        deliverySession: sessionUpper,
+        deliverySession: sessionWhere,
         isPreDelivery: true
       },
       select: {
@@ -856,23 +861,21 @@ export const checkDeliveryImagesForStop = async (addressId, deliveryDate, delive
       throw new Error('Delivery date is required');
     }
 
-    if (!deliverySession) {
-      throw new Error('Delivery session is required');
-    }
+    // Session can be empty (treat as "any session"), or BREAKFAST, LUNCH, DINNER, ANY
+    const sessionUpper = (deliverySession != null && deliverySession !== '')
+      ? (deliverySession).toString().trim().toUpperCase()
+      : '';
 
-    // Convert session to uppercase to match enum
-    const sessionUpper = deliverySession.toUpperCase();
-
-    // Validate session is one of the allowed values
-    const validSessions = ['BREAKFAST', 'LUNCH', 'DINNER'];
-    if (!validSessions.includes(sessionUpper)) {
-      throw new Error('Invalid delivery session. Must be BREAKFAST, LUNCH, or DINNER');
+    const validSessions = ['BREAKFAST', 'LUNCH', 'DINNER', 'ANY'];
+    const isAnyOrEmpty = sessionUpper === '' || sessionUpper === 'ANY';
+    if (!isAnyOrEmpty && !validSessions.includes(sessionUpper)) {
+      throw new Error('Invalid delivery session. Must be BREAKFAST, LUNCH, DINNER, ANY, or empty (any session)');
     }
 
     // Parse delivery date - ensure it's in YYYY-MM-DD format
     let dateToCheck;
     if (typeof deliveryDate === 'string') {
-      // If it's already in YYYY-MM-DD format, use it directly
+      // If it's already in YYYY-MM-DD format, use it directly  
       if (/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate)) {
         dateToCheck = new Date(deliveryDate + 'T00:00:00.000Z');
       } else {
@@ -893,18 +896,24 @@ export const checkDeliveryImagesForStop = async (addressId, deliveryDate, delive
     const endOfDay = new Date(dateToCheck);
     endOfDay.setUTCHours(23, 59, 59, 999);
 
-    // Get the actual images if they exist (delivery photos only - exclude pre-delivery)
-    // Check by addressId, deliveryDate, deliverySession, and isPreDelivery: false
-    const images = await prisma.deliveryImage.findMany({
-      where: {
-        addressId: addressId,
-        deliveryDate: {
-          gte: startOfDay,
-          lte: endOfDay
-        },
-        deliverySession: sessionUpper,
-        isPreDelivery: false // Only delivery photos (after delivery), not pre-delivery
+    // Build where: for session empty or ANY, match images from any session (BREAKFAST, LUNCH, DINNER).
+    const whereClause = {
+      addressId,
+      deliveryDate: {
+        gte: startOfDay,
+        lte: endOfDay
       },
+      isPreDelivery: false
+    };
+    if (isAnyOrEmpty) {
+      whereClause.deliverySession = { in: ['BREAKFAST', 'LUNCH', 'DINNER', 'ANY'] };
+    } else {
+      whereClause.deliverySession = sessionUpper;
+    }
+
+    // Get the actual images if they exist (delivery photos only - exclude pre-delivery)
+    const images = await prisma.deliveryImage.findMany({
+      where: whereClause,
       select: {
         id: true,
         filename: true,
@@ -913,7 +922,8 @@ export const checkDeliveryImagesForStop = async (addressId, deliveryDate, delive
         s3Url: true,
         presignedUrl: true,
         uploadedAt: true,
-        contentType: true
+        contentType: true,
+        deliverySession: true
       },
       orderBy: {
         uploadedAt: 'desc'
@@ -932,13 +942,27 @@ export const checkDeliveryImagesForStop = async (addressId, deliveryDate, delive
       fileSize: img.fileSize ? String(img.fileSize) : null
     }));
 
-    return {
+    // When session is empty or ANY, include session-wise breakdown so client can see which sessions have images
+    const bySession =
+      isAnyOrEmpty && images.length > 0
+        ? {
+            BREAKFAST: serializedImages.filter((img) => (img.deliverySession || '').toUpperCase() === 'BREAKFAST'),
+            LUNCH: serializedImages.filter((img) => (img.deliverySession || '').toUpperCase() === 'LUNCH'),
+            DINNER: serializedImages.filter((img) => (img.deliverySession || '').toUpperCase() === 'DINNER'),
+            ANY: serializedImages.filter((img) => (img.deliverySession || '').toUpperCase() === 'ANY')
+          }
+        : undefined;
+
+    const response = {
       success: true,
-      status: status,
+      status,
       hasImages: hasValidImages,
       imageCount: images.length,
       images: serializedImages
     };
+    if (bySession) response.bySession = bySession;
+
+    return response;
   } catch (error) {
     console.error('Error in checkDeliveryImagesForStop:', error);
     throw new Error('Failed to check delivery images: ' + error.message);
