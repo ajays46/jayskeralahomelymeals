@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
+import { resolveCompanyId } from '../middleware/resolveCompanyId.js';
 import { 
   createContactController, 
   getSellerUsers, 
@@ -24,6 +25,7 @@ const router = express.Router();
 // All seller routes require authentication and SELLER role
 router.use(authenticateToken);
 router.use(checkRole('SELLER'));
+router.use(resolveCompanyId);
 
 // Seller profile
 router.get('/profile', getSellerProfile);

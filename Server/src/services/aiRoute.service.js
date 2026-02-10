@@ -456,18 +456,23 @@ export const stopReachedService = async (stopData, companyId = null) => {
 
 /**
  * End Journey (NEW API: /api/journey/end)
- * End journey with final location
+ * Accepts: { route_id } (required), optional: user_id, latitude, longitude.
+ * Matches curl: POST body {"route_id":"ROUTE_ID_FROM_STARTED_JOURNEY"}
  */
 export const endJourneyService = async (journeyData, companyId = null) => {
   try {
-    const { user_id, route_id, latitude, longitude } = journeyData;
-    
-    const response = await apiClient.post('/api/journey/end', {
-      user_id,
-      route_id,
-      latitude,
-      longitude
-    }, withCompanyId(companyId));
+    const { route_id, user_id, latitude, longitude } = journeyData;
+
+    if (!route_id) {
+      throw new AppError('route_id is required', 400);
+    }
+
+    const body = { route_id };
+    if (user_id != null) body.user_id = user_id;
+    if (latitude != null) body.latitude = latitude;
+    if (longitude != null) body.longitude = longitude;
+
+    const response = await apiClient.post('/api/journey/end', body, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -1366,12 +1371,8 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
         `;
     
     const journeySummaries = await journeySummariesQuery;
-    
-    // Normalize session names to lowercase for comparison
-    const normalizedCompletedSessions = completedSessions.map(s => s?.toLowerCase());
-    
-    // Add sessions from journey_summary that have actual_end_time
-    // This ensures sessions marked as completed via "End Session" button persist after refresh
+
+    // Add sessions from route_journey_summary (actual_end_time = driver clicked "End Session")
     journeySummaries.forEach(summary => {
       if (summary.session) {
         const normalizedSession = summary.session.toLowerCase();
@@ -1381,15 +1382,15 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
         }
       }
     });
-    
-    // Remove duplicates and ensure all session names are lowercase
-    const uniqueCompletedSessions = [...new Set(completedSessions.map(s => s?.toLowerCase()))];
+
+    // Remove duplicates and ensure lowercase
+    const uniqueCompletedSessions = [...new Set(completedSessions.map(s => s?.toLowerCase()).filter(Boolean))];
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Route status retrieved from actual_route_stops', {
       route_id: routeId,
       is_journey_started: journeyStarted,
       marked_stops_count: markedStops.length,
-      completed_sessions: completedSessions
+      completed_sessions: uniqueCompletedSessions
     });
     
     return {

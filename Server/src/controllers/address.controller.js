@@ -40,7 +40,7 @@ export const createAddress = async (req, res, next) => {
         
         const newAddress = await createAddressService(userId, addressData);
 
-        // Call external API to save address
+        // Call external API to save address (X-Company-ID required by external API)
         try {
             await saveAddressToExternalApi({
                 id: newAddress.id,
@@ -54,7 +54,7 @@ export const createAddress = async (req, res, next) => {
                 addressType: newAddress.addressType,
                 createdAt: newAddress.createdAt,
                 updatedAt: newAddress.updatedAt
-            });
+            }, req.companyId);
         } catch (externalError) {
             // Don't throw error - address was saved successfully in our database
         }
@@ -80,7 +80,7 @@ export const updateAddress = async (req, res, next) => {
 
         const updatedAddress = await updateAddressService(userId, addressId, addressData);
 
-        // Call external API to save address (using same endpoint for updates)
+        // Call external API to save address (X-Company-ID required; same endpoint for updates)
         try {
             await saveAddressToExternalApi({
                 id: updatedAddress.id,
@@ -94,7 +94,7 @@ export const updateAddress = async (req, res, next) => {
                 addressType: updatedAddress.addressType,
                 createdAt: updatedAddress.createdAt,
                 updatedAt: updatedAddress.updatedAt
-            });
+            }, req.companyId);
         } catch (externalError) {
             // Don't throw error - address was updated successfully in our database
         }
