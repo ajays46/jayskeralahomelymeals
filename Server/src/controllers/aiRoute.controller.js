@@ -469,19 +469,27 @@ export const stopReached = async (req, res, next) => {
 
 /**
  * End Journey (NEW API: /api/journey/end)
- * End journey with final location
+ * Accepts: POST body { "route_id": "ROUTE_ID_FROM_STARTED_JOURNEY" }
+ * user_id is taken from the authenticated user when not in body.
  */
 export const endJourney = async (req, res, next) => {
   try {
-    const { user_id, route_id, latitude, longitude } = req.body;
-    
-    if (!user_id || !route_id) {
+    const { route_id, user_id: bodyUserId, latitude, longitude } = req.body;
+    const user_id = bodyUserId ?? req.user?.userId;
+
+    if (!route_id) {
       return res.status(400).json({
         success: false,
-        message: 'user_id and route_id are required'
+        message: 'route_id is required in request body'
       });
     }
-    
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id is required (from auth or request body)'
+      });
+    }
+
     const result = await endJourneyService({
       user_id,
       route_id,

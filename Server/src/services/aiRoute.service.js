@@ -454,18 +454,23 @@ export const stopReachedService = async (stopData, companyId = null) => {
 
 /**
  * End Journey (NEW API: /api/journey/end)
- * End journey with final location
+ * Accepts: { route_id } (required), optional: user_id, latitude, longitude.
+ * Matches curl: POST body {"route_id":"ROUTE_ID_FROM_STARTED_JOURNEY"}
  */
 export const endJourneyService = async (journeyData, companyId = null) => {
   try {
-    const { user_id, route_id, latitude, longitude } = journeyData;
-    
-    const response = await apiClient.post('/api/journey/end', {
-      user_id,
-      route_id,
-      latitude,
-      longitude
-    }, withCompanyId(companyId));
+    const { route_id, user_id, latitude, longitude } = journeyData;
+
+    if (!route_id) {
+      throw new AppError('route_id is required', 400);
+    }
+
+    const body = { route_id };
+    if (user_id != null) body.user_id = user_id;
+    if (latitude != null) body.latitude = latitude;
+    if (longitude != null) body.longitude = longitude;
+
+    const response = await apiClient.post('/api/journey/end', body, withCompanyId(companyId));
     const data = response.data;
     
     if (!data.success) {
@@ -1328,7 +1333,7 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
       return v.toUpperCase() === 'ANY' || v === '' ? 'ANY' : v.toUpperCase();
     };
 
-    // Group by session and check completion (include ANY for flexible delivery)
+    // Group by session for stats only (total + completed count for UI). Do NOT use this for completed_sessions.
     const sessionStats = {};
     allStops.forEach(stop => {
       const session = normalizeSession(stop.session);
@@ -1337,26 +1342,22 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
       }
       sessionStats[session].total++;
     });
-
     markedStops.forEach(stop => {
       const session = normalizeSession(stop.session);
       if (sessionStats[session]) {
         sessionStats[session].completed++;
       }
     });
-    // For 'ANY' (flexible delivery): planned stops with session ''/ANY are completed by any marked stop
     if (sessionStats['ANY'] && sessionStats['ANY'].total > 0 && markedStops.length > 0) {
       sessionStats['ANY'].completed = Math.min(sessionStats['ANY'].total, markedStops.length);
     }
-    
-    // Determine completed sessions (all stops for that session are completed)
-    const completedSessions = Object.keys(sessionStats).filter(
-      session => sessionStats[session].total > 0 &&
-                 sessionStats[session].total === sessionStats[session].completed
-    );
-    
-    // Also check route_journey_summary for actual_end_time to confirm session completion
-    // This is the primary source for session completion when "End Session" is clicked
+
+    // Completed sessions: only when explicitly ended, NOT when all stops are delivered.
+    // Source 1: route_journey_summary.actual_end_time (driver clicked "End Session")
+    // Source 2: actual_route_stops: last stop of session has total_journey_duration_minutes set (journey/end recorded)
+    const completedSessions = [];
+
+    // Source 1: route_journey_summary for actual_end_time
     const journeySummariesQuery = driverId
       ? prisma.$queryRaw`
           SELECT session, actual_end_time
@@ -1375,29 +1376,57 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
         `;
     
     const journeySummaries = await journeySummariesQuery;
-    
-    // Normalize session names to lowercase for comparison
-    const normalizedCompletedSessions = completedSessions.map(s => s?.toLowerCase());
-    
-    // Add sessions from journey_summary that have actual_end_time
-    // This ensures sessions marked as completed via "End Session" button persist after refresh
+
+    // Add sessions from route_journey_summary (actual_end_time = driver clicked "End Session")
     journeySummaries.forEach(summary => {
       const raw = summary.session != null ? String(summary.session).trim() : '';
       const normalizedSession = (raw.toUpperCase() === 'ANY' || raw === '') ? 'any' : raw.toLowerCase();
-      if (normalizedSession && !normalizedCompletedSessions.includes(normalizedSession)) {
-        completedSessions.push(normalizedSession);
-        normalizedCompletedSessions.push(normalizedSession);
-      }
+      if (normalizedSession) completedSessions.push(normalizedSession);
     });
-    
-    // Remove duplicates and ensure all session names are lowercase
-    const uniqueCompletedSessions = [...new Set(completedSessions.map(s => s?.toLowerCase()))];
+
+    // Source 2: sessions where the last stop (max stop_order) has total_journey_duration_minutes set
+    // (journey/end was called and completion time was recorded on the final stop)
+    const lastStopCompletedQuery = driverId
+      ? prisma.$queryRaw`
+          SELECT DISTINCT a.session
+          FROM actual_route_stops a
+          WHERE a.route_id = ${routeId}
+            AND DATE(a.date) = DATE(${todayStr})
+            AND a.user_id = ${driverId}
+            AND a.total_journey_duration_minutes IS NOT NULL
+            AND a.stop_order = (
+              SELECT MAX(b.stop_order) FROM actual_route_stops b
+              WHERE b.route_id = a.route_id AND DATE(b.date) = DATE(a.date) AND (b.user_id = a.user_id)
+              AND (COALESCE(b.session,'') = COALESCE(a.session,''))
+            )
+        `
+      : prisma.$queryRaw`
+          SELECT DISTINCT a.session
+          FROM actual_route_stops a
+          WHERE a.route_id = ${routeId}
+            AND DATE(a.date) = DATE(${todayStr})
+            AND a.total_journey_duration_minutes IS NOT NULL
+            AND a.stop_order = (
+              SELECT MAX(b.stop_order) FROM actual_route_stops b
+              WHERE b.route_id = a.route_id AND DATE(b.date) = DATE(a.date)
+              AND (COALESCE(b.session,'') = COALESCE(a.session,''))
+            )
+        `;
+    const lastStopCompleted = await lastStopCompletedQuery;
+    lastStopCompleted.forEach(row => {
+      const raw = row.session != null ? String(row.session).trim() : '';
+      const normalizedSession = (raw.toUpperCase() === 'ANY' || raw === '') ? 'any' : raw.toLowerCase();
+      if (normalizedSession) completedSessions.push(normalizedSession);
+    });
+
+    // Remove duplicates and ensure lowercase
+    const uniqueCompletedSessions = [...new Set(completedSessions.map(s => s?.toLowerCase()).filter(Boolean))];
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Route status retrieved from actual_route_stops', {
       route_id: routeId,
       is_journey_started: journeyStarted,
       marked_stops_count: markedStops.length,
-      completed_sessions: completedSessions
+      completed_sessions: uniqueCompletedSessions
     });
     
     return {

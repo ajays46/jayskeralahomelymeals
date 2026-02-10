@@ -7,11 +7,13 @@ import {
     getAddressById 
 } from '../controllers/address.controller.js';
 import { authenticateToken } from '../middleware/authHandler.js';
+import { resolveCompanyId } from '../middleware/resolveCompanyId.js';
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authenticateToken);
+router.use(resolveCompanyId);
 
 // Get all addresses for the authenticated user
 router.get('/', getUserAddresses);

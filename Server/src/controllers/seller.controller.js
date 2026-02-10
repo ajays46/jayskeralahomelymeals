@@ -143,7 +143,7 @@ export const createUserAddressController = async (req, res, next) => {
     
     const newAddress = await createAddressForUser(userId, sellerId, addressData);
     
-    // Call external API to save address
+    // Call external API to save address (X-Company-ID required by external API)
     try {
       await saveAddressToExternalApi({
         id: newAddress.id,
@@ -157,7 +157,7 @@ export const createUserAddressController = async (req, res, next) => {
         addressType: newAddress.addressType,
         createdAt: newAddress.createdAt,
         updatedAt: newAddress.updatedAt
-      });
+      }, req.companyId);
     } catch (externalError) {
       // Don't throw error - address was saved successfully in our database
       logError(LOG_CATEGORIES.SYSTEM, 'Failed to save address to external API', {
