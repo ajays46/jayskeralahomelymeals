@@ -12,6 +12,7 @@ import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from 
 import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { useUploadDeliveryPhoto, useUploadPreDeliveryPhoto, useCheckMultipleDeliveryImages, useCheckMultiplePreDeliveryImages } from '../hooks/deliverymanager';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import html2canvas from 'html2canvas';
 
 /**
  * DeliveryExecutivePage - Delivery executive dashboard with route and order management
@@ -168,6 +169,9 @@ const DeliveryExecutivePage = () => {
   // Delivery status state
   const [deliveryStatus, setDeliveryStatus] = useState({});
   const [loadingStatus, setLoadingStatus] = useState({});
+  // Refs for delivery stop cards (for screenshot capture)
+  const cardRefs = useRef({});
+  const [capturingProofIndex, setCapturingProofIndex] = useState(null);
   
   // Track marked stops (using route_id + stop_order as key)
   const [markedStops, setMarkedStops] = useState(new Set());
@@ -2113,6 +2117,41 @@ const DeliveryExecutivePage = () => {
     }
   };
 
+  // Capture delivery stop card as screenshot (button-triggered)
+  const handleCaptureProof = useCallback(async (index, stop) => {
+    const node = cardRefs.current[index];
+    if (!node) {
+      showErrorToast('Could not capture card. Please try again.');
+      return;
+    }
+    setCapturingProofIndex(index);
+    try {
+      const canvas = await html2canvas(node, { scale: 2, useCORS: true, logging: false });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const session = (selectedSession || 'session').toLowerCase();
+      const stopNo = stop?.Stop_No ?? stop?.stop_order ?? index + 1;
+      const filename = `delivery-proof-${session}-Stop${stopNo}-${timestamp}.png`;
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          showErrorToast('Failed to create image.');
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        showSuccessToast('Screenshot saved');
+      }, 'image/png');
+    } catch (err) {
+      console.error('Capture proof error:', err);
+      showErrorToast('Screenshot failed. Please try again.');
+    } finally {
+      setCapturingProofIndex(null);
+    }
+  }, [selectedSession]);
+
   const handleOpenStatusModal = (stop, stopIndex) => {
     setSelectedStopForStatus(stop);
     setSelectedStopIndex(stopIndex);
@@ -2915,7 +2954,7 @@ const DeliveryExecutivePage = () => {
                                 </div>
                                 
                                 {(showAllStops ? stopsWithDeliveryNotes.filter(stop => stop.Delivery_Name !== 'Return to Hub') : stopsWithDeliveryNotes.filter(stop => stop.Delivery_Name !== 'Return to Hub').slice(0, 2)).map((stop, index) => (
-                                  <div key={index} className="bg-white rounded-xl p-5 shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
+                                  <div key={index} ref={(el) => { cardRefs.current[index] = el; }} className="bg-white rounded-xl p-5 shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
                                     <div className="flex items-start justify-between mb-2 gap-3">
                                       <div className="flex items-start gap-4 flex-1 min-w-0">
                                         <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0 shadow-md">
@@ -3195,6 +3234,28 @@ const DeliveryExecutivePage = () => {
                                             </button>
                                           );
                                         })()}
+
+                                        {/* Capture proof (screenshot) button */}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCaptureProof(index, stop)}
+                                          disabled={capturingProofIndex === index}
+                                          className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-70 text-xs sm:text-sm"
+                                          title="Capture this card as delivery proof screenshot"
+                                        >
+                                          {capturingProofIndex === index ? (
+                                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                                          ) : (
+                                            <>
+                                              <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13v4a2 2 0 01-2 2H7a2 2 0 01-2-2v-4M14 9v4" />
+                                              </svg>
+                                              <span className="truncate">Capture Stop</span>
+                                            </>
+                                          )}
+                                        </button>
                                       </div>
                                     </div>
 
