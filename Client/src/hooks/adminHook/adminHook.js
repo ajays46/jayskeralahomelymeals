@@ -534,6 +534,27 @@ export const useCreateAdminUser = () => {
     });
 };
 
+export const useUpdateUserStatus = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ userId, status }) => {
+            const response = await api.patch(`/admin/users/${userId}/status`, { status });
+            return response.data;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries(['adminUsers']);
+            if (data.status === 'success') {
+                alert(data.message || 'User status updated successfully.');
+            }
+        },
+        onError: (error) => {
+            const errorMessage = error.response?.data?.message || 'Failed to update user status. Please try again.';
+            alert(errorMessage);
+        }
+    });
+};
+
 // Get product quantities for menus
 export const useProductQuantitiesForMenus = () => {
     return useQuery({

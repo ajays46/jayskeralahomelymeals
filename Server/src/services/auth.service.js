@@ -160,6 +160,11 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
             throw new AppError('User or roles not found', 404);
         }
 
+        // Block login for inactive or blocked users
+        if (user.status !== 'ACTIVE') {
+            throw new AppError('Your account is inactive. Please contact your administrator.', 403);
+        }
+
         // Get the primary role (first role or highest priority role)
         const primaryRole = user.userRoles[0];
         const accessToken = generateAccessToken(user.id, primaryRole.name);

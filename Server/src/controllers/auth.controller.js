@@ -87,6 +87,10 @@ export const refreshToken = async (req, res, next) => {
         throw new AppError("Invalid refresh token", 401);
       }
 
+      if (user.status !== 'ACTIVE') {
+        throw new AppError("Your account is inactive. Please contact your administrator.", 403);
+      }
+
       if (!user.userRoles || user.userRoles.length === 0) {
         throw new AppError("User roles not found", 403);
       }

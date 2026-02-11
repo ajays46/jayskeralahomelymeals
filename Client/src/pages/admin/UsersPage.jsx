@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import AdminSlide from '../../components/AdminSlide';
 import Pagination from '../../components/Pagination';
-import { FiArrowLeft, FiUser, FiMail, FiPhone, FiLock, FiPlus, FiHome } from 'react-icons/fi';
-import { useCompanyList, useUserRoles, useAdminUsers, useCreateAdminUser } from '../../hooks/adminHook/adminHook';
+import { FiArrowLeft, FiUser, FiMail, FiPhone, FiLock, FiPlus, FiHome, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { useCompanyList, useUserRoles, useAdminUsers, useCreateAdminUser, useUpdateUserStatus } from '../../hooks/adminHook/adminHook';
 
 /**
  * UsersPage - Simple admin user management page
@@ -42,6 +42,7 @@ const UsersPage = () => {
 
   // User creation mutation
   const { mutate: createUser, isPending: isCreatingUser } = useCreateAdminUser();
+  const { mutate: updateUserStatus, isPending: isUpdatingStatus } = useUpdateUserStatus();
 
   // Create user form state
   const [createUserForm, setCreateUserForm] = useState({
@@ -562,7 +563,7 @@ const UsersPage = () => {
             ) : (
             <>
             <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[800px]">
                 <thead className="bg-gray-700">
                   <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
@@ -586,11 +587,14 @@ const UsersPage = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Created
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider sticky right-0 bg-gray-700 z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.3)] min-w-[120px]">
+                        Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-gray-800 divide-y divide-gray-700">
                     {paginatedUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-700 transition-colors">
+                      <tr key={user.id} className="group hover:bg-gray-700 transition-colors">
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
@@ -667,6 +671,33 @@ const UsersPage = () => {
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-300">
                             {new Date(user.createdAt).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap sticky right-0 bg-gray-800 group-hover:bg-gray-700 z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.3)]">
+                          <div className="flex items-center gap-2">
+                            {user.status === 'ACTIVE' ? (
+                              <button
+                                type="button"
+                                onClick={() => updateUserStatus({ userId: user.id, status: 'INACTIVE' })}
+                                disabled={isUpdatingStatus}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Deactivate user"
+                              >
+                                <FiXCircle size={14} />
+                                Deactivate
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => updateUserStatus({ userId: user.id, status: 'ACTIVE' })}
+                                disabled={isUpdatingStatus}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Activate user"
+                              >
+                                <FiCheckCircle size={14} />
+                                Activate
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

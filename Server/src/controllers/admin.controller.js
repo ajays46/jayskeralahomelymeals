@@ -954,6 +954,44 @@ export const getAdminUsers = async (req, res, next) => {
     }
 };
 
+// Update user status (activate / deactivate)
+export const updateUserStatus = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const { status } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ status: 'error', message: 'User ID is required' });
+        }
+        if (!status || !['ACTIVE', 'INACTIVE'].includes(status)) {
+            return res.status(400).json({ status: 'error', message: 'Status must be ACTIVE or INACTIVE' });
+        }
+
+        const where = { id: userId };
+        if (req.adminCompanyId != null) {
+            where.companyId = req.adminCompanyId;
+        }
+
+        const user = await prisma.user.findFirst({ where });
+        if (!user) {
+            return res.status(404).json({ status: 'error', message: 'User not found' });
+        }
+
+        const updated = await prisma.user.update({
+            where: { id: userId },
+            data: { status }
+        });
+
+        res.status(200).json({
+            status: 'success',
+            message: `User ${status === 'ACTIVE' ? 'activated' : 'deactivated'} successfully`,
+            data: { id: updated.id, status: updated.status }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // Get sellers with their orders for users
 export const getSellersWithOrders = async (req, res, next) => {
     try {

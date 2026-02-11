@@ -172,7 +172,10 @@ const DeliveryExecutivePage = () => {
   // Refs for delivery stop cards (for screenshot capture)
   const cardRefs = useRef({});
   const [capturingProofIndex, setCapturingProofIndex] = useState(null);
-  
+  const deliveryStopsSectionRef = useRef(null);
+  const [capturingStopsSection, setCapturingStopsSection] = useState(false);
+  const [lastDeliveredStopIndex, setLastDeliveredStopIndex] = useState(null);
+
   // Track marked stops (using route_id + stop_order as key)
   const [markedStops, setMarkedStops] = useState(new Set());
   
@@ -2126,7 +2129,12 @@ const DeliveryExecutivePage = () => {
     }
     setCapturingProofIndex(index);
     try {
-      const canvas = await html2canvas(node, { scale: 2, useCORS: true, logging: false });
+      const scale = Math.max(2, Math.min(3, Math.round(window.devicePixelRatio || 2)));
+      const canvas = await html2canvas(node, {
+        scale,
+        useCORS: true,
+        logging: false,
+      });
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const session = (selectedSession || 'session').toLowerCase();
       const stopNo = stop?.Stop_No ?? stop?.stop_order ?? index + 1;
@@ -2151,6 +2159,59 @@ const DeliveryExecutivePage = () => {
       setCapturingProofIndex(null);
     }
   }, [selectedSession]);
+
+  const handleCaptureStopsSection = useCallback(async () => {
+    const node = deliveryStopsSectionRef.current;
+    if (!node) {
+      showErrorToast('Nothing to capture. Open a route first.');
+      return;
+    }
+    setCapturingStopsSection(true);
+    try {
+      const scale = Math.max(2, Math.min(3, Math.round(window.devicePixelRatio || 2)));
+      const canvas = await html2canvas(node, {
+        scale,
+        useCORS: true,
+        logging: false,
+      });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const session = (selectedSession || 'session').toLowerCase();
+      const filename = `delivery-proof-${session}-all-stops-${timestamp}.png`;
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          showErrorToast('Failed to create image.');
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        showSuccessToast('Screenshot saved');
+      }, 'image/png');
+    } catch (err) {
+      console.error('Capture stops section error:', err);
+      showErrorToast('Screenshot failed. Please try again.');
+    } finally {
+      setCapturingStopsSection(false);
+    }
+  }, [selectedSession]);
+
+  const handleCaptureProofClick = useCallback(() => {
+    if (lastDeliveredStopIndex != null) {
+      const filtered = (stopsWithDeliveryNotes || []).filter(s => s.Delivery_Name !== 'Return to Hub');
+      const visible = showAllStops ? filtered : filtered.slice(0, 2);
+      const stop = visible[lastDeliveredStopIndex];
+      if (stop != null) {
+        handleCaptureProof(lastDeliveredStopIndex, stop);
+      } else {
+        showErrorToast('Stop no longer visible. Expand the list or capture again after delivery.');
+      }
+    } else {
+      showErrorToast('Mark a stop as delivered first, then tap capture to save proof for that stop.');
+    }
+  }, [lastDeliveredStopIndex, stopsWithDeliveryNotes, showAllStops, handleCaptureProof]);
 
   const handleOpenStatusModal = (stop, stopIndex) => {
     setSelectedStopForStatus(stop);
@@ -2295,6 +2356,7 @@ const DeliveryExecutivePage = () => {
       const stopIdentifier = plannedStopId || stopOrder;
       const stopKey = `${routeId}-${session}-${stopIdentifier}`;
       setMarkedStops(prev => new Set(prev).add(stopKey));
+      if (status === 'Delivered') setLastDeliveredStopIndex(stopIndex);
       
       // Clear comments from localStorage after successful submission
       const commentsKey = getCommentsKey(stop, routeId, stopIndex);
@@ -2367,6 +2429,7 @@ const DeliveryExecutivePage = () => {
           const stopIdentifier = plannedStopId || stopOrder;
           const stopKey = `${routeId}-${session}-${stopIdentifier}`;
           setMarkedStops(prev => new Set(prev).add(stopKey));
+          if (status === 'Delivered') setLastDeliveredStopIndex(stopIndex);
           
           // Clear comments from localStorage after successful submission
           const commentsKey = getCommentsKey(stop, routeId, stopIndex);
@@ -2881,7 +2944,7 @@ const DeliveryExecutivePage = () => {
 
                           {/* Selected Session Details */}
                           {routes.sessions && routes.sessions[selectedSession] && (
-                            <div className="space-y-6">
+                            <div ref={deliveryStopsSectionRef} className="space-y-6">
                               {/* Session Header - Swiggy Style */}
                               <div className="bg-white rounded-xl p-5 sm:p-6 shadow-sm border border-gray-200">
                                 <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -3235,25 +3298,23 @@ const DeliveryExecutivePage = () => {
                                           );
                                         })()}
 
-                                        {/* Capture proof (screenshot) button */}
+                                        {/* Capture proof (this stop only) – icon only + tooltip */}
                                         <button
                                           type="button"
                                           onClick={() => handleCaptureProof(index, stop)}
                                           disabled={capturingProofIndex === index}
-                                          className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-70 text-xs sm:text-sm"
-                                          title="Capture this card as delivery proof screenshot"
+                                          className="flex items-center justify-center p-2.5 sm:p-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-70"
+                                          title="Capture this delivery details"
+                                          aria-label="Capture proof for this stop"
                                         >
                                           {capturingProofIndex === index ? (
                                             <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                                           ) : (
-                                            <>
-                                              <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13v4a2 2 0 01-2 2H7a2 2 0 01-2-2v-4M14 9v4" />
-                                              </svg>
-                                              <span className="truncate">Capture Stop</span>
-                                            </>
+                                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13v4a2 2 0 01-2 2H7a2 2 0 01-2-2v-4M14 9v4" />
+                                            </svg>
                                           )}
                                         </button>
                                       </div>
@@ -3729,6 +3790,26 @@ const DeliveryExecutivePage = () => {
               </div>
 
             </div>
+          )}
+          {routes.sessions && routes.sessions[selectedSession] && lastDeliveredStopIndex != null && (
+            <button
+              type="button"
+              onClick={handleCaptureProofClick}
+              disabled={capturingProofIndex === lastDeliveredStopIndex}
+              className="fixed top-20 right-4 z-30 flex h-12 w-12 min-h-[48px] min-w-[48px] items-center justify-center rounded-xl border-2 border-gray-200 bg-white shadow-lg text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 active:scale-95 transition-all touch-manipulation"
+              title="Capture last delivered stop as proof"
+              aria-label="Capture proof"
+            >
+              {capturingProofIndex === lastDeliveredStopIndex ? (
+                <div className="h-6 w-6 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" />
+              ) : (
+                <svg className="h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13v4a2 2 0 01-2 2H7a2 2 0 01-2-2v-4M14 9v4" />
+                </svg>
+              )}
+            </button>
           )}
         </div>
       </div>
