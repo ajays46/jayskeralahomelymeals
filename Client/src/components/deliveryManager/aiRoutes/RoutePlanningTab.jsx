@@ -144,7 +144,7 @@ const RoutePlanningTab = ({
           <p className="text-red-400 text-sm">{error}</p>
         </div>
       )}
-      
+
       {/* Route Plan Results */}
       {routePlan && (
         <RoutePlanResults 
@@ -328,6 +328,7 @@ const IndividualDriverRoutes = ({ routes, deliverySession, deliveryDate, onStart
         const waypoints = coordinates.join('/');
         return `https://www.google.com/maps/dir/${waypoints}`;
       }
+
     }
 
     // Fallback to first stop's map_link

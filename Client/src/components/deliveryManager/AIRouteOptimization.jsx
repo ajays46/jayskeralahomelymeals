@@ -4,10 +4,12 @@ import {
   FiNavigation, 
   FiPackage,
   FiBarChart2,
-  FiAlertCircle
+  FiAlertCircle,
+  FiFileText
 } from 'react-icons/fi';
 import { showSuccessToast, showErrorToast, showWarningToast } from '../../utils/toastConfig.jsx';
 import RoutePlanningTab from './aiRoutes/RoutePlanningTab';
+import DraftPlanSession from './aiRoutes/DraftPlanSession';
 import ReassignDriverTab from './aiRoutes/ReassignDriverTab';
 import TrackingTab from './aiRoutes/TrackingTab';
 import AnalyticsTab from './aiRoutes/AnalyticsTab';
@@ -16,6 +18,7 @@ import { StartJourneyModal, StopJourneyModal } from './aiRoutes/JourneyModals';
 import {
   useAIRouteHealth,
   usePlanRoute,
+  useSavePlanToS3,
   useReassignDriver,
   useMoveStop,
   usePredictStartTime,
@@ -28,9 +31,9 @@ import {
 /**
  * AI Route Optimization Component
  * Main container component that orchestrates all route optimization features
- * Uses component-based architecture and React Query hooks for better maintainability
+ * Approve = save planned routes to S3 (Excel + TXT) and open download links.
  */
-const AIRouteOptimization = () => {
+const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
   // Main state
   const [activeTab, setActiveTab] = useState('planning'); // 'planning', 'deliveries', 'tracking', 'analytics'
   const [componentError, setComponentError] = useState(null);
@@ -50,6 +53,8 @@ const AIRouteOptimization = () => {
   const [routePlan, setRoutePlan] = useState(null);
   const [routeComparison, setRouteComparison] = useState(null);
   const [predictedStartTime, setPredictedStartTime] = useState(null);
+  // All stored drafts keyed by `${delivery_date}_${delivery_session}` for Meal Type filter in Draft Plan tab
+  const [draftPlans, setDraftPlans] = useState({});
   
   // Tracking State
   const [startJourneyData, setStartJourneyData] = useState({
@@ -67,6 +72,7 @@ const AIRouteOptimization = () => {
   });
   
   const planRouteMutation = usePlanRoute();
+  const savePlanToS3Mutation = useSavePlanToS3();
   const reassignDriverMutation = useReassignDriver();
   const moveStopMutation = useMoveStop();
   const predictStartTimeMutation = usePredictStartTime();
@@ -96,7 +102,9 @@ const AIRouteOptimization = () => {
       
       setRoutePlan(result);
       setRouteComparison(result.route_comparison);
-      
+      const draftKey = `${result.delivery_date}_${result.delivery_session}`;
+      setDraftPlans((prev) => ({ ...prev, [draftKey]: { plan: result, comparison: result.route_comparison } }));
+
       // Save to localStorage - save both routePlan and routeComparison
       try {
         const storageKey = getStorageKey('routePlan');
@@ -112,9 +120,9 @@ const AIRouteOptimization = () => {
       } catch (error) {
         console.error('Error saving route plan to localStorage:', error);
       }
-      
-      // Show success message
-      const successMessage = `Route planned successfully! ${result.num_drivers || 0} driver(s) assigned.`;
+
+      // Show success message (draft is stored only in Draft Plan tab, not in Route & Management)
+      const successMessage = `Route planned successfully! ${result.num_drivers || 0} driver(s) assigned. View in Draft Plan tab.`;
       showSuccessToast(successMessage);
       
       // Show warnings if they exist (even on success)
@@ -260,6 +268,23 @@ const AIRouteOptimization = () => {
     }));
     setShowStartJourneyModal(true);
   };
+
+  // Approve = save planned routes to S3 (Excel + TXT); returns response so Draft Plan can show Export buttons
+  const handleApproveDraft = async (routePlanData) => {
+    const routeIds = routePlanData?.route_ids;
+    if (!routeIds || !Array.isArray(routeIds) || routeIds.length === 0) {
+      showErrorToast?.('No route_ids in plan. Plan a route first.');
+      return null;
+    }
+    try {
+      const data = await savePlanToS3Mutation.mutateAsync({ route_ids: routeIds });
+      showSuccessToast?.(data.message || 'Planned routes saved to S3 (Excel and TXT).');
+      return data;
+    } catch (error) {
+      showErrorToast?.(error?.message || 'Failed to save plan to S3');
+      return null;
+    }
+  };
   
   // Initialize
   useEffect(() => {
@@ -311,7 +336,31 @@ const AIRouteOptimization = () => {
       console.error('Error loading saved route data from localStorage:', error);
     }
   }, [deliveryDate, deliverySession]); // Re-load when date or session changes
-  
+
+  // Load all draft plans from localStorage on mount (for Draft Plan tab Meal Type filter)
+  useEffect(() => {
+    try {
+      const prefix = 'aiRoute_routePlan_';
+      const next = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith(prefix)) continue;
+        const rest = key.slice(prefix.length);
+        const parts = rest.split('_');
+        const date = parts[0];
+        const session = parts.slice(1).join('_') || (parts[1] ?? '');
+        if (!date || !session) continue;
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const plan = JSON.parse(raw);
+        next[`${date}_${session}`] = { plan, comparison: plan.route_comparison ?? null };
+      }
+      setDraftPlans((prev) => (Object.keys(next).length ? { ...next, ...prev } : prev));
+    } catch (e) {
+      console.error('Error loading draft plans from localStorage:', e);
+    }
+  }, []);
+
   // Error boundary - show error message if component fails
   if (componentError) {
     return (
@@ -337,6 +386,7 @@ const AIRouteOptimization = () => {
   // Tab configuration
   const tabs = [
     { id: 'planning', label: 'Route Planning', icon: FiMap },
+    { id: 'draft', label: 'Draft Plan', icon: FiFileText },
     { id: 'reassign', label: 'Reassign Driver', icon: FiPackage },
     { id: 'tracking', label: 'Tracking', icon: FiNavigation },
     { id: 'analytics', label: 'Analytics', icon: FiBarChart2 }
@@ -396,6 +446,17 @@ const AIRouteOptimization = () => {
             planningRoute={planRouteMutation.isPending}
             predictingStartTime={predictStartTimeMutation.isPending}
             onStartJourney={handleStartJourneyFromRoute}
+          />
+        )}
+
+        {activeTab === 'draft' && (
+          <DraftPlanSession
+            draftPlans={draftPlans}
+            currentDeliveryDate={deliveryDate}
+            currentDeliverySession={deliverySession}
+            onApproveRoute={handleApproveDraft}
+            showSuccessToast={showSuccessToast}
+            showErrorToast={showErrorToast}
           />
         )}
         

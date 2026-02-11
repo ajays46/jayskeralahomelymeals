@@ -3,6 +3,7 @@ import {
   getAvailableDatesService,
   getDeliveryDataService,
   planRouteService,
+  savePlanToS3Service,
   reassignDriverService,
   moveStopService,
   predictStartTimeService,
@@ -224,6 +225,35 @@ export const planRoute = async (req, res, next) => {
       delivery_date: req.body?.delivery_date,
       delivery_session: req.body?.delivery_session
     });
+    next(error);
+  }
+};
+
+/**
+ * Save planned routes to S3 (Excel + TXT)
+ * Body: { route_ids (required), company_id (optional) }
+ */
+export const savePlanToS3 = async (req, res, next) => {
+  try {
+    const { route_ids: routeIds, company_id: bodyCompanyId } = req.body || {};
+    const companyId = bodyCompanyId ?? req.companyId;
+    if (!routeIds || !Array.isArray(routeIds) || routeIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_ids is required and must be a non-empty array'
+      });
+    }
+    const result = await savePlanToS3Service(companyId, routeIds);
+    return res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Save plan to S3 failed', { error: error.message });
+    const code = error.statusCode || error.status;
+    if (code && code >= 400 && code < 600) {
+      return res.status(code).json({
+        success: false,
+        message: error.message || 'Failed to save plan to S3'
+      });
+    }
     next(error);
   }
 };

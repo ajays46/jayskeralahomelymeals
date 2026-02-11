@@ -15,7 +15,7 @@ import WeatherTab from './WeatherTab';
  * - AI Route Optimization
  * - Fullscreen mode
  */
-const ExecutivesAndRoutes = ({ isFullscreen = false, onToggleFullscreen }) => {
+const ExecutivesAndRoutes = ({ isFullscreen = false, onToggleFullscreen, showSuccessToast, showErrorToast }) => {
   const [activeViewTab, setActiveViewTab] = useState('ai-routes'); // 'individual', 'all', 'ai-routes', or 'weather'
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -157,7 +157,10 @@ const ExecutivesAndRoutes = ({ isFullscreen = false, onToggleFullscreen }) => {
                 <p className="text-gray-400">Loading AI Route Optimization...</p>
               </div>
             }>
-              <AIRouteOptimization />
+              <AIRouteOptimization
+                showSuccessToast={showSuccessToast}
+                showErrorToast={showErrorToast}
+              />
             </React.Suspense>
           )}
           {activeViewTab === 'weather' && <WeatherTab />}

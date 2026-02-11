@@ -5419,6 +5419,8 @@ const DeliveryManagerPage = () => {
             <ExecutivesAndRoutes 
               isFullscreen={isFullscreenExecutivesRoutes}
               onToggleFullscreen={setIsFullscreenExecutivesRoutes}
+              showSuccessToast={showSuccessToast}
+              showErrorToast={showErrorToast}
             />
           )}
         </div>

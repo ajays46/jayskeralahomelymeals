@@ -184,6 +184,49 @@ export const planRouteService = async (routeData, companyId = null) => {
 };
 
 /**
+ * Save planned routes to S3 (Excel + TXT)
+ * POST /api/route/plan/save-to-s3 on external API (port 5003)
+ * Body: { company_id?, route_ids }
+ */
+export const savePlanToS3Service = async (companyId, routeIds) => {
+  if (!routeIds || !Array.isArray(routeIds) || routeIds.length === 0) {
+    throw new AppError('route_ids is required and must be a non-empty array', 400);
+  }
+  try {
+    const payload = { route_ids: routeIds };
+    if (companyId && typeof companyId === 'string' && companyId.trim()) {
+      payload.company_id = companyId.trim();
+    }
+    const response = await apiClient.post('/api/route/plan/save-to-s3', payload, withCompanyId(companyId));
+    const data = response.data;
+    if (!data.success) {
+      throw new AppError(data.message || 'Save to S3 failed', 500);
+    }
+    return {
+      success: true,
+      s3_url: data.s3_url,
+      filename: data.filename,
+      s3_url_txt: data.s3_url_txt,
+      filename_txt: data.filename_txt,
+      message: data.message || 'Planned routes saved to S3 (Excel and TXT).'
+    };
+  } catch (error) {
+    const status = error.response?.status;
+    const body = error.response?.data;
+    logError(LOG_CATEGORIES.SYSTEM, 'Save plan to S3 failed', {
+      error: error.message,
+      routeIds,
+      status,
+      response: body
+    });
+    if (error instanceof AppError) throw error;
+    const message = body?.message || body?.error || error.message || 'Failed to save plan to S3';
+    const code = status && status >= 400 && status < 600 ? status : 500;
+    throw new AppError(message, code);
+  }
+};
+
+/**
  * Reassign Driver - single reassign or exchange two drivers
  * Body: { route_id, new_driver_name } OR { exchange: true, route_id_1, route_id_2 }
  */

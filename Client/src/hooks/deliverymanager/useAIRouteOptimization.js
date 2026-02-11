@@ -193,6 +193,31 @@ export const usePlanRoute = () => {
 };
 
 /**
+ * Save planned routes to S3 (Excel + TXT)
+ * POST /api/route/plan/save-to-s3
+ * Body: { route_ids } (company_id sent via header by backend)
+ */
+export const useSavePlanToS3 = () => {
+  return useMutation({
+    mutationFn: async ({ route_ids: routeIds }) => {
+      if (!routeIds || !Array.isArray(routeIds) || routeIds.length === 0) {
+        throw new Error('route_ids is required');
+      }
+      const response = await axiosInstance.post('/ai-routes/route/plan/save-to-s3', {
+        route_ids: routeIds
+      });
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Save to S3 failed');
+      }
+      return response.data;
+    },
+    onError: (error) => {
+      console.error('Save plan to S3 error:', error);
+    }
+  });
+};
+
+/**
  * Reassign Driver (Mutation)
  * Body: { route_id, new_driver_name } for single reassign, or { exchange: true, route_id_1, route_id_2 } for exchange
  */
