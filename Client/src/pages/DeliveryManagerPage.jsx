@@ -9,10 +9,11 @@ import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes, u
 import { useUpdateGeoLocation, useUpdateDeliveryComment } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
-import { isSeller } from '../utils/roleUtils';
+import { isSeller, hasAnyRole } from '../utils/roleUtils';
 import { SkeletonDeliveryManager, SkeletonLoading } from '../components/Skeleton';
 import RouteHistoryManager from '../components/deliveryManager/RouteHistoryManager';
 import ExecutivesAndRoutes from '../components/deliveryManager/ExecutivesAndRoutes';
+import AssistantChat from '../components/deliveryManager/AssistantChat';
 
 /**
  * DeliveryManagerPage - Comprehensive delivery management dashboard with route planning and analytics
@@ -5814,6 +5815,9 @@ const DeliveryManagerPage = () => {
         </div>
       </Modal>
 
+      {hasAnyRole(roles, ['DELIVERY_MANAGER', 'CEO', 'CFO', 'ADMIN']) && companyId && user?.id && (
+        <AssistantChat companyId={companyId} userId={user.id} />
+      )}
     </div>
   );
 };
