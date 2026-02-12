@@ -5,6 +5,33 @@ import { Popconfirm } from 'antd';
 const formatSessionLabel = (session) =>
   (session ?? '').replace(/\b\w/g, (c) => c.toUpperCase());
 
+const STORAGE_KEY_APPROVED = 'aiRoute_approvedDrafts';
+
+function loadApprovedFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_APPROVED);
+    if (!raw) return { approvedKeys: [], exportUrlsByKey: {} };
+    const parsed = JSON.parse(raw);
+    return {
+      approvedKeys: Array.isArray(parsed.approvedKeys) ? parsed.approvedKeys : [],
+      exportUrlsByKey: parsed.exportUrlsByKey && typeof parsed.exportUrlsByKey === 'object' ? parsed.exportUrlsByKey : {}
+    };
+  } catch {
+    return { approvedKeys: [], exportUrlsByKey: {} };
+  }
+}
+
+function saveApprovedToStorage(approvedKeys, exportUrlsByKey) {
+  try {
+    localStorage.setItem(STORAGE_KEY_APPROVED, JSON.stringify({
+      approvedKeys: Array.from(approvedKeys),
+      exportUrlsByKey: exportUrlsByKey || {}
+    }));
+  } catch (e) {
+    console.warn('Could not persist approved drafts to localStorage', e);
+  }
+}
+
 /** Trigger file download from URL; falls back to opening in new tab if fetch fails (e.g. CORS) */
 const downloadFromUrl = async (url, filename) => {
   if (!url) return;
@@ -42,9 +69,15 @@ const DraftPlanSession = ({
   const [filterDelivery, setFilterDelivery] = useState('');
   const [filterExecutive, setFilterExecutive] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
-  const [approvedDraftKeys, setApprovedDraftKeys] = useState(() => new Set());
+  const [approvedDraftKeys, setApprovedDraftKeys] = useState(() => {
+    const { approvedKeys } = loadApprovedFromStorage();
+    return new Set(approvedKeys);
+  });
   // Export URLs per draft key after approve: { [key]: { s3_url, s3_url_txt, filename, filename_txt } }
-  const [exportUrlsByKey, setExportUrlsByKey] = useState({});
+  const [exportUrlsByKey, setExportUrlsByKey] = useState(() => {
+    const { exportUrlsByKey: urls } = loadApprovedFromStorage();
+    return urls;
+  });
 
   const draftKeys = useMemo(
     () => Object.keys(draftPlans).sort((a, b) => a.localeCompare(b)),
@@ -152,18 +185,24 @@ const DraftPlanSession = ({
     if (!routePlan || !onApproveRoute) return;
     try {
       const data = await onApproveRoute(routePlan);
-      setApprovedDraftKeys((prev) => new Set([...prev, selectedDraftKey]));
+      const newApprovedKeys = new Set([...approvedDraftKeys, selectedDraftKey]);
+      const newExportUrls =
+        data && (data.s3_url || data.s3_url_txt)
+          ? {
+              ...exportUrlsByKey,
+              [selectedDraftKey]: {
+                s3_url: data.s3_url,
+                s3_url_txt: data.s3_url_txt,
+                filename: data.filename,
+                filename_txt: data.filename_txt
+              }
+            }
+          : exportUrlsByKey;
+      setApprovedDraftKeys(newApprovedKeys);
       if (data && (data.s3_url || data.s3_url_txt)) {
-        setExportUrlsByKey((prev) => ({
-          ...prev,
-          [selectedDraftKey]: {
-            s3_url: data.s3_url,
-            s3_url_txt: data.s3_url_txt,
-            filename: data.filename,
-            filename_txt: data.filename_txt
-          }
-        }));
+        setExportUrlsByKey(newExportUrls);
       }
+      saveApprovedToStorage(newApprovedKeys, newExportUrls);
     } catch (error) {
       console.error('Error approving route:', error);
       if (showErrorToast) showErrorToast(error?.message || 'Failed to approve route');
