@@ -32,20 +32,15 @@ export const useLogin = () => {
         setActiveRole(primaryRole);
         setUser(data.data);
         setIsAuthenticated(true);
-        // Store company_id for multi-tenant API (X-Company-ID header)
+        // Store company_id for multicompany (X-Company-ID header)
         if (data.data?.companyId) {
           localStorage.setItem('company_id', data.data.companyId);
         }
-        
+        const targetBasePath = data.data?.companyPath ? `/${String(data.data.companyPath).trim()}` : basePath;
         // Small delay to ensure AuthSlider closes first
         setTimeout(() => {
-          // Company admin: redirect to their company URL so URL + data + UI match (production-friendly)
-          const userCompanyPath = data.data?.companyPath;
-          const targetBasePath = userCompanyPath ? `/${userCompanyPath}` : basePath;
-
           if (roles.length > 1) {
-            // Redirect to user's company first so role selector navigates to correct company
-            if (userCompanyPath) navigate(targetBasePath, { replace: true });
+            if (data.data?.companyPath) navigate(targetBasePath, { replace: true });
             setShowRoleSelector(true);
           } else {
             const dashboardRoute = getDashboardRoute(roles, targetBasePath);
@@ -68,7 +63,7 @@ export const useLogin = () => {
 export const useLogout = () => {
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
-  const basePath = useCompanyBasePath(); // Stay on current company after logout (e.g. /jlg)
+  const basePath = useCompanyBasePath();
 
   return useMutation({
     mutationFn: async () => {

@@ -1518,6 +1518,17 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
 };
 
 /**
+ * Build request config with optional X-Company-ID for multi-tenant external API calls.
+ */
+const requestConfigWithCompany = (companyId, options = {}) => {
+  const config = { ...options };
+  if (companyId && typeof companyId === 'string' && companyId.trim()) {
+    config.headers = { ...config.headers, 'X-Company-ID': companyId.trim() };
+  }
+  return config;
+};
+
+/**
  * Get Coordinator Settings
  * Fetches current Coordinator parameter values from external API (per-company).
  * Requires company_id for multi-tenant support (X-Company-ID).
@@ -1568,8 +1579,9 @@ export const getCoordinatorSettingsService = async (companyId) => {
  * - With driver_name only: returns drivers[].available_dates, drivers[].available_sessions.
  * - With driver_name + date (+ session): returns route for that driver/date/session.
  * Enriches route data with delivery executive names when routes are present.
+ * companyId: when set, sent as X-Company-ID to scope data by tenant.
  */
-export const getRouteMapDataService = async (params = {}) => {
+export const getRouteMapDataService = async (params = {}, companyId = null) => {
   try {
     const { date, session, route_id, driver_name } = params;
     
@@ -1584,9 +1596,9 @@ export const getRouteMapDataService = async (params = {}) => {
     if (route_id) queryParams.route_id = route_id;
     if (driver_name && driver_name.trim()) queryParams.driver_name = driver_name.trim();
     
-    // Use apiClientRouteAPI (AI_ROUTE_API) for map-data - correct external API
     const response = await apiClient.get('/api/route/map-data', {
-      params: queryParams
+      params: queryParams,
+      ...requestConfigWithCompany(companyId)
     });
     
     const data = response.data;
@@ -1892,8 +1904,9 @@ export const getDriversFromRouteMapDataService = async (params = {}) => {
  * Get Executive Performance for CXO
  * Fetches performance metrics for all executives from AI_ROUTE_API /api/executive/performance
  * Optional query params: start_date, end_date, days, session, min_routes, driver_name, driver_id
+ * companyId: when set, sent as X-Company-ID to scope data by tenant.
  */
-export const getExecutivePerformanceService = async (filters = {}) => {
+export const getExecutivePerformanceService = async (filters = {}, companyId = null) => {
   try {
     const params = {};
     if (filters.start_date) params.start_date = filters.start_date;
@@ -1903,7 +1916,10 @@ export const getExecutivePerformanceService = async (filters = {}) => {
     if (filters.min_routes != null && filters.min_routes !== '') params.min_routes = filters.min_routes;
     if (filters.driver_name) params.driver_name = filters.driver_name;
     if (filters.driver_id) params.driver_id = filters.driver_id;
-    const response = await apiClient.get('/api/executive/performance', { params: Object.keys(params).length ? params : undefined });
+    const response = await apiClient.get('/api/executive/performance', {
+      params: Object.keys(params).length ? params : undefined,
+      ...requestConfigWithCompany(companyId)
+    });
     const data = response.data;
     logInfo(LOG_CATEGORIES.SYSTEM, 'Executive performance fetched for CXO', {
       total_executives: data?.total_executives ?? data?.executives?.length ?? 0
@@ -1925,14 +1941,16 @@ export const getExecutivePerformanceService = async (filters = {}) => {
  * Get Executive Performance by driver name for CXO (single executive)
  * Fetches performance for one executive via /api/executive/performance?driver_name=...
  * Separate from getExecutivePerformanceService - do not change the all-executives endpoint.
+ * companyId: when set, sent as X-Company-ID to scope data by tenant.
  */
-export const getExecutivePerformanceByDriverService = async (driver_name) => {
+export const getExecutivePerformanceByDriverService = async (driver_name, companyId = null) => {
   if (!driver_name || !String(driver_name).trim()) {
     throw new Error('driver_name is required');
   }
   try {
     const response = await apiClient.get('/api/executive/performance', {
-      params: { driver_name: String(driver_name).trim() }
+      params: { driver_name: String(driver_name).trim() },
+      ...requestConfigWithCompany(companyId)
     });
     const data = response.data;
     logInfo(LOG_CATEGORIES.SYSTEM, 'Executive performance by driver fetched for CXO', {

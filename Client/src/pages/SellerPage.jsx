@@ -49,6 +49,7 @@ import axiosInstance from '../api/axios';
 import { SkeletonTable, SkeletonCard, SkeletonDashboard, SkeletonOrderCard } from '../components/Skeleton';
 import { isCXO, isCEO, isCFO, hasAnyRole } from '../utils/roleUtils';
 import { useSellersData } from '../hooks/deliverymanager/useSellersData';
+import { getCompanyBasePathFallback } from '../utils/companyPaths';
 
 const SellerPage = () => {
   try {
@@ -504,33 +505,33 @@ const SellerPage = () => {
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <button
                     onClick={() => getSellerUsers()}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
-                >
-                  <MdRefresh className="w-4 h-4" />
-                  <span className="hidden sm:inline">Refresh Data</span>
-                </button>
-                <button
-                  onClick={() => navigate(`${basePath}/place-order`)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
-                >
-                  <MdAdd className="w-4 h-4" />
-                  <span className="hidden sm:inline">New Booking</span>
-                </button>
-                <button
-                  onClick={() => navigate(`${basePath}/seller/customers`)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm"
-                >
-                  <MdPeople className="w-4 h-4" />
-                  <span className="hidden sm:inline">View All Customers</span>
-                </button>
-                <button
-                  onClick={() => navigate(`${basePath}/create-user`)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-sm"
-                >
-                  <MdPerson className="w-4 h-4" />
-                  <span className="hidden sm:inline">Add Customer</span>
-                </button>
-              </div>
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+                  >
+                    <MdRefresh className="w-4 h-4" />
+                    <span className="hidden sm:inline">Refresh Data</span>
+                  </button>
+                  <button
+                    onClick={() => navigate(`${basePath}/place-order`)}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
+                  >
+                    <MdAdd className="w-4 h-4" />
+                    <span className="hidden sm:inline">New Booking</span>
+                  </button>
+                  <button
+                    onClick={() => navigate(`${basePath}/seller/customers`)}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm"
+                  >
+                    <MdPeople className="w-4 h-4" />
+                    <span className="hidden sm:inline">View All Customers</span>
+                  </button>
+                  <button
+                    onClick={() => navigate(`${basePath}/create-user`)}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-sm"
+                  >
+                    <MdPerson className="w-4 h-4" />
+                    <span className="hidden sm:inline">Add Customer</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

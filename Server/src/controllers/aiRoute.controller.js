@@ -1498,7 +1498,7 @@ export const getRouteMapData = async (req, res, next) => {
       });
     }
     
-    const result = await getRouteMapDataService({ date, session, route_id, driver_name });
+    const result = await getRouteMapDataService({ date, session, route_id, driver_name }, req.companyId);
     
     res.status(200).json({
       success: true,
@@ -1531,7 +1531,7 @@ export const getExecutivePerformance = async (req, res, next) => {
       driver_name: req.query.driver_name || undefined,
       driver_id: req.query.driver_id || undefined
     };
-    const result = await getExecutivePerformanceService(filters);
+    const result = await getExecutivePerformanceService(filters, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Get executive performance failed', { error: error.message });
@@ -1549,7 +1549,7 @@ export const getExecutivePerformanceByDriver = async (req, res, next) => {
     if (!driver_name) {
       return res.status(400).json({ success: false, message: 'driver_name query parameter is required' });
     }
-    const result = await getExecutivePerformanceByDriverService(driver_name);
+    const result = await getExecutivePerformanceByDriverService(driver_name, req.companyId);
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Get executive performance by driver failed', { error: error.message });

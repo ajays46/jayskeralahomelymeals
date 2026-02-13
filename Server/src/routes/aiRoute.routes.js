@@ -112,10 +112,10 @@ router.put('/delivery_data/:deliveryId/comments', checkRole('DELIVERY_MANAGER'),
 // Coordinator settings - DELIVERY_MANAGER only
 router.get('/coordinator/settings', checkRole('DELIVERY_MANAGER'), getCoordinatorSettings);
 router.put('/coordinator/settings', checkRole('DELIVERY_MANAGER'), updateCoordinatorSettings);
-// Route map data for CXO - CEO, CFO only
+// Route map data for CXO - CEO, CFO only (scoped by req.companyId when set)
 router.get('/route/map-data', checkRole('CEO', 'CFO'), getRouteMapData);
 
-// Executive performance for CXO - CEO, CFO only
+// Executive performance for CXO - CEO, CFO only (scoped by req.companyId when set)
 router.get('/executive/performance', checkRole('CEO', 'CFO'), getExecutivePerformance);
 router.get('/executive/performance/by-driver', checkRole('CEO', 'CFO'), getExecutivePerformanceByDriver);
 

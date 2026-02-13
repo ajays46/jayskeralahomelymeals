@@ -992,13 +992,14 @@ export const updateUserStatus = async (req, res, next) => {
     }
 };
 
-// Get sellers with their orders for users
+// Get sellers with their orders for users. Company-scoped via req.adminCompanyId or req.companyId.
 export const getSellersWithOrders = async (req, res, next) => {
     try {
-        // Super admin (companyId === null) sees all; company admin sees only their company's sellers
-        const where = req.adminCompanyId != null
-            ? { companyId: req.adminCompanyId }
-            : {};
+        const where = {};
+        const companyId = req.adminCompanyId ?? req.companyId;
+        if (companyId && typeof companyId === 'string' && companyId.trim()) {
+            where.companyId = companyId.trim();
+        }
         // Get users with SELLER role (optionally scoped by company)
         const sellers = await prisma.user.findMany({
             where,
@@ -1192,14 +1193,15 @@ export const getSellersWithOrders = async (req, res, next) => {
     }
 };
 
-// Get delivery executives (all from DB; names from Contact when available)
+// Get delivery executives (all from DB; names from Contact when available). Company-scoped via req.adminCompanyId or req.companyId.
 export const getDeliveryExecutives = async (req, res, next) => {
     try {
-        // Get all users with DELIVERY_EXECUTIVE role from DB, include contacts for names
-        // Super admin (companyId === null) sees all; company admin sees only their company's executives
-        const where = req.adminCompanyId != null
-            ? { companyId: req.adminCompanyId }
-            : {};
+        const where = {};
+        const companyId = req.adminCompanyId ?? req.companyId;
+        if (companyId && typeof companyId === 'string' && companyId.trim()) {
+            where.companyId = companyId.trim();
+        }
+        // Get users with DELIVERY_EXECUTIVE role from DB (optionally scoped by company), include contacts for names
         const executives = await prisma.user.findMany({
             where,
             include: {
@@ -1264,10 +1266,15 @@ export const getDeliveryExecutives = async (req, res, next) => {
     }
 };
 
-// Get delivery managers (all from DB; names from Contact when available) - for CXO view
+// Get delivery managers (all from DB; names from Contact when available) - for CXO view. Company-scoped when req.companyId is set.
 export const getDeliveryManagers = async (req, res, next) => {
     try {
+        const where = {};
+        if (req.companyId && typeof req.companyId === 'string' && req.companyId.trim()) {
+            where.companyId = req.companyId.trim();
+        }
         const managers = await prisma.user.findMany({
+            where,
             include: {
                 auth: true,
                 userRoles: true,
@@ -2060,19 +2067,22 @@ export const removeUserRoles = async (req, res, next) => {
     }
 };
 
-// Fetch active executives from external API
+// Fetch active executives from external API (company-scoped via req.adminCompanyId or req.companyId)
 export const getActiveExecutives = async (req, res, next) => {
     try {
-        const execHeaders = { 'Authorization': 'Bearer mysecretkey123' };
-        if (req.adminCompanyId) execHeaders['X-Company-ID'] = req.adminCompanyId;
+        const companyId = req.adminCompanyId ?? req.companyId;
+        const headers = { 'Authorization': 'Bearer mysecretkey123' };
+        if (companyId && typeof companyId === 'string' && companyId.trim()) {
+            headers['X-Company-ID'] = companyId.trim();
+        }
         logInfo(LOG_CATEGORIES.SYSTEM, 'getActiveExecutives: request to external API', {
-            hasCompanyId: !!req.adminCompanyId,
-            xCompanyId: req.adminCompanyId || '(not set)',
+            hasCompanyId: !!companyId,
+            xCompanyId: companyId || '(not set)',
             url: `${process.env.AI_ROUTE_API}/api/executives`
         });
         const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
             method: 'GET',
-            headers: execHeaders
+            headers
         });
         
         if (!response.ok) {
@@ -2099,6 +2109,32 @@ export const getActiveExecutives = async (req, res, next) => {
         } else if (data.success && Array.isArray(data.executives)) {
             executivesArray = data.executives;
             vehicleChoicesArray = data.vehicle_choices || [];
+        }
+        
+        // When company is set, filter executives to only those whose user belongs to that company (our DB)
+        if (req.companyId && typeof req.companyId === 'string' && req.companyId.trim()) {
+            const companyId = req.companyId.trim();
+            const executiveUserIds = [...new Set(
+                executivesArray
+                    .map((e) => e.user_id ?? e.id)
+                    .filter(Boolean)
+            )];
+            if (executiveUserIds.length > 0) {
+                const usersInCompany = await prisma.user.findMany({
+                    where: {
+                        id: { in: executiveUserIds },
+                        companyId
+                    },
+                    select: { id: true }
+                });
+                const allowedIds = new Set(usersInCompany.map((u) => u.id));
+                executivesArray = executivesArray.filter((e) => {
+                    const uid = e.user_id ?? e.id;
+                    return uid && allowedIds.has(uid);
+                });
+            } else {
+                executivesArray = [];
+            }
         }
         
         res.status(200).json({
