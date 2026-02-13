@@ -1338,29 +1338,39 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
 
 /**
  * Get Coordinator Settings
- * Fetches current Coordinator parameter values from external API
+ * Fetches current Coordinator parameter values from external API (per-company).
+ * Requires company_id for multi-tenant support (X-Company-ID).
  */
-export const getCoordinatorSettingsService = async () => {
+export const getCoordinatorSettingsService = async (companyId) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new Error('company_id required (header X-Company-ID or query company_id)');
+  }
   try {
-    const response = await apiClient.get('/api/coordinator/settings');
+    const response = await apiClient.get('/api/coordinator/settings', {
+      headers: { 'X-Company-ID': companyId.trim() },
+      params: { company_id: companyId.trim() }
+    });
     const data = response.data;
-    
+
     if (!data.success) {
       throw new Error(data.error || 'Failed to fetch Coordinator settings');
     }
-    
+
     logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings fetched', {
+      company_id: companyId,
       settings: data.settings
     });
-    
+
     return {
       success: true,
+      company_id: data.company_id || companyId,
       settings: data.settings || {},
       description: data.description || {}
     };
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch Coordinator settings', {
       error: error.message,
+      company_id: companyId,
       response: error.response?.data
     });
     throw new AppError(
@@ -1372,53 +1382,63 @@ export const getCoordinatorSettingsService = async () => {
 
 /**
  * Update Coordinator Settings
- * Updates Coordinator parameter values globally
+ * Updates Coordinator parameter values for the given company (multi-tenant).
+ * Requires company_id (X-Company-ID). All body fields are optional; only provided fields are updated.
  */
-export const updateCoordinatorSettingsService = async (updates) => {
+export const updateCoordinatorSettingsService = async (companyId, updates) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new Error('company_id required (header X-Company-ID or body company_id)');
+  }
   try {
-    // Validate updates
-    if (!updates || Object.keys(updates).length === 0) {
-      throw new Error('No updates provided');
+    // Allow empty updates object (doc: "only provided fields are updated"); external API may require at least one field
+    if (!updates || typeof updates !== 'object') {
+      throw new Error('No JSON data provided');
     }
 
-    // Validate parameter values
+    // Validation rules per FRONTEND_COORDINATOR_GUIDE.md
     if (updates.max_time_hours !== undefined) {
       if (typeof updates.max_time_hours !== 'number' || updates.max_time_hours <= 0) {
-        throw new Error('max_time_hours must be a positive number');
+        throw new Error('Invalid parameter value: max_time_hours must be a positive number (e.g. 1–8)');
       }
     }
     if (updates.max_packages_per_driver !== undefined) {
-      if (typeof updates.max_packages_per_driver !== 'number' || updates.max_packages_per_driver <= 0) {
-        throw new Error('max_packages_per_driver must be a positive integer');
+      const v = updates.max_packages_per_driver;
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 50) {
+        throw new Error('Invalid parameter value: max_packages_per_driver must be an integer between 1 and 50');
       }
     }
     if (updates.max_distance_km !== undefined) {
       if (typeof updates.max_distance_km !== 'number' || updates.max_distance_km <= 0) {
-        throw new Error('max_distance_km must be a positive number');
+        throw new Error('Invalid parameter value: max_distance_km must be a positive number (e.g. 50–200 km)');
       }
     }
     if (updates.min_confidence !== undefined) {
       if (typeof updates.min_confidence !== 'number' || updates.min_confidence < 0 || updates.min_confidence > 1) {
-        throw new Error('min_confidence must be a number between 0.0 and 1.0');
+        throw new Error('Invalid parameter value: min_confidence must be a number between 0.0 and 1.0');
       }
     }
 
-    const response = await apiClient.put('/api/coordinator/settings', updates);
+    const body = { ...updates, company_id: companyId.trim() };
+    const response = await apiClient.put('/api/coordinator/settings', body, {
+      headers: { 'X-Company-ID': companyId.trim() }
+    });
     const data = response.data;
-    
+
     if (!data.success) {
       throw new Error(data.error || 'Failed to update Coordinator settings');
     }
-    
+
     logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings updated', {
+      company_id: companyId,
       changed: data.changed,
       previous: data.previous_settings,
       current: data.current_settings
     });
-    
+
     return {
       success: true,
       message: data.message || 'Coordinator settings updated successfully',
+      company_id: data.company_id || companyId,
       previous_settings: data.previous_settings || {},
       current_settings: data.current_settings || {},
       changed: data.changed || {}
@@ -1426,6 +1446,7 @@ export const updateCoordinatorSettingsService = async (updates) => {
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to update Coordinator settings', {
       error: error.message,
+      company_id: companyId,
       updates,
       response: error.response?.data
     });

@@ -113,10 +113,11 @@ export const loginUser = async ({ identifier, password }) => {
             throw new AppError('Account is not active', 403);
         }
 
-        const user = await prisma.user.findUnique({ 
+        const user = await prisma.user.findUnique({
             where: { authId: auth.id },
             include: {
-                userRoles: true
+                userRoles: true,
+                company: { select: { id: true, name: true } }
             }
         });
 
@@ -137,7 +138,9 @@ export const loginUser = async ({ identifier, password }) => {
                 api_key: auth.apiKey,
                 status: auth.status,
                 role: primaryRole.name,
-                roles: user.userRoles.map(role => role.name) // Include all roles
+                roles: user.userRoles.map(role => role.name),
+                companyId: user.companyId ?? null,
+                company: user.company ? { id: user.company.id, name: user.company.name } : null
             },
             token: {
                 accessToken,
