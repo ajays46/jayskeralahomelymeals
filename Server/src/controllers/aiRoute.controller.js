@@ -25,7 +25,6 @@ import {
   deleteZoneService,
   getZoneDeliveriesService,
   reoptimizeRouteService,
-  completeDriverSessionService,
   getMissingGeoLocationsService,
   updateGeoLocationService,
   getDriverNextStopMapsService,
@@ -499,12 +498,13 @@ export const stopReached = async (req, res, next) => {
 
 /**
  * End Journey (NEW API: /api/journey/end)
- * Accepts: POST body { "route_id": "ROUTE_ID_FROM_STARTED_JOURNEY" }
+ * Accepts: POST body { "route_id": "ROUTE_ID_FROM_STARTED_JOURNEY", optional: "session" }
  * user_id is taken from the authenticated user when not in body.
+ * session (breakfast/lunch/dinner/any) is forwarded to external API so the correct session gets total_journey_duration_minutes and actual_end_time.
  */
 export const endJourney = async (req, res, next) => {
   try {
-    const { route_id, user_id: bodyUserId, latitude, longitude } = req.body;
+    const { route_id, user_id: bodyUserId, latitude, longitude, session } = req.body;
     const user_id = bodyUserId ?? req.user?.userId;
 
     if (!route_id) {
@@ -524,7 +524,8 @@ export const endJourney = async (req, res, next) => {
       user_id,
       route_id,
       latitude,
-      longitude
+      longitude,
+      session
     }, req.companyId);
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Journey ended successfully', {
@@ -1057,38 +1058,6 @@ export const getRouteOrder = async (req, res, next) => {
     logError(LOG_CATEGORIES.SYSTEM, 'Get route order failed', {
       error: error.message,
       routeId: req.params?.routeId
-    });
-    next(error);
-  }
-};
-
-/**
- * Complete Driver Session
- */
-export const completeDriverSession = async (req, res, next) => {
-  try {
-    const { route_id } = req.body;
-    
-    if (!route_id) {
-      return res.status(400).json({
-        success: false,
-        message: 'route_id is required'
-      });
-    }
-    
-    const result = await completeDriverSessionService({
-      route_id
-    }, req.companyId);
-    
-    logInfo(LOG_CATEGORIES.SYSTEM, 'Driver session completed', {
-      route_id
-    });
-    
-    res.status(200).json(result);
-  } catch (error) {
-    logError(LOG_CATEGORIES.SYSTEM, 'Driver session completion failed', {
-      error: error.message,
-      route_id: req.body?.route_id
     });
     next(error);
   }

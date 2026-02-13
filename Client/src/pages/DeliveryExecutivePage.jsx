@@ -9,7 +9,7 @@ import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
-import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useStartJourney, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { useUploadDeliveryPhoto, useUploadPreDeliveryPhoto, useCheckMultipleDeliveryImages, useCheckMultiplePreDeliveryImages } from '../hooks/deliverymanager';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import html2canvas from 'html2canvas';
@@ -354,7 +354,6 @@ const DeliveryExecutivePage = () => {
   // React Query hooks
   const startJourneyMutation = useStartJourney();
   const updateGeoLocationMutation = useUpdateGeoLocation();
-  const completeSessionMutation = useCompleteDriverSession();
   const stopReachedMutation = useStopReached();
   const endJourneyMutation = useEndJourney();
   const checkTrafficMutation = useCheckTraffic();
@@ -2504,47 +2503,61 @@ const DeliveryExecutivePage = () => {
     setShowEndSessionModal(true);
   };
 
-  // Handle End Session submission
+  // Handle End Session submission — use journey/end so the correct session gets total_journey_duration_minutes and actual_end_time (breakfast/lunch/dinner)
   const handleEndSession = async () => {
-    // Extract route_id from routes data
+    const sessionName = (endSessionData.sessionName || selectedSession || '').toLowerCase();
+    if (!sessionName) {
+      showErrorToast('Session not found.');
+      return;
+    }
+
+    // Get route_id for the session we're ending (not a different session)
     let routeId = '';
-    
-    // Try to get route_id from routes array
-    if (routes?.routes && Array.isArray(routes.routes) && routes.routes.length > 0) {
-      routeId = routes.routes[0].route_id || '';
+    if (routes?.sessions?.[sessionName]?.route_id) {
+      routeId = routes.sessions[sessionName].route_id;
     }
-    // Try from data.routes (nested structure)
-    else if (routes?.data?.routes && Array.isArray(routes.data.routes) && routes.data.routes.length > 0) {
-      routeId = routes.data.routes[0].route_id || '';
-    }
-    // Try from selected session stops
-    else if (routes?.sessions?.[selectedSession]?.stops && routes.sessions[selectedSession].stops.length > 0) {
-      const firstStop = routes.sessions[selectedSession].stops.find(stop => stop.route_id || stop.Route_ID);
+    if (!routeId && routes?.sessions?.[sessionName]?.stops?.length > 0) {
+      const firstStop = routes.sessions[sessionName].stops.find(stop => stop.route_id || stop.Route_ID);
       routeId = firstStop?.route_id || firstStop?.Route_ID || '';
     }
-    // Try from activeRouteId if journey is started
-    else if (activeRouteId) {
+    if (!routeId && activeRouteId) {
       routeId = activeRouteId;
     }
-    
+    if (!routeId && routes?.routes?.[0]?.route_id) {
+      routeId = routes.routes[0].route_id;
+    }
+    if (!routeId && routes?.data?.routes?.[0]?.route_id) {
+      routeId = routes.data.routes[0].route_id;
+    }
+
     if (!routeId) {
       showErrorToast('Route ID not found. Please ensure you have an active route.');
       return;
     }
-    
+
     try {
-      await completeSessionMutation.mutateAsync({
-        route_id: routeId
-      });
-      // Mark this session as completed (normalize to lowercase)
-      setCompletedSessions(prev => new Set(prev).add(selectedSession.toLowerCase()));
-      showSuccessToast(`${endSessionData.sessionName.charAt(0).toUpperCase() + endSessionData.sessionName.slice(1)} session completed successfully!`);
+      const payload = {
+        user_id: user?.id,
+        route_id: routeId,
+        session: sessionName
+      };
+      // Optional: send current location if available
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 });
+        });
+        payload.latitude = position.coords.latitude;
+        payload.longitude = position.coords.longitude;
+      } catch (_) {
+        // ignore geo errors
+      }
+      await endJourneyMutation.mutateAsync(payload);
+      setCompletedSessions(prev => new Set(prev).add(sessionName));
+      showSuccessToast(`${endSessionData.sessionName?.charAt(0).toUpperCase() + endSessionData.sessionName?.slice(1) || sessionName} session completed successfully!`);
       setShowEndSessionModal(false);
       setEndSessionData({ sessionName: '', sessionId: '' });
-      // Clear active journey state when session ends
       setActiveRouteId(null);
       localStorage.removeItem('activeRouteId');
-      // Refresh routes after session completion
       fetchRoutes();
     } catch (error) {
       showErrorToast(error.message || 'Failed to complete session');
@@ -3731,10 +3744,10 @@ const DeliveryExecutivePage = () => {
                                   ) : (
                                     <button
                                       onClick={() => handleEndSessionClick(selectedSession)}
-                                      disabled={completeSessionMutation.isPending}
+                                      disabled={endJourneyMutation.isPending}
                                       className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white rounded-xl transition-colors flex items-center justify-center gap-2 font-semibold shadow-md"
                                     >
-                                      {completeSessionMutation.isPending ? (
+                                      {endJourneyMutation.isPending ? (
                                         <>
                                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                                           Completing...
@@ -3791,7 +3804,7 @@ const DeliveryExecutivePage = () => {
 
             </div>
           )}
-          {routes.sessions && routes.sessions[selectedSession] && lastDeliveredStopIndex != null && (
+          {routes.sessions && routes.sessions[selectedSession] && lastDeliveredStopIndex != null && basePath !== '/jlg' && (
             <button
               type="button"
               onClick={handleCaptureProofClick}
@@ -4135,10 +4148,10 @@ const DeliveryExecutivePage = () => {
               </button>
               <button
                 onClick={handleEndSession}
-                disabled={completeSessionMutation.isPending}
+                disabled={endJourneyMutation.isPending}
                 className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {completeSessionMutation.isPending ? (
+                {endJourneyMutation.isPending ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                     Completing...
