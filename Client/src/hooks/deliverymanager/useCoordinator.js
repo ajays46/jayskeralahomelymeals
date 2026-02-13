@@ -1,24 +1,33 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import useAuthStore from '../../stores/Zustand.store';
 import { showSuccessToast, showErrorToast } from '../../utils/toastConfig.jsx';
 
 /**
- * Coordinator API functions
+ * Coordinator API functions (multi-tenant: X-Company-ID per FRONTEND_COORDINATOR_GUIDE.md)
  */
 const coordinatorApi = {
-  // Get Coordinator settings
   getSettings: async () => {
-    const response = await axiosInstance.get('/ai-routes/coordinator/settings');
+    const companyId = useAuthStore.getState().user?.companyId;
+    const headers = {};
+    if (companyId) headers['X-Company-ID'] = companyId;
+    const response = await axiosInstance.get('/ai-routes/coordinator/settings', {
+      headers,
+      params: companyId ? { company_id: companyId } : undefined
+    });
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to fetch Coordinator settings');
     }
     return response.data;
   },
 
-  // Update Coordinator settings
   updateSettings: async (updates) => {
-    const response = await axiosInstance.put('/ai-routes/coordinator/settings', updates);
+    const companyId = useAuthStore.getState().user?.companyId;
+    const headers = {};
+    if (companyId) headers['X-Company-ID'] = companyId;
+    const response = await axiosInstance.put('/ai-routes/coordinator/settings', updates, {
+      headers
+    });
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to update Coordinator settings');
     }
@@ -91,6 +100,8 @@ export const useCoordinator = () => {
     // Data
     settings: settingsData?.settings || null,
     descriptions: settingsData?.description || null,
+    settingsData: settingsData || null,
+    companyId: settingsData?.company_id || null,
     isLoadingSettings,
     settingsError,
     

@@ -35,6 +35,8 @@ import {
   updateDeliveryCommentService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
+import prisma from '../config/prisma.js';
+import AppError from '../utils/AppError.js';
 
 /**
  * AI Route Controller
@@ -1385,17 +1387,44 @@ export const updateDeliveryComment = async (req, res, next) => {
 };
 
 /**
+ * Resolve company_id for Coordinator (multi-tenant).
+ * Order: X-Company-ID header, query company_id (GET), body company_id, then User lookup by req.user.userId/id.
+ */
+const resolveCoordinatorCompanyId = async (req) => {
+  const header = req.headers['x-company-id'];
+  if (header && typeof header === 'string' && header.trim()) return header.trim();
+  const query = req.query?.company_id;
+  if (query && typeof query === 'string' && query.trim()) return query.trim();
+  const body = req.body?.company_id;
+  if (body && typeof body === 'string' && body.trim()) return body.trim();
+  const userId = req.user?.userId ?? req.user?.id;
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true }
+    });
+    if (user?.companyId) return user.companyId;
+  }
+  return null;
+};
+
+/**
  * Get Coordinator Settings
- * Returns current Coordinator parameter values
+ * Returns current Coordinator parameter values for the request's company (X-Company-ID or user's company).
  */
 export const getCoordinatorSettings = async (req, res, next) => {
   try {
-    const result = await getCoordinatorSettingsService();
-    
+    const companyId = await resolveCoordinatorCompanyId(req);
+    if (!companyId) {
+      throw new AppError('company_id required (send X-Company-ID header, query company_id, or ensure user has companyId)', 400);
+    }
+    const result = await getCoordinatorSettingsService(companyId);
+
     logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings retrieved', {
+      company_id: companyId,
       settings_count: Object.keys(result.settings || {}).length
     });
-    
+
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Get Coordinator settings failed', {
@@ -1407,25 +1436,31 @@ export const getCoordinatorSettings = async (req, res, next) => {
 
 /**
  * Update Coordinator Settings
- * Updates Coordinator parameter values globally
+ * Updates Coordinator parameter values for the request's company. All body fields optional.
  */
 export const updateCoordinatorSettings = async (req, res, next) => {
   try {
-    const updates = req.body;
-    
-    if (!updates || Object.keys(updates).length === 0) {
+    const companyId = await resolveCoordinatorCompanyId(req);
+    if (!companyId) {
+      throw new AppError('company_id required (send X-Company-ID header, body company_id, or ensure user has companyId)', 400);
+    }
+    const updates = { ...req.body };
+    delete updates.company_id; // avoid sending duplicate
+
+    if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No updates provided'
+        error: 'No updates provided (send at least one of: max_time_hours, max_packages_per_driver, max_distance_km, min_confidence)'
       });
     }
-    
-    const result = await updateCoordinatorSettingsService(updates);
-    
+
+    const result = await updateCoordinatorSettingsService(companyId, updates);
+
     logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings updated successfully', {
+      company_id: companyId,
       changed_fields: Object.keys(result.changed || {})
     });
-    
+
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Update Coordinator settings failed', {

@@ -148,7 +148,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
             throw new AppError('Account is not active', 403);
         }
 
-        const user = await prisma.user.findUnique({ 
+        const user = await prisma.user.findUnique({
             where: { authId: auth.id },
             include: {
                 userRoles: true,

@@ -12,6 +12,7 @@ const CoordinatorSettings = () => {
   const {
     settings,
     descriptions,
+    settingsData,
     isLoadingSettings,
     settingsError,
     isUpdating,
@@ -19,6 +20,7 @@ const CoordinatorSettings = () => {
     updateSettings,
     refetchSettings
   } = useCoordinator();
+  const companyId = settingsData?.company_id ?? null;
 
   const [formData, setFormData] = useState({
     max_time_hours: '',
@@ -33,19 +35,15 @@ const CoordinatorSettings = () => {
   // Initialize form data when settings are loaded
   useEffect(() => {
     if (settings && typeof settings === 'object' && Object.keys(settings).length > 0) {
-      console.log('Settings received:', settings);
       const newFormData = {
         max_time_hours: typeof settings.max_time_hours === 'number' ? String(settings.max_time_hours) : (settings.max_time_hours || ''),
         max_packages_per_driver: typeof settings.max_packages_per_driver === 'number' ? String(settings.max_packages_per_driver) : (settings.max_packages_per_driver || ''),
         max_distance_km: typeof settings.max_distance_km === 'number' ? String(settings.max_distance_km) : (settings.max_distance_km || ''),
         min_confidence: typeof settings.min_confidence === 'number' ? String(settings.min_confidence) : (settings.min_confidence || '')
       };
-      console.log('Setting formData to:', newFormData);
       setFormData(newFormData);
       setHasChanges(false);
       setUpdateResult(null);
-    } else {
-      console.log('Settings not ready:', settings);
     }
   }, [settings]);
 
@@ -61,12 +59,6 @@ const CoordinatorSettings = () => {
     }
   }, [formData, settings]);
 
-  // Debug: Log settings and formData (must be before any conditional returns)
-  useEffect(() => {
-    console.log('Current settings:', settings);
-    console.log('Current formData:', formData);
-  }, [settings, formData]);
-
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -75,51 +67,44 @@ const CoordinatorSettings = () => {
     setUpdateResult(null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!settings) {
-      console.error('Settings not available');
-      return;
-    }
-    
-    // Build updates object with only changed fields
-    const updates = {};
+  // Validation per FRONTEND_COORDINATOR_GUIDE.md
+  const validateForm = () => {
     const maxTimeHours = parseFloat(formData.max_time_hours);
-    const maxPackages = parseInt(formData.max_packages_per_driver);
+    const maxPackages = parseInt(formData.max_packages_per_driver, 10);
     const maxDistance = parseFloat(formData.max_distance_km);
     const minConfidence = parseFloat(formData.min_confidence);
-    
-    // Validate and add to updates if changed
-    if (!isNaN(maxTimeHours) && maxTimeHours > 0 && maxTimeHours !== settings.max_time_hours) {
-      updates.max_time_hours = maxTimeHours;
-    }
-    if (!isNaN(maxPackages) && maxPackages > 0 && maxPackages !== settings.max_packages_per_driver) {
-      updates.max_packages_per_driver = maxPackages;
-    }
-    if (!isNaN(maxDistance) && maxDistance > 0 && maxDistance !== settings.max_distance_km) {
-      updates.max_distance_km = maxDistance;
-    }
-    if (!isNaN(minConfidence) && minConfidence >= 0 && minConfidence <= 1 && minConfidence !== settings.min_confidence) {
-      updates.min_confidence = minConfidence;
-    }
+    if (isNaN(maxTimeHours) || maxTimeHours <= 0) return 'Max time per route must be a positive number (e.g. 1–8 hours).';
+    if (isNaN(maxPackages) || !Number.isInteger(maxPackages) || maxPackages < 1 || maxPackages > 50) return 'Max packages per driver must be an integer between 1 and 50.';
+    if (isNaN(maxDistance) || maxDistance <= 0) return 'Max distance per route must be a positive number (e.g. 50–200 km).';
+    if (isNaN(minConfidence) || minConfidence < 0 || minConfidence > 1) return 'Min confidence must be between 0.0 and 1.0.';
+    return null;
+  };
 
-    if (Object.keys(updates).length === 0) {
-      console.log('No changes detected');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!settings) return;
+    const validationError = validateForm();
+    if (validationError) {
+      setUpdateResult({ error: validationError });
       return;
     }
-
-    console.log('Sending updates to API:', updates);
-    
+    const updates = {};
+    const maxTimeHours = parseFloat(formData.max_time_hours);
+    const maxPackages = parseInt(formData.max_packages_per_driver, 10);
+    const maxDistance = parseFloat(formData.max_distance_km);
+    const minConfidence = parseFloat(formData.min_confidence);
+    if (maxTimeHours !== settings.max_time_hours) updates.max_time_hours = maxTimeHours;
+    if (maxPackages !== settings.max_packages_per_driver) updates.max_packages_per_driver = maxPackages;
+    if (maxDistance !== settings.max_distance_km) updates.max_distance_km = maxDistance;
+    if (minConfidence !== settings.min_confidence) updates.min_confidence = minConfidence;
+    if (Object.keys(updates).length === 0) return;
     try {
       const result = await updateSettings(updates);
-      console.log('Update successful:', result);
       setUpdateResult(result);
       setHasChanges(false);
-      // Refetch to get updated settings
       await refetchSettings();
     } catch (error) {
-      console.error('Failed to update settings:', error);
+      setUpdateResult({ error: error.message });
     }
   };
 
@@ -179,6 +164,13 @@ const CoordinatorSettings = () => {
         </p>
       </div>
 
+      {/* Company context (multi-tenant) */}
+      {companyId && (
+        <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
+          <span className="font-medium">Company:</span> <code className="text-xs bg-gray-200 px-1 rounded">{companyId}</code>
+        </div>
+      )}
+
       {/* Current Settings Display */}
       {settings && (
         <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
@@ -204,8 +196,15 @@ const CoordinatorSettings = () => {
         </div>
       )}
 
+      {/* Validation/API error */}
+      {updateResult?.error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 text-sm">{updateResult.error}</p>
+        </div>
+      )}
+
       {/* Update Result Display */}
-      {updateResult && (
+      {updateResult && !updateResult.error && updateResult.current_settings && (
         <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
           <h3 className="text-green-800 font-semibold mb-2">Settings Updated Successfully</h3>
           {updateResult.previous_settings && updateResult.current_settings && (
@@ -255,14 +254,13 @@ const CoordinatorSettings = () => {
               type="number"
               step="0.1"
               min="0.1"
+              max="8"
               value={formData.max_time_hours || ''}
               onChange={(e) => handleInputChange('max_time_hours', e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-              placeholder="e.g., 2.0"
+              placeholder="e.g., 2.0 (typically 1–8)"
             />
-            {formData.max_time_hours && (
-              <p className="mt-1 text-xs text-gray-500">Current value: {formData.max_time_hours} hours</p>
-            )}
+            <p className="mt-1 text-xs text-gray-500">Typically 1–8 hours</p>
           </div>
 
           {/* Max Packages Per Driver */}
@@ -280,14 +278,13 @@ const CoordinatorSettings = () => {
               type="number"
               step="1"
               min="1"
+              max="50"
               value={formData.max_packages_per_driver || ''}
               onChange={(e) => handleInputChange('max_packages_per_driver', e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-              placeholder="e.g., 15"
+              placeholder="e.g., 15 (1–50, recommended 10–25)"
             />
-            {formData.max_packages_per_driver && (
-              <p className="mt-1 text-xs text-gray-500">Current value: {formData.max_packages_per_driver} packages</p>
-            )}
+            <p className="mt-1 text-xs text-gray-500">Integer 1–50, recommended 10–25</p>
           </div>
 
           {/* Max Distance KM */}
@@ -308,11 +305,9 @@ const CoordinatorSettings = () => {
               value={formData.max_distance_km || ''}
               onChange={(e) => handleInputChange('max_distance_km', e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-              placeholder="e.g., 100.0"
+              placeholder="e.g., 100.0 (typically 50–200 km)"
             />
-            {formData.max_distance_km && (
-              <p className="mt-1 text-xs text-gray-500">Current value: {formData.max_distance_km} km</p>
-            )}
+            <p className="mt-1 text-xs text-gray-500">Typically 50–200 km</p>
           </div>
 
           {/* Min Confidence */}
@@ -336,9 +331,7 @@ const CoordinatorSettings = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
               placeholder="e.g., 0.5"
             />
-            {formData.min_confidence && (
-              <p className="mt-1 text-xs text-gray-500">Current value: {formData.min_confidence}</p>
-            )}
+            <p className="mt-1 text-xs text-gray-500">Range 0.0–1.0</p>
             <div className="mt-2">
               <input
                 type="range"
