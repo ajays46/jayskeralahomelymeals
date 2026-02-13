@@ -497,21 +497,17 @@ export const stopReachedService = async (stopData, companyId = null) => {
 
 /**
  * End Journey (NEW API: /api/journey/end)
- * Accepts: { route_id } (required), optional: user_id, latitude, longitude.
- * Matches curl: POST body {"route_id":"ROUTE_ID_FROM_STARTED_JOURNEY"}
+ * Sends only route_id to the external API as per API spec.
  */
 export const endJourneyService = async (journeyData, companyId = null) => {
   try {
-    const { route_id, user_id, latitude, longitude } = journeyData;
+    const { route_id } = journeyData;
 
     if (!route_id) {
       throw new AppError('route_id is required', 400);
     }
 
     const body = { route_id };
-    if (user_id != null) body.user_id = user_id;
-    if (latitude != null) body.latitude = latitude;
-    if (longitude != null) body.longitude = longitude;
 
     const response = await apiClient.post('/api/journey/end', body, withCompanyId(companyId));
     const data = response.data;
@@ -1142,45 +1138,6 @@ export const updateGeoLocationService = async (updateData, companyId = null) => 
     });
     throw new AppError(
       error.response?.data?.error || error.message || 'Failed to update geo location',
-      error.response?.status || 500
-    );
-  }
-};
-
-/**
- * Complete Driver Session
- */
-export const completeDriverSessionService = async (sessionData, companyId = null) => {
-  try {
-    const { route_id } = sessionData;
-    
-    // External API requires sessionId in URL path, use 0 as default placeholder
-    // The external API will handle the session completion based on route_id
-    const sessionId = 0;
-    
-    const response = await apiClient.post(`/api/driver-session/${sessionId}/complete`, {
-      route_id
-    }, withCompanyId(companyId));
-    const data = response.data;
-    
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to complete driver session');
-    }
-    
-    logInfo(LOG_CATEGORIES.SYSTEM, 'Driver session completed', {
-      route_id,
-      session_id: sessionId
-    });
-    
-    return data;
-  } catch (error) {
-    logError(LOG_CATEGORIES.SYSTEM, 'Driver session completion failed', {
-      error: error.message,
-      route_id: sessionData?.route_id,
-      response: error.response?.data
-    });
-    throw new AppError(
-      error.response?.data?.error || error.message || 'Failed to complete driver session',
       error.response?.status || 500
     );
   }

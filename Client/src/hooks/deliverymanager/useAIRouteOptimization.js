@@ -433,20 +433,21 @@ export const useStopReached = () => {
 
 /**
  * End Journey (Mutation) - NEW API: /api/journey/end
- * End journey with final location
+ * End journey with final location. Pass session (breakfast/lunch/dinner/any) so the backend can record completion for the correct session.
  */
 export const useEndJourney = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (journeyData) => {
-      const { user_id, route_id, latitude, longitude } = journeyData;
+      const { user_id, route_id, latitude, longitude, session } = journeyData;
       
       const response = await axiosInstance.post('/ai-routes/journey/end', {
         user_id,
         route_id,
         latitude,
-        longitude
+        longitude,
+        ...(session != null && session !== '' && { session })
       });
       
       if (!response.data.success) {
@@ -459,6 +460,9 @@ export const useEndJourney = () => {
       if (variables.route_id) {
         queryClient.invalidateQueries({ 
           queryKey: aiRouteKeys.trackingStatus(variables.route_id) 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: aiRouteKeys.routeStatus(variables.route_id) 
         });
       }
       queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
@@ -959,33 +963,6 @@ export const useReoptimizeRoute = () => {
     },
     onError: (error) => {
       console.error('Error reoptimizing route:', error);
-    }
-  });
-};
-
-/**
- * Complete Driver Session (Mutation)
- */
-export const useCompleteDriverSession = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ route_id }) => {
-      const response = await axiosInstance.post(`/ai-routes/driver-session/complete`, {
-        route_id
-      });
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to complete driver session');
-      }
-      
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: aiRouteKeys.all });
-    },
-    onError: (error) => {
-      console.error('Error completing driver session:', error);
     }
   });
 };

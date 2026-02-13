@@ -29,7 +29,6 @@ import {
   deleteZone,
   getZoneDeliveries,
   reoptimizeRoute,
-  completeDriverSession,
   getMissingGeoLocations,
   updateGeoLocation,
   checkTraffic,
@@ -95,9 +94,6 @@ router.get('/zones/:zoneId/deliveries', checkRole('DELIVERY_MANAGER'), getZoneDe
 
 // Route re-optimization - DELIVERY_MANAGER only
 router.post('/route/reoptimize', checkRole('DELIVERY_EXECUTIVE'), reoptimizeRoute);
-
-// Driver session completion - DELIVERY_EXECUTIVE only
-router.post('/driver-session/complete', checkRole('DELIVERY_EXECUTIVE'), completeDriverSession);
 
 // Address geo-location management - DELIVERY_MANAGER only
 router.get('/address/get-missing-geo-locations', checkRole('DELIVERY_MANAGER'), getMissingGeoLocations);
