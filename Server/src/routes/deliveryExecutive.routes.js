@@ -13,7 +13,8 @@ import {
   uploadDeliveryPhoto,
   uploadPreDeliveryPhoto,
   checkDeliveryImages,
-  checkPreDeliveryImages
+  checkPreDeliveryImages,
+  captureProof
 } from '../controllers/deliveryExecutive.controller.js';
 
 const router = express.Router();
@@ -73,5 +74,8 @@ router.get('/check-delivery-images', checkDeliveryImages);
 
 // Check pre-delivery images for a stop (calls external API; same params, returns images with presignedUrl)
 router.get('/check-pre-delivery-images', checkPreDeliveryImages);
+
+// Capture delivery proof card as PNG (Puppeteer backend). POST body: { session?, stop, options }
+router.post('/capture-proof', captureProof);
 
 export default router;

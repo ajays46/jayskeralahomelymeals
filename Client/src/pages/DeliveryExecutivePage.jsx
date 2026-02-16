@@ -2119,14 +2119,70 @@ const DeliveryExecutivePage = () => {
     }
   };
 
-  // Capture delivery stop card as screenshot (button-triggered)
+  // Capture delivery stop card as screenshot (backend Puppeteer first, fallback to html2canvas)
   const handleCaptureProof = useCallback(async (index, stop) => {
     const node = cardRefs.current[index];
+    const session = (selectedSession || 'session').toLowerCase();
+    const stopNo = stop?.Stop_No ?? stop?.stop_order ?? index + 1;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `delivery-proof-${session}-Stop${stopNo}-${timestamp}.png`;
+
+    const stopAddressId =
+      (stop?.address_id && stop.address_id !== '') ? stop.address_id :
+      (stop?.Address_ID && stop.Address_ID !== '') ? stop.Address_ID :
+      (stop?.addressId && stop.addressId !== '') ? stop.addressId :
+      (stop?._original?.address_id && stop._original.address_id !== '') ? stop._original.address_id :
+      (stop?._original?.Address_ID && stop._original.Address_ID !== '') ? stop._original.Address_ID :
+      (stop?._original?.addressId && stop._original.addressId !== '') ? stop._original.addressId :
+      null;
+    const routeId = activeRouteId || stop?.route_id || stop?.Route_ID || '';
+    const stopIdentifier = stop?.planned_stop_id ?? stop?.Planned_Stop_ID ?? stop?._original?.planned_stop_id ?? stop?.Stop_No ?? stop?.stop_order ?? index + 1;
+    const stopKey = `${routeId}-${session}-${stopIdentifier}`;
+
+    const payload = {
+      session,
+      stop: {
+        Stop_No: stopNo,
+        Delivery_Name: stop?.Delivery_Name ?? stop?.delivery_name,
+        Location: stop?.Location ?? stop?.location,
+        Packages: stop?.Packages ?? stop?.packages,
+        delivery_note: stop?.delivery_note,
+      },
+      options: {
+        preDeliveryUploaded: stopAddressId ? isPreDeliveryUploaded(stopAddressId, selectedSession) : false,
+        marked: markedStops.has(stopKey),
+        photoUploaded: stopAddressId ? isPhotoUploaded(stopAddressId, selectedSession) : false,
+        locationUpdated: stopAddressId ? isLocationUpdated(stopAddressId, selectedSession) : updatedLocationStops.has(index),
+      },
+    };
+
+    setCapturingProofIndex(index);
+    try {
+      // Try backend Puppeteer capture first (accurate image)
+      const response = await axiosInstance.post('/delivery-executives/capture-proof', payload, {
+        responseType: 'blob',
+        timeout: 30000,
+      });
+      if (response.status === 200 && response.data && response.data instanceof Blob && response.data.size > 0) {
+        const url = URL.createObjectURL(response.data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        showSuccessToast('Screenshot saved');
+        setCapturingProofIndex(null);
+        return;
+      }
+    } catch (apiErr) {
+      console.warn('Backend capture failed, using fallback:', apiErr?.response?.status ?? apiErr?.message);
+    }
+
+    // Fallback: client-side html2canvas
     if (!node) {
       showErrorToast('Could not capture card. Please try again.');
       return;
     }
-    setCapturingProofIndex(index);
     try {
       const scale = Math.max(2, Math.min(3, Math.round(window.devicePixelRatio || 2)));
       const canvas = await html2canvas(node, {
@@ -2134,10 +2190,6 @@ const DeliveryExecutivePage = () => {
         useCORS: true,
         logging: false,
       });
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const session = (selectedSession || 'session').toLowerCase();
-      const stopNo = stop?.Stop_No ?? stop?.stop_order ?? index + 1;
-      const filename = `delivery-proof-${session}-Stop${stopNo}-${timestamp}.png`;
       canvas.toBlob((blob) => {
         if (!blob) {
           showErrorToast('Failed to create image.');
@@ -2157,7 +2209,7 @@ const DeliveryExecutivePage = () => {
     } finally {
       setCapturingProofIndex(null);
     }
-  }, [selectedSession]);
+  }, [selectedSession, activeRouteId, markedStops, updatedLocationStops, isPreDeliveryUploaded, isPhotoUploaded, isLocationUpdated]);
 
   const handleCaptureStopsSection = useCallback(async () => {
     const node = deliveryStopsSectionRef.current;
