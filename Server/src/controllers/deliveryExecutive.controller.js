@@ -10,6 +10,7 @@ import {
   checkDeliveryImagesForStop,
   checkPreDeliveryImagesForStop
 } from '../services/deliveryExecutive.service.js';
+import { captureDeliveryProof } from '../services/captureProof.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 
 /**
@@ -822,6 +823,32 @@ export const checkPreDeliveryImages = async (req, res) => {
       success: false,
       message: 'Failed to check pre-delivery images',
       error: error.message
+    });
+  }
+};
+
+/**
+ * Capture delivery proof card as PNG (Puppeteer backend).
+ * Body: { session?, stop: { Stop_No, Delivery_Name, Location, Packages, delivery_note? }, options: { preDeliveryUploaded?, marked?, photoUploaded?, locationUpdated? } }
+ * Returns: image/png
+ */
+export const captureProof = async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const buffer = await captureDeliveryProof(payload);
+    res.set({
+      'Content-Type': 'image/png',
+      'Cache-Control': 'no-store',
+    });
+    res.send(buffer);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Capture proof failed', {
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Screenshot failed',
     });
   }
 };
