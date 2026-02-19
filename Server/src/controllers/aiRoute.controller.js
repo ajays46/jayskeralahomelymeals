@@ -14,6 +14,7 @@ import {
   getTrackingStatusService,
   vehicleTrackingService,
   getAllVehicleTrackingService,
+  getLiveVehicleTrackingService,
   getCurrentWeatherService,
   getWeatherForecastService,
   getWeatherZonesService,
@@ -32,7 +33,9 @@ import {
   checkTrafficService,
   getRouteOrderService,
   getRouteStatusFromActualStopsService,
-  updateDeliveryCommentService
+  updateDeliveryCommentService,
+  getCoordinatorSettingsService,
+  updateCoordinatorSettingsService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import prisma from '../config/prisma.js';
