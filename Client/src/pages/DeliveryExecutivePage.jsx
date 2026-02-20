@@ -11,7 +11,9 @@ import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
 import { useStartJourney, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { useUploadDeliveryPhoto, useUploadPreDeliveryPhoto, useCheckMultipleDeliveryImages, useCheckMultiplePreDeliveryImages } from '../hooks/deliverymanager';
+import { useTextCorrection } from '../hooks/useTextCorrection';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import TextCorrectionSuggestion from '../components/TextCorrectionSuggestion';
 import html2canvas from 'html2canvas';
 
 /**
@@ -345,6 +347,7 @@ const DeliveryExecutivePage = () => {
   const [gettingLocation, setGettingLocation] = useState(false); // Track geolocation loading state
   const [deliveryComments, setDeliveryComments] = useState(''); // Comments for delivery
   const MAX_COMMENTS_LENGTH = 500; // Maximum characters for comments
+  const correctionComments = useTextCorrection(deliveryComments, { onApply: setDeliveryComments });
   
   // Delivery note modal state
   const [showDeliveryNoteModal, setShowDeliveryNoteModal] = useState(false);
@@ -4059,6 +4062,7 @@ const DeliveryExecutivePage = () => {
                   disabled={gettingLocation || stopReachedMutation.isPending}
                   className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed resize-vertical"
                 />
+                <TextCorrectionSuggestion correcting={correctionComments.correcting} suggestion={correctionComments.suggestion} onApply={correctionComments.applySuggestion} />
                 {deliveryComments.length > MAX_COMMENTS_LENGTH * 0.9 && (
                   <p className="text-orange-500 text-xs mt-1">
                     {MAX_COMMENTS_LENGTH - deliveryComments.length} characters remaining

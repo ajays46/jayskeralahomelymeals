@@ -7,10 +7,12 @@ import { Modal, message } from 'antd';
 import axiosInstance from '../api/axios';
 import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes, useVehicles, useAssignVehicle, useUnassignVehicle } from '../hooks/deliverymanager';
 import { useUpdateGeoLocation, useUpdateDeliveryComment } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useTextCorrection } from '../hooks/useTextCorrection';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
 import { isSeller, hasAnyRole } from '../utils/roleUtils';
 import { SkeletonDeliveryManager, SkeletonLoading } from '../components/Skeleton';
+import TextCorrectionSuggestion from '../components/TextCorrectionSuggestion';
 import RouteHistoryManager from '../components/deliveryManager/RouteHistoryManager';
 import ExecutivesAndRoutes from '../components/deliveryManager/ExecutivesAndRoutes';
 import CoordinatorSettings from '../components/deliveryManager/CoordinatorSettings';
@@ -207,6 +209,7 @@ const DeliveryManagerPage = () => {
   const [selectedDeliveryId, setSelectedDeliveryId] = useState(null);
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [editedComment, setEditedComment] = useState('');
+  const correctionComment = useTextCorrection(editedComment, { onApply: setEditedComment });
   
   // Geo-location mutation
   const updateGeoLocationMutation = useUpdateGeoLocation();
@@ -5816,13 +5819,16 @@ const DeliveryManagerPage = () => {
           )}
           <div>
             {isEditingComment ? (
-              <textarea
-                value={editedComment}
-                onChange={(e) => setEditedComment(e.target.value)}
-                className="w-full p-3 bg-white border border-gray-300 rounded min-h-[100px] max-h-[250px] text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter comments here..."
-                autoFocus
-              />
+              <>
+                <textarea
+                  value={editedComment}
+                  onChange={(e) => setEditedComment(e.target.value)}
+                  className="w-full p-3 bg-white border border-gray-300 rounded min-h-[100px] max-h-[250px] text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter comments here..."
+                  autoFocus
+                />
+                <TextCorrectionSuggestion correcting={correctionComment.correcting} suggestion={correctionComment.suggestion} onApply={correctionComment.applySuggestion} className="mt-2" />
+              </>
             ) : (
               <div className="p-3 bg-gray-50 border border-gray-200 rounded min-h-[100px] max-h-[250px] overflow-y-auto">
                 <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">
