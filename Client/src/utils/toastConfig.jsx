@@ -107,8 +107,8 @@ export const showOrderSuccess = (message = "Order created successfully!") => {
   showSuccessToast(message, "Order Successful");
 };
 
-export const showOrderError = (message = "Failed to create order") => {
-  showErrorToast(message, "Order Failed");
+export const showOrderError = (message = "We couldn't create your order. Please try again.") => {
+  showErrorToast(message, "Order failed");
 };
 
 export const showPaymentSuccess = (message = "Payment processed successfully!") => {
@@ -124,8 +124,8 @@ export const showAddressSuccess = (message = "Address saved successfully!") => {
   showSuccessToast(message, "Address Saved");
 };
 
-export const showAddressError = (message = "Failed to save address") => {
-  showErrorToast(message, "Address Error");
+export const showAddressError = (message = "We couldn't save the address. Please try again.") => {
+  showErrorToast(message, "Address could not be saved");
 };
 
 // Menu and product specific toasts
@@ -163,8 +163,8 @@ export const showUploadSuccess = (message = "File uploaded successfully!") => {
   showSuccessToast(message, "Upload Successful");
 };
 
-export const showUploadError = (message = "File upload failed") => {
-  showErrorToast(message, "Upload Failed");
+export const showUploadError = (message = "We couldn't upload the file. Please try again.") => {
+  showErrorToast(message, "Upload failed");
 };
 
 export const showFileTooLarge = (maxSize = "5MB") => {
@@ -172,8 +172,8 @@ export const showFileTooLarge = (maxSize = "5MB") => {
 };
 
 // Validation specific toasts
-export const showValidationError = (message = "Please check your input and try again") => {
-  showWarningToast(message, "Validation Error");
+export const showValidationError = (message = "Please check your input and try again.") => {
+  showWarningToast(message, "Please check your details");
 };
 
 export const showRequiredFieldError = (fieldName) => {
@@ -181,13 +181,13 @@ export const showRequiredFieldError = (fieldName) => {
 };
 
 // Network and API specific toasts
-export const showNetworkError = (message = "Network error. Please check your connection") => {
-  showErrorToast(message, "Network Error");
+export const showNetworkError = (message = "Please check your internet connection and try again.") => {
+  showErrorToast(message, "Connection Problem");
 };
 
 export const showApiError = (error) => {
-  const message = error.response?.data?.message || 'An unexpected error occurred';
-  showErrorToast(message, "API Error");
+  const message = error.response?.data?.message || 'Something went wrong. Please try again.';
+  showErrorToast(message, "Something went wrong");
 };
 
 // Success actions

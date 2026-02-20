@@ -138,7 +138,7 @@ const SellerPage = () => {
           setUserOrders(response.data.data || []);
         }
       } catch (error) {
-        showErrorToast('Failed to fetch user orders');
+        showErrorToast('We couldn\'t load orders. Please try again.');
       } finally {
         setLoadingOrders(false);
       }
@@ -170,10 +170,10 @@ const SellerPage = () => {
             fetchUserOrders(selectedUser.id);
           }
         } else {
-          showErrorToast(response.data.message || 'Failed to cancel delivery item');
+          showErrorToast(response.data.message || 'We couldn\'t cancel this delivery. Please try again.');
         }
       } catch (error) {
-        showErrorToast('Failed to cancel delivery item');
+        showErrorToast('We couldn\'t cancel this delivery. Please try again.');
       } finally {
         setCancellingItems(prev => {
           const newSet = new Set(prev);
@@ -195,10 +195,10 @@ const SellerPage = () => {
             fetchUserOrders(selectedUser.id);
           }
         } else {
-          showErrorToast(response.data.message || 'Failed to cancel order');
+          showErrorToast(response.data.message || 'We couldn\'t cancel the order. Please try again.');
         }
       } catch (error) {
-        showErrorToast('Failed to cancel order');
+        showErrorToast('We couldn\'t cancel the order. Please try again.');
       } finally {
         setCancellingOrders(prev => {
           const newSet = new Set(prev);
@@ -231,10 +231,10 @@ const SellerPage = () => {
             setUserOrders([]);
           }
         } else {
-          showErrorToast(response.data.message || 'Failed to delete user');
+          showErrorToast(response.data.message || 'We couldn\'t delete the user. Please try again.');
         }
       } catch (error) {
-        showErrorToast('Failed to delete user');
+        showErrorToast('We couldn\'t delete the user. Please try again.');
       } finally {
         setDeletingUsers(prev => {
           const newSet = new Set(prev);

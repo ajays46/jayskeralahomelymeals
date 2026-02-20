@@ -752,7 +752,7 @@ const DeliveryExecutivePage = () => {
     setCompletionLocationError(null);
     
     if (!navigator.geolocation) {
-      const errorMsg = 'Geolocation is not supported by this browser. Please use a different browser or device.';
+      const errorMsg = 'Location is not supported on this device. Try another device or app.';
       setCompletionLocationError(errorMsg);
       setCompletionLocationLoading(false);
       showErrorToast(errorMsg);
@@ -771,7 +771,7 @@ const DeliveryExecutivePage = () => {
         setCompletionLocationError(null);
         
         // Show success message
-        showSuccessToast(`Location captured: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        showSuccessToast('Your location was captured successfully.');
         
         // Reverse geocoding to get address
         reverseGeocodeCompletion(latitude, longitude);
@@ -992,7 +992,7 @@ const DeliveryExecutivePage = () => {
         null;
       
       if (!addressId) {
-        setImageUploadError('No address ID found for this delivery stop.');
+        setImageUploadError('We couldn\'t find this delivery point. Please try again or contact support.');
         toast.error(
           <div className="flex items-center gap-3">
             <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1000,7 +1000,7 @@ const DeliveryExecutivePage = () => {
             </svg>
             <div>
               <div className="font-semibold text-red-800 text-base">❌ Upload Failed</div>
-              <div className="text-sm text-red-700 mt-1">No address ID found for this delivery stop.</div>
+              <div className="text-sm text-red-700 mt-1">We couldn't find this delivery point. Please try again or contact support.</div>
             </div>
           </div>,
           {
@@ -1063,7 +1063,7 @@ const DeliveryExecutivePage = () => {
           </svg>
           <div>
             <div className="font-semibold text-green-800 text-base">✅ {fileCount} File{fileCount > 1 ? 's' : ''} Uploaded!</div>
-            <div className="text-sm text-green-700 mt-1">{fileCount} file{fileCount > 1 ? 's' : ''} uploaded successfully to external API.</div>
+            <div className="text-sm text-green-700 mt-1">Your photo{fileCount > 1 ? 's have' : ' has'} been uploaded successfully.</div>
           </div>
         </div>,
         {
@@ -1139,8 +1139,8 @@ const DeliveryExecutivePage = () => {
         (currentStop?._original?.addressId && currentStop._original.addressId !== '') ? currentStop._original.addressId :
         null;
       if (!addressId) {
-        setImageUploadError('No address ID found for this delivery stop.');
-        toast.error('No address ID found for this stop. Cannot upload pre-delivery photo.');
+        setImageUploadError('We couldn\'t find this delivery point. Please try again or contact support.');
+        toast.error('We couldn\'t find this delivery point. Please try again or contact support.');
         return;
       }
       const sessionUpper = selectedSession.toUpperCase();
@@ -1179,8 +1179,8 @@ const DeliveryExecutivePage = () => {
         { position: "top-right", autoClose: 4000, hideProgressBar: false, theme: "light" }
       );
     } catch (apiError) {
-      setImageUploadError(apiError.response?.data?.message || apiError.message || 'Failed to upload pre-delivery photo.');
-      toast.error(apiError.response?.data?.message || apiError.message || 'Failed to upload pre-delivery photo.');
+      setImageUploadError(apiError.response?.data?.message || apiError.message || 'We couldn\'t upload the photo. Please try again.');
+      toast.error(apiError.response?.data?.message || apiError.message || 'We couldn\'t upload the photo. Please try again.');
     }
   };
 
@@ -1231,7 +1231,7 @@ const DeliveryExecutivePage = () => {
               </svg>
               <div>
                 <div className="font-semibold text-green-800 text-base">✅ Location Updated Successfully!</div>
-                <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated using address ID.</div>
+                <div className="text-sm text-green-700 mt-1">Delivery location has been updated.</div>
               </div>
             </div>,
             {
@@ -1340,7 +1340,7 @@ const DeliveryExecutivePage = () => {
               </svg>
               <div>
                 <div className="font-semibold text-green-800 text-base">✅ Location Updated Successfully!</div>
-                <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated using order and menu item IDs.</div>
+                <div className="text-sm text-green-700 mt-1">Delivery location has been updated.</div>
               </div>
             </div>,
             {
@@ -1375,7 +1375,7 @@ const DeliveryExecutivePage = () => {
         console.error('Stop _original keys:', Object.keys(currentStop?._original || {}));
         console.error('Stop data:', JSON.stringify(currentStop, null, 2));
         
-        const errorMsg = `No delivery item ID found for this delivery stop. Stop: ${currentStop?.Delivery_Name || 'Unknown'}. Please check the route data.`;
+        const errorMsg = 'We couldn\'t update this delivery. Please try again or contact support.';
         setCompletionLocationError(errorMsg);
         showErrorToast(errorMsg);
         setCompletionLoading(false);
@@ -1417,7 +1417,7 @@ const DeliveryExecutivePage = () => {
             </svg>
             <div>
               <div className="font-semibold text-green-800 text-base">✅ Location Updated Successfully!</div>
-              <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated for this delivery location.</div>
+              <div className="text-sm text-green-700 mt-1">Delivery location has been updated.</div>
             </div>
           </div>,
           {
@@ -1457,7 +1457,7 @@ const DeliveryExecutivePage = () => {
           <div>
             <div className="font-semibold text-red-800 text-base">❌ Update Failed</div>
             <div className="text-sm text-red-700 mt-1">
-              {apiError.response?.data?.message || apiError.message || 'Failed to update delivery address. Please try again.'}
+              {apiError.response?.data?.message || apiError.message || 'We couldn\'t save the delivery location. Please try again.'}
             </div>
           </div>
         </div>,
@@ -1781,7 +1781,7 @@ const DeliveryExecutivePage = () => {
   // Get current GPS location
   const getCurrentLocationForJourney = () => {
     if (!navigator.geolocation) {
-      showErrorToast('Geolocation is not supported by your browser');
+      showErrorToast('Location is not supported on this device. Try another device or app.');
       return;
     }
     
@@ -1878,7 +1878,7 @@ const DeliveryExecutivePage = () => {
     const routeId = getRouteIdFromRoutes();
     
     if (!routeId) {
-      showErrorToast('No route found. Please ensure you have an active route.');
+      showErrorToast('No route found. Please make sure you have an active route.');
       return;
     }
     
@@ -1897,13 +1897,13 @@ const DeliveryExecutivePage = () => {
         // Refresh routes to show updated order
         fetchRoutes();
       } else {
-        showErrorToast(result.message || 'Failed to reoptimize route');
+        showErrorToast(result.message || 'We couldn\'t update the route. Please try again.');
       }
     } catch (error) {
       if (error.response?.data?.message) {
         showErrorToast(error.response.data.message);
       } else {
-        showErrorToast(error.message || 'Failed to reoptimize route. Please try again.');
+        showErrorToast(error.message || 'We couldn\'t update the route. Please try again.');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1912,7 +1912,7 @@ const DeliveryExecutivePage = () => {
   // Check traffic and auto-reoptimize (wrapped in useCallback to avoid dependency issues)
   const handleCheckTraffic = useCallback(async () => {
     if (!activeRouteId) {
-      showErrorToast('No active journey. Please start a journey first.');
+      showErrorToast('Please start a trip first.');
       return;
     }
     
@@ -1956,9 +1956,9 @@ const DeliveryExecutivePage = () => {
         const resetTime = error.rateLimitInfo.resetTime 
           ? new Date(error.rateLimitInfo.resetTime).toLocaleTimeString()
           : 'later';
-        showErrorToast(`Rate limit exceeded. Please try again after ${resetTime}`);
+        showErrorToast(`Too many attempts. Please try again in a few minutes.`);
       } else if (error.isApiKeyError) {
-        showErrorToast('API key authentication failed. Please contact support.');
+        showErrorToast('Something went wrong on our side. Please contact support.');
       } else {
         // Silently handle other errors - don't interrupt user experience
         console.error('Traffic check error:', error);
@@ -1995,7 +1995,7 @@ const DeliveryExecutivePage = () => {
   // Handle Start Journey button click
   const handleStartJourneyClick = () => {
     if (!user?.id) {
-      showErrorToast('User ID not found. Please log in again.');
+      showErrorToast('Please sign in again.');
       return;
     }
     
@@ -2037,7 +2037,7 @@ const DeliveryExecutivePage = () => {
   // Handle Start Journey submission
   const handleStartJourney = async () => {
     if (!startJourneyData.driver_id) {
-      showErrorToast('Driver ID is required');
+      showErrorToast('Please select a driver.');
       return;
     }
     
@@ -2046,7 +2046,7 @@ const DeliveryExecutivePage = () => {
       const currentSessionRouteId = getRouteIdFromSelectedSession();
       
       if (!currentSessionRouteId) {
-        showErrorToast('Route ID not found for current session. Please ensure routes are loaded.');
+        showErrorToast('No route is available. Please make sure you have an active route.');
         return;
       }
       
@@ -2084,7 +2084,7 @@ const DeliveryExecutivePage = () => {
         }
       });
     } catch (error) {
-      showErrorToast(error.message || 'Failed to start journey');
+      showErrorToast(error.message || 'We couldn\'t start the trip. Please try again.');
     }
   };
 
@@ -2192,7 +2192,7 @@ const DeliveryExecutivePage = () => {
       });
       canvas.toBlob((blob) => {
         if (!blob) {
-          showErrorToast('Failed to create image.');
+          showErrorToast('We couldn\'t save the image. Please try again.');
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -2214,7 +2214,7 @@ const DeliveryExecutivePage = () => {
   const handleCaptureStopsSection = useCallback(async () => {
     const node = deliveryStopsSectionRef.current;
     if (!node) {
-      showErrorToast('Nothing to capture. Open a route first.');
+      showErrorToast('Open a route first, then capture.');
       return;
     }
     setCapturingStopsSection(true);
@@ -2230,7 +2230,7 @@ const DeliveryExecutivePage = () => {
       const filename = `delivery-proof-${session}-all-stops-${timestamp}.png`;
       canvas.toBlob((blob) => {
         if (!blob) {
-          showErrorToast('Failed to create image.');
+          showErrorToast('We couldn\'t save the image. Please try again.');
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -2257,10 +2257,10 @@ const DeliveryExecutivePage = () => {
       if (stop != null) {
         handleCaptureProof(lastDeliveredStopIndex, stop);
       } else {
-        showErrorToast('Stop no longer visible. Expand the list or capture again after delivery.');
+        showErrorToast('This delivery is not in the list. Expand the list or capture again after completing the delivery.');
       }
     } else {
-      showErrorToast('Mark a stop as delivered first, then tap capture to save proof for that stop.');
+      showErrorToast('Mark this delivery as delivered first, then tap capture to save proof.');
     }
   }, [lastDeliveredStopIndex, stopsWithDeliveryNotes, showAllStops, handleCaptureProof]);
 
@@ -2282,7 +2282,7 @@ const DeliveryExecutivePage = () => {
   // Handle marking a stop as reached/delivered with status
   const handleStopReached = async (stop, stopIndex, status = 'Delivered') => {
     if (!user?.id) {
-      showErrorToast('User ID not found. Please log in again.');
+      showErrorToast('Please sign in again.');
       return;
     }
     
@@ -2292,7 +2292,7 @@ const DeliveryExecutivePage = () => {
     // Check if session is completed
     const isSessionCompleted = completedSessions.has(selectedSession.toLowerCase());
     if (isSessionCompleted) {
-      showErrorToast('This session is already completed. Cannot mark stops for completed sessions.');
+      showErrorToast('This round is already completed. You can\'t add more deliveries to it.');
       return;
     }
     
@@ -2438,11 +2438,11 @@ const DeliveryExecutivePage = () => {
       
       // Better error handling
       if (error.code === 1) {
-        showErrorToast('Location access denied. Please enable location permissions in your browser settings.');
+        showErrorToast('Please turn on location access in your device settings.');
       } else if (error.code === 2) {
-        showErrorToast('Location unavailable. Please check your GPS or network connection.');
+        showErrorToast('We couldn\'t get your location. Please check your GPS or internet connection.');
       } else if (error.code === 3 || error.message?.includes('timeout')) {
-        showErrorToast('Location request timed out. The stop was marked without location data.');
+        showErrorToast('We couldn\'t get your location in time. The delivery was marked without location.');
         // Try to proceed without location
         try {
           const retryRequestData = {
@@ -2504,7 +2504,7 @@ const DeliveryExecutivePage = () => {
       } else if (error.response?.data?.message) {
         showErrorToast(error.response.data.message);
       } else {
-        showErrorToast(error.message || 'Failed to mark stop as reached');
+        showErrorToast(error.message || 'We couldn\'t mark this delivery as reached. Please try again.');
       }
     }
   };
@@ -2512,7 +2512,7 @@ const DeliveryExecutivePage = () => {
   // Handle ending the journey
   const handleEndJourney = async () => {
     if (!user?.id || !activeRouteId) {
-      showErrorToast('No active journey to end.');
+      showErrorToast('There\'s no active trip to end.');
       return;
     }
     
@@ -2538,7 +2538,7 @@ const DeliveryExecutivePage = () => {
       localStorage.removeItem('activeRouteId');
       fetchRoutes();
     } catch (error) {
-      showErrorToast(error.message || 'Failed to end journey');
+      showErrorToast(error.message || 'We couldn\'t end the trip. Please try again.');
     }
   };
 
@@ -2559,7 +2559,7 @@ const DeliveryExecutivePage = () => {
   const handleEndSession = async () => {
     const sessionName = (endSessionData.sessionName || selectedSession || '').toLowerCase();
     if (!sessionName) {
-      showErrorToast('Session not found.');
+      showErrorToast('This round wasn\'t found. Please refresh and try again.');
       return;
     }
 
@@ -2583,7 +2583,7 @@ const DeliveryExecutivePage = () => {
     }
 
     if (!routeId) {
-      showErrorToast('Route ID not found. Please ensure you have an active route.');
+      showErrorToast('No route is available. Please make sure you have an active route.');
       return;
     }
 
@@ -2612,7 +2612,7 @@ const DeliveryExecutivePage = () => {
       localStorage.removeItem('activeRouteId');
       fetchRoutes();
     } catch (error) {
-      showErrorToast(error.message || 'Failed to complete session');
+      showErrorToast(error.message || 'We couldn\'t complete this round. Please try again.');
     }
   };
 

@@ -141,11 +141,11 @@ const EditCustomerPage = () => {
         showSuccessToast('Customer updated successfully!');
         navigate(`${basePath}/seller/customers`);
       } else {
-        showErrorToast(result.message || 'Failed to update customer');
+        showErrorToast(result.message || 'We couldn\'t update the customer. Please try again.');
       }
     } catch (error) {
       console.error('Error updating customer:', error);
-      showErrorToast(error.message || 'Failed to update customer. Please try again.');
+      showErrorToast(error.message || 'We couldn\'t update the customer. Please try again.');
     } finally {
       setSaving(false);
     }

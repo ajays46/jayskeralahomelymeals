@@ -732,7 +732,7 @@ const DeliveryManagerPage = () => {
         }
       } else {
         console.error('Item object:', item);
-        showErrorToast('Unable to find required identifiers (delivery_item_id, address_id, or order_id + menu_item_id) in the data.');
+        showErrorToast('We couldn\'t update this delivery. Please try again or contact support.');
         setGeoLocationLoading(false);
         return;
       }
@@ -772,13 +772,13 @@ const DeliveryManagerPage = () => {
         }));
       }
       
-      showSuccessToast('Geo-location updated successfully!');
+      showSuccessToast('Location updated successfully!');
       setEditingGeoLocation(null);
       setManualGeoLocation({ latitude: '', longitude: '' });
     } catch (error) {
       console.error('Error updating geo-location:', error);
       console.error('Item object:', item);
-      showErrorToast(error.message || 'Failed to update geo-location');
+      showErrorToast(error.message || 'We couldn\'t update the location. Please try again.');
     } finally {
       setGeoLocationLoading(false);
     }
@@ -787,7 +787,7 @@ const DeliveryManagerPage = () => {
   // Get current location for geo-location
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
-      showErrorToast('Geolocation is not supported by your browser');
+      showErrorToast('Location is not supported on this device. Try another device or app.');
       return;
     }
     
@@ -5733,7 +5733,7 @@ const DeliveryManagerPage = () => {
                 key="save"
                 onClick={async () => {
                   if (!selectedDeliveryId) {
-                    showErrorToast('Delivery ID is missing');
+                    showErrorToast('This delivery couldn\'t be found. Please refresh and try again.');
                     return;
                   }
                   
@@ -5768,7 +5768,7 @@ const DeliveryManagerPage = () => {
                     
                     showSuccessToast('Comment updated successfully');
                   } catch (error) {
-                    showErrorToast(error.message || 'Failed to update comment');
+                    showErrorToast(error.message || 'We couldn\'t update the comment. Please try again.');
                   }
                 }}
                 disabled={updateDeliveryCommentMutation.isPending}

@@ -128,7 +128,7 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
       // Show warnings if they exist (even on success)
       if (result.warnings && Array.isArray(result.warnings) && result.warnings.length > 0) {
         const warningsText = result.warnings.join('; ');
-        showWarningToast(warningsText, 'Route Planning Warnings');
+        showWarningToast(warningsText, 'Please check the route details');
       }
     } catch (error) {
       // Build error message
@@ -144,12 +144,12 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
       }
       
       // Show error message
-      showErrorToast(errorMessage, 'Route Planning Failed');
+      showErrorToast(errorMessage, 'We couldn\'t plan the route');
       
       // Show warnings separately if they exist
       if (warnings && warnings.length > 0) {
         const warningsText = warnings.join('; ');
-        showWarningToast(warningsText, 'Route Planning Warnings');
+        showWarningToast(warningsText, 'Please check the route details');
       }
     }
   };
@@ -211,19 +211,19 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
       
       showSuccessToast(`Predicted start time: ${formattedTime}`);
     } catch (error) {
-      showErrorToast(error.message || 'Failed to predict start time');
+      showErrorToast(error.message || 'We couldn\'t get the predicted start time. Please try again.');
     }
   };
   
   // Handle Start Journey
   const handleStartJourney = async () => {
     if (!startJourneyData.route_id) {
-      showErrorToast('Route ID is required');
+      showErrorToast('Please select a route.');
       return;
     }
     
     if (!startJourneyData.driver_id) {
-      showErrorToast('Driver ID is required');
+      showErrorToast('Please select a driver.');
       return;
     }
     
@@ -239,7 +239,7 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
         driver_id: ''
       });
     } catch (error) {
-      showErrorToast(error.message || 'Failed to start journey');
+      showErrorToast(error.message || 'We couldn\'t start the trip. Please try again.');
     }
   };
   
@@ -256,7 +256,7 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
       setShowStopJourneyModal(false);
       setSelectedRouteForStop(null);
     } catch (error) {
-      showErrorToast(error.message || 'Failed to stop journey');
+      showErrorToast(error.message || 'We couldn\'t stop the trip. Please try again.');
     }
   };
   
@@ -273,15 +273,15 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
   const handleApproveDraft = async (routePlanData) => {
     const routeIds = routePlanData?.route_ids;
     if (!routeIds || !Array.isArray(routeIds) || routeIds.length === 0) {
-      showErrorToast?.('No route_ids in plan. Plan a route first.');
+      showErrorToast?.('No routes in this plan. Please create a route first.');
       return null;
     }
     try {
       const data = await savePlanToS3Mutation.mutateAsync({ route_ids: routeIds });
-      showSuccessToast?.(data.message || 'Planned routes saved to S3 (Excel and TXT).');
+      showSuccessToast?.(data.message || 'Route plan has been saved.');
       return data;
     } catch (error) {
-      showErrorToast?.(error?.message || 'Failed to save plan to S3');
+      showErrorToast?.(error?.message || 'We couldn\'t save the route plan. Please try again.');
       return null;
     }
   };

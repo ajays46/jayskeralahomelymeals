@@ -94,7 +94,7 @@ const RouteHistoryManager = forwardRef(({
       showSuccessToast(`Route with ${selectedRoute.executiveCount} executive(s) saved successfully`);
       setSelectedRouteId(null);
     } catch (error) {
-      showErrorToast('Failed to save route');
+      showErrorToast('We couldn\'t save the route. Please try again.');
     }
   };
 
@@ -146,7 +146,7 @@ const RouteHistoryManager = forwardRef(({
       showSuccessToast('Route approved and saved successfully');
     } catch (error) {
       console.error('Error approving route:', error);
-      showErrorToast('Failed to approve route');
+      showErrorToast('We couldn\'t approve the route. Please try again.');
     }
   };
 

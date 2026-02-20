@@ -119,7 +119,7 @@ const CustomerOrdersPage = () => {
     } catch (error) {
       console.error('Error fetching customer orders:', error);
       setError(error.message || 'Failed to fetch orders');
-      showErrorToast('Failed to fetch customer orders');
+      showErrorToast('We couldn\'t load your orders. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -386,7 +386,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Order cancelled successfully');
     } catch (error) {
       console.error('Error cancelling order:', error);
-      showErrorToast(error.message || 'Failed to cancel order');
+      showErrorToast(error.message || 'We couldn\'t cancel the order. Please try again.');
     } finally {
       setLoading(false);
       setShowCancelOrderModal(false);
@@ -415,7 +415,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Delivery item cancelled successfully');
     } catch (error) {
       console.error('Error cancelling delivery item:', error);
-      showErrorToast(error.message || 'Failed to cancel delivery item');
+      showErrorToast(error.message || 'We couldn\'t cancel this delivery. Please try again.');
     } finally {
       setLoading(false);
       setShowCancelItemModal(false);
@@ -500,7 +500,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Delivery note updated successfully');
     } catch (error) {
       console.error('Error updating delivery note:', error);
-      showErrorToast(error.message || 'Failed to update delivery note');
+      showErrorToast(error.message || 'We couldn\'t update the delivery note. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -730,7 +730,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Delivery note updated successfully for selected date range');
     } catch (error) {
       console.error('Error updating delivery note:', error);
-      showErrorToast(error.message || 'Failed to update delivery note');
+      showErrorToast(error.message || 'We couldn\'t update the delivery note. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -791,7 +791,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Delivery note updated successfully for this date');
     } catch (error) {
       console.error('Error updating delivery note:', error);
-      showErrorToast(error.message || 'Failed to update delivery note');
+      showErrorToast(error.message || 'We couldn\'t update the delivery note. Please try again.');
     } finally {
       setLoading(false);
     }

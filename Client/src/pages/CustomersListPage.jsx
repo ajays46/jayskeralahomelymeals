@@ -300,10 +300,10 @@ const CustomersListPage = () => {
           setSelectedCustomer(null);
         }
       } else {
-        showErrorToast(response.data.message || 'Failed to delete customer');
+        showErrorToast(response.data.message || 'We couldn\'t delete the customer. Please try again.');
       }
     } catch (error) {
-      showErrorToast('Failed to delete customer');
+      showErrorToast('We couldn\'t delete the customer. Please try again.');
     } finally {
       setDeletingUsers(prev => {
         const newSet = new Set(prev);
@@ -328,10 +328,10 @@ const CustomersListPage = () => {
         showSuccessToast('Customer portal link generated successfully!');
         return response.data.data;
       } else {
-        showErrorToast(response.data.message || 'Failed to generate customer link');
+        showErrorToast(response.data.message || 'We couldn\'t create the login link. Please try again.');
       }
     } catch (error) {
-      showErrorToast('Failed to generate customer link');
+      showErrorToast('We couldn\'t create the login link. Please try again.');
       console.error('Error generating customer link:', error);
     } finally {
       setGeneratingLinks(prev => {
@@ -433,7 +433,7 @@ const CustomersListPage = () => {
       navigate(`${basePath}/process-payment`);
       
     } catch (error) {
-      showErrorToast('Failed to resume order. Please try again.');
+      showErrorToast('We couldn\'t resume the order. Please try again.');
     }
   }, [navigate]);
 

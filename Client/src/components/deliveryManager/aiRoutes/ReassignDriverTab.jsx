@@ -71,7 +71,7 @@ const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) =>
         setRouteId('');
         setNewDriverName('');
       } catch (err) {
-        showErrorToast(err.message || 'Reassign failed');
+        showErrorToast(err.message || 'We couldn\'t reassign the driver. Please try again.');
       }
     } else {
       if (!routeId1 || !routeId2 || routeId1 === routeId2) {
@@ -88,7 +88,7 @@ const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) =>
         setRouteId1('');
         setRouteId2('');
       } catch (err) {
-        showErrorToast(err.message || 'Exchange failed');
+        showErrorToast(err.message || 'We couldn\'t swap the drivers. Please try again.');
       }
     }
   };
@@ -116,7 +116,7 @@ const ReassignDriverTab = ({ routePlan, reassignMutation, moveStopMutation }) =>
       setSelectedDeliveryId('');
       setInsertAtOrder('');
     } catch (err) {
-      showErrorToast(err.message || 'Move stop failed');
+      showErrorToast(err.message || 'We couldn\'t move this delivery. Please try again.');
     }
   };
 

@@ -40,12 +40,12 @@ const UploadReceiptPage = () => {
       if (response.data.success) {
         setPayment(response.data.data.payment);
       } else {
-        showErrorToast('Failed to fetch payment details');
+        showErrorToast('We couldn\'t load payment details. Please try again.');
         navigate(`${basePath}/seller/customers`);
       }
     } catch (error) {
       console.error('Error fetching payment details:', error);
-      showErrorToast('Failed to fetch payment details');
+      showErrorToast('We couldn\'t load payment details. Please try again.');
       navigate(`${basePath}/seller/customers`);
     } finally {
       setLoading(false);
@@ -139,11 +139,11 @@ const UploadReceiptPage = () => {
           }
         });
       } else {
-        showErrorToast(response.data.message || 'Failed to upload receipt');
+        showErrorToast(response.data.message || 'We couldn\'t upload the receipt. Please try again.');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      showErrorToast('Failed to upload receipt. Please try again.');
+      showErrorToast('We couldn\'t upload the receipt. Please try again.');
     } finally {
       setUploading(false);
     }

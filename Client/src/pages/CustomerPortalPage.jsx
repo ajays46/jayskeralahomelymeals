@@ -175,7 +175,7 @@ const CustomerPortalPage = () => {
         showErrorToast('Session expired. Please login again.');
       } else {
         setError(error.response?.data?.message || 'Failed to load customer data');
-        showErrorToast('Failed to load customer data');
+        showErrorToast('We couldn\'t load your details. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -242,7 +242,7 @@ const CustomerPortalPage = () => {
     } catch (error) {
       console.error('Error fetching customer data:', error);
       setError(error.response?.data?.message || 'Failed to load customer data');
-      showErrorToast('Failed to load customer data');
+      showErrorToast('We couldn\'t load your details. Please try again.');
     } finally {
       setLoading(false);
     }
