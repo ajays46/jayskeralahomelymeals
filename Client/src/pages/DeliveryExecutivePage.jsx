@@ -3399,6 +3399,8 @@ const DeliveryExecutivePage = () => {
                                           ? 'bg-yellow-50 border-yellow-300'
                                           : deliveryStatus[index].status === 'Confirmed'
                                           ? 'bg-blue-50 border-blue-300'
+                                          : deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress'
+                                          ? 'bg-amber-50 border-amber-300'
                                           : deliveryStatus[index].status === 'Cancelled'
                                           ? 'bg-red-50 border-red-300'
                                           : 'bg-gray-50 border-gray-200'
@@ -3421,6 +3423,8 @@ const DeliveryExecutivePage = () => {
                                                   ? 'bg-yellow-500'
                                                   : deliveryStatus[index].status === 'Confirmed'
                                                   ? 'bg-blue-500'
+                                                  : deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress'
+                                                  ? 'bg-amber-500'
                                                   : deliveryStatus[index].status === 'Cancelled'
                                                   ? 'bg-red-500'
                                                   : 'bg-gray-500'
@@ -3437,6 +3441,10 @@ const DeliveryExecutivePage = () => {
                                                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                   </svg>
+                                                ) : deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress' ? (
+                                                  <svg className="w-6 h-6 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                  </svg>
                                                 ) : deliveryStatus[index].status === 'Cancelled' ? (
                                                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3451,6 +3459,8 @@ const DeliveryExecutivePage = () => {
                                                     ? 'text-yellow-700'
                                                     : deliveryStatus[index].status === 'Confirmed'
                                                     ? 'text-blue-700'
+                                                    : deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress'
+                                                    ? 'text-amber-700'
                                                     : deliveryStatus[index].status === 'Cancelled'
                                                     ? 'text-red-700'
                                                     : 'text-gray-700'
@@ -3458,6 +3468,7 @@ const DeliveryExecutivePage = () => {
                                                   {deliveryStatus[index].status === 'Delivered' ? '✅ Delivered' :
                                                    deliveryStatus[index].status === 'Pending' ? '⏳ Pending' :
                                                    deliveryStatus[index].status === 'Confirmed' ? '✅ Confirmed' :
+                                                   deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress' ? '🚀 In Progress' :
                                                    deliveryStatus[index].status === 'Cancelled' ? '❌ Cancelled' :
                                                    deliveryStatus[index].status}
                                                 </div>

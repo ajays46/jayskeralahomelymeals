@@ -227,7 +227,7 @@ export const getDeliveryItemsByOrderService = async (orderId, userId) => {
 // Update delivery item status
 export const updateDeliveryItemStatusService = async (deliveryItemId, userId, status) => {
     try {
-        const validStatuses = ['Pending', 'Confirmed', 'Delivered', 'Cancelled'];
+        const validStatuses = ['Pending', 'Confirmed', 'In_Progress', 'Delivered', 'Cancelled'];
         if (!validStatuses.includes(status)) {
             throw new AppError('Invalid delivery item status', 400);
         }

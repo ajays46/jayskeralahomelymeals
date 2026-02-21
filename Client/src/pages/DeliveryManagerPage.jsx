@@ -84,6 +84,13 @@ const DeliveryManagerPage = () => {
     title: '',
     content: ''
   });
+  const [deactivateBlockedDialog, setDeactivateBlockedDialog] = useState({
+    open: false,
+    driverName: '',
+    inProgressCount: 0,
+    message: '',
+    user_id: null
+  });
   const [deliveryExecutives, setDeliveryExecutives] = useState([]);
   const [loadingExecutives, setLoadingExecutives] = useState(false);
   const [executivesError, setExecutivesError] = useState(false);
@@ -1520,7 +1527,19 @@ const DeliveryManagerPage = () => {
       setExecutivesStatus({});
       
     } catch (error) {
-      message.error('Failed to save status changes');
+      const data = error.response?.data;
+      if (error.response?.status === 400 && data?.in_progress_count != null) {
+        const driver = activeExecutives.find(e => (e.user_id || e.id) === data.user_id);
+        setDeactivateBlockedDialog({
+          open: true,
+          driverName: driver?.exec_name || driver?.name || 'This driver',
+          inProgressCount: data.in_progress_count,
+          message: data.error || 'Cannot inactivate driver: deliveries in progress.',
+          user_id: data.user_id
+        });
+      } else {
+        message.error(data?.error || error.message || 'Failed to save status changes');
+      }
       console.error('Error saving status changes:', error);
     }
   };
@@ -3962,7 +3981,7 @@ const DeliveryManagerPage = () => {
                                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                             item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
                                             item.status === 'Delivered' ? 'bg-green-100 text-green-800 border border-green-200' :
-                                            item.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                            (item.status === 'In Progress' || item.status === 'In_Progress') ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse' :
                                             item.status === 'Cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
                                             'bg-gray-100 text-gray-800 border border-gray-200'
                                           }`}>
@@ -4039,7 +4058,7 @@ const DeliveryManagerPage = () => {
                                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                         item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
                                         item.status === 'Delivered' ? 'bg-green-100 text-green-800 border border-green-200' :
-                                        item.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                        (item.status === 'In Progress' || item.status === 'In_Progress') ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse' :
                                         item.status === 'Cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
                                         'bg-gray-100 text-gray-800 border border-gray-200'
                                       }`}>
@@ -5636,6 +5655,55 @@ const DeliveryManagerPage = () => {
                 <span className="text-sm font-medium">This action cannot be undone.</span>
               </div>
             </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Deactivate Driver Blocked – deliveries in progress */}
+      <Modal
+        title={
+          <span className="flex items-center gap-2 text-amber-700">
+            <FiShield className="w-5 h-5" />
+            Cannot Inactivate Driver
+          </span>
+        }
+        open={deactivateBlockedDialog.open}
+        onCancel={() => setDeactivateBlockedDialog(prev => ({ ...prev, open: false }))}
+        footer={[
+          <button
+            key="reassign"
+            onClick={() => {
+              setDeactivateBlockedDialog(prev => ({ ...prev, open: false }));
+              setActiveTab('rootManagement');
+            }}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium"
+          >
+            Reassign Route
+          </button>,
+          <button
+            key="cancel"
+            onClick={() => setDeactivateBlockedDialog(prev => ({ ...prev, open: false }))}
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium"
+          >
+            Cancel
+          </button>
+        ]}
+        width={440}
+        centered
+      >
+        <div className="py-2">
+          <p className="text-gray-700 mb-3">
+            <strong>{deactivateBlockedDialog.driverName}</strong> has {deactivateBlockedDialog.inProgressCount} delivery(ies) currently in progress.
+          </p>
+          <p className="text-gray-600 text-sm mb-3">
+            To inactivate this driver, you must either:
+          </p>
+          <ul className="list-disc list-inside text-gray-600 text-sm space-y-1 mb-3">
+            <li>Wait for all deliveries to complete, or</li>
+            <li>Reassign the route to another driver</li>
+          </ul>
+          {deactivateBlockedDialog.message && (
+            <p className="text-gray-500 text-xs border-t border-gray-200 pt-2">{deactivateBlockedDialog.message}</p>
           )}
         </div>
       </Modal>

@@ -2103,6 +2103,17 @@ export const updateExecutiveStatus = async (req, res, next) => {
 
             if (!response.ok) {
                 const errorText = await response.text();
+                let errData;
+                try { errData = JSON.parse(errorText); } catch (_) { errData = {}; }
+                // Forward 400 when driver has deliveries in progress (deactivate blocked)
+                if (response.status === 400 && errData.in_progress_count != null) {
+                    return res.status(400).json({
+                        success: false,
+                        error: errData.error || 'Cannot inactivate driver: deliveries in progress.',
+                        in_progress_count: errData.in_progress_count,
+                        user_id: errData.user_id || (updates[0]?.user_id)
+                    });
+                }
                 throw new Error(`External API responded with status: ${response.status} - ${errorText}`);
             }
 
@@ -2156,6 +2167,18 @@ export const updateExecutiveStatus = async (req, res, next) => {
 
                     if (!response.ok) {
                         const errorText = await response.text();
+                        let errData;
+                        try { errData = JSON.parse(errorText); } catch (_) { errData = {}; }
+                        if (response.status === 400 && errData.in_progress_count != null) {
+                            errors.push({
+                                user_id: update.user_id,
+                                status: update.status,
+                                success: false,
+                                error: errData.error || 'Cannot inactivate driver: deliveries in progress.',
+                                in_progress_count: errData.in_progress_count
+                            });
+                            continue;
+                        }
                         throw new Error(`External API responded with status: ${response.status} - ${errorText}`);
                     }
 
@@ -2178,6 +2201,17 @@ export const updateExecutiveStatus = async (req, res, next) => {
 
             const successCount = results.length;
             const errorCount = errors.length;
+            const blockedError = errors.find(e => e.in_progress_count != null);
+
+            if (blockedError && errorCount > 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: blockedError.error,
+                    in_progress_count: blockedError.in_progress_count,
+                    user_id: blockedError.user_id,
+                    data: { results, errors, summary: { total: updates.length, successful: successCount, failed: errorCount } }
+                });
+            }
 
             return res.status(200).json({
                 success: errorCount === 0,
