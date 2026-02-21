@@ -2105,12 +2105,15 @@ export const updateExecutiveStatus = async (req, res, next) => {
                 const errorText = await response.text();
                 let errData;
                 try { errData = JSON.parse(errorText); } catch (_) { errData = {}; }
+                const errMsg = errData.error || errData.message || errorText;
+                const hasInProgressMessage = /in progress|inactivate|cannot.*driver/i.test(errMsg);
+                const count = errData.in_progress_count ?? errData.deliveries_count ?? (hasInProgressMessage ? 1 : null);
                 // Forward 400 when driver has deliveries in progress (deactivate blocked)
-                if (response.status === 400 && errData.in_progress_count != null) {
+                if (response.status === 400 && (count != null || hasInProgressMessage)) {
                     return res.status(400).json({
                         success: false,
-                        error: errData.error || 'Cannot inactivate driver: deliveries in progress.',
-                        in_progress_count: errData.in_progress_count,
+                        error: errMsg || 'Cannot inactivate driver: deliveries in progress.',
+                        in_progress_count: count != null ? count : 1,
                         user_id: errData.user_id || (updates[0]?.user_id)
                     });
                 }
@@ -2169,13 +2172,16 @@ export const updateExecutiveStatus = async (req, res, next) => {
                         const errorText = await response.text();
                         let errData;
                         try { errData = JSON.parse(errorText); } catch (_) { errData = {}; }
-                        if (response.status === 400 && errData.in_progress_count != null) {
+                        const errMsg = errData.error || errData.message || errorText;
+                        const hasInProgressMessage = /in progress|inactivate|cannot.*driver/i.test(errMsg);
+                        const count = errData.in_progress_count ?? errData.deliveries_count ?? (hasInProgressMessage ? 1 : null);
+                        if (response.status === 400 && (count != null || hasInProgressMessage)) {
                             errors.push({
                                 user_id: update.user_id,
                                 status: update.status,
                                 success: false,
-                                error: errData.error || 'Cannot inactivate driver: deliveries in progress.',
-                                in_progress_count: errData.in_progress_count
+                                error: errMsg || 'Cannot inactivate driver: deliveries in progress.',
+                                in_progress_count: count != null ? count : 1
                             });
                             continue;
                         }

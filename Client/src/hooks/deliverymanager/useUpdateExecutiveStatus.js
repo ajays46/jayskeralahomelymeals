@@ -37,11 +37,9 @@ export const useUpdateMultipleExecutiveStatus = () => {
       const response = await axiosInstance.post('/admin/update-executive-status', {
         updates: statusUpdates
       });
-      
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to update executive statuses');
       }
-      
       return response.data;
     },
     onSuccess: (data) => {

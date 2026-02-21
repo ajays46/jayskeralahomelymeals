@@ -1528,17 +1528,23 @@ const DeliveryManagerPage = () => {
       
     } catch (error) {
       const data = error.response?.data;
-      if (error.response?.status === 400 && data?.in_progress_count != null) {
-        const driver = activeExecutives.find(e => (e.user_id || e.id) === data.user_id);
+      const status = error.response?.status;
+      const errMsg = data?.error || data?.message || error.message || '';
+      const isDeactivateBlocked =
+        status === 400 &&
+        (data?.in_progress_count != null || /in progress|inactivate|cannot.*driver/i.test(errMsg));
+      if (isDeactivateBlocked) {
+        const driver = activeExecutives.find(e => (e.user_id || e.id) === data?.user_id);
+        const count = data?.in_progress_count ?? 'one or more';
         setDeactivateBlockedDialog({
           open: true,
           driverName: driver?.exec_name || driver?.name || 'This driver',
-          inProgressCount: data.in_progress_count,
-          message: data.error || 'Cannot inactivate driver: deliveries in progress.',
-          user_id: data.user_id
+          inProgressCount: count,
+          message: errMsg || 'Cannot inactivate driver: deliveries in progress.',
+          user_id: data?.user_id
         });
       } else {
-        message.error(data?.error || error.message || 'Failed to save status changes');
+        message.error(errMsg || 'Failed to save status changes');
       }
       console.error('Error saving status changes:', error);
     }
