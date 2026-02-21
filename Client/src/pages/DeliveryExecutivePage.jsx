@@ -77,10 +77,10 @@ const DeliveryExecutivePage = () => {
     }
   );
   
-  // Route overview map API disabled – not using "View Overview Map" button
+  // Route overview API used for Full Route Directions link only (View Overview Map button removed)
   const { data: routeOverviewResponse, isLoading: routeOverviewLoading, refetch: refetchRouteOverview } = useDriverRouteOverviewMaps(
     { date: currentDateStr, session: selectedSession.toLowerCase(), companyId: companyId || undefined },
-    { enabled: false }
+    { enabled: isMapsEnabled && !!companyId }
   );
   
   // Debug logging (remove in production)
@@ -584,52 +584,58 @@ const DeliveryExecutivePage = () => {
     }
   }, [activeTab, user]);
 
-  // Update routes state when driver maps data is loaded
+  // Update routes state when driver maps data is loaded (per-stop Map_Link + session route_map_link/map_link for Full Route Directions)
   useEffect(() => {
     if (driverMapsData && routes.sessions && routes.sessions[selectedSession]) {
       const currentStops = routes.sessions[selectedSession].stops;
-      
+      const currentSession = routes.sessions[selectedSession];
+      const routeLink = driverMapsData.route_map_link || driverMapsData.map_link || '';
+      const sessionNeedsRouteLink = routeLink && (routeLink !== currentSession.route_map_link && routeLink !== currentSession.map_link);
+
       // Check if any stop needs updating (has map_link in driverMapsData but not in current stops)
-      const needsUpdate = currentStops.some(stop => {
-        const mapStop = driverMapsData.stops?.find(s => 
-          s.stop_order === stop.Stop_No || 
+      const stopsNeedUpdate = currentStops.some(stop => {
+        const mapStop = driverMapsData.stops?.find(s =>
+          s.stop_order === stop.Stop_No ||
           s.delivery_name === stop.Delivery_Name ||
           (s.delivery_name && stop.Delivery_Name && s.delivery_name.toLowerCase() === stop.Delivery_Name.toLowerCase())
         );
         return mapStop && mapStop.map_link && !stop.Map_Link;
       });
-      
-      // Only update if there are changes to avoid infinite loop
+
+      const needsUpdate = stopsNeedUpdate || sessionNeedsRouteLink;
+
       if (needsUpdate) {
-        const updatedStops = currentStops.map(stop => {
-          const mapStop = driverMapsData.stops?.find(s => 
-            s.stop_order === stop.Stop_No || 
-            s.delivery_name === stop.Delivery_Name ||
-            (s.delivery_name && stop.Delivery_Name && s.delivery_name.toLowerCase() === stop.Delivery_Name.toLowerCase())
-          );
-          
-          if (mapStop && mapStop.map_link) {
-            return {
-              ...stop,
-              Map_Link: mapStop.map_link
-            };
-          }
-          return stop;
-        });
-        
+        let updatedStops = currentStops;
+        if (stopsNeedUpdate) {
+          updatedStops = currentStops.map(stop => {
+            const mapStop = driverMapsData.stops?.find(s =>
+              s.stop_order === stop.Stop_No ||
+              s.delivery_name === stop.Delivery_Name ||
+              (s.delivery_name && stop.Delivery_Name && s.delivery_name.toLowerCase() === stop.Delivery_Name.toLowerCase())
+            );
+            if (mapStop && mapStop.map_link) {
+              return { ...stop, Map_Link: mapStop.map_link };
+            }
+            return stop;
+          });
+        }
         setRoutes(prev => ({
           ...prev,
           sessions: {
             ...prev.sessions,
             [selectedSession]: {
               ...prev.sessions[selectedSession],
-              stops: updatedStops
+              stops: updatedStops,
+              ...(routeLink && {
+                map_link: routeLink || prev.sessions[selectedSession].map_link,
+                route_map_link: routeLink || prev.sessions[selectedSession].route_map_link
+              })
             }
           }
         }));
       }
     }
-  }, [driverMapsData, selectedSession, routes.sessions]); // Added routes.sessions to ensure it runs when routes change
+  }, [driverMapsData, selectedSession, routes.sessions]);
 
   // Update routes state when route overview data is loaded
   useEffect(() => {
