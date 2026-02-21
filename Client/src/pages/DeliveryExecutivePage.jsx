@@ -5,7 +5,7 @@ import { FiArrowLeft, FiLogOut, FiMapPin, FiPlay } from 'react-icons/fi';
 import { MdLocalShipping } from 'react-icons/md';
 import { message } from 'antd';
 import { toast } from 'react-toastify';
-import { useCompanyBasePath } from '../context/TenantContext';
+import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
@@ -42,9 +42,12 @@ const DeliveryExecutivePage = () => {
   // Get user and roles first (before hooks that use them)
   const navigate = useNavigate();
   const basePath = useCompanyBasePath();
+  const tenant = useTenant();
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const logout = useAuthStore((state) => state.logout);
+  // company_id for driver maps API: tenant from URL (e.g. /jkhm) or user from login
+  const companyId = tenant?.companyId ?? user?.companyId ?? user?.company_id ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('company_id') : null);
   
   // Get current date string (memoized to avoid unnecessary recalculations)
   const currentDateStr = useMemo(() => {
@@ -68,17 +71,16 @@ const DeliveryExecutivePage = () => {
   const isMapsEnabled = !!user?.id && !!selectedSession && routes.sessions && Object.keys(routes.sessions).length > 0;
   
   const { data: driverMapsResponse, isLoading: mapsLoading, error: mapsError, refetch: refetchDriverMaps } = useDriverNextStopMaps(
-    { date: currentDateStr, session: selectedSession.toLowerCase() },
+    { date: currentDateStr, session: selectedSession.toLowerCase(), companyId: companyId || undefined },
     { 
-      enabled: isMapsEnabled
+      enabled: isMapsEnabled && !!companyId
     }
   );
   
+  // Route overview map API disabled – not using "View Overview Map" button
   const { data: routeOverviewResponse, isLoading: routeOverviewLoading, refetch: refetchRouteOverview } = useDriverRouteOverviewMaps(
-    { date: currentDateStr, session: selectedSession.toLowerCase() },
-    { 
-      enabled: isMapsEnabled
-    }
+    { date: currentDateStr, session: selectedSession.toLowerCase(), companyId: companyId || undefined },
+    { enabled: false }
   );
   
   // Debug logging (remove in production)
@@ -3050,22 +3052,7 @@ const DeliveryExecutivePage = () => {
                                       </a>
                                     )}
                                     
-                                    {/* Map View Link */}
-                                    {routes.sessions[selectedSession].map_view_link && (
-                                      <a
-                                        href={routes.sessions[selectedSession].map_view_link}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-1 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-semibold"
-                                        title="Overview map showing all stops"
-                                      >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                        View Overview Map
-                                      </a>
-                                    )}
+                                    {/* View Overview Map – disabled (not used) */}
                                   </div>
                                 )}
                               </div>

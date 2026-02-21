@@ -1036,7 +1036,8 @@ export const useReoptimizeRoute = () => {
 export const useDriverNextStopMaps = (params = {}, options = {}) => {
   const {
     date,
-    session
+    session,
+    companyId
   } = params;
   
   const {
@@ -1046,11 +1047,12 @@ export const useDriverNextStopMaps = (params = {}, options = {}) => {
   } = options;
 
   return useQuery({
-    queryKey: [...aiRouteKeys.all, 'driverNextStopMaps', { date, session }],
+    queryKey: [...aiRouteKeys.all, 'driverNextStopMaps', { date, session, companyId }],
     queryFn: async () => {
       const queryParams = {};
       if (date) queryParams.date = date;
       if (session) queryParams.session = session;
+      if (companyId) queryParams.company_id = companyId;
       
       const response = await axiosInstance.get('/drivers/next-stop-maps', { params: queryParams });
       
@@ -1073,7 +1075,8 @@ export const useDriverNextStopMaps = (params = {}, options = {}) => {
 export const useDriverRouteOverviewMaps = (params = {}, options = {}) => {
   const {
     date,
-    session
+    session,
+    companyId
   } = params;
   
   const {
@@ -1083,11 +1086,12 @@ export const useDriverRouteOverviewMaps = (params = {}, options = {}) => {
   } = options;
 
   return useQuery({
-    queryKey: [...aiRouteKeys.all, 'driverRouteOverviewMaps', { date, session }],
+    queryKey: [...aiRouteKeys.all, 'driverRouteOverviewMaps', { date, session, companyId }],
     queryFn: async () => {
       const queryParams = {};
       if (date) queryParams.date = date;
       if (session) queryParams.session = session;
+      if (companyId) queryParams.company_id = companyId;
       
       const response = await axiosInstance.get('/drivers/route-overview-maps', { params: queryParams });
       
