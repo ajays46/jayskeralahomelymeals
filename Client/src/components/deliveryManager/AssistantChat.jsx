@@ -61,6 +61,96 @@ function getErrorMessage(res) {
 }
 
 /**
+ * Renders assistant message content with improved formatting:
+ * - Preserves line breaks and spacing
+ * - Turns "- item" lines into bullet list items
+ * - Renders [ACTIVE] / [INACTIVE] as small badges
+ */
+function AssistantMessageContent({ content }) {
+  if (typeof content !== 'string' || !content.trim()) return null;
+
+  const lines = content.split(/\r?\n/);
+  const elements = [];
+  let listItems = [];
+  const flushList = () => {
+    if (listItems.length === 0) return;
+    elements.push(
+      <ul key={elements.length} className="assistant-chat-list mt-1.5 mb-1.5 space-y-1 pl-4 list-disc list-outside text-gray-200">
+        {listItems.map((line, j) => (
+          <li key={j} className="leading-relaxed">
+            <FormattedLine text={line} />
+          </li>
+        ))}
+      </ul>
+    );
+    listItems = [];
+  };
+
+  const FormattedLine = ({ text }) => {
+    const parts = [];
+    let remaining = text;
+    const badgeRegex = /\[(ACTIVE|INACTIVE)\]/gi;
+    let lastIndex = 0;
+    let match;
+    const re = new RegExp(badgeRegex.source, 'gi');
+    while ((match = re.exec(remaining)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(<span key={`t-${lastIndex}`}>{remaining.slice(lastIndex, match.index)}</span>);
+      }
+      const isActive = match[1].toUpperCase() === 'ACTIVE';
+      parts.push(
+        <span
+          key={`b-${match.index}`}
+          className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ml-0.5 ${
+            isActive ? 'bg-emerald-500/25 text-emerald-300' : 'bg-gray-500/40 text-gray-400'
+          }`}
+        >
+          {match[0]}
+        </span>
+      );
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < remaining.length) {
+      parts.push(<span key={`t-${lastIndex}`}>{remaining.slice(lastIndex)}</span>);
+    }
+    return parts.length > 0 ? <>{parts}</> : text;
+  };
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    const isBullet = /^\s*[-•]\s+/.test(line) || (trimmed && trimmed.startsWith('- '));
+    const bulletMatch = line.match(/^\s*[-•]\s+(.*)$/);
+    const listContent = bulletMatch ? bulletMatch[1].trim() : (isBullet ? trimmed.replace(/^\s*[-•]\s+/, '') : trimmed);
+
+    if (isBullet && listContent) {
+      // Split by " - " in case one line has multiple items (e.g. " - name1 [ACTIVE] - name2 [ACTIVE]")
+      const segments = listContent.split(/\s+-\s+/).map(s => s.trim()).filter(Boolean);
+      segments.forEach(seg => listItems.push(seg));
+    } else {
+      flushList();
+      if (trimmed) {
+        elements.push(
+          <p key={i} className="assistant-chat-paragraph leading-relaxed text-gray-200">
+            <FormattedLine text={trimmed} />
+          </p>
+        );
+      } else if (listItems.length > 0 && i > 0) {
+        // keep collecting list items
+      } else {
+        elements.push(<br key={i} />);
+      }
+    }
+  });
+  flushList();
+
+  return (
+    <div className="assistant-chat-content space-y-1 text-sm">
+      {elements}
+    </div>
+  );
+}
+
+/**
  * AssistantChat - Route optimization assistant chat panel.
  * Props: companyId (required), userId (required)
  */
@@ -126,6 +216,15 @@ export default function AssistantChat({ companyId, userId }) {
 
   return (
     <>
+      <style>{`
+        .assistant-chat-messages::-webkit-scrollbar { display: none; }
+        .assistant-chat-bubble {
+          line-height: 1.5;
+          word-break: break-word;
+        }
+        .assistant-chat-content p + p { margin-top: 0.5rem; }
+        .assistant-chat-list li { margin-top: 0.25rem; }
+      `}</style>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -147,7 +246,7 @@ export default function AssistantChat({ companyId, userId }) {
           <div className="flex items-center justify-between px-4 py-3 bg-gray-700/90 backdrop-blur-sm border-b border-gray-600">
             <div className="flex items-center gap-2">
               <FiMessageCircle className="w-5 h-5 text-blue-400" />
-              <span className="font-semibold text-white">Jaice Assistant</span>
+              <span className="font-semibold text-white">Ask Jaice</span>
             </div>
             <div className="flex items-center gap-2">
               {messages.length > 0 && (
@@ -170,7 +269,10 @@ export default function AssistantChat({ companyId, userId }) {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-black/30 backdrop-blur-[2px]">
+          <div
+            className="flex-1 overflow-y-auto p-4 space-y-3 bg-black/30 backdrop-blur-[2px] assistant-chat-messages"
+            style={{ scrollbarWidth: 'none' }}
+          >
             {messages.length === 0 && !loading && (
               <div className="space-y-4">
                 <p className="text-gray-400 text-sm">Ask about deliveries, drivers, routes, weather, or performance.</p>
@@ -199,20 +301,25 @@ export default function AssistantChat({ companyId, userId }) {
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] px-3 py-2 rounded-lg text-sm ${
+                  className={`max-w-[85%] px-4 py-3 rounded-xl text-sm shadow-sm assistant-chat-bubble ${
                     msg.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 text-gray-100'
+                      ? 'bg-blue-600 text-white rounded-br-md'
+                      : 'bg-gray-700/95 text-gray-100 border border-gray-600/50 rounded-bl-md'
                   }`}
                 >
-                  {msg.content}
+                  {msg.role === 'user' ? (
+                    msg.content
+                  ) : (
+                    <AssistantMessageContent content={msg.content} />
+                  )}
                 </div>
               </div>
             ))}
             {loading && (
               <div className="flex justify-start">
-                <div className="px-3 py-2 rounded-lg bg-gray-700 text-gray-400 text-sm">
-                  Thinking...
+                <div className="max-w-[85%] px-4 py-3 rounded-xl rounded-bl-md bg-gray-700/95 text-gray-400 text-sm border border-gray-600/50 shadow-sm flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
+                  <span>Thinking...</span>
                 </div>
               </div>
             )}
