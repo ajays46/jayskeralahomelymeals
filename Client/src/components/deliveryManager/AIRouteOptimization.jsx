@@ -130,22 +130,42 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
         const warningsText = result.warnings.join('; ');
         showWarningToast(warningsText, 'Please check the route details');
       }
+      // Executive locking: show when some drivers are unavailable (assigned by another manager for same date/session)
+      if (result.executives_unavailable_warning && typeof result.executives_unavailable_warning === 'string') {
+        showWarningToast(result.executives_unavailable_warning, 'Drivers unavailable');
+      }
+      // Verify X-User-ID was received: if created_by is null, backend did not get the header (per FRONTEND_DELIVERY_MANAGER_ISOLATION_GUIDE)
+      if (result.created_by == null || result.created_by === '') {
+        showWarningToast('Route planned but not attributed to you. The server may not have received X-User-ID.', 'Verification');
+      }
     } catch (error) {
-      // Build error message
-      let errorMessage = error.message || 'Route planning failed';
-      
+      // Build error message (prefer server error for 403 "You can only modify routes you created")
+      let errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Route planning failed';
+
+      // User-friendly message for "not enough drivers" (strip API jargon, plain language)
+      const raw = errorMessage;
+      const data = error.response?.data;
+      const isNotEnoughDrivers = /not enough active delivery executives|found 0, need \d/i.test(raw) || /add executives \(GET \/api/i.test(raw);
+      if (isNotEnoughDrivers) {
+        errorMessage = "There aren't enough available drivers to plan this route. You need at least one active driver. Add or activate drivers in Delivery Executives and assign them a vehicle.";
+        const unavailable = data?.executives_unavailable;
+        if (Array.isArray(unavailable) && unavailable.length > 0) {
+          const names = unavailable.join(', ');
+          showWarningToast(`${names} ${unavailable.length === 1 ? 'is' : 'are'} already assigned to another manager's route for this date and session, so they can't be used.`, 'Drivers unavailable');
+        }
+      }
+
       // Check if error has warnings from the API response
       let warnings = null;
       if (error.warnings && Array.isArray(error.warnings) && error.warnings.length > 0) {
         warnings = error.warnings;
       } else if (error.responseData?.warnings && Array.isArray(error.responseData.warnings) && error.responseData.warnings.length > 0) {
-        // Fallback: check responseData for warnings
         warnings = error.responseData.warnings;
       }
-      
+
       // Show error message
       showErrorToast(errorMessage, 'We couldn\'t plan the route');
-      
+
       // Show warnings separately if they exist
       if (warnings && warnings.length > 0) {
         const warningsText = warnings.join('; ');
@@ -211,7 +231,8 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
       
       showSuccessToast(`Predicted start time: ${formattedTime}`);
     } catch (error) {
-      showErrorToast(error.message || 'We couldn\'t get the predicted start time. Please try again.');
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t get the predicted start time. Please try again.';
+      showErrorToast(msg);
     }
   };
   
@@ -239,7 +260,8 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
         driver_id: ''
       });
     } catch (error) {
-      showErrorToast(error.message || 'We couldn\'t start the trip. Please try again.');
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t start the trip. Please try again.';
+      showErrorToast(msg);
     }
   };
   
@@ -256,7 +278,8 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
       setShowStopJourneyModal(false);
       setSelectedRouteForStop(null);
     } catch (error) {
-      showErrorToast(error.message || 'We couldn\'t stop the trip. Please try again.');
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t stop the trip. Please try again.';
+      showErrorToast(msg);
     }
   };
   
@@ -281,7 +304,8 @@ const AIRouteOptimization = ({ showSuccessToast, showErrorToast }) => {
       showSuccessToast?.(data.message || 'Route plan has been saved.');
       return data;
     } catch (error) {
-      showErrorToast?.(error?.message || 'We couldn\'t save the route plan. Please try again.');
+      const msg = error.response?.data?.error || error.response?.data?.message || error?.message || 'We couldn\'t save the route plan. Please try again.';
+      showErrorToast?.(msg);
       return null;
     }
   };

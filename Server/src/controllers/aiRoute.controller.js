@@ -131,21 +131,22 @@ export const getDeliveryData = async (req, res, next) => {
  */
 export const planRoute = async (req, res, next) => {
   try {
-    const { delivery_date, delivery_session, num_drivers, depot_location } = req.body;
-    
+    const { delivery_date, delivery_session, num_drivers, depot_location, user_id: bodyUserId } = req.body;
+    const createdBy = req.headers['x-user-id'] || bodyUserId || req.user?.userId || req.user?.id;
+
     if (!delivery_date || !delivery_session) {
       return res.status(400).json({
         success: false,
         message: 'Delivery date and session are required'
       });
     }
-    
+
     const result = await planRouteService({
       delivery_date,
       delivery_session,
       num_drivers,
       depot_location
-    }, req.companyId);
+    }, req.companyId, createdBy);
     
     // Extract routes data according to documentation structure
     // Documentation shows: data.routes.routes[0].stops[]
@@ -159,6 +160,7 @@ export const planRoute = async (req, res, next) => {
     // Ensure all required fields are present
     const responseData = {
       success: result.success !== undefined ? result.success : true,
+      created_by: result.created_by ?? createdBy ?? null,
       route_id: result.route_id,
       main_route_id: result.main_route_id || result.route_id,
       route_ids: result.route_ids || routeIds.length > 0 ? routeIds : [result.route_id].filter(Boolean),
@@ -210,7 +212,9 @@ export const planRoute = async (req, res, next) => {
       // Include warnings and messages from external API if present
       warnings: result.warnings || result.warning || null,
       messages: result.messages || result.message || null,
-      message: result.message || null
+      message: result.message || null,
+      executives_unavailable_warning: result.executives_unavailable_warning || null,
+      executives_unavailable: result.executives_unavailable || null
     };
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Route planned successfully', {

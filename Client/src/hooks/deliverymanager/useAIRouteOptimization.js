@@ -158,21 +158,21 @@ export const usePlanRoute = () => {
       try {
         const response = await axiosInstance.post('/ai-routes/route/plan', routeData);
         
-        if (!response.data.success) {
-          // Create error with warnings if available
-          const error = new Error(response.data.message || 'Failed to plan route');
-          error.warnings = response.data.warnings || [];
-          error.responseData = response.data; // Preserve full response for warnings
-          throw error;
+if (!response.data.success) {
+        // Create error with warnings if available (prefer .error for 403 "You can only modify routes you created")
+        const msg = response.data.error || response.data.message || 'Failed to plan route';
+        const err = new Error(msg);
+        err.warnings = response.data.warnings || [];
+        err.responseData = response.data;
+        throw err;
         }
         
         return response.data;
       } catch (error) {
-        // If it's an axios error with response data, preserve warnings
+        // If it's an axios error with response data, preserve warnings and prefer .error for 403
         if (error.response?.data) {
-          const customError = new Error(
-            error.response.data.message || error.message || 'Failed to plan route'
-          );
+          const msg = error.response.data.error || error.response.data.message || error.message || 'Failed to plan route';
+          const customError = new Error(msg);
           customError.warnings = error.response.data.warnings || [];
           customError.responseData = error.response.data;
           customError.status = error.response.status;
@@ -228,7 +228,7 @@ export const useReassignDriver = () => {
     mutationFn: async (body) => {
       const response = await axiosInstance.post('/ai-routes/route/reassign-driver', body);
       if (!response.data.success) {
-        throw new Error(response.data.message || response.data.error || 'Reassign driver failed');
+        throw new Error(response.data.error || response.data.message || 'Reassign driver failed');
       }
       return response.data;
     },
@@ -251,7 +251,7 @@ export const useMoveStop = () => {
     mutationFn: async (body) => {
       const response = await axiosInstance.post('/ai-routes/route/move-stop', body);
       if (!response.data.success) {
-        throw new Error(response.data.message || response.data.error || 'Move stop failed');
+        throw new Error(response.data.error || response.data.message || 'Move stop failed');
       }
       return response.data;
     },
@@ -309,7 +309,7 @@ export const useStartJourney = () => {
       const response = await axiosInstance.post('/ai-routes/journey/start', requestBody);
       
       if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to start journey');
+        throw new Error(response.data.error || response.data.message || 'Failed to start journey');
       }
       
       return response.data;
@@ -410,7 +410,7 @@ export const useStopReached = () => {
       const response = await axiosInstance.post('/ai-routes/journey/mark-stop', requestBody);
       
       if (!response.data.success) {
-        throw new Error(response.data.message || response.data.error || 'Failed to mark stop reached');
+        throw new Error(response.data.error || response.data.message || 'Failed to mark stop reached');
       }
       
       return response.data;
@@ -452,7 +452,7 @@ export const useEndJourney = () => {
       });
       
       if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to end journey');
+        throw new Error(response.data.error || response.data.message || 'Failed to end journey');
       }
       
       return response.data;
@@ -1012,7 +1012,7 @@ export const useReoptimizeRoute = () => {
       const response = await axiosInstance.post('/ai-routes/route/reoptimize', reoptimizeData);
       
       if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to reoptimize route');
+        throw new Error(response.data.error || response.data.message || 'Failed to reoptimize route');
       }
       
       return response.data;
@@ -1223,7 +1223,7 @@ export const useRouteOrder = (routeId, options = {}) => {
       const response = await axiosInstance.get(`/ai-routes/journey/route-order/${routeId}`);
       
       if (!response.data.success) {
-        throw new Error(response.data.message || response.data.error || 'Failed to get route order');
+        throw new Error(response.data.error || response.data.message || 'Failed to get route order');
       }
       
       return response.data;

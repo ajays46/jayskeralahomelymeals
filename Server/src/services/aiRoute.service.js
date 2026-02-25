@@ -39,6 +39,14 @@ const withCompanyId = (companyId, config = {}) => {
   return { ...config, headers };
 };
 
+/** Add X-User-ID header when provided (for delivery manager isolation / created_by) */
+const withUserId = (createdBy, config = {}) => {
+  if (!createdBy || typeof createdBy !== 'string' || !createdBy.trim()) return config;
+  const headers = { ...(config.headers || {}) };
+  headers['X-User-ID'] = createdBy.trim();
+  return { ...config, headers };
+};
+
 /**
  * Check API Health
  */
@@ -142,17 +150,23 @@ export const getDeliveryDataService = async (filters = {}, companyId = null) => 
 
 /**
  * Plan Route
+ * createdBy: optional user UUID from X-User-ID header (for delivery manager isolation / created_by)
  */
-export const planRouteService = async (routeData, companyId = null) => {
+export const planRouteService = async (routeData, companyId = null, createdBy = null) => {
   try {
     const { delivery_date, delivery_session, num_drivers, depot_location } = routeData;
 
-    const response = await apiClient.post('/api/route/plan', {
+    const config = withUserId(createdBy, withCompanyId(companyId));
+    const body = {
       delivery_date,
       delivery_session,
       num_drivers,
       depot_location
-    }, withCompanyId(companyId));
+    };
+    if (createdBy && typeof createdBy === 'string' && createdBy.trim()) {
+      body.user_id = createdBy.trim();
+    }
+    const response = await apiClient.post('/api/route/plan', body, config);
     const data = response.data;
     
     if (!data.success) {

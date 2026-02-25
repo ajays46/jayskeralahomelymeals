@@ -205,7 +205,7 @@ const DraftPlanSession = ({
       saveApprovedToStorage(newApprovedKeys, newExportUrls);
     } catch (error) {
       console.error('Error approving route:', error);
-      if (showErrorToast) showErrorToast(error?.message || 'We couldn\'t approve the route. Please try again.');
+      if (showErrorToast) showErrorToast(error?.response?.data?.error || error?.response?.data?.message || error?.message || 'We couldn\'t approve the route. Please try again.');
     }
   };
 

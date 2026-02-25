@@ -24,9 +24,10 @@ axiosInstance.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${accessToken}`;
     }
     
-    // Add X-Company-ID for AI, delivery-executive, and driver maps APIs (Node proxies to AI_ROUTE_*).
+    // Add X-Company-ID and X-User-ID for AI, delivery-executive, and driver maps APIs (Node proxies to AI_ROUTE_*).
     // Do NOT send for /api/admin/delivery-executives (admin list) — only for ai-routes and delivery-executives (exec API).
     // Driver maps (/drivers/next-stop-maps, /drivers/route-overview-maps) require company_id for multi-tenant.
+    // X-User-ID: required for delivery manager isolation (plan sets created_by; queries/actions filter by created_by). See FRONTEND_DELIVERY_MANAGER_ISOLATION_GUIDE.md
     const url = config.url || '';
     const isAiApi = url.includes('ai-routes');
     const isDeliveryExecutiveApi = url.includes('delivery-executives') && !url.includes('/api/admin');
@@ -35,6 +36,12 @@ axiosInstance.interceptors.request.use(
       const companyId = store.user?.companyId || store.user?.company_id || localStorage.getItem('company_id');
       if (companyId) {
         config.headers['X-Company-ID'] = companyId;
+      }
+    }
+    if (isAiApi) {
+      const userId = store.user?.id;
+      if (userId) {
+        config.headers['X-User-ID'] = userId;
       }
     }
     

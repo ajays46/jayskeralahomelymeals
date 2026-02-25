@@ -1911,11 +1911,8 @@ const DeliveryExecutivePage = () => {
         showErrorToast(result.message || 'We couldn\'t update the route. Please try again.');
       }
     } catch (error) {
-      if (error.response?.data?.message) {
-        showErrorToast(error.response.data.message);
-      } else {
-        showErrorToast(error.message || 'We couldn\'t update the route. Please try again.');
-      }
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t update the route. Please try again.';
+      showErrorToast(msg);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getRouteIdFromRoutes, reoptimizeRouteMutation]);
@@ -2095,7 +2092,8 @@ const DeliveryExecutivePage = () => {
         }
       });
     } catch (error) {
-      showErrorToast(error.message || 'We couldn\'t start the trip. Please try again.');
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t start the trip. Please try again.';
+      showErrorToast(msg);
     }
   };
 
@@ -2506,16 +2504,12 @@ const DeliveryExecutivePage = () => {
             fetchRoutes();
           }, 100);
         } catch (retryError) {
-          if (retryError.response?.data?.message) {
-            showErrorToast(retryError.response.data.message);
-          } else {
-            showErrorToast(retryError.message || 'Failed to mark stop as reached');
-          }
+          const retryMsg = retryError.response?.data?.error || retryError.response?.data?.message || retryError.message || 'Failed to mark stop as reached';
+          showErrorToast(retryMsg);
         }
-      } else if (error.response?.data?.message) {
-        showErrorToast(error.response.data.message);
       } else {
-        showErrorToast(error.message || 'We couldn\'t mark this delivery as reached. Please try again.');
+        const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t mark this delivery as reached. Please try again.';
+        showErrorToast(msg);
       }
     }
   };
@@ -2549,7 +2543,8 @@ const DeliveryExecutivePage = () => {
       localStorage.removeItem('activeRouteId');
       fetchRoutes();
     } catch (error) {
-      showErrorToast(error.message || 'We couldn\'t end the trip. Please try again.');
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t end the trip. Please try again.';
+      showErrorToast(msg);
     }
   };
 
@@ -2623,7 +2618,8 @@ const DeliveryExecutivePage = () => {
       localStorage.removeItem('activeRouteId');
       fetchRoutes();
     } catch (error) {
-      showErrorToast(error.message || 'We couldn\'t complete this round. Please try again.');
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t complete this round. Please try again.';
+      showErrorToast(msg);
     }
   };
 
