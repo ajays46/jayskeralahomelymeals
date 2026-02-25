@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiMessageCircle, FiX, FiSend } from 'react-icons/fi';
-import axiosInstance from '../../api/axios';
+import { useAssistantChat } from '../../hooks/deliverymanager/useAssistantChat';
 
 const MAX_MESSAGE_LENGTH = 2000;
 
@@ -46,19 +46,6 @@ const SUGGESTED_PROMPTS_BY_CATEGORY = [
     ]
   }
 ];
-
-function getErrorMessage(res) {
-  const data = res?.data;
-  const code = data?.code;
-  const msg = data?.error || res?.message || 'Something went wrong';
-  if (res?.status === 401) return 'Please log in again.';
-  if (res?.status === 400 && code === 'VALIDATION_ERROR') return msg;
-  if (res?.status === 403 && (code === 'USER_REQUIRED' || code === 'ROLE_FORBIDDEN')) return 'This feature is for delivery managers and administrators only.';
-  if (res?.status === 429) return 'Too many requests. Please try again in a minute.';
-  if (res?.status === 504) return 'The assistant is taking too long. Please try again.';
-  if (res?.status === 500) return 'The assistant is temporarily unavailable. Please try again.';
-  return msg;
-}
 
 /**
  * Renders assistant message content with improved formatting:
@@ -158,13 +145,34 @@ export default function AssistantChat({ companyId, userId }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
+  const { mutateAsync: sendChatMessage, isPending: loading, error: mutationError, reset: resetMutation } = useAssistantChat();
+
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(() => { scrollToBottom(); }, [messages]);
+
+  // Refocus input after API response so user can keep typing without clicking again
+  const prevLoadingRef = useRef(loading);
+  useEffect(() => {
+    if (prevLoadingRef.current && !loading && open) {
+      const id = requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+      return () => cancelAnimationFrame(id);
+    }
+    prevLoadingRef.current = loading;
+  }, [loading, open]);
+
+  // Focus input when chat panel opens so user can type right away
+  useEffect(() => {
+    if (open) {
+      const id = requestAnimationFrame(() => inputRef.current?.focus());
+      return () => cancelAnimationFrame(id);
+    }
+  }, [open]);
 
   const sendMessage = async (text) => {
     const content = (text || input).trim().slice(0, MAX_MESSAGE_LENGTH);
@@ -175,31 +183,18 @@ export default function AssistantChat({ companyId, userId }) {
     }
 
     setError(null);
+    resetMutation();
     const userMessage = { role: 'user', content };
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     setInput('');
-    setLoading(true);
 
     try {
-      const { data } = await axiosInstance.post(
-        '/assistant/chat',
-        { messages: nextMessages, max_tokens: 512, temperature: 0.7 },
-        {
-          headers: {
-            'X-Company-ID': companyId,
-            'X-User-ID': userId
-          }
-        }
-      );
-      setMessages(prev => [...prev, data.message]);
+      const assistantMessage = await sendChatMessage({ nextMessages, companyId, userId });
+      setMessages(prev => [...prev, assistantMessage]);
     } catch (err) {
-      const message = getErrorMessage(err.response || err);
-      setError(message);
+      setError(err?.message || 'Something went wrong');
       setMessages(prev => prev.slice(0, -1));
-    } finally {
-      setLoading(false);
-      inputRef.current?.focus();
     }
   };
 
@@ -252,7 +247,7 @@ export default function AssistantChat({ companyId, userId }) {
               {messages.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => { setMessages([]); setError(null); }}
+                  onClick={() => { setMessages([]); setError(null); resetMutation(); }}
                   className="text-xs text-gray-400 hover:text-white"
                 >
                   New chat
