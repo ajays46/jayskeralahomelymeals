@@ -35,7 +35,7 @@ import {
   getRouteStatusFromActualStopsService,
   updateDeliveryCommentService,
   getCoordinatorSettingsService,
-  updateCoordinatorSettingsService
+  updateCoordinatorSettingsService,
   getRouteMapDataService,
   getDriversFromRouteMapDataService
 } from '../services/aiRoute.service.js';
@@ -1475,6 +1475,12 @@ export const updateCoordinatorSettings = async (req, res, next) => {
     logError(LOG_CATEGORIES.SYSTEM, 'Update Coordinator settings failed', {
       error: error.message,
       updates: req.body
+    });
+    next(error);
+  }
+};
+
+/**
  * Get Route Map Data for CXO
  * Fetches route data for a specific date, session, and optionally route_id
  */

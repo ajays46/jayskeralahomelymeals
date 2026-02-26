@@ -9,15 +9,12 @@ import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
-import { useStartJourney, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useStartJourney, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops, useRouteMapData } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { useUploadDeliveryPhoto, useUploadPreDeliveryPhoto, useCheckMultipleDeliveryImages, useCheckMultiplePreDeliveryImages } from '../hooks/deliverymanager';
 import { useTextCorrection } from '../hooks/useTextCorrection';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import TextCorrectionSuggestion from '../components/TextCorrectionSuggestion';
 import html2canvas from 'html2canvas';
-import { useStartJourney, useCompleteDriverSession, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops, useRouteMapData } from '../hooks/deliverymanager/useAIRouteOptimization';
-import { useUploadDeliveryPhoto, useCheckMultipleDeliveryImages } from '../hooks/deliverymanager';
-import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import { isCXO, isCEO, isCFO } from '../utils/roleUtils';
 import RecentRoutesView from '../components/RecentRoutesView';
 

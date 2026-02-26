@@ -1555,6 +1555,12 @@ export const getCoordinatorSettingsService = async (companyId) => {
     });
     throw new AppError(
       error.response?.data?.error || error.message || 'Failed to fetch Coordinator settings',
+      500
+    );
+  }
+};
+
+/**
  * Get Route Map Data for CXO
  * Fetches route data for a specific date, session, and optionally route_id
  * Uses AI_ROUTE_API endpoint /api/route/map-data
@@ -1762,6 +1768,11 @@ export const updateCoordinatorSettingsService = async (companyId, updates) => {
     throw new AppError(
       error.response?.data?.error || error.message || 'Failed to update Coordinator settings',
       error.response?.status || 500
+    );
+  }
+};
+
+/**
  * Get Drivers from Route Map Data
  * Fetches unique driver IDs from route data and returns driver information with names
  */

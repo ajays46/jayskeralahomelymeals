@@ -28,8 +28,6 @@ export const checkRole = (...allowedRoles) => {
         return next();
       }
 
-      const hasPermission = userRoles.some(role => allowedRoles.includes(role));
-
       if (!hasPermission) {
         throw new AppError('You do not have permission to perform this action', 403);
       }
