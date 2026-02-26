@@ -4,16 +4,32 @@ import { getCompanyBasePathFallback } from './companyPaths';
 /**
  * Role-Based Routing - Dashboard route by role. Pass basePath (e.g. from useCompanyBasePath) when inside tenant routes.
  * Multicompany: pass basePath so CEO/CFO/Admin etc. go to current tenant.
+ * When selectedRole is provided (e.g. from role selector), route is for that role only; roles is still used for SELLER (CXO → /seller, else /seller/customers).
  */
-export const getDashboardRoute = (roles, basePath) => {
+export const getDashboardRoute = (roles, basePath, selectedRole = null) => {
   const path = basePath && typeof basePath === 'string' && basePath.trim()
     ? basePath.trim().startsWith('/') ? basePath.trim() : `/${basePath.trim()}`
     : getCompanyBasePathFallback();
 
-  if (!roles || !Array.isArray(roles)) {
+  const roleArray = roles && Array.isArray(roles) ? roles : roles ? [roles] : [];
+
+  // When a specific role is selected (e.g. role sidebar), resolve route for that role only
+  if (selectedRole && typeof selectedRole === 'string') {
+    const su = selectedRole.toUpperCase();
+    if (su === 'CEO') return `${path}/management-dashboard`;
+    if (su === 'CFO') return `${path}/financial-dashboard`;
+    if (su === 'ADMIN') return `${path}/admin`;
+    if (su === 'DELIVERY_MANAGER') return `${path}/delivery-manager`;
+    if (su === 'SELLER') {
+      const isCXO = roleArray.some(r => ['CEO', 'CFO'].includes((r || '').toUpperCase()));
+      return isCXO ? `${path}/seller` : `${path}/seller/customers`;
+    }
+    if (su === 'DELIVERY_EXECUTIVE') return `${path}/delivery-executive`;
+    if (su === 'USER') return path;
     return path;
   }
-  const roleArray = Array.isArray(roles) ? roles : [roles];
+
+  if (!roleArray.length) return path;
 
   if (roleArray.some(role => role.toUpperCase() === 'CEO')) return `${path}/management-dashboard`;
   if (roleArray.some(role => role.toUpperCase() === 'CFO')) return `${path}/financial-dashboard`;

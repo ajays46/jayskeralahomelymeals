@@ -1574,31 +1574,39 @@ export const getCoordinatorSettingsService = async (companyId) => {
 
 /**
  * Get Route Map Data for CXO
- * Fetches route data for a specific date, session, and optionally route_id/driver_name.
+ * Fetches route data. Per guide §3c: supports date, start_date/end_date, session, route_id, driver_name, manager_id.
  * Uses AI_ROUTE_API (apiClientRouteAPI) endpoint /api/route/map-data.
  * - With driver_name only: returns drivers[].available_dates, drivers[].available_sessions.
  * - With driver_name + date (+ session): returns route for that driver/date/session.
- * Enriches route data with delivery executive names when routes are present.
+ * - With manager_id (+ start_date/end_date, session, driver_name): CXO filter routes by delivery manager.
  * companyId: when set, sent as X-Company-ID to scope data by tenant.
+ * callerUserId: when set (e.g. for manager_id requests), sent as X-User-ID so external API can verify CXO role.
  */
-export const getRouteMapDataService = async (params = {}, companyId = null) => {
+export const getRouteMapDataService = async (params = {}, companyId = null, callerUserId = null) => {
   try {
-    const { date, session, route_id, driver_name } = params;
-    
-    if (!date && !driver_name) {
-      throw new Error('Either date or driver_name is required');
+    const { date, session, route_id, driver_name, start_date, end_date, manager_id } = params;
+
+    const hasDateRange = start_date && end_date;
+    const hasAnyRequired = date || (driver_name && driver_name.trim()) || hasDateRange || manager_id;
+    if (!hasAnyRequired) {
+      throw new Error('Either date, driver_name, start_date+end_date, or manager_id is required');
     }
-    
-    // Build query parameters for external API (pass driver_name so API can return driver-specific data)
+
     const queryParams = {};
     if (date) queryParams.date = date;
     if (session) queryParams.session = session;
     if (route_id) queryParams.route_id = route_id;
     if (driver_name && driver_name.trim()) queryParams.driver_name = driver_name.trim();
-    
+    if (start_date) queryParams.start_date = start_date;
+    if (end_date) queryParams.end_date = end_date;
+    if (manager_id) queryParams.manager_id = manager_id;
+
+    // When manager_id is used, external API requires X-User-ID to verify caller is CXO (guide §3c)
+    const baseConfig = requestConfigWithCompany(companyId);
+    const configWithUser = callerUserId ? withUserId(callerUserId, baseConfig) : baseConfig;
     const response = await apiClient.get('/api/route/map-data', {
       params: queryParams,
-      ...requestConfigWithCompany(companyId)
+      ...configWithUser
     });
     
     const data = response.data;
@@ -1723,6 +1731,19 @@ export const getRouteMapDataService = async (params = {}, companyId = null) => {
       error.response?.status || 500
     );
   }
+};
+
+/**
+ * Get Route Map Data by Manager for CXO – Delivery Manager side
+ * Used on CXO Delivery Managers page. Delegates to getRouteMapDataService with manager_id + date range.
+ * callerUserId: forwarded as X-User-ID to external API for CXO role check (guide §3c).
+ */
+export const getRouteMapDataByManagerService = async (params = {}, companyId = null, callerUserId = null) => {
+  const { manager_id, start_date, end_date, session, driver_name } = params;
+  if (!manager_id) {
+    throw new Error('manager_id is required');
+  }
+  return getRouteMapDataService({ manager_id, start_date, end_date, session, driver_name }, companyId, callerUserId);
 };
 
 /**
@@ -1966,6 +1987,41 @@ export const getExecutivePerformanceByDriverService = async (driver_name, compan
     });
     throw new AppError(
       error.response?.data?.error || error.message || 'Failed to fetch executive performance',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Manager–Executive Hierarchy for CXO
+ * GET /api/cxo/manager-executive-hierarchy (external API)
+ * Returns managers with their executives and performance. CEO, CFO, ADMIN only.
+ * Query params: days (default 30), or start_date, end_date.
+ * companyId and userId (X-User-ID) forwarded for role check and scoping.
+ */
+export const getManagerExecutiveHierarchyService = async (query = {}, companyId = null, userId = null) => {
+  try {
+    const params = {};
+    if (query.days != null && query.days !== '') params.days = query.days;
+    if (query.start_date) params.start_date = query.start_date;
+    if (query.end_date) params.end_date = query.end_date;
+    const config = withUserId(userId, withCompanyId(companyId, { params: Object.keys(params).length ? params : undefined }));
+    const response = await apiClient.get('/api/cxo/manager-executive-hierarchy', config);
+    const data = response.data;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Manager-executive hierarchy fetched for CXO', {
+      managers_count: data?.managers?.length ?? 0
+    });
+    return { success: true, ...data };
+  } catch (error) {
+    if (error.response?.status === 404) {
+      return { success: true, period: {}, managers: [], message: 'Hierarchy endpoint not available' };
+    }
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch manager-executive hierarchy', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch manager-executive hierarchy',
       error.response?.status || 500
     );
   }

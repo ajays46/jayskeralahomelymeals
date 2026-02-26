@@ -1299,8 +1299,8 @@ export const useUpdateDeliveryComment = () => {
 };
 
 /**
- * Get Route Map Data for CXO
- * Fetches route data for a specific date, session, and optionally route_id
+ * Get Route Map Data for CXO – Delivery Executive side
+ * Used on Delivery Executive page (CXO view): driver_name + date/session. No manager_id.
  */
 export const useRouteMapData = (params = {}, options = {}) => {
   const {
@@ -1317,6 +1317,8 @@ export const useRouteMapData = (params = {}, options = {}) => {
     ...queryOptions
   } = { ...params, ...options };
 
+  const hasRequiredParam = !!date || !!driver_name;
+
   return useQuery({
     queryKey: aiRouteKeys.routeMapData({ date, session, route_id, driver_name }),
     queryFn: async () => {
@@ -1325,18 +1327,68 @@ export const useRouteMapData = (params = {}, options = {}) => {
       if (session) queryParams.session = session;
       if (route_id) queryParams.route_id = route_id;
       if (driver_name) queryParams.driver_name = driver_name;
-      
+
       const response = await axiosInstance.get('/ai-routes/route/map-data', {
         params: queryParams
       });
-      
+
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch route map data');
       }
-      
+
       return response.data;
     },
-    enabled: enabled && (!!date || !!driver_name),
+    enabled: enabled && hasRequiredParam,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Route Map Data by Manager for CXO – Delivery Manager side
+ * Used on CXODeliveryManagersPage: manager_id + start_date, end_date, session, driver_name.
+ * Calls GET /ai-routes/cxo/route/map-data-by-manager.
+ */
+export const useRouteMapDataByManager = (params = {}, options = {}) => {
+  const {
+    manager_id,
+    start_date,
+    end_date,
+    session,
+    driver_name,
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 2 * 60 * 1000,
+    cacheTime = 5 * 60 * 1000,
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = { ...params, ...options };
+
+  const hasRequired = !!manager_id && !!start_date && !!end_date;
+
+  return useQuery({
+    queryKey: [...aiRouteKeys.all, 'routeMapDataByManager', { manager_id, start_date, end_date, session, driver_name }],
+    queryFn: async () => {
+      const queryParams = { manager_id, start_date, end_date };
+      if (session) queryParams.session = session;
+      if (driver_name) queryParams.driver_name = driver_name;
+
+      const response = await axiosInstance.get('/ai-routes/cxo/route/map-data-by-manager', {
+        params: queryParams
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch route map data');
+      }
+
+      return response.data;
+    },
+    enabled: enabled && hasRequired,
     refetchOnWindowFocus,
     staleTime,
     cacheTime,

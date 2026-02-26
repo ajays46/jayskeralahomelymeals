@@ -708,24 +708,30 @@ const DeliveryExecutivePage = () => {
     return user?.firstName || user?.name || user?.email?.split('@')[0] || 'Delivery Executive';
   };
 
+  // Allow access for Delivery Executive role OR CXO (CEO/CFO) — CXO sees executive list, route map, performance
   useEffect(() => {
-    if (!user || !roles.includes('DELIVERY_EXECUTIVE')) {
-      message.error('Access denied. Delivery Executive role required.');
+    if (!user) {
+      message.error('Access denied.');
+      navigate(basePath);
+      return;
+    }
+    const hasDeliveryExecutive = roles && roles.includes('DELIVERY_EXECUTIVE');
+    if (!hasDeliveryExecutive && !isCXOUser) {
+      message.error('Access denied. Delivery Executive or CXO role required.');
       navigate(basePath);
       return;
     }
     // Simulate loading for profile data
     setTimeout(() => setLoading(false), 1000);
-  }, [user, roles, navigate]);
+  }, [user, roles, isCXOUser, navigate, basePath]);
 
-  // Auto-fetch routes when component loads if on routes tab
+  // Auto-fetch routes when component loads if on routes tab (only for Delivery Executive, not CXO)
   useEffect(() => {
     const driverId = user?.id;
-    
-    if (activeTab === 'routes' && driverId && (!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading) {
+    if (!isCXOUser && activeTab === 'routes' && driverId && (!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading) {
       fetchRoutes();
     }
-  }, [activeTab, user]);
+  }, [activeTab, user, isCXOUser]);
 
   // Update routes state when driver maps data is loaded (per-stop Map_Link + session route_map_link/map_link for Full Route Directions)
   useEffect(() => {

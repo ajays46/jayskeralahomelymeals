@@ -39,6 +39,7 @@ import {
   getCoordinatorSettings,
   updateCoordinatorSettings,
   getRouteMapData,
+  getRouteMapDataByManager,
   getExecutivePerformance,
   getExecutivePerformanceByDriver
 } from '../controllers/aiRoute.controller.js';
@@ -112,8 +113,10 @@ router.put('/delivery_data/:deliveryId/comments', checkRole('DELIVERY_MANAGER'),
 // Coordinator settings - DELIVERY_MANAGER only
 router.get('/coordinator/settings', checkRole('DELIVERY_MANAGER'), getCoordinatorSettings);
 router.put('/coordinator/settings', checkRole('DELIVERY_MANAGER'), updateCoordinatorSettings);
-// Route map data for CXO - CEO, CFO only (scoped by req.companyId when set)
+// Route map data for CXO - Delivery Executive side (driver + date; no manager_id)
 router.get('/route/map-data', checkRole('CEO', 'CFO'), getRouteMapData);
+// Route map data by manager for CXO - Delivery Manager side (manager_id + date range)
+router.get('/cxo/route/map-data-by-manager', checkRole('CEO', 'CFO'), getRouteMapDataByManager);
 
 // Executive performance for CXO - CEO, CFO only (scoped by req.companyId when set)
 router.get('/executive/performance', checkRole('CEO', 'CFO'), getExecutivePerformance);

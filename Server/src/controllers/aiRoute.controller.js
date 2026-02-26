@@ -37,9 +37,11 @@ import {
   getCoordinatorSettingsService,
   updateCoordinatorSettingsService,
   getRouteMapDataService,
+  getRouteMapDataByManagerService,
   getDriversFromRouteMapDataService,
   getExecutivePerformanceService,
-  getExecutivePerformanceByDriverService
+  getExecutivePerformanceByDriverService,
+  getManagerExecutiveHierarchyService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import prisma from '../config/prisma.js';
@@ -1483,23 +1485,27 @@ export const updateCoordinatorSettings = async (req, res, next) => {
 };
 
 /**
- * Get Route Map Data for CXO
- * Fetches route data for a specific date, session, and optionally route_id/driver_name.
- * Either date or driver_name is required (driver_name-only returns available_dates/sessions).
+ * Get Route Map Data for CXO – Delivery Executive side
+ * Used on Delivery Executive page (CXO view): filter by driver + single date/session.
+ * Params: date, session, route_id, driver_name. No manager_id.
+ * Require at least one of: date or driver_name.
  */
 export const getRouteMapData = async (req, res, next) => {
   try {
     const { date, session, route_id, driver_name } = req.query;
-    
+
     if (!date && !driver_name) {
       return res.status(400).json({
         success: false,
         message: 'Either date or driver_name query parameter is required'
       });
     }
-    
-    const result = await getRouteMapDataService({ date, session, route_id, driver_name }, req.companyId);
-    
+
+    const result = await getRouteMapDataService(
+      { date, session, route_id, driver_name },
+      req.companyId
+    );
+
     res.status(200).json({
       success: true,
       ...result.data
@@ -1510,6 +1516,48 @@ export const getRouteMapData = async (req, res, next) => {
       date: req.query?.date,
       session: req.query?.session,
       route_id: req.query?.route_id,
+      driver_name: req.query?.driver_name
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Route Map Data by Manager for CXO – Delivery Manager side
+ * Used on CXO Delivery Managers page: filter routes created by a specific delivery manager.
+ * Params: manager_id (required), start_date, end_date, session, driver_name.
+ * Per guide §3c: X-User-ID required for role check (external API allows manager_id only for CEO/CFO/ADMIN).
+ */
+export const getRouteMapDataByManager = async (req, res, next) => {
+  try {
+    const { manager_id, start_date, end_date, session, driver_name } = req.query;
+
+    if (!manager_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'manager_id query parameter is required'
+      });
+    }
+
+    const callerUserId = req.headers['x-user-id'] || req.user?.userId || req.user?.id;
+
+    const result = await getRouteMapDataByManagerService(
+      { manager_id, start_date, end_date, session, driver_name },
+      req.companyId,
+      callerUserId
+    );
+
+    res.status(200).json({
+      success: true,
+      ...result.data
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route map data by manager failed', {
+      error: error.message,
+      manager_id: req.query?.manager_id,
+      start_date: req.query?.start_date,
+      end_date: req.query?.end_date,
+      session: req.query?.session,
       driver_name: req.query?.driver_name
     });
     next(error);
@@ -1553,6 +1601,26 @@ export const getExecutivePerformanceByDriver = async (req, res, next) => {
     res.status(200).json(result);
   } catch (error) {
     logError(LOG_CATEGORIES.SYSTEM, 'Get executive performance by driver failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
+ * Get Manager–Executive Hierarchy for CXO (CEO, CFO, ADMIN only)
+ * GET /api/cxo/manager-executive-hierarchy?days=30|start_date=&end_date=
+ */
+export const getManagerExecutiveHierarchy = async (req, res, next) => {
+  try {
+    const query = {
+      days: req.query.days != null && req.query.days !== '' ? req.query.days : undefined,
+      start_date: req.query.start_date || undefined,
+      end_date: req.query.end_date || undefined
+    };
+    const userId = req.headers['x-user-id'] || req.user?.userId || req.user?.id;
+    const result = await getManagerExecutiveHierarchyService(query, req.companyId, userId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get manager-executive hierarchy failed', { error: error.message });
     next(error);
   }
 };

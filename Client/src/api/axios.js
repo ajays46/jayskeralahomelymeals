@@ -29,16 +29,18 @@ axiosInstance.interceptors.request.use(
     // X-User-ID for ai-routes: delivery manager isolation (plan sets created_by). See FRONTEND_DELIVERY_MANAGER_ISOLATION_GUIDE.md
     const url = config.url || '';
     const isAiApi = url.includes('ai-routes');
+    const isCxoApi = url.includes('cxo');
     const isDeliveryExecutiveApi = url.includes('delivery-executives') && !url.includes('/api/admin');
     const isDriverMapsApi = url.includes('drivers/next-stop-maps') || url.includes('drivers/route-overview-maps');
-    const isCompanyScoped = url.includes('sellers-with-orders') || url.includes('delivery-managers') || url.includes('active-executives') || isAiApi || isDeliveryExecutiveApi || isDriverMapsApi;
+    const isCompanyScoped = url.includes('sellers-with-orders') || url.includes('delivery-managers') || url.includes('active-executives') || isAiApi || isCxoApi || isDeliveryExecutiveApi || isDriverMapsApi;
+    const needsUserId = isAiApi || isCxoApi || isDriverMapsApi;
     if (isCompanyScoped) {
       const companyId = store.user?.companyId || store.user?.company_id || localStorage.getItem('company_id');
       if (companyId) {
         config.headers['X-Company-ID'] = companyId;
       }
     }
-    if (isAiApi) {
+    if (needsUserId) {
       const userId = store.user?.id;
       if (userId) {
         config.headers['X-User-ID'] = userId;

@@ -224,8 +224,8 @@ const Navbar = ({ onSignInClick }) => {
                         </>
                       )}
 
-                      {/* Delivery Executive Options */}
-                      {userIsDeliveryExecutive && (
+                      {/* Delivery Executive Options — DE or CXO (CEO/CFO) for CXO view */}
+                      {(userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Delivery Panel</div>
@@ -461,9 +461,9 @@ const Navbar = ({ onSignInClick }) => {
                             <span className="font-medium text-xs">Delivery Manager</span>
                           </Link>
                         )}
-                        {userIsDeliveryExecutive && (
+                        {(userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
                           <Link to={`${base}/delivery-executive`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
-                            <MdLocalShipping className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                            <MdLocalShipping className="text-base group-hover:scale-110 transition-transform duration-300" />
                             <span className="font-medium text-xs">Delivery Executive</span>
                           </Link>
                         )}
