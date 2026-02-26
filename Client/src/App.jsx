@@ -186,6 +186,12 @@ const App = () => {
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
           <Route path="/" element={<Navigate to={getCompanyBasePathFallback()} replace />} />
 
+          {/* Customer-facing routes at root (not under company path) */}
+          <Route path="/customer-portal" element={<CustomerPortalPage />} />
+          <Route path="/customer-password-setup" element={<CustomerPasswordSetupPage />} />
+          <Route path="/customer-login" element={<CustomerLoginPage />} />
+          <Route path="/customer-orders" element={<CustomerOrdersPage />} />
+
           {/* Multi-tenant: /:companyPath (e.g. /jkhm, /jlg) - TenantProvider resolves company by name */}
           <Route path="/:companyPath" element={<TenantProviderWrapper />}>
             <Route index element={<HomePage />} />
@@ -223,12 +229,7 @@ const App = () => {
               <Route path="role-test" element={<RoleTestPage />} />
             </Route>
 
-          <Route path="/customer-portal" element={<CustomerPortalPage />} />
-          <Route path="/customer-password-setup" element={<CustomerPasswordSetupPage />} />
-          <Route path="/customer-login" element={<CustomerLoginPage />} />
-          <Route path="/customer-orders" element={<CustomerOrdersPage />} />
-
-          <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
         
