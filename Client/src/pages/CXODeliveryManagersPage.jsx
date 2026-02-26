@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiMap } from 'react-icons/fi';
 import { MdLocalShipping, MdPerson, MdClose } from 'react-icons/md';
 import useAuthStore from '../stores/Zustand.store';
-import { useCompanyBasePath } from '../context/TenantContext';
+import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { useAllDeliveryManagersFromDb } from '../hooks/deliverymanager/useAllDeliveryManagersFromDb';
 import { useManagerExecutiveHierarchy } from '../hooks/deliverymanager/useManagerExecutiveHierarchy';
 import { useRouteMapDataByManager } from '../hooks/deliverymanager/useAIRouteOptimization';
 import CXORouteMapPreview from '../components/CXORouteMapPreview';
+import AssistantChat from '../components/deliveryManager/AssistantChat';
 
 const DAYS_OPTIONS = [
   { value: '7', label: 'Last 7 days' },
@@ -24,7 +25,9 @@ const DAYS_OPTIONS = [
 const CXODeliveryManagersPage = () => {
   const navigate = useNavigate();
   const basePath = useCompanyBasePath() || '/jkhm';
+  const tenant = useTenant();
   const { user, logout } = useAuthStore();
+  const companyId = tenant?.companyId ?? user?.companyId ?? user?.company_id ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('company_id') : null);
 
   const [selectedManager, setSelectedManager] = useState(null);
   const [hierarchyFilters, setHierarchyFilters] = useState({
@@ -518,6 +521,10 @@ const CXODeliveryManagersPage = () => {
       error={routeMapError}
       appliedFilters={routeMapApplied || {}}
     />
+
+    {companyId && user?.id && (
+      <AssistantChat companyId={companyId} userId={user.id} />
+    )}
     </>
   );
 };

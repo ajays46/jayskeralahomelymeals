@@ -21,6 +21,7 @@ import { isCXO, isCEO, isCFO } from '../utils/roleUtils';
 import RecentRoutesView from '../components/RecentRoutesView';
 import ExecutivePerformanceView from '../components/ExecutivePerformanceView';
 import ExecutivePerformanceSingle from '../components/ExecutivePerformanceSingle';
+import AssistantChat from '../components/deliveryManager/AssistantChat';
 
 // Fix for default marker icons in Leaflet with React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -4613,6 +4614,9 @@ const DeliveryExecutivePage = () => {
       )}
       </>
   )}
+      {isCXOUser && companyId && user?.id && (
+        <AssistantChat companyId={companyId} userId={user.id} />
+      )}
       </div>
     </div>
   );

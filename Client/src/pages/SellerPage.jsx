@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCompanyBasePath } from '../context/TenantContext';
+import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { useNavigate } from 'react-router-dom';
 import { 
   showSuccessToast, 
@@ -50,12 +50,15 @@ import { SkeletonTable, SkeletonCard, SkeletonDashboard, SkeletonOrderCard } fro
 import { isCXO, isCEO, isCFO, hasAnyRole } from '../utils/roleUtils';
 import { useSellersData } from '../hooks/deliverymanager/useSellersData';
 import { getCompanyBasePathFallback } from '../utils/companyPaths';
+import AssistantChat from '../components/deliveryManager/AssistantChat';
 
 const SellerPage = () => {
   try {
     const navigate = useNavigate();
     const basePath = useCompanyBasePath();
+    const tenant = useTenant();
     const { user, roles } = useAuthStore();
+    const companyId = tenant?.companyId ?? user?.companyId ?? user?.company_id ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('company_id') : null);
     const { sellerUsers, loading: sellerUsersLoading, getSellerUsers } = useSeller();
     
     // Check if user has CXO/CFO/CEO role
@@ -1524,6 +1527,9 @@ const SellerPage = () => {
               </div>
             </div>
           </div>
+        )}
+        {isCXOUser && companyId && user?.id && (
+          <AssistantChat companyId={companyId} userId={user.id} />
         )}
       </div>
     );
