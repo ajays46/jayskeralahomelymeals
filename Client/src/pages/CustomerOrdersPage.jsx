@@ -35,7 +35,9 @@ import {
 import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
+import { useTextCorrection } from '../hooks/useTextCorrection';
 import { SkeletonTable, SkeletonCard, SkeletonOrderList } from '../components/Skeleton';
+import TextCorrectionSuggestion from '../components/TextCorrectionSuggestion';
 
 const CustomerOrdersPage = () => {
   const navigate = useNavigate();
@@ -95,6 +97,11 @@ const CustomerOrdersPage = () => {
   const [calendarNote, setCalendarNote] = useState('');
   const [isEditingCalendarNote, setIsEditingCalendarNote] = useState(false);
 
+  // Auto-correction for delivery note / comments textareas
+  const correctionEdited = useTextCorrection(editedNote, { onApply: setEditedNote });
+  const correctionCalendar = useTextCorrection(calendarNote, { onApply: setCalendarNote });
+  const correctionDateNote = useTextCorrection(editedDateNote, { onApply: setEditedDateNote });
+
   // Fetch customer orders on component mount
   useEffect(() => {
     if (customer?.id && user && roles?.includes('SELLER')) {
@@ -119,7 +126,7 @@ const CustomerOrdersPage = () => {
     } catch (error) {
       console.error('Error fetching customer orders:', error);
       setError(error.message || 'Failed to fetch orders');
-      showErrorToast('Failed to fetch customer orders');
+      showErrorToast('We couldn\'t load your orders. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -386,7 +393,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Order cancelled successfully');
     } catch (error) {
       console.error('Error cancelling order:', error);
-      showErrorToast(error.message || 'Failed to cancel order');
+      showErrorToast(error.message || 'We couldn\'t cancel the order. Please try again.');
     } finally {
       setLoading(false);
       setShowCancelOrderModal(false);
@@ -415,7 +422,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Delivery item cancelled successfully');
     } catch (error) {
       console.error('Error cancelling delivery item:', error);
-      showErrorToast(error.message || 'Failed to cancel delivery item');
+      showErrorToast(error.message || 'We couldn\'t cancel this delivery. Please try again.');
     } finally {
       setLoading(false);
       setShowCancelItemModal(false);
@@ -500,7 +507,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Delivery note updated successfully');
     } catch (error) {
       console.error('Error updating delivery note:', error);
-      showErrorToast(error.message || 'Failed to update delivery note');
+      showErrorToast(error.message || 'We couldn\'t update the delivery note. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -730,7 +737,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Delivery note updated successfully for selected date range');
     } catch (error) {
       console.error('Error updating delivery note:', error);
-      showErrorToast(error.message || 'Failed to update delivery note');
+      showErrorToast(error.message || 'We couldn\'t update the delivery note. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -791,7 +798,7 @@ const CustomerOrdersPage = () => {
       showSuccessToast('Delivery note updated successfully for this date');
     } catch (error) {
       console.error('Error updating delivery note:', error);
-      showErrorToast(error.message || 'Failed to update delivery note');
+      showErrorToast(error.message || 'We couldn\'t update the delivery note. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -1822,6 +1829,7 @@ const CustomerOrdersPage = () => {
                     maxLength={500}
                     className="w-full px-3 py-2 text-sm border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                   />
+                  <TextCorrectionSuggestion correcting={correctionEdited.correcting} suggestion={correctionEdited.suggestion} onApply={correctionEdited.applySuggestion} />
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-gray-500">
                       {editedNote.length}/500 characters
@@ -2047,6 +2055,7 @@ const CustomerOrdersPage = () => {
                       maxLength={500}
                       className="w-full px-2.5 py-1.5 text-xs border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                     />
+                    <TextCorrectionSuggestion correcting={correctionCalendar.correcting} suggestion={correctionCalendar.suggestion} onApply={correctionCalendar.applySuggestion} />
                     <div className="flex items-center justify-between">
                       <div className="text-xs text-gray-500">
                         {calendarNote.length}/500
@@ -2167,6 +2176,7 @@ const CustomerOrdersPage = () => {
                     maxLength={500}
                     className="w-full px-3 py-2 text-sm border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                   />
+                  <TextCorrectionSuggestion correcting={correctionDateNote.correcting} suggestion={correctionDateNote.suggestion} onApply={correctionDateNote.applySuggestion} />
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-gray-500">
                       {editedDateNote.length}/500 characters

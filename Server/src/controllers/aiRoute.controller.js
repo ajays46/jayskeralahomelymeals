@@ -14,6 +14,7 @@ import {
   getTrackingStatusService,
   vehicleTrackingService,
   getAllVehicleTrackingService,
+  getLiveVehicleTrackingService,
   getCurrentWeatherService,
   getWeatherForecastService,
   getWeatherZonesService,
@@ -32,9 +33,19 @@ import {
   checkTrafficService,
   getRouteOrderService,
   getRouteStatusFromActualStopsService,
-  updateDeliveryCommentService
+  updateDeliveryCommentService,
+  getCoordinatorSettingsService,
+  updateCoordinatorSettingsService,
+  getRouteMapDataService,
+  getRouteMapDataByManagerService,
+  getDriversFromRouteMapDataService,
+  getExecutivePerformanceService,
+  getExecutivePerformanceByDriverService,
+  getManagerExecutiveHierarchyService
 } from '../services/aiRoute.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
+import prisma from '../config/prisma.js';
+import AppError from '../utils/AppError.js';
 
 /**
  * AI Route Controller
@@ -126,21 +137,22 @@ export const getDeliveryData = async (req, res, next) => {
  */
 export const planRoute = async (req, res, next) => {
   try {
-    const { delivery_date, delivery_session, num_drivers, depot_location } = req.body;
-    
+    const { delivery_date, delivery_session, num_drivers, depot_location, user_id: bodyUserId } = req.body;
+    const createdBy = req.headers['x-user-id'] || bodyUserId || req.user?.userId || req.user?.id;
+
     if (!delivery_date || !delivery_session) {
       return res.status(400).json({
         success: false,
         message: 'Delivery date and session are required'
       });
     }
-    
+
     const result = await planRouteService({
       delivery_date,
       delivery_session,
       num_drivers,
       depot_location
-    }, req.companyId);
+    }, req.companyId, createdBy);
     
     // Extract routes data according to documentation structure
     // Documentation shows: data.routes.routes[0].stops[]
@@ -154,6 +166,7 @@ export const planRoute = async (req, res, next) => {
     // Ensure all required fields are present
     const responseData = {
       success: result.success !== undefined ? result.success : true,
+      created_by: result.created_by ?? createdBy ?? null,
       route_id: result.route_id,
       main_route_id: result.main_route_id || result.route_id,
       route_ids: result.route_ids || routeIds.length > 0 ? routeIds : [result.route_id].filter(Boolean),
@@ -205,7 +218,9 @@ export const planRoute = async (req, res, next) => {
       // Include warnings and messages from external API if present
       warnings: result.warnings || result.warning || null,
       messages: result.messages || result.message || null,
-      message: result.message || null
+      message: result.message || null,
+      executives_unavailable_warning: result.executives_unavailable_warning || null,
+      executives_unavailable: result.executives_unavailable || null
     };
     
     logInfo(LOG_CATEGORIES.SYSTEM, 'Route planned successfully', {
@@ -663,6 +678,39 @@ export const getAllVehicleTracking = async (req, res, next) => {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch all vehicle tracking', {
       error: error.message
     });
+    next(error);
+  }
+};
+
+/**
+ * Get Live Vehicle Tracking
+ * Fetches live vehicle tracking data with optional filters
+ * Query params: active_only (boolean), status (string), driver_id (string)
+ */
+export const getLiveVehicleTracking = async (req, res, next) => {
+  try {
+    const { active_only, status, driver_id } = req.query;
+    
+    const result = await getLiveVehicleTrackingService({
+      active_only,
+      status,
+      driver_id
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Live vehicle tracking fetched', {
+      active_only,
+      status,
+      driver_id,
+      vehiclesCount: result?.vehicles?.length || result?.data?.length || 0
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch live vehicle tracking', {
+      error: error.message,
+      query: req.query
+    });
+    next(error);
   }
 };
 
@@ -1347,6 +1395,232 @@ export const updateDeliveryComment = async (req, res, next) => {
       error: error.message,
       deliveryId: req.params?.deliveryId
     });
+    next(error);
+  }
+};
+
+/**
+ * Resolve company_id for Coordinator (multi-tenant).
+ * Order: X-Company-ID header, query company_id (GET), body company_id, then User lookup by req.user.userId/id.
+ */
+const resolveCoordinatorCompanyId = async (req) => {
+  const header = req.headers['x-company-id'];
+  if (header && typeof header === 'string' && header.trim()) return header.trim();
+  const query = req.query?.company_id;
+  if (query && typeof query === 'string' && query.trim()) return query.trim();
+  const body = req.body?.company_id;
+  if (body && typeof body === 'string' && body.trim()) return body.trim();
+  const userId = req.user?.userId ?? req.user?.id;
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true }
+    });
+    if (user?.companyId) return user.companyId;
+  }
+  return null;
+};
+
+/**
+ * Get Coordinator Settings
+ * Returns current Coordinator parameter values for the request's company (X-Company-ID or user's company).
+ */
+export const getCoordinatorSettings = async (req, res, next) => {
+  try {
+    const companyId = await resolveCoordinatorCompanyId(req);
+    if (!companyId) {
+      throw new AppError('company_id required (send X-Company-ID header, query company_id, or ensure user has companyId)', 400);
+    }
+    const result = await getCoordinatorSettingsService(companyId);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings retrieved', {
+      company_id: companyId,
+      settings_count: Object.keys(result.settings || {}).length
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get Coordinator settings failed', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Update Coordinator Settings
+ * Updates Coordinator parameter values for the request's company. All body fields optional.
+ */
+export const updateCoordinatorSettings = async (req, res, next) => {
+  try {
+    const companyId = await resolveCoordinatorCompanyId(req);
+    if (!companyId) {
+      throw new AppError('company_id required (send X-Company-ID header, body company_id, or ensure user has companyId)', 400);
+    }
+    const updates = { ...req.body };
+    delete updates.company_id; // avoid sending duplicate
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No updates provided (send at least one of: max_time_hours, max_packages_per_driver, max_distance_km, min_confidence)'
+      });
+    }
+
+    const result = await updateCoordinatorSettingsService(companyId, updates);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings updated successfully', {
+      company_id: companyId,
+      changed_fields: Object.keys(result.changed || {})
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Update Coordinator settings failed', {
+      error: error.message,
+      updates: req.body
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Route Map Data for CXO – Delivery Executive side
+ * Used on Delivery Executive page (CXO view): filter by driver + single date/session.
+ * Params: date, session, route_id, driver_name. No manager_id.
+ * Require at least one of: date or driver_name.
+ */
+export const getRouteMapData = async (req, res, next) => {
+  try {
+    const { date, session, route_id, driver_name } = req.query;
+
+    if (!date && !driver_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either date or driver_name query parameter is required'
+      });
+    }
+
+    const result = await getRouteMapDataService(
+      { date, session, route_id, driver_name },
+      req.companyId
+    );
+
+    res.status(200).json({
+      success: true,
+      ...result.data
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route map data failed', {
+      error: error.message,
+      date: req.query?.date,
+      session: req.query?.session,
+      route_id: req.query?.route_id,
+      driver_name: req.query?.driver_name
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Route Map Data by Manager for CXO – Delivery Manager side
+ * Used on CXO Delivery Managers page: filter routes created by a specific delivery manager.
+ * Params: manager_id (required), start_date, end_date, session, driver_name.
+ * Per guide §3c: X-User-ID required for role check (external API allows manager_id only for CEO/CFO/ADMIN).
+ */
+export const getRouteMapDataByManager = async (req, res, next) => {
+  try {
+    const { manager_id, start_date, end_date, session, driver_name } = req.query;
+
+    if (!manager_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'manager_id query parameter is required'
+      });
+    }
+
+    const callerUserId = req.headers['x-user-id'] || req.user?.userId || req.user?.id;
+
+    const result = await getRouteMapDataByManagerService(
+      { manager_id, start_date, end_date, session, driver_name },
+      req.companyId,
+      callerUserId
+    );
+
+    res.status(200).json({
+      success: true,
+      ...result.data
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route map data by manager failed', {
+      error: error.message,
+      manager_id: req.query?.manager_id,
+      start_date: req.query?.start_date,
+      end_date: req.query?.end_date,
+      session: req.query?.session,
+      driver_name: req.query?.driver_name
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Executive Performance for CXO (all executives)
+ * Optional query: start_date, end_date, days, session, min_routes, driver_name, driver_id
+ */
+export const getExecutivePerformance = async (req, res, next) => {
+  try {
+    const filters = {
+      start_date: req.query.start_date || undefined,
+      end_date: req.query.end_date || undefined,
+      days: req.query.days != null && req.query.days !== '' ? req.query.days : undefined,
+      session: req.query.session || undefined,
+      min_routes: req.query.min_routes != null && req.query.min_routes !== '' ? req.query.min_routes : undefined,
+      driver_name: req.query.driver_name || undefined,
+      driver_id: req.query.driver_id || undefined
+    };
+    const result = await getExecutivePerformanceService(filters, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get executive performance failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
+ * Get Executive Performance by driver name for CXO (single executive)
+ * GET /executive/performance/by-driver?driver_name=...
+ */
+export const getExecutivePerformanceByDriver = async (req, res, next) => {
+  try {
+    const { driver_name } = req.query;
+    if (!driver_name) {
+      return res.status(400).json({ success: false, message: 'driver_name query parameter is required' });
+    }
+    const result = await getExecutivePerformanceByDriverService(driver_name, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get executive performance by driver failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
+ * Get Manager–Executive Hierarchy for CXO (CEO, CFO, ADMIN only)
+ * GET /api/cxo/manager-executive-hierarchy?days=30|start_date=&end_date=
+ */
+export const getManagerExecutiveHierarchy = async (req, res, next) => {
+  try {
+    const query = {
+      days: req.query.days != null && req.query.days !== '' ? req.query.days : undefined,
+      start_date: req.query.start_date || undefined,
+      end_date: req.query.end_date || undefined
+    };
+    const userId = req.headers['x-user-id'] || req.user?.userId || req.user?.id;
+    const result = await getManagerExecutiveHierarchyService(query, req.companyId, userId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get manager-executive hierarchy failed', { error: error.message });
     next(error);
   }
 };

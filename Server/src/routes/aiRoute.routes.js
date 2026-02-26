@@ -34,7 +34,14 @@ import {
   checkTraffic,
   getRouteOrder,
   getRouteStatusFromActualStops,
-  updateDeliveryComment
+  updateDeliveryComment,
+  getLiveVehicleTracking,
+  getCoordinatorSettings,
+  updateCoordinatorSettings,
+  getRouteMapData,
+  getRouteMapDataByManager,
+  getExecutivePerformance,
+  getExecutivePerformanceByDriver
 } from '../controllers/aiRoute.controller.js';
 
 const router = express.Router();
@@ -77,6 +84,7 @@ router.get('/route/:routeId/status', checkRole('DELIVERY_EXECUTIVE'), getRouteSt
 // Vehicle tracking - DELIVERY_MANAGER only
 router.post('/vehicle-tracking', checkRole('DELIVERY_MANAGER'), vehicleTracking);
 router.get('/vehicle/tracking/all', checkRole('DELIVERY_MANAGER'), getAllVehicleTracking);
+router.get('/vehicle-tracking/live-all', checkRole('DELIVERY_MANAGER'), getLiveVehicleTracking);
 
 // Weather - DELIVERY_MANAGER only
 router.get('/weather/current', checkRole('DELIVERY_MANAGER'), getCurrentWeather);
@@ -101,6 +109,18 @@ router.post('/address/update-geo-location', checkRole('DELIVERY_MANAGER'), updat
 
 // Delivery data comments - DELIVERY_MANAGER only
 router.put('/delivery_data/:deliveryId/comments', checkRole('DELIVERY_MANAGER'), updateDeliveryComment);
+
+// Coordinator settings - DELIVERY_MANAGER only
+router.get('/coordinator/settings', checkRole('DELIVERY_MANAGER'), getCoordinatorSettings);
+router.put('/coordinator/settings', checkRole('DELIVERY_MANAGER'), updateCoordinatorSettings);
+// Route map data for CXO - Delivery Executive side (driver + date; no manager_id)
+router.get('/route/map-data', checkRole('CEO', 'CFO'), getRouteMapData);
+// Route map data by manager for CXO - Delivery Manager side (manager_id + date range)
+router.get('/cxo/route/map-data-by-manager', checkRole('CEO', 'CFO'), getRouteMapDataByManager);
+
+// Executive performance for CXO - CEO, CFO only (scoped by req.companyId when set)
+router.get('/executive/performance', checkRole('CEO', 'CFO'), getExecutivePerformance);
+router.get('/executive/performance/by-driver', checkRole('CEO', 'CFO'), getExecutivePerformanceByDriver);
 
 export default router;
 

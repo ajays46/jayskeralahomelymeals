@@ -136,7 +136,7 @@ export const useDeliveryDashboardData = (period = 'all') => {
     executives: executives.executivesData,
     timeAnalytics: { timeSlotAnalysis: {}, hourlyPatterns: [], locationSuccessRates: [] },
     failureAnalysis: { totalFailures: 0, failureRate: 0, failureByTimeSlot: [], failureByLocation: [], recentFailures: [] },
-    realTimeStatus: { totalDeliveries: 0, completedDeliveries: 0, inProgressDeliveries: 0, failedDeliveries: 0, completionRate: 0, statusGroups: { Pending: [], Confirmed: [], Delivered: [], Cancelled: [] }, lastUpdated: null },
+    realTimeStatus: { totalDeliveries: 0, completedDeliveries: 0, inProgressDeliveries: 0, failedDeliveries: 0, completionRate: 0, statusGroups: { Pending: [], Confirmed: [], In_Progress: [], Delivered: [], Cancelled: [] }, lastUpdated: null },
     isLoading,
     error,
     refetchAll

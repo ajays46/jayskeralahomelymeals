@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import axiosInstance from '../../api/axios';
+import useAuthStore from '../../stores/Zustand.store';
 
-// Custom hook for fetching active executives using React Query
+// Custom hook for fetching active executives using React Query (company-scoped when companyId is set)
 export const useActiveExecutives = (options = {}) => {
   const {
     enabled = true, // Whether the query should run automatically
@@ -16,8 +17,11 @@ export const useActiveExecutives = (options = {}) => {
     ...queryOptions
   } = options;
 
+  const companyId = useAuthStore((state) => state.user?.companyId) ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('company_id') : null);
+  const queryKey = ['activeExecutives', companyId || 'all'];
+
   return useQuery({
-    queryKey: ['activeExecutives'],
+    queryKey,
     queryFn: async () => {
       const response = await axiosInstance.get('/admin/active-executives');
       
@@ -59,12 +63,14 @@ export const useActiveExecutivesWithOptimisticUpdate = () => {
   const queryClient = useQueryClient();
   
   const { data, isLoading, error, refetch } = useActiveExecutives();
-  
+
   const updateExecutives = useCallback((newExecutives) => {
-    queryClient.setQueryData(['activeExecutives'], (oldData) => ({
+    const cid = useAuthStore.getState().user?.companyId ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('company_id') : null);
+    const key = ['activeExecutives', cid || 'all'];
+    queryClient.setQueryData(key, (oldData) => ({
       ...oldData,
       data: {
-        ...oldData.data,
+        ...oldData?.data,
         executives: newExecutives
       }
     }));

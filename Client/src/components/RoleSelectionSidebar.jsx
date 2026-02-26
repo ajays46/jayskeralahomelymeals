@@ -16,6 +16,7 @@ import { Badge } from './ui/badge';
 import useAuthStore from '../stores/Zustand.store';
 import { getDashboardRoute } from '../utils/roleBasedRouting';
 import { getCompanyBasePathFallback } from '../utils/companyPaths';
+import { isCXO } from '../utils/roleUtils';
 
 /**
  * RoleSelectionSidebar - Component for users to select their active role when they have multiple roles
@@ -75,6 +76,9 @@ const roleConfig = {
   }
 };
 
+// Display order: CXO (CEO, CFO) first, then CXO access roles (DM, Seller, DE), then rest
+const ROLE_DISPLAY_ORDER = ['CEO', 'CFO', 'ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'USER'];
+
 const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -83,8 +87,22 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const pathSegment = location.pathname.split('/')[1];
   const basePath = pathSegment ? `/${pathSegment}` : getCompanyBasePathFallback();
 
-    // Filter out roles that don't have configuration
-  const availableRoles = userRoles.filter(role => roleConfig[role.toUpperCase()]);
+  // CXO (CEO/CFO) can access CXO views for Delivery Manager, Seller, Delivery Executive even without those roles
+  const userIsCXO = isCXO(userRoles);
+  const cxoAccessRoles = ['DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE'];
+  let availableRoles = userRoles.filter(role => roleConfig[role.toUpperCase()]);
+  if (userIsCXO) {
+    cxoAccessRoles.forEach(role => {
+      if (!availableRoles.some(r => (r || '').toUpperCase() === role)) {
+        availableRoles = [...availableRoles, role];
+      }
+    });
+  }
+  availableRoles = availableRoles.sort((a, b) => {
+    const i = ROLE_DISPLAY_ORDER.indexOf((a || '').toUpperCase());
+    const j = ROLE_DISPLAY_ORDER.indexOf((b || '').toUpperCase());
+    return (i === -1 ? 99 : i) - (j === -1 ? 99 : j);
+  });
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
@@ -102,8 +120,8 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
       setUser(updatedUser);
       setActiveRole(selectedRole); // Set the selected role as active
       
-      // Navigate to the role-specific dashboard
-      const dashboardRoute = getDashboardRoute([selectedRole], basePath);
+      // Navigate to the selected role's dashboard; selectedRole ensures correct route (CXO gets /seller, /delivery-manager, /delivery-executive)
+      const dashboardRoute = getDashboardRoute(userRoles, basePath, selectedRole);
       navigate(dashboardRoute);
       
       // Close the sidebar

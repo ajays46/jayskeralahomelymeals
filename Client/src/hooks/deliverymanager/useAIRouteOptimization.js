@@ -15,6 +15,7 @@ export const aiRouteKeys = {
   routePlan: (params) => [...aiRouteKeys.all, 'routePlan', params],
   trackingStatus: (routeId) => [...aiRouteKeys.all, 'trackingStatus', routeId],
   allVehicleTracking: () => [...aiRouteKeys.all, 'allVehicleTracking'],
+  liveVehicleTracking: (params) => [...aiRouteKeys.all, 'liveVehicleTracking', params],
   // Traffic and Route Order
   checkTraffic: (routeId) => [...aiRouteKeys.all, 'checkTraffic', routeId],
   routeOrder: (routeId) => [...aiRouteKeys.all, 'routeOrder', routeId],
@@ -30,6 +31,12 @@ export const aiRouteKeys = {
   zoneDeliveries: (zoneId, params) => [...aiRouteKeys.all, 'zoneDeliveries', zoneId, params],
   // Address
   missingGeoLocations: (limit) => [...aiRouteKeys.all, 'missingGeoLocations', limit],
+  // Route Map Data for CXO
+  routeMapData: (params) => [...aiRouteKeys.all, 'routeMapData', params],
+  // Executive Performance for CXO (all executives, optional filters)
+  executivePerformance: (filters) => [...aiRouteKeys.all, 'executivePerformance', filters ?? {}],
+  // Executive Performance by driver for CXO (single executive)
+  executivePerformanceByDriver: (driverName) => [...aiRouteKeys.all, 'executivePerformanceByDriver', driverName],
 };
 
 /**
@@ -157,21 +164,21 @@ export const usePlanRoute = () => {
       try {
         const response = await axiosInstance.post('/ai-routes/route/plan', routeData);
         
-        if (!response.data.success) {
-          // Create error with warnings if available
-          const error = new Error(response.data.message || 'Failed to plan route');
-          error.warnings = response.data.warnings || [];
-          error.responseData = response.data; // Preserve full response for warnings
-          throw error;
+if (!response.data.success) {
+        // Create error with warnings if available (prefer .error for 403 "You can only modify routes you created")
+        const msg = response.data.error || response.data.message || 'Failed to plan route';
+        const err = new Error(msg);
+        err.warnings = response.data.warnings || [];
+        err.responseData = response.data;
+        throw err;
         }
         
         return response.data;
       } catch (error) {
-        // If it's an axios error with response data, preserve warnings
+        // If it's an axios error with response data, preserve warnings and prefer .error for 403
         if (error.response?.data) {
-          const customError = new Error(
-            error.response.data.message || error.message || 'Failed to plan route'
-          );
+          const msg = error.response.data.error || error.response.data.message || error.message || 'Failed to plan route';
+          const customError = new Error(msg);
           customError.warnings = error.response.data.warnings || [];
           customError.responseData = error.response.data;
           customError.status = error.response.status;
@@ -227,7 +234,7 @@ export const useReassignDriver = () => {
     mutationFn: async (body) => {
       const response = await axiosInstance.post('/ai-routes/route/reassign-driver', body);
       if (!response.data.success) {
-        throw new Error(response.data.message || response.data.error || 'Reassign driver failed');
+        throw new Error(response.data.error || response.data.message || 'Reassign driver failed');
       }
       return response.data;
     },
@@ -250,7 +257,7 @@ export const useMoveStop = () => {
     mutationFn: async (body) => {
       const response = await axiosInstance.post('/ai-routes/route/move-stop', body);
       if (!response.data.success) {
-        throw new Error(response.data.message || response.data.error || 'Move stop failed');
+        throw new Error(response.data.error || response.data.message || 'Move stop failed');
       }
       return response.data;
     },
@@ -308,7 +315,7 @@ export const useStartJourney = () => {
       const response = await axiosInstance.post('/ai-routes/journey/start', requestBody);
       
       if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to start journey');
+        throw new Error(response.data.error || response.data.message || 'Failed to start journey');
       }
       
       return response.data;
@@ -409,7 +416,7 @@ export const useStopReached = () => {
       const response = await axiosInstance.post('/ai-routes/journey/mark-stop', requestBody);
       
       if (!response.data.success) {
-        throw new Error(response.data.message || response.data.error || 'Failed to mark stop reached');
+        throw new Error(response.data.error || response.data.message || 'Failed to mark stop reached');
       }
       
       return response.data;
@@ -451,7 +458,7 @@ export const useEndJourney = () => {
       });
       
       if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to end journey');
+        throw new Error(response.data.error || response.data.message || 'Failed to end journey');
       }
       
       return response.data;
@@ -592,6 +599,67 @@ export const useGetAllVehicleTracking = (options = {}) => {
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch all vehicle tracking');
+      }
+      
+      return response.data;
+    },
+    enabled,
+    refetchInterval,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Live Vehicle Tracking
+ * Fetch live vehicle tracking data with optional filters
+ * @param {Object} params - Query parameters: active_only, status, driver_id
+ * @param {Object} options - React Query options
+ */
+export const useLiveVehicleTracking = (params = {}, options = {}) => {
+  const {
+    active_only,
+    status,
+    driver_id,
+    ...otherParams
+  } = params;
+
+  const {
+    enabled = true,
+    refetchInterval = 10000, // Refetch every 10 seconds for real-time updates
+    refetchOnWindowFocus = true,
+    staleTime = 5 * 1000, // 5 seconds
+    cacheTime = 2 * 60 * 1000, // 2 minutes
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = options;
+
+  // Build query parameters
+  const queryParams = {};
+  if (active_only !== undefined) {
+    queryParams.active_only = active_only === true || active_only === 'true';
+  }
+  if (status) {
+    queryParams.status = status;
+  }
+  if (driver_id) {
+    queryParams.driver_id = driver_id;
+  }
+
+  return useQuery({
+    queryKey: aiRouteKeys.liveVehicleTracking({ active_only, status, driver_id }),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/vehicle-tracking/live-all', {
+        params: queryParams
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || response.data.error || 'Failed to fetch live vehicle tracking');
       }
       
       return response.data;
@@ -950,7 +1018,7 @@ export const useReoptimizeRoute = () => {
       const response = await axiosInstance.post('/ai-routes/route/reoptimize', reoptimizeData);
       
       if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to reoptimize route');
+        throw new Error(response.data.error || response.data.message || 'Failed to reoptimize route');
       }
       
       return response.data;
@@ -974,7 +1042,8 @@ export const useReoptimizeRoute = () => {
 export const useDriverNextStopMaps = (params = {}, options = {}) => {
   const {
     date,
-    session
+    session,
+    companyId
   } = params;
   
   const {
@@ -984,11 +1053,12 @@ export const useDriverNextStopMaps = (params = {}, options = {}) => {
   } = options;
 
   return useQuery({
-    queryKey: [...aiRouteKeys.all, 'driverNextStopMaps', { date, session }],
+    queryKey: [...aiRouteKeys.all, 'driverNextStopMaps', { date, session, companyId }],
     queryFn: async () => {
       const queryParams = {};
       if (date) queryParams.date = date;
       if (session) queryParams.session = session;
+      if (companyId) queryParams.company_id = companyId;
       
       const response = await axiosInstance.get('/drivers/next-stop-maps', { params: queryParams });
       
@@ -1011,7 +1081,8 @@ export const useDriverNextStopMaps = (params = {}, options = {}) => {
 export const useDriverRouteOverviewMaps = (params = {}, options = {}) => {
   const {
     date,
-    session
+    session,
+    companyId
   } = params;
   
   const {
@@ -1021,11 +1092,12 @@ export const useDriverRouteOverviewMaps = (params = {}, options = {}) => {
   } = options;
 
   return useQuery({
-    queryKey: [...aiRouteKeys.all, 'driverRouteOverviewMaps', { date, session }],
+    queryKey: [...aiRouteKeys.all, 'driverRouteOverviewMaps', { date, session, companyId }],
     queryFn: async () => {
       const queryParams = {};
       if (date) queryParams.date = date;
       if (session) queryParams.session = session;
+      if (companyId) queryParams.company_id = companyId;
       
       const response = await axiosInstance.get('/drivers/route-overview-maps', { params: queryParams });
       
@@ -1039,9 +1111,9 @@ export const useDriverRouteOverviewMaps = (params = {}, options = {}) => {
     staleTime,
     ...queryOptions
   });
-};
+  };
 
-  /**
+/**
  * Get Missing Geo Locations
  */
 export const useMissingGeoLocations = (limit = 100, options = {}) => {
@@ -1157,7 +1229,7 @@ export const useRouteOrder = (routeId, options = {}) => {
       const response = await axiosInstance.get(`/ai-routes/journey/route-order/${routeId}`);
       
       if (!response.data.success) {
-        throw new Error(response.data.message || response.data.error || 'Failed to get route order');
+        throw new Error(response.data.error || response.data.message || 'Failed to get route order');
       }
       
       return response.data;
@@ -1223,6 +1295,189 @@ export const useUpdateDeliveryComment = () => {
     onError: (error) => {
       console.error('Error updating delivery comment:', error);
     }
+  });
+};
+
+/**
+ * Get Route Map Data for CXO – Delivery Executive side
+ * Used on Delivery Executive page (CXO view): driver_name + date/session. No manager_id.
+ */
+export const useRouteMapData = (params = {}, options = {}) => {
+  const {
+    date,
+    session,
+    route_id,
+    driver_name,
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 2 * 60 * 1000, // 2 minutes
+    cacheTime = 5 * 60 * 1000, // 5 minutes
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = { ...params, ...options };
+
+  const hasRequiredParam = !!date || !!driver_name;
+
+  return useQuery({
+    queryKey: aiRouteKeys.routeMapData({ date, session, route_id, driver_name }),
+    queryFn: async () => {
+      const queryParams = {};
+      if (date) queryParams.date = date;
+      if (session) queryParams.session = session;
+      if (route_id) queryParams.route_id = route_id;
+      if (driver_name) queryParams.driver_name = driver_name;
+
+      const response = await axiosInstance.get('/ai-routes/route/map-data', {
+        params: queryParams
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch route map data');
+      }
+
+      return response.data;
+    },
+    enabled: enabled && hasRequiredParam,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Route Map Data by Manager for CXO – Delivery Manager side
+ * Used on CXODeliveryManagersPage: manager_id + start_date, end_date, session, driver_name.
+ * Calls GET /ai-routes/cxo/route/map-data-by-manager.
+ */
+export const useRouteMapDataByManager = (params = {}, options = {}) => {
+  const {
+    manager_id,
+    start_date,
+    end_date,
+    session,
+    driver_name,
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 2 * 60 * 1000,
+    cacheTime = 5 * 60 * 1000,
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = { ...params, ...options };
+
+  const hasRequired = !!manager_id && !!start_date && !!end_date;
+
+  return useQuery({
+    queryKey: [...aiRouteKeys.all, 'routeMapDataByManager', { manager_id, start_date, end_date, session, driver_name }],
+    queryFn: async () => {
+      const queryParams = { manager_id, start_date, end_date };
+      if (session) queryParams.session = session;
+      if (driver_name) queryParams.driver_name = driver_name;
+
+      const response = await axiosInstance.get('/ai-routes/cxo/route/map-data-by-manager', {
+        params: queryParams
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch route map data');
+      }
+
+      return response.data;
+    },
+    enabled: enabled && hasRequired,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Executive Performance for CXO (all executives)
+ * Optional filters: start_date, end_date, days, session, min_routes, driver_name, driver_id
+ */
+export const useExecutivePerformance = (options = {}) => {
+  const {
+    filters = {},
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 2 * 60 * 1000,
+    cacheTime = 5 * 60 * 1000,
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = options;
+
+  const params = {};
+  if (filters.start_date) params.start_date = filters.start_date;
+  if (filters.end_date) params.end_date = filters.end_date;
+  if (filters.days != null && filters.days !== '') params.days = filters.days;
+  if (filters.session) params.session = filters.session;
+  if (filters.min_routes != null && filters.min_routes !== '') params.min_routes = filters.min_routes;
+  if (filters.driver_name) params.driver_name = filters.driver_name;
+  if (filters.driver_id) params.driver_id = filters.driver_id;
+
+  return useQuery({
+    queryKey: aiRouteKeys.executivePerformance(params),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/executive/performance', {
+        params: Object.keys(params).length ? params : undefined
+      });
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch executive performance');
+      }
+      return response.data;
+    },
+    enabled,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
+  });
+};
+
+/**
+ * Get Executive Performance by driver name for CXO (single executive)
+ * Fetches performance for one executive via /api/executive/performance?driver_name=...
+ */
+export const useExecutivePerformanceByDriver = (options = {}) => {
+  const {
+    driver_name,
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 2 * 60 * 1000,
+    cacheTime = 5 * 60 * 1000,
+    retry = 2,
+    retryDelay = 1000,
+    ...queryOptions
+  } = { ...options };
+
+  return useQuery({
+    queryKey: aiRouteKeys.executivePerformanceByDriver(driver_name),
+    queryFn: async () => {
+      const response = await axiosInstance.get('/ai-routes/executive/performance/by-driver', {
+        params: { driver_name }
+      });
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch executive performance');
+      }
+      return response.data;
+    },
+    enabled: enabled && !!driver_name,
+    refetchOnWindowFocus,
+    staleTime,
+    cacheTime,
+    retry,
+    retryDelay,
+    ...queryOptions
   });
 };
 

@@ -148,7 +148,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
             throw new AppError('Account is not active', 403);
         }
 
-        const user = await prisma.user.findUnique({ 
+        const user = await prisma.user.findUnique({
             where: { authId: auth.id },
             include: {
                 userRoles: true,
@@ -165,10 +165,12 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
             throw new AppError('Your account is inactive. Please contact your administrator.', 403);
         }
 
+        // Get all roles as comma-separated string for JWT token
+        const allRoles = user.userRoles.map(role => role.name).join(',');
         // Get the primary role (first role or highest priority role)
         const primaryRole = user.userRoles[0];
-        const accessToken = generateAccessToken(user.id, primaryRole.name);
-        const refreshToken = generateRefreshToken(user.id, primaryRole.name);
+        const accessToken = generateAccessToken(user.id, allRoles);
+        const refreshToken = generateRefreshToken(user.id, allRoles);
 
         // Company path for redirect: company admins go to their company URL (e.g. JKHM -> /jkhm)
         const companyPath = user.company?.name

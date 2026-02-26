@@ -679,24 +679,26 @@ export const getRealTimeDeliveryStatus = async () => {
       ]
     });
 
-    // Group by status
+    // Group by status (include In_Progress / "In Progress" for journey-started deliveries)
     const statusGroups = {
       Pending: [],
       Confirmed: [],
+      In_Progress: [],
       Delivered: [],
       Cancelled: []
     };
 
     todaysDeliveries.forEach(delivery => {
-      if (statusGroups[delivery.status]) {
-        statusGroups[delivery.status].push(delivery);
+      const key = delivery.status === 'In Progress' ? 'In_Progress' : delivery.status;
+      if (statusGroups[key]) {
+        statusGroups[key].push(delivery);
       }
     });
 
-    // Calculate real-time metrics
+    // Calculate real-time metrics (In Progress = actively delivering)
     const totalDeliveries = todaysDeliveries.length;
     const completedDeliveries = statusGroups.Delivered.length;
-    const inProgressDeliveries = statusGroups.Pending.length + statusGroups.Confirmed.length;
+    const inProgressDeliveries = statusGroups.Pending.length + statusGroups.Confirmed.length + statusGroups.In_Progress.length;
     const failedDeliveries = statusGroups.Cancelled.length;
 
     const completionRate = totalDeliveries > 0 

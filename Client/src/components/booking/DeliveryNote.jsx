@@ -1,7 +1,13 @@
 import React from 'react';
 import { MdNote, MdInfo } from 'react-icons/md';
+import { useTextCorrection } from '../../hooks/useTextCorrection';
+import TextCorrectionSuggestion from '../TextCorrectionSuggestion';
 
 const DeliveryNote = ({ deliveryNote, onDeliveryNoteChange, isMobile }) => {
+  const { suggestion, correcting, applySuggestion } = useTextCorrection(deliveryNote || '', {
+    onApply: onDeliveryNoteChange,
+  });
+
   return (
     <div className="space-y-2">
       <div className="bg-blue-50 rounded-lg p-2 sm:p-3 border border-blue-200">
@@ -26,6 +32,11 @@ const DeliveryNote = ({ deliveryNote, onDeliveryNoteChange, isMobile }) => {
           rows={4}
           maxLength={500}
           className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+        />
+        <TextCorrectionSuggestion
+          correcting={correcting}
+          suggestion={suggestion}
+          onApply={applySuggestion}
         />
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-1 text-xs text-slate-500">

@@ -102,6 +102,13 @@ export const isDeliveryExecutive = (roles) => hasRole(roles, 'DELIVERY_EXECUTIVE
 export const isUser = (roles) => hasRole(roles, 'USER');
 
 /**
+ * Check if user is CXO (CEO or CFO)
+ * @param {string|Array} roles - Comma-separated role string or array
+ * @returns {boolean} - True if user is CEO or CFO
+ */
+export const isCXO = (roles) => hasAnyRole(roles, ['CEO', 'CFO']);
+
+/**
  * Check if user is CEO
  * @param {string|Array} roles - Comma-separated role string or array
  * @returns {boolean} - True if user is CEO

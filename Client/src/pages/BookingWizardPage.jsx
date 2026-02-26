@@ -2118,7 +2118,7 @@ const BookingWizardPage = () => {
 
       // Ensure userId is always set
       if (!orderData.userId) {
-        showErrorToast('User ID is missing. Please try logging in again.');
+        showErrorToast('Please sign in again.');
         return;
       }
 
@@ -2168,7 +2168,7 @@ const BookingWizardPage = () => {
       
       // Check if it's a database connection error
       if (error.message && error.message.includes('database')) {
-        showErrorToast('Database connection failed. Please check your connection and try again.', 'Database Error');
+        showErrorToast('We\'re having trouble connecting. Please check your internet and try again.', 'Connection problem');
       } else {
         showOrderError(error.message || 'Failed to create order. Please try again.');
       }

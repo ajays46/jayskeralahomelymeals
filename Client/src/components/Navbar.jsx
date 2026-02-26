@@ -195,19 +195,26 @@ const Navbar = ({ onSignInClick }) => {
                         </>
                       )}
 
-                      {/* Seller Options */}
-                      {userIsSeller && (
+                      {/* Seller Options - CXO sees Seller Dashboard only; normal sellers see Customers List only */}
+                      {(userIsSeller || userIsCEO || userIsCFO) && (
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Seller Panel</div>
-                          <Link to={`${base}/seller/customers`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                            <MdStore className="text-xl" /> Customers List
-                          </Link>
+                          {(userIsCEO || userIsCFO) && (
+                            <Link to={`${base}/seller`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                              <MdStore className="text-xl" /> Seller Dashboard
+                            </Link>
+                          )}
+                          {userIsSeller && !userIsCEO && !userIsCFO && (
+                            <Link to={`${base}/seller/customers`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                              <MdStore className="text-xl" /> Customers List
+                            </Link>
+                          )}
                         </>
                       )}
 
-                      {/* Delivery Manager Options */}
-                      {userIsDeliveryManager && (
+                      {/* Delivery Manager Options - DM sees full dashboard; CXO sees managers list only */}
+                      {(userIsDeliveryManager || userIsCEO || userIsCFO) && (
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Delivery Panel</div>
@@ -217,8 +224,8 @@ const Navbar = ({ onSignInClick }) => {
                         </>
                       )}
 
-                      {/* Delivery Executive Options */}
-                      {userIsDeliveryExecutive && (
+                      {/* Delivery Executive Options — DE or CXO (CEO/CFO) for CXO view */}
+                      {(userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Delivery Panel</div>
@@ -436,21 +443,27 @@ const Navbar = ({ onSignInClick }) => {
                             <span className="font-medium text-xs">Admin</span>
                           </Link>
                         )}
-                        {userIsSeller && (
+                        {(userIsCEO || userIsCFO) && (
                           <Link to={`${base}/seller`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                             <MdStore className="text-base group-hover:scale-110 transition-transform duration-300" /> 
-                            <span className="text-sm font-medium">Seller</span>
+                            <span className="text-sm font-medium">Seller Dashboard</span>
                           </Link>
                         )}
-                        {userIsDeliveryManager && (
+                        {userIsSeller && !userIsCEO && !userIsCFO && (
+                          <Link to={`${base}/seller/customers`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
+                            <MdStore className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                            <span className="text-sm font-medium">Customers List</span>
+                          </Link>
+                        )}
+                        {(userIsDeliveryManager || userIsCEO || userIsCFO) && (
                           <Link to={`${base}/delivery-manager`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                             <MdLocalShipping className="text-base group-hover:scale-110 transition-transform duration-300" /> 
                             <span className="font-medium text-xs">Delivery Manager</span>
                           </Link>
                         )}
-                        {userIsDeliveryExecutive && (
+                        {(userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
                           <Link to={`${base}/delivery-executive`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
-                            <MdLocalShipping className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                            <MdLocalShipping className="text-base group-hover:scale-110 transition-transform duration-300" />
                             <span className="font-medium text-xs">Delivery Executive</span>
                           </Link>
                         )}

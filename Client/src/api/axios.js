@@ -24,16 +24,26 @@ axiosInstance.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${accessToken}`;
     }
     
-    // Add X-Company-ID only for AI and delivery-executive APIs (Node proxies to AI_ROUTE_*).
+    // Add X-Company-ID for company-scoped APIs (sellers, delivery executives/managers, active executives, ai-routes, driver maps).
     // Do NOT send for /api/admin/delivery-executives (admin list) — only for ai-routes and delivery-executives (exec API).
-    // Paths may be relative to baseURL (e.g. /delivery-executives/routes, /delivery-executives/:id/location) so match by segment.
+    // X-User-ID for ai-routes: delivery manager isolation (plan sets created_by). See FRONTEND_DELIVERY_MANAGER_ISOLATION_GUIDE.md
     const url = config.url || '';
     const isAiApi = url.includes('ai-routes');
+    const isCxoApi = url.includes('cxo');
     const isDeliveryExecutiveApi = url.includes('delivery-executives') && !url.includes('/api/admin');
-    if (isAiApi || isDeliveryExecutiveApi) {
-      const companyId = store.user?.companyId || localStorage.getItem('company_id');
+    const isDriverMapsApi = url.includes('drivers/next-stop-maps') || url.includes('drivers/route-overview-maps');
+    const isCompanyScoped = url.includes('sellers-with-orders') || url.includes('delivery-managers') || url.includes('active-executives') || isAiApi || isCxoApi || isDeliveryExecutiveApi || isDriverMapsApi;
+    const needsUserId = isAiApi || isCxoApi || isDriverMapsApi;
+    if (isCompanyScoped) {
+      const companyId = store.user?.companyId || store.user?.company_id || localStorage.getItem('company_id');
       if (companyId) {
         config.headers['X-Company-ID'] = companyId;
+      }
+    }
+    if (needsUserId) {
+      const userId = store.user?.id;
+      if (userId) {
+        config.headers['X-User-ID'] = userId;
       }
     }
     

@@ -23,6 +23,10 @@ export const checkRole = (...allowedRoles) => {
       // Case-insensitive match so 'ADMIN' and 'admin' both work
       const allowedLower = allowedRoles.map(r => (r && r.toUpperCase?.()) || r);
       const hasPermission = userRoles.some(role => allowedLower.includes((role && role.toUpperCase?.()) || role));
+      // 🔥 CXO (CEO/CFO) has full access to all routes
+      if (userRoles.includes('CEO') || userRoles.includes('CFO')) {
+        return next();
+      }
 
       if (!hasPermission) {
         throw new AppError('You do not have permission to perform this action', 403);
