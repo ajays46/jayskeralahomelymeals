@@ -184,8 +184,8 @@ const Navbar = ({ onSignInClick }) => {
                         </>
                       )}
 
-                      {/* CEO/CFO Management Dashboard Options */}
-                      {(userIsCEO || userIsCFO) && (
+                      {/* CEO/CFO Management Dashboard Options - commented out */}
+                      {/* {(userIsCEO || userIsCFO) && (
                         <>
                           <div className="border-t border-gray-200 my-1"></div>
                           <div className="px-4 py-1 text-xs text-gray-500 font-medium">Management Panel</div>
@@ -193,7 +193,7 @@ const Navbar = ({ onSignInClick }) => {
                             <MdDashboard className="text-xl" /> Management Dashboard
                           </Link>
                         </>
-                      )}
+                      )} */}
 
                       {/* Seller Options - CXO sees Seller Dashboard only; normal sellers see Customers List only */}
                       {(userIsSeller || userIsCEO || userIsCFO) && (
@@ -431,12 +431,13 @@ const Navbar = ({ onSignInClick }) => {
                   {(userIsAdmin || userIsSeller || userIsDeliveryManager || userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
                     <div className="mb-3">
                       <div className="space-y-1">
-                        {(userIsCEO || userIsCFO) && (
+                        {/* Management Dashboard - commented out */}
+                        {/* {(userIsCEO || userIsCFO) && (
                           <Link to={`${base}/management-dashboard`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
-                            <MdDashboard className="text-base group-hover:scale-110 transition-transform duration-300" /> 
+                            <MdDashboard className="text-base group-hover:scale-110 transition-transform duration-300" />
                             <span className="font-medium text-xs">Management Dashboard</span>
                           </Link>
-                        )}
+                        )} */}
                         {userIsAdmin && (
                           <Link to={`${base}/admin`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                             <MdAdminPanelSettings className="text-base group-hover:scale-110 transition-transform duration-300" /> 

@@ -25,20 +25,21 @@ import { isCXO } from '../utils/roleUtils';
  */
 
 const roleConfig = {
-  'CEO': {
-    icon: ChartBarIcon,
-    title: 'CEO Dashboard',
-    description: 'Management overview and strategic insights',
-    color: 'bg-purple-500',
-    route: '/jkhm/management-dashboard'
-  },
-  'CFO': {
-    icon: CurrencyDollarIcon,
-    title: 'CFO Dashboard', 
-    description: 'Financial analytics and reporting',
-    color: 'bg-green-500',
-    route: '/jkhm/financial-dashboard'
-  },
+  // CEO/CFO Dashboard options commented out - not shown in sidebar
+  // 'CEO': {
+  //   icon: ChartBarIcon,
+  //   title: 'CEO Dashboard',
+  //   description: 'Management overview and strategic insights',
+  //   color: 'bg-purple-500',
+  //   route: '/jkhm/management-dashboard'
+  // },
+  // 'CFO': {
+  //   icon: CurrencyDollarIcon,
+  //   title: 'CFO Dashboard',
+  //   description: 'Financial analytics and reporting',
+  //   color: 'bg-green-500',
+  //   route: '/jkhm/financial-dashboard'
+  // },
   'ADMIN': {
     icon: CogIcon,
     title: 'Admin Panel',
@@ -76,8 +77,8 @@ const roleConfig = {
   }
 };
 
-// Display order: CXO (CEO, CFO) first, then CXO access roles (DM, Seller, DE), then rest
-const ROLE_DISPLAY_ORDER = ['CEO', 'CFO', 'ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'USER'];
+// Display order: CEO/CFO commented out; then ADMIN, DM, Seller, DE, USER
+const ROLE_DISPLAY_ORDER = ['ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'USER'];
 
 const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const navigate = useNavigate();
@@ -91,6 +92,11 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const userIsCXO = isCXO(userRoles);
   const cxoAccessRoles = ['DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE'];
   let availableRoles = userRoles.filter(role => roleConfig[role.toUpperCase()]);
+  // Hide CEO/CFO from sidebar (options commented out)
+  availableRoles = availableRoles.filter(role => {
+    const r = (role || '').toUpperCase();
+    return r !== 'CEO' && r !== 'CFO';
+  });
   if (userIsCXO) {
     cxoAccessRoles.forEach(role => {
       if (!availableRoles.some(r => (r || '').toUpperCase() === role)) {

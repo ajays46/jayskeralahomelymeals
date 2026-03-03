@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import useAuthStore from '../../stores/Zustand.store';
 
 /**
  * AI Route Optimization Hooks
@@ -155,6 +156,7 @@ export const useDeliveryData = (filters = {}, options = {}) => {
 
 /**
  * Plan Route (Mutation)
+ * Sends delivery manager's user id via X-User-ID (axios) and in body as user_id so backend sets created_by for CXO hierarchy.
  */
 export const usePlanRoute = () => {
   const queryClient = useQueryClient();
@@ -162,7 +164,10 @@ export const usePlanRoute = () => {
   return useMutation({
     mutationFn: async (routeData) => {
       try {
-        const response = await axiosInstance.post('/ai-routes/route/plan', routeData);
+        const userId = useAuthStore.getState().user?.id;
+        const payload = { ...routeData };
+        if (userId) payload.user_id = userId;
+        const response = await axiosInstance.post('/ai-routes/route/plan', payload);
         
 if (!response.data.success) {
         // Create error with warnings if available (prefer .error for 403 "You can only modify routes you created")
