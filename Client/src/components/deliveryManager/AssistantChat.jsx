@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiMessageCircle, FiX, FiSend } from 'react-icons/fi';
+import { FiMessageCircle, FiX, FiSend, FiMinimize2 } from 'react-icons/fi';
 import { useAssistantChat } from '../../hooks/deliverymanager/useAssistantChat';
 
 const MAX_MESSAGE_LENGTH = 2000;
@@ -143,6 +143,7 @@ function AssistantMessageContent({ content }) {
  */
 export default function AssistantChat({ companyId, userId }) {
   const [open, setOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
@@ -220,16 +221,18 @@ export default function AssistantChat({ companyId, userId }) {
         .assistant-chat-content p + p { margin-top: 0.5rem; }
         .assistant-chat-list li { margin-top: 0.25rem; }
       `}</style>
+      {/* Same chatboat icon: visible when closed OR minimized; click opens or expands chat */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => (open && minimized ? setMinimized(false) : setOpen(true) || setMinimized(false))}
         className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-colors"
-        aria-label="Open assistant chat"
+        aria-label={open && minimized ? 'Expand chat' : 'Open assistant chat'}
+        style={{ display: open && !minimized ? 'none' : 'flex' }}
       >
         <FiMessageCircle className="w-7 h-7" />
       </button>
 
-      {open && (
+      {open && !minimized && (
         <div className="fixed bottom-6 right-6 z-50 w-[min(400px,calc(100vw-3rem))] h-[min(520px,70vh)] flex flex-col border border-gray-700 rounded-xl shadow-2xl overflow-hidden bg-[#0a0a12]">
           <img
             src="/chatboat.jpeg"
@@ -255,7 +258,15 @@ export default function AssistantChat({ companyId, userId }) {
               )}
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => setMinimized(true)}
+                className="p-1.5 text-gray-400 hover:text-white rounded"
+                aria-label="Minimize chat"
+              >
+                <FiMinimize2 className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => { setOpen(false); setMinimized(false); }}
                 className="p-1.5 text-gray-400 hover:text-white rounded"
                 aria-label="Close chat"
               >
