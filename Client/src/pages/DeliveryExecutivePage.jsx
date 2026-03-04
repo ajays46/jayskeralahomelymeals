@@ -3664,7 +3664,7 @@ const DeliveryExecutivePage = () => {
                                                     <p className="text-gray-700 font-semibold text-sm mb-1">
                                                       {selectedFiles.length > 0 ? `Add More Files (${selectedFiles.length} selected)` : 'Select Images/Videos'}
                                                     </p>
-                                                    <p className="text-gray-500 text-xs">Images: Max 10MB | Videos: Max 50MB</p>
+                                                    <p className="text-gray-500 text-xs">Images: Max 10MB | Videos: Max 100MB</p>
                                                   </div>
                                                 </label>
                                               </div>
