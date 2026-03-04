@@ -851,6 +851,15 @@ export const createAdminUser = async (req, res, next) => {
                 }
             }
 
+            // 6. If user is a delivery executive, create delivery_executive_profile record (user_id, joined_date, status, created_at)
+            if (rolesToAssign.includes('DELIVERY_EXECUTIVE')) {
+                const joinedDateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD for DATE column
+                await tx.$executeRaw`
+                    INSERT INTO delivery_executive_profile (user_id, joined_date, status)
+                    VALUES (${user.id}, ${joinedDateStr}, 'ACTIVE')
+                `;
+            }
+
             return {
                 id: user.id,
                 email: auth.email,
