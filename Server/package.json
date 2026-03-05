@@ -10,7 +10,8 @@
     "db:push": "npx prisma db push",
     "db:migrate": "npx prisma migrate dev",
     "db:studio": "npx prisma studio",
-    "db:reset": "npx prisma migrate reset"
+    "db:reset": "npx prisma migrate reset",
+    "db:fix-order-status": "node scripts/fix-order-status.js"
   },
   "keywords": [],
   "author": "",
