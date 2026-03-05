@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FiUsers, FiMapPin, FiRefreshCw, FiSearch, FiCheck, FiMail, FiPhone } from 'react-icons/fi';
+import { FiUsers, FiMapPin, FiRefreshCw, FiSearch, FiCheck, FiMail, FiPhone, FiNavigation, FiActivity } from 'react-icons/fi';
 import { useActiveExecutives } from '../../hooks/deliverymanager';
+import { useLiveVehicleTracking } from '../../hooks/deliverymanager/useAIRouteOptimization';
 import { message } from 'antd';
 
 /**
@@ -20,6 +21,21 @@ const IndividualExecutiveLocation = () => {
 
   const executives = activeExecutivesData?.data?.executives || activeExecutivesData?.data?.data || [];
 
+  // Fetch vehicle tracking for selected executive
+  const {
+    data: vehicleTrackingData,
+    isLoading: loadingVehicleTracking,
+    error: vehicleTrackingError
+  } = useLiveVehicleTracking(
+    { driver_id: selectedExecutive?.id },
+    { enabled: !!selectedExecutive?.id }
+  );
+
+  // Get vehicle tracking info for selected executive
+  const vehicleTracking = vehicleTrackingData?.vehicles?.[0] || 
+                         vehicleTrackingData?.data?.[0] || 
+                         null;
+
   // Filter executives based on search query
   const filteredExecutives = executives.filter(exec => {
     if (!searchQuery) return true;
@@ -30,9 +46,18 @@ const IndividualExecutiveLocation = () => {
     return name.includes(query) || email.includes(query) || phone.includes(query);
   });
 
-  // Get location for selected executive
+  // Get location for selected executive (prioritize vehicle tracking data)
   const getExecutiveLocation = (executive) => {
-    // Try to get location from various possible fields
+    // First try to get from vehicle tracking data
+    if (vehicleTracking && vehicleTracking.latitude && vehicleTracking.longitude) {
+      return {
+        location: vehicleTracking.address || vehicleTracking.location || 'Current Location',
+        latitude: vehicleTracking.latitude,
+        longitude: vehicleTracking.longitude
+      };
+    }
+    
+    // Fallback to executive data
     const location = executive.currentLocation || 
                      executive.location || 
                      executive.deliveryExecutive?.location ||
@@ -257,20 +282,86 @@ const IndividualExecutiveLocation = () => {
         <div className="bg-gray-700 rounded-xl border border-gray-600 shadow-lg overflow-hidden">
           {/* Map Header */}
           <div className="bg-gradient-to-r from-gray-800 to-gray-700 px-6 py-4 border-b border-gray-600">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <FiMapPin className="text-blue-400 text-xl" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <FiMapPin className="text-blue-400 text-xl" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-white">
+                    {selectedExecutive.name || selectedExecutive.email?.split('@')[0] || 'Selected Executive'}
+                  </h4>
+                  <p className="text-sm text-gray-400 mt-0.5 flex items-center gap-1.5">
+                    <FiMapPin className="text-xs" />
+                    {getExecutiveLocation(selectedExecutive).location}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-lg font-bold text-white">
-                  {selectedExecutive.name || selectedExecutive.email?.split('@')[0] || 'Selected Executive'}
-                </h4>
-                <p className="text-sm text-gray-400 mt-0.5 flex items-center gap-1.5">
-                  <FiMapPin className="text-xs" />
-                  {getExecutiveLocation(selectedExecutive).location}
-                </p>
-              </div>
+              
+              {/* Vehicle Tracking Status */}
+              {loadingVehicleTracking && selectedExecutive?.id && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-700/50 rounded-lg border border-gray-600">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-400"></div>
+                  <span className="text-xs text-gray-400">Loading tracking...</span>
+                </div>
+              )}
+              {vehicleTracking && !loadingVehicleTracking && (
+                <div className="flex items-center gap-3">
+                  {vehicleTracking.status && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-700/50 rounded-lg border border-gray-600">
+                      <FiActivity className={`text-sm ${
+                        vehicleTracking.status === 'moving' ? 'text-green-400' : 
+                        vehicleTracking.status === 'idle' ? 'text-yellow-400' : 
+                        'text-gray-400'
+                      }`} />
+                      <span className="text-xs font-medium text-white capitalize">
+                        {vehicleTracking.status}
+                      </span>
+                    </div>
+                  )}
+                  {vehicleTracking.speed !== undefined && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-700/50 rounded-lg border border-gray-600">
+                      <FiNavigation className="text-blue-400 text-sm" />
+                      <span className="text-xs font-medium text-white">
+                        {vehicleTracking.speed} km/h
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+            
+            {/* Vehicle Tracking Details */}
+            {vehicleTracking && (
+              <div className="mt-3 pt-3 border-t border-gray-600 grid grid-cols-2 md:grid-cols-4 gap-3">
+                {vehicleTracking.vehicle_number && (
+                  <div className="text-xs">
+                    <span className="text-gray-400">Vehicle:</span>
+                    <span className="text-white ml-1 font-medium">{vehicleTracking.vehicle_number}</span>
+                  </div>
+                )}
+                {vehicleTracking.route_id && (
+                  <div className="text-xs">
+                    <span className="text-gray-400">Route ID:</span>
+                    <span className="text-white ml-1 font-medium">{vehicleTracking.route_id}</span>
+                  </div>
+                )}
+                {vehicleTracking.last_updated && (
+                  <div className="text-xs">
+                    <span className="text-gray-400">Updated:</span>
+                    <span className="text-white ml-1 font-medium">
+                      {new Date(vehicleTracking.last_updated).toLocaleTimeString()}
+                    </span>
+                  </div>
+                )}
+                {vehicleTracking.distance !== undefined && (
+                  <div className="text-xs">
+                    <span className="text-gray-400">Distance:</span>
+                    <span className="text-white ml-1 font-medium">{vehicleTracking.distance.toFixed(2)} km</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="p-6">

@@ -390,7 +390,7 @@ const AddressPicker = ({
     } catch (error) {
       
       // Show error toast
-      showErrorToast('Failed to delete address. Please try again.');
+      showErrorToast('We couldn\'t delete the address. Please try again.');
     }
   };
 

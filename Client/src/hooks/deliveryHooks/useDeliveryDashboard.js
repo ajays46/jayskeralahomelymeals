@@ -225,6 +225,7 @@ export const useRealTimeDeliveryStatus = () => {
     statusGroups: {
       Pending: [],
       Confirmed: [],
+      In_Progress: [],
       Delivered: [],
       Cancelled: []
     },

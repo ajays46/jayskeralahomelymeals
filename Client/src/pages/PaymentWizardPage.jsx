@@ -446,7 +446,7 @@ const PaymentWizardPage = () => {
       // UPI ID copied to clipboard
       setTimeout(() => setUpiIdCopied(false), 2000);
     } catch (error) {
-      showErrorToast('Failed to copy UPI ID');
+      showErrorToast('We couldn\'t copy the UPI ID. Please try again.');
     }
   };
 
@@ -664,7 +664,7 @@ const PaymentWizardPage = () => {
       
     } catch (error) {
       console.error('Error updating address:', error);
-      showErrorToast('Failed to update address');
+      showErrorToast('We couldn\'t update the address. Please try again.');
     }
   };
 
@@ -991,10 +991,10 @@ const PaymentWizardPage = () => {
           }
         });
       } else {
-        showErrorToast(response.data.message || 'Failed to upload receipt');
+        showErrorToast(response.data.message || 'We couldn\'t upload the receipt. Please try again.');
       }
     } catch (error) {
-      showErrorToast('Failed to upload receipt. Please try again.');
+      showErrorToast('We couldn\'t upload the receipt. Please try again.');
     } finally {
       setPaymentProcessing(false);
     }
@@ -1219,7 +1219,7 @@ const PaymentWizardPage = () => {
                                       await navigator.clipboard.writeText(upiPhoneNumber);
                                       // Phone number copied to clipboard
                                     } catch (error) {
-                                      showErrorToast('Failed to copy phone number');
+                                      showErrorToast('We couldn\'t copy the phone number. Please try again.');
                                     }
                                   }}
                                   className="px-2 sm:px-3 py-1.5 bg-green-100 text-green-800 rounded-md text-xs font-medium hover:bg-green-200 transition-all min-h-[44px] sm:min-h-0 flex items-center justify-center"

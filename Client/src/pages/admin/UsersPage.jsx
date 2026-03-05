@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import AdminSlide from '../../components/AdminSlide';
 import Pagination from '../../components/Pagination';
-import { FiArrowLeft, FiUser, FiMail, FiPhone, FiLock, FiPlus, FiHome, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiUser, FiMail, FiPhone, FiLock, FiPlus, FiHome, FiCheckCircle, FiXCircle, FiSearch, FiFilter } from 'react-icons/fi';
 import { useCompanyList, useUserRoles, useAdminUsers, useCreateAdminUser, useUpdateUserStatus } from '../../hooks/adminHook/adminHook';
 
 /**
@@ -28,6 +28,12 @@ const UsersPage = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Table filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(''); // '' = all, ACTIVE, INACTIVE, BLOCKED
+  const [sortBy, setSortBy] = useState('newest'); // newest | oldest
   
   // Fetch companies and roles
   const { data: companyList, isLoading: loadingCompanies, refetch: fetchCompanies } = useCompanyList();
@@ -60,12 +66,66 @@ const UsersPage = () => {
 
   const [createUserErrors, setCreateUserErrors] = useState({});
 
-  // Pagination calculations
-  const totalItems = users.length;
+  // Filtered and sorted users (search by name/email/phone, role, status; sort by date)
+  const filteredUsers = useMemo(() => {
+    let list = [...(users || [])];
+
+    // Search: name (firstName + lastName), email, phone
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (q) {
+      list = list.filter((user) => {
+        const name = [user.contact?.firstName, user.contact?.lastName].filter(Boolean).join(' ').toLowerCase();
+        const email = (user.email || '').toLowerCase();
+        const phone = (user.phone || '').replace(/\s/g, '');
+        const phoneNorm = q.replace(/\s/g, '');
+        return (
+          name.includes(q) ||
+          email.includes(q) ||
+          phone.includes(q) ||
+          phoneNorm && phone.includes(phoneNorm)
+        );
+      });
+    }
+
+    // Role filter: user must have this role (in roles array or primaryRole)
+    if (roleFilter) {
+      list = list.filter((user) => {
+        const roles = user.roles || [];
+        const primary = user.primaryRole;
+        return roles.includes(roleFilter) || primary === roleFilter;
+      });
+    }
+
+    // Status filter
+    if (statusFilter) {
+      list = list.filter((user) => (user.status || '').toUpperCase() === statusFilter.toUpperCase());
+    }
+
+    // Sort: recently created (newest first) or oldest first
+    list.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+
+    return list;
+  }, [users, searchQuery, roleFilter, statusFilter, sortBy]);
+
+  // Pagination calculations (use filtered list)
+  const totalItems = filteredUsers.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedUsers = users.slice(startIndex, endIndex);
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  const hasActiveFilters = searchQuery.trim() || roleFilter || statusFilter || sortBy !== 'newest';
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setRoleFilter('');
+    setStatusFilter('');
+    setSortBy('newest');
+    setCurrentPage(1);
+  }, []);
 
   // Pagination handlers
   const handlePageChange = useCallback((page) => {
@@ -77,10 +137,10 @@ const UsersPage = () => {
     setCurrentPage(1); // Reset to first page when changing items per page
   }, []);
 
-  // Reset pagination when users data changes
+  // Reset to page 1 when users data or filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [users]);
+  }, [users, searchQuery, roleFilter, statusFilter, sortBy]);
 
   // Create user handlers
   const handleCreateUserInputChange = useCallback((e) => {
@@ -531,6 +591,63 @@ const UsersPage = () => {
             </div>
           )}
 
+          {/* Filters */}
+          <div className="bg-gray-800 rounded-lg shadow-lg p-4 mb-6">
+            <div className="flex flex-wrap items-center gap-3 mb-3">
+              <FiFilter className="text-gray-400" size={18} />
+              <span className="text-sm font-medium text-gray-300">Filters</span>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-xs text-blue-400 hover:text-blue-300 underline"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="lg:col-span-2 relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name, email or phone..."
+                  className="w-full pl-9 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400 text-sm"
+                />
+              </div>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
+              >
+                <option value="">All roles</option>
+                {availableRoles.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
+              >
+                <option value="">All statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="BLOCKED">Blocked</option>
+              </select>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
+              >
+                <option value="newest">Recently created (newest)</option>
+                <option value="oldest">Oldest first</option>
+              </select>
+            </div>
+          </div>
+
           {/* Users List */}
           <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
             <div className="p-4 border-b border-gray-700">
@@ -559,6 +676,19 @@ const UsersPage = () => {
                 <FiUser size={48} className="mx-auto mb-4 text-gray-600" />
                 <p className="text-lg">No users found</p>
                 <p className="text-sm">Click "Create User" to add your first user</p>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="p-8 text-center text-gray-400">
+                <FiFilter size={48} className="mx-auto mb-4 text-gray-600" />
+                <p className="text-lg">No users match your filters</p>
+                <p className="text-sm">Try changing search, role, status or clear filters</p>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-3 text-blue-400 hover:text-blue-300 text-sm font-medium"
+                >
+                  Clear filters
+                </button>
               </div>
             ) : (
             <>

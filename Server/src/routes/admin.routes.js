@@ -3,8 +3,9 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { resolveAdminCompany } from '../middleware/resolveAdminCompany.js';
+import { resolveCompanyId } from '../middleware/resolveCompanyId.js';
 import { adminLogin } from '../controllers/auth.controller.js';
-import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder, createAdminUser, getAdminUsers, updateUserStatus, addUserRoles, removeUserRoles, getOrphanedUsers, cleanupOrphanedUsers, getSellersWithOrders, getDeliveryExecutives, proxyRoutePlanning, proxyExecutiveCount, proxyRunScript, proxySendRoutes, proxyFileContent, proxySessionData, getProductQuantitiesForMenus, getActiveExecutives, updateExecutiveStatus, saveAllRoutes, getVehicles, assignVehicleToExecutive, unassignVehicleFromExecutive} from '../controllers/admin.controller.js';
+import { createCompany ,companyList, companyDelete, createProduct, productList, getProductById, updateProduct, deleteProduct, createMenu, menuList, getMenuById, updateMenu, deleteMenu, createMenuItem, menuItemList, getMenuItemById, updateMenuItem, deleteMenuItem, createMenuCategory, menuCategoryList, getMenuCategoryById, updateMenuCategory, deleteMenuCategory, createMenuItemPrice, menuItemPriceList, getMenuItemPriceById, updateMenuItemPrice, deleteMenuItemPrice, getMealsByDay, getMenusForBooking, getAllOrders, updateOrderStatus, deleteOrder, createAdminUser, getAdminUsers, updateUserStatus, addUserRoles, removeUserRoles, getOrphanedUsers, cleanupOrphanedUsers, getSellersWithOrders, getDeliveryExecutives, getDeliveryManagers, proxyRoutePlanning, proxyExecutiveCount, proxyRunScript, proxySendRoutes, proxyFileContent, proxySessionData, getProductQuantitiesForMenus, getActiveExecutives, updateExecutiveStatus, saveAllRoutes, getVehicles, assignVehicleToExecutive, unassignVehicleFromExecutive} from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
@@ -271,17 +272,25 @@ router.delete('/users/orphaned',
     cleanupOrphanedUsers
 );
 
-// Delivery Manager Dashboard Routes
+// Delivery Manager Dashboard Routes (company-scoped when resolveCompanyId sets req.companyId)
 router.get('/sellers-with-orders',
     authenticateToken,
     resolveAdminCompany,
+    resolveCompanyId,
     getSellersWithOrders
 );
 
 router.get('/delivery-executives',
     authenticateToken,
     resolveAdminCompany,
+    resolveCompanyId,
     getDeliveryExecutives
+);
+
+router.get('/delivery-managers',
+    authenticateToken,
+    resolveCompanyId,
+    getDeliveryManagers
 );
 
 // Route planning proxy endpoint
@@ -333,10 +342,11 @@ router.get('/product-quantities-for-menus',
     getProductQuantitiesForMenus
 );
 
-// Active executives route
+// Active executives route (company-scoped: resolveAdminCompany or resolveCompanyId)
 router.get('/active-executives',
     authenticateToken,
     resolveAdminCompany,
+    resolveCompanyId,
     getActiveExecutives
 );
 

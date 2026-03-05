@@ -7,12 +7,16 @@ import { Modal, message } from 'antd';
 import axiosInstance from '../api/axios';
 import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes, useVehicles, useAssignVehicle, useUnassignVehicle } from '../hooks/deliverymanager';
 import { useUpdateGeoLocation, useUpdateDeliveryComment } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useTextCorrection } from '../hooks/useTextCorrection';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
-import { isSeller } from '../utils/roleUtils';
+import { isSeller, hasAnyRole } from '../utils/roleUtils';
 import { SkeletonDeliveryManager, SkeletonLoading } from '../components/Skeleton';
+import TextCorrectionSuggestion from '../components/TextCorrectionSuggestion';
 import RouteHistoryManager from '../components/deliveryManager/RouteHistoryManager';
 import ExecutivesAndRoutes from '../components/deliveryManager/ExecutivesAndRoutes';
+import CoordinatorSettings from '../components/deliveryManager/CoordinatorSettings';
+import AssistantChat from '../components/deliveryManager/AssistantChat';
 
 /**
  * DeliveryManagerPage - Comprehensive delivery management dashboard with route planning and analytics
@@ -38,7 +42,7 @@ const DeliveryManagerPage = () => {
   const [selectedSeller, setSelectedSeller] = useState(null);
   const [showSellerDetails, setShowSellerDetails] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState(null);
-  const [activeTab, setActiveTab] = useState('sellers'); // 'sellers', 'orders', 'analytics', 'rootManagement', or 'executivesRoutes'
+  const [activeTab, setActiveTab] = useState('sellers'); // 'sellers', 'orders', 'analytics', 'rootManagement', 'executivesRoutes', or 'coordinator'
   const [routeTableTab, setRouteTableTab] = useState('breakfast'); // For route planning table tabs
   
   // Route History Manager ref
@@ -79,6 +83,13 @@ const DeliveryManagerPage = () => {
     itemId: null,
     title: '',
     content: ''
+  });
+  const [deactivateBlockedDialog, setDeactivateBlockedDialog] = useState({
+    open: false,
+    driverName: '',
+    inProgressCount: 0,
+    message: '',
+    user_id: null
   });
   const [deliveryExecutives, setDeliveryExecutives] = useState([]);
   const [loadingExecutives, setLoadingExecutives] = useState(false);
@@ -205,6 +216,7 @@ const DeliveryManagerPage = () => {
   const [selectedDeliveryId, setSelectedDeliveryId] = useState(null);
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [editedComment, setEditedComment] = useState('');
+  const correctionComment = useTextCorrection(editedComment, { onApply: setEditedComment });
   
   // Geo-location mutation
   const updateGeoLocationMutation = useUpdateGeoLocation();
@@ -730,7 +742,7 @@ const DeliveryManagerPage = () => {
         }
       } else {
         console.error('Item object:', item);
-        showErrorToast('Unable to find required identifiers (delivery_item_id, address_id, or order_id + menu_item_id) in the data.');
+        showErrorToast('We couldn\'t update this delivery. Please try again or contact support.');
         setGeoLocationLoading(false);
         return;
       }
@@ -770,13 +782,13 @@ const DeliveryManagerPage = () => {
         }));
       }
       
-      showSuccessToast('Geo-location updated successfully!');
+      showSuccessToast('Location updated successfully!');
       setEditingGeoLocation(null);
       setManualGeoLocation({ latitude: '', longitude: '' });
     } catch (error) {
       console.error('Error updating geo-location:', error);
       console.error('Item object:', item);
-      showErrorToast(error.message || 'Failed to update geo-location');
+      showErrorToast(error.message || 'We couldn\'t update the location. Please try again.');
     } finally {
       setGeoLocationLoading(false);
     }
@@ -785,7 +797,7 @@ const DeliveryManagerPage = () => {
   // Get current location for geo-location
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
-      showErrorToast('Geolocation is not supported by your browser');
+      showErrorToast('Location is not supported on this device. Try another device or app.');
       return;
     }
     
@@ -1515,7 +1527,25 @@ const DeliveryManagerPage = () => {
       setExecutivesStatus({});
       
     } catch (error) {
-      message.error('Failed to save status changes');
+      const data = error.response?.data;
+      const status = error.response?.status;
+      const errMsg = data?.error || data?.message || error.message || '';
+      const isDeactivateBlocked =
+        status === 400 &&
+        (data?.in_progress_count != null || /in progress|inactivate|cannot.*driver/i.test(errMsg));
+      if (isDeactivateBlocked) {
+        const driver = activeExecutives.find(e => (e.user_id || e.id) === data?.user_id);
+        const count = data?.in_progress_count ?? 'one or more';
+        setDeactivateBlockedDialog({
+          open: true,
+          driverName: driver?.exec_name || driver?.name || 'This driver',
+          inProgressCount: count,
+          message: errMsg || 'Cannot inactivate driver: deliveries in progress.',
+          user_id: data?.user_id
+        });
+      } else {
+        message.error(errMsg || 'Failed to save status changes');
+      }
       console.error('Error saving status changes:', error);
     }
   };
@@ -2173,7 +2203,7 @@ const DeliveryManagerPage = () => {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <MdLocalShipping className="text-xl sm:text-2xl text-blue-500 flex-shrink-0" />
             <h1 className="text-sm sm:text-lg lg:text-xl font-bold truncate max-w-[200px] sm:max-w-[300px] lg:max-w-[400px]">
-              {activeTab === 'sellers' ? 'Sellers' : activeTab === 'orders' ? 'Orders' : activeTab === 'analytics' ? 'Analytics' : activeTab === 'rootManagement' ? 'Route & Management' : activeTab === 'executivesRoutes' ? 'Executives & Routes' : 'Dashboard'}
+              {activeTab === 'sellers' ? 'Sellers' : activeTab === 'orders' ? 'Orders' : activeTab === 'analytics' ? 'Analytics' : activeTab === 'rootManagement' ? 'Route & Management' : activeTab === 'executivesRoutes' ? 'Executives & Routes' : activeTab === 'coordinator' ? 'Coordinator Settings' : 'Dashboard'}
             </h1>
           </div>
         </div>
@@ -2303,6 +2333,20 @@ const DeliveryManagerPage = () => {
               >
                 <FiUsers className="text-lg" />
                 <span>Executives & Routes</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('coordinator');
+                  setSidebarOpen(false); // Close sidebar on mobile after selection
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                  activeTab === 'coordinator'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                <FiShield className="text-lg" />
+                <span>Coordinator</span>
               </button>
             </nav>
 
@@ -3810,8 +3854,8 @@ const DeliveryManagerPage = () => {
                                           <div className="flex items-center">
                                             <div className="flex-shrink-0 h-8 w-8">
                                               <div className={`h-8 w-8 rounded-full flex items-center justify-center shadow-lg ${
-                                                item.session === 'Breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
-                                                item.session === 'Lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                                                item.session?.toLowerCase() === 'breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
+                                                item.session?.toLowerCase() === 'lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
                                                 'bg-gradient-to-br from-purple-400 to-purple-600'
                                               }`}>
                                                 <span className="text-white text-xs font-bold">
@@ -3845,8 +3889,8 @@ const DeliveryManagerPage = () => {
                                         {/* Session */}
                                         <td className="px-4 py-3 whitespace-nowrap text-center">
                                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                            item.session === 'Breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
-                                            item.session === 'Lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                            item.session?.toLowerCase() === 'breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                                            item.session?.toLowerCase() === 'lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
                                             'bg-purple-100 text-purple-800 border border-purple-200'
                                           }`}>
                                             {item.session || 'Unknown'}
@@ -3943,7 +3987,7 @@ const DeliveryManagerPage = () => {
                                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                             item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
                                             item.status === 'Delivered' ? 'bg-green-100 text-green-800 border border-green-200' :
-                                            item.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                            (item.status === 'In Progress' || item.status === 'In_Progress') ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse' :
                                             item.status === 'Cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
                                             'bg-gray-100 text-gray-800 border border-gray-200'
                                           }`}>
@@ -4000,8 +4044,8 @@ const DeliveryManagerPage = () => {
                                     <div className="flex items-center justify-between mb-3">
                                       <div className="flex items-center">
                                         <div className={`h-10 w-10 rounded-full flex items-center justify-center shadow-lg ${
-                                          item.session === 'Breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
-                                          item.session === 'Lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                                          item.session?.toLowerCase() === 'breakfast' ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
+                                          item.session?.toLowerCase() === 'lunch' ? 'bg-gradient-to-br from-green-400 to-green-600' :
                                           'bg-gradient-to-br from-purple-400 to-purple-600'
                                         }`}>
                                           <span className="text-white text-sm font-bold">
@@ -4020,7 +4064,7 @@ const DeliveryManagerPage = () => {
                                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                         item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
                                         item.status === 'Delivered' ? 'bg-green-100 text-green-800 border border-green-200' :
-                                        item.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                        (item.status === 'In Progress' || item.status === 'In_Progress') ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse' :
                                         item.status === 'Cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
                                         'bg-gray-100 text-gray-800 border border-gray-200'
                                       }`}>
@@ -4043,8 +4087,8 @@ const DeliveryManagerPage = () => {
                                       <div>
                                         <div className="text-gray-400 mb-1">🍽️ Session</div>
                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                          item.session === 'Breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
-                                          item.session === 'Lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                          item.session?.toLowerCase() === 'breakfast' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                                          item.session?.toLowerCase() === 'lunch' ? 'bg-green-100 text-green-800 border border-green-200' :
                                           'bg-purple-100 text-purple-800 border border-purple-200'
                                         }`}>
                                           {item.session || 'Unknown'}
@@ -5423,6 +5467,10 @@ const DeliveryManagerPage = () => {
               showErrorToast={showErrorToast}
             />
           )}
+
+          {activeTab === 'coordinator' && (
+            <CoordinatorSettings />
+          )}
         </div>
       </div>
 
@@ -5617,6 +5665,55 @@ const DeliveryManagerPage = () => {
         </div>
       </Modal>
 
+      {/* Deactivate Driver Blocked – deliveries in progress */}
+      <Modal
+        title={
+          <span className="flex items-center gap-2 text-amber-700">
+            <FiShield className="w-5 h-5" />
+            Cannot Inactivate Driver
+          </span>
+        }
+        open={deactivateBlockedDialog.open}
+        onCancel={() => setDeactivateBlockedDialog(prev => ({ ...prev, open: false }))}
+        footer={[
+          <button
+            key="reassign"
+            onClick={() => {
+              setDeactivateBlockedDialog(prev => ({ ...prev, open: false }));
+              setActiveTab('rootManagement');
+            }}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium"
+          >
+            Reassign Route
+          </button>,
+          <button
+            key="cancel"
+            onClick={() => setDeactivateBlockedDialog(prev => ({ ...prev, open: false }))}
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium"
+          >
+            Cancel
+          </button>
+        ]}
+        width={440}
+        centered
+      >
+        <div className="py-2">
+          <p className="text-gray-700 mb-3">
+            <strong>{deactivateBlockedDialog.driverName}</strong> has {deactivateBlockedDialog.inProgressCount} delivery(ies) currently in progress.
+          </p>
+          <p className="text-gray-600 text-sm mb-3">
+            To inactivate this driver, you must either:
+          </p>
+          <ul className="list-disc list-inside text-gray-600 text-sm space-y-1 mb-3">
+            <li>Wait for all deliveries to complete, or</li>
+            <li>Reassign the route to another driver</li>
+          </ul>
+          {deactivateBlockedDialog.message && (
+            <p className="text-gray-500 text-xs border-t border-gray-200 pt-2">{deactivateBlockedDialog.message}</p>
+          )}
+        </div>
+      </Modal>
+
       {/* Executive Assignment Modal */}
       <Modal
         title="Assign Executives for Route Planning"
@@ -5713,7 +5810,7 @@ const DeliveryManagerPage = () => {
                 key="save"
                 onClick={async () => {
                   if (!selectedDeliveryId) {
-                    showErrorToast('Delivery ID is missing');
+                    showErrorToast('This delivery couldn\'t be found. Please refresh and try again.');
                     return;
                   }
                   
@@ -5748,7 +5845,7 @@ const DeliveryManagerPage = () => {
                     
                     showSuccessToast('Comment updated successfully');
                   } catch (error) {
-                    showErrorToast(error.message || 'Failed to update comment');
+                    showErrorToast(error.message || 'We couldn\'t update the comment. Please try again.');
                   }
                 }}
                 disabled={updateDeliveryCommentMutation.isPending}
@@ -5796,13 +5893,16 @@ const DeliveryManagerPage = () => {
           )}
           <div>
             {isEditingComment ? (
-              <textarea
-                value={editedComment}
-                onChange={(e) => setEditedComment(e.target.value)}
-                className="w-full p-3 bg-white border border-gray-300 rounded min-h-[100px] max-h-[250px] text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter comments here..."
-                autoFocus
-              />
+              <>
+                <textarea
+                  value={editedComment}
+                  onChange={(e) => setEditedComment(e.target.value)}
+                  className="w-full p-3 bg-white border border-gray-300 rounded min-h-[100px] max-h-[250px] text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter comments here..."
+                  autoFocus
+                />
+                <TextCorrectionSuggestion correcting={correctionComment.correcting} suggestion={correctionComment.suggestion} onApply={correctionComment.applySuggestion} className="mt-2" />
+              </>
             ) : (
               <div className="p-3 bg-gray-50 border border-gray-200 rounded min-h-[100px] max-h-[250px] overflow-y-auto">
                 <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">
@@ -5814,6 +5914,9 @@ const DeliveryManagerPage = () => {
         </div>
       </Modal>
 
+      {hasAnyRole(roles, ['DELIVERY_MANAGER', 'CEO', 'CFO', 'ADMIN']) && companyId && user?.id && (
+        <AssistantChat companyId={companyId} userId={user.id} />
+      )}
     </div>
   );
 };

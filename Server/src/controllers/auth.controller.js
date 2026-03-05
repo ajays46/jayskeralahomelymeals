@@ -6,6 +6,7 @@ import { clearJWTCookie, setJWTCookie } from '../utils/cookieUtils.js';
 import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { logSecurityEvent } from '../middleware/logging.middleware.js';
 
 dotenv.config();
 
@@ -48,6 +49,10 @@ export const login = async (req, res, next) => {
     });
 
   } catch (error) {
+    logSecurityEvent('login_failure', null, req.ip || req.connection?.remoteAddress, {
+      identifier: req.body?.identifier,
+      reason: error.message
+    });
     next(error);
   }
 };
@@ -71,6 +76,7 @@ export const refreshToken = async (req, res, next) => {
     const token = req.cookies.jwt;
 
     if (!token) {
+      logSecurityEvent('refresh_token_missing', null, req.ip || req.connection?.remoteAddress, {});
       throw new AppError("No refresh token provided", 401);
     }
 
@@ -95,10 +101,12 @@ export const refreshToken = async (req, res, next) => {
         throw new AppError("User roles not found", 403);
       }
 
+      // Get all roles as comma-separated string for JWT token
+      const allRoles = user.userRoles.map(role => role.name).join(',');
       // Get the primary role (first role or highest priority role)
       const primaryRole = user.userRoles[0];
-      const newAccessToken = generateAccessToken(user.id, primaryRole.name);
-      const newRefreshToken = generateRefreshToken(user.id, primaryRole.name);
+      const newAccessToken = generateAccessToken(user.id, allRoles);
+      const newRefreshToken = generateRefreshToken(user.id, allRoles);
 
       setJWTCookie(res, newRefreshToken);
 
@@ -109,6 +117,10 @@ export const refreshToken = async (req, res, next) => {
       });
 
     } catch (jwtError) {
+      logSecurityEvent('refresh_token_invalid', null, req.ip || req.connection?.remoteAddress, {
+        reason: jwtError.message,
+        name: jwtError.name
+      });
       if (jwtError.name === 'TokenExpiredError') {
         throw new AppError("Refresh token expired", 401);
       }
@@ -159,6 +171,8 @@ export const resetPassword = async (req, res, next) => {
 // Logout user
 export const logout = (req, res) => {
   try {
+    const userId = req.user?.userId ?? req.user?.id ?? null;
+    logSecurityEvent('logout', userId, req.ip || req.connection?.remoteAddress, {});
     clearJWTCookie(res);
     
     res.status(200).json({

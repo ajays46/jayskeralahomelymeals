@@ -2,6 +2,7 @@ import AppError from '../utils/AppError.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import axios from 'axios';
 import prisma from '../config/prisma.js';
+import { application } from 'express';
 
 /**
  * AI Route Service
@@ -36,6 +37,14 @@ const withCompanyId = (companyId, config = {}) => {
   if (companyId && typeof companyId === 'string' && companyId.trim()) {
     headers['X-Company-ID'] = companyId.trim();
   }
+  return { ...config, headers };
+};
+
+/** Add X-User-ID header when provided (for delivery manager isolation / created_by) */
+const withUserId = (createdBy, config = {}) => {
+  if (!createdBy || typeof createdBy !== 'string' || !createdBy.trim()) return config;
+  const headers = { ...(config.headers || {}) };
+  headers['X-User-ID'] = createdBy.trim();
   return { ...config, headers };
 };
 
@@ -142,17 +151,23 @@ export const getDeliveryDataService = async (filters = {}, companyId = null) => 
 
 /**
  * Plan Route
+ * createdBy: optional user UUID from X-User-ID header (for delivery manager isolation / created_by)
  */
-export const planRouteService = async (routeData, companyId = null) => {
+export const planRouteService = async (routeData, companyId = null, createdBy = null) => {
   try {
     const { delivery_date, delivery_session, num_drivers, depot_location } = routeData;
 
-    const response = await apiClient.post('/api/route/plan', {
+    const config = withUserId(createdBy, withCompanyId(companyId));
+    const body = {
       delivery_date,
       delivery_session,
       num_drivers,
       depot_location
-    }, withCompanyId(companyId));
+    };
+    if (createdBy && typeof createdBy === 'string' && createdBy.trim()) {
+      body.user_id = createdBy.trim();
+    }
+    const response = await apiClient.post('/api/route/plan', body, config);
     const data = response.data;
     
     if (!data.success) {
@@ -653,6 +668,58 @@ export const getAllVehicleTrackingService = async (companyId = null) => {
     logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch all vehicle tracking', {
       error: error.message
     });
+  }
+};
+
+/**
+ * Get Live Vehicle Tracking
+ * Fetches live vehicle tracking data with optional filters
+ * @param {Object} params - Query parameters: active_only, status, driver_id
+ */
+export const getLiveVehicleTrackingService = async (params = {}) => {
+  try {
+    const { active_only, status, driver_id } = params;
+    
+    // Build query parameters
+    const queryParams = {};
+    if (active_only !== undefined) {
+      queryParams.active_only = active_only === true || active_only === 'true';
+    }
+    if (status) {
+      queryParams.status = status;
+    }
+    if (driver_id) {
+      queryParams.driver_id = driver_id;
+    }
+    
+    const response = await apiClient.get('/api/vehicle-tracking/live-all', {
+      params: queryParams
+    });
+    
+    const data = response.data;
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Live vehicle tracking fetched', {
+      active_only: queryParams.active_only,
+      status: queryParams.status,
+      driver_id: queryParams.driver_id,
+      vehiclesCount: data?.vehicles?.length || data?.data?.length || 0
+    });
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch live vehicle tracking');
+    }
+    
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch live vehicle tracking', {
+      error: error.message,
+      params,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch live vehicle tracking',
+      error.response?.status || 500
+    );
   }
 };
 
@@ -1446,6 +1513,516 @@ export const getRouteStatusFromActualStopsService = async (routeId, driverId = n
     throw new AppError(
       error.message || 'Failed to get route status',
       500
+    );
+  }
+};
+
+/**
+ * Build request config with optional X-Company-ID for multi-tenant external API calls.
+ */
+const requestConfigWithCompany = (companyId, options = {}) => {
+  const config = { ...options };
+  if (companyId && typeof companyId === 'string' && companyId.trim()) {
+    config.headers = { ...config.headers, 'X-Company-ID': companyId.trim() };
+  }
+  return config;
+};
+
+/**
+ * Get Coordinator Settings
+ * Fetches current Coordinator parameter values from external API (per-company).
+ * Requires company_id for multi-tenant support (X-Company-ID).
+ */
+export const getCoordinatorSettingsService = async (companyId) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new Error('company_id required (header X-Company-ID or query company_id)');
+  }
+  try {
+    const response = await apiClient.get('/api/coordinator/settings', {
+      headers: { 'X-Company-ID': companyId.trim() },
+      params: { company_id: companyId.trim() }
+    });
+    const data = response.data;
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch Coordinator settings');
+    }
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings fetched', {
+      company_id: companyId,
+      settings: data.settings
+    });
+
+    return {
+      success: true,
+      company_id: data.company_id || companyId,
+      settings: data.settings || {},
+      description: data.description || {}
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch Coordinator settings', {
+      error: error.message,
+      company_id: companyId,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch Coordinator settings',
+      500
+    );
+  }
+};
+
+/**
+ * Get Route Map Data for CXO
+ * Fetches route data. Per guide §3c: supports date, start_date/end_date, session, route_id, driver_name, manager_id.
+ * Uses AI_ROUTE_API (apiClientRouteAPI) endpoint /api/route/map-data.
+ * - With driver_name only: returns drivers[].available_dates, drivers[].available_sessions.
+ * - With driver_name + date (+ session): returns route for that driver/date/session.
+ * - With manager_id (+ start_date/end_date, session, driver_name): CXO filter routes by delivery manager.
+ * companyId: when set, sent as X-Company-ID to scope data by tenant.
+ * callerUserId: when set (e.g. for manager_id requests), sent as X-User-ID so external API can verify CXO role.
+ */
+export const getRouteMapDataService = async (params = {}, companyId = null, callerUserId = null) => {
+  try {
+    const { date, session, route_id, driver_name, start_date, end_date, manager_id } = params;
+
+    const hasDateRange = start_date && end_date;
+    const hasAnyRequired = date || (driver_name && driver_name.trim()) || hasDateRange || manager_id;
+    if (!hasAnyRequired) {
+      throw new Error('Either date, driver_name, start_date+end_date, or manager_id is required');
+    }
+
+    const queryParams = {};
+    if (date) queryParams.date = date;
+    if (session) queryParams.session = session;
+    if (route_id) queryParams.route_id = route_id;
+    if (driver_name && driver_name.trim()) queryParams.driver_name = driver_name.trim();
+    if (start_date) queryParams.start_date = start_date;
+    if (end_date) queryParams.end_date = end_date;
+    if (manager_id) queryParams.manager_id = manager_id;
+
+    // When manager_id is used, external API requires X-User-ID to verify caller is CXO (guide §3c)
+    const baseConfig = requestConfigWithCompany(companyId);
+    const configWithUser = callerUserId ? withUserId(callerUserId, baseConfig) : baseConfig;
+    const response = await apiClient.get('/api/route/map-data', {
+      params: queryParams,
+      ...configWithUser
+    });
+    
+    const data = response.data;
+    
+    // When response has drivers only (no routes) - e.g. driver_name-only call for available_dates/sessions
+    const routes = data?.routes || [];
+    if (!routes.length && data?.drivers?.length) {
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Route map data (driver availability) fetched for CXO', {
+        date,
+        session,
+        driver_name,
+        driversCount: data.drivers.length
+      });
+      return {
+        success: true,
+        data: { ...data }
+      };
+    }
+    
+    // Extract unique driver IDs from routes
+    const driverIds = [...new Set(routes.map(route => route.driver_id).filter(Boolean))];
+    
+    // Fetch delivery executive names from User table
+    let driverNameMap = {};
+    if (driverIds.length > 0) {
+      try {
+        const users = await prisma.user.findMany({
+          where: {
+            id: { in: driverIds }
+          },
+          include: {
+            contacts: {
+              select: {
+                firstName: true,
+                lastName: true
+              },
+              take: 1 // Get first contact
+            },
+            auth: {
+              select: {
+                email: true
+              }
+            }
+          }
+        });
+        
+        // Create a map of driver_id -> name
+        driverNameMap = users.reduce((acc, user) => {
+          let name = 'Unknown';
+          
+          // Try to get name from contacts (firstName + lastName)
+          if (user.contacts && user.contacts.length > 0) {
+            const contact = user.contacts[0];
+            if (contact.firstName || contact.lastName) {
+              name = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
+            }
+          }
+          
+          // Fallback to email prefix if no contact name
+          if (name === 'Unknown' && user.auth?.email) {
+            name = user.auth.email.split('@')[0];
+          }
+          
+          acc[user.id] = name;
+          return acc;
+        }, {});
+      } catch (dbError) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch delivery executive names', {
+          error: dbError.message,
+          driverIds
+        });
+        // Continue without names if DB fetch fails
+      }
+    }
+    
+    // Enrich routes with driver names
+    const enrichedRoutes = routes.map(route => ({
+      ...route,
+      driver_name: route.driver_id ? (driverNameMap[route.driver_id] || 'Unknown') : 'Unknown'
+    }));
+    
+    // Filter by driver_name if provided (case-insensitive partial match)
+    let filteredRoutes = enrichedRoutes;
+    if (driver_name && driver_name.trim()) {
+      const searchTerm = driver_name.trim().toLowerCase();
+      filteredRoutes = enrichedRoutes.filter(route => {
+        const routeDriverName = route.driver_name?.toLowerCase() || '';
+        return routeDriverName.includes(searchTerm);
+      });
+    }
+    
+    // Create enriched response
+    const enrichedData = {
+      ...data,
+      routes: filteredRoutes,
+      total_routes: filteredRoutes.length
+    };
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route map data fetched for CXO', {
+      date,
+      session,
+      route_id,
+      driver_name,
+      hasData: !!data,
+      routesCount: routes.length,
+      filteredRoutesCount: filteredRoutes.length,
+      driversEnriched: Object.keys(driverNameMap).length
+    });
+    
+    return {
+      success: true,
+      data: enrichedData
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch route map data', {
+      error: error.message,
+      params,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch route map data',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Route Map Data by Manager for CXO – Delivery Manager side
+ * Used on CXO Delivery Managers page. Delegates to getRouteMapDataService with manager_id + date range.
+ * callerUserId: forwarded as X-User-ID to external API for CXO role check (guide §3c).
+ */
+export const getRouteMapDataByManagerService = async (params = {}, companyId = null, callerUserId = null) => {
+  const { manager_id, start_date, end_date, session, driver_name } = params;
+  if (!manager_id) {
+    throw new Error('manager_id is required');
+  }
+  return getRouteMapDataService({ manager_id, start_date, end_date, session, driver_name }, companyId, callerUserId);
+};
+
+/**
+ * Update Coordinator Settings
+ * Updates Coordinator parameter values for the given company (multi-tenant).
+ * Requires company_id (X-Company-ID). All body fields are optional; only provided fields are updated.
+ */
+export const updateCoordinatorSettingsService = async (companyId, updates) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new Error('company_id required (header X-Company-ID or body company_id)');
+  }
+  try {
+    // Allow empty updates object (doc: "only provided fields are updated"); external API may require at least one field
+    if (!updates || typeof updates !== 'object') {
+      throw new Error('No JSON data provided');
+    }
+
+    // Validation rules per FRONTEND_COORDINATOR_GUIDE.md
+    if (updates.max_time_hours !== undefined) {
+      if (typeof updates.max_time_hours !== 'number' || updates.max_time_hours <= 0) {
+        throw new Error('Invalid parameter value: max_time_hours must be a positive number (e.g. 1–8)');
+      }
+    }
+    if (updates.max_packages_per_driver !== undefined) {
+      const v = updates.max_packages_per_driver;
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 50) {
+        throw new Error('Invalid parameter value: max_packages_per_driver must be an integer between 1 and 50');
+      }
+    }
+    if (updates.max_distance_km !== undefined) {
+      if (typeof updates.max_distance_km !== 'number' || updates.max_distance_km <= 0) {
+        throw new Error('Invalid parameter value: max_distance_km must be a positive number (e.g. 50–200 km)');
+      }
+    }
+    if (updates.min_confidence !== undefined) {
+      if (typeof updates.min_confidence !== 'number' || updates.min_confidence < 0 || updates.min_confidence > 1) {
+        throw new Error('Invalid parameter value: min_confidence must be a number between 0.0 and 1.0');
+      }
+    }
+
+    const body = { ...updates, company_id: companyId.trim() };
+    const response = await apiClient.put('/api/coordinator/settings', body, {
+      headers: { 'X-Company-ID': companyId.trim() }
+    });
+    const data = response.data;
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to update Coordinator settings');
+    }
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings updated', {
+      company_id: companyId,
+      changed: data.changed,
+      previous: data.previous_settings,
+      current: data.current_settings
+    });
+
+    return {
+      success: true,
+      message: data.message || 'Coordinator settings updated successfully',
+      company_id: data.company_id || companyId,
+      previous_settings: data.previous_settings || {},
+      current_settings: data.current_settings || {},
+      changed: data.changed || {}
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update Coordinator settings', {
+      error: error.message,
+      company_id: companyId,
+      updates,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to update Coordinator settings',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Drivers from Route Map Data
+ * Fetches unique driver IDs from route data and returns driver information with names
+ */
+export const getDriversFromRouteMapDataService = async (params = {}) => {
+  try {
+    const { date, session } = params;
+    
+    if (!date) {
+      throw new Error('date is required');
+    }
+    
+    // First, get the route data to extract driver IDs
+    const routeData = await getRouteMapDataService({ date, session });
+    const routes = routeData.data?.routes || [];
+    
+    // Extract unique driver IDs
+    const driverIds = [...new Set(routes.map(route => route.driver_id).filter(Boolean))];
+    
+    if (driverIds.length === 0) {
+      return {
+        success: true,
+        drivers: []
+      };
+    }
+    
+    // Fetch driver information from database
+    const drivers = await prisma.user.findMany({
+      where: {
+        id: { in: driverIds }
+      },
+      include: {
+        contacts: {
+          select: {
+            firstName: true,
+            lastName: true,
+            phoneNumbers: {
+              select: {
+                number: true,
+                type: true
+              }
+            }
+          }
+        },
+        auth: {
+          select: {
+            email: true,
+            phoneNumber: true
+          }
+        },
+        deliveryExecutive: {
+          select: {
+            vehicleNumber: true,
+            status: true
+          }
+        }
+      }
+    });
+    
+    // Format driver data
+    const formattedDrivers = drivers.map(driver => {
+      const contact = driver.contacts?.[0];
+      const name = contact 
+        ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() 
+        : 'Unknown Driver';
+      
+      return {
+        driver_id: driver.id,
+        name: name || 'Unknown Driver',
+        email: driver.auth?.email || null,
+        phone: contact?.phoneNumbers?.[0]?.number || driver.auth?.phoneNumber || null,
+        vehicleNumber: driver.deliveryExecutive?.vehicleNumber || null,
+        status: driver.deliveryExecutive?.status || null
+      };
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Drivers fetched from route map data', {
+      date,
+      session,
+      driverCount: formattedDrivers.length
+    });
+    
+    return {
+      success: true,
+      drivers: formattedDrivers
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch drivers from route map data', {
+      error: error.message,
+      params
+    });
+    throw new AppError(
+      error.message || 'Failed to fetch drivers from route map data',
+      500
+    );
+  }
+};
+
+/**
+ * Get Executive Performance for CXO
+ * Fetches performance metrics for all executives from AI_ROUTE_API /api/executive/performance
+ * Optional query params: start_date, end_date, days, session, min_routes, driver_name, driver_id
+ * companyId: when set, sent as X-Company-ID to scope data by tenant.
+ */
+export const getExecutivePerformanceService = async (filters = {}, companyId = null) => {
+  try {
+    const params = {};
+    if (filters.start_date) params.start_date = filters.start_date;
+    if (filters.end_date) params.end_date = filters.end_date;
+    if (filters.days != null && filters.days !== '') params.days = filters.days;
+    if (filters.session) params.session = filters.session;
+    if (filters.min_routes != null && filters.min_routes !== '') params.min_routes = filters.min_routes;
+    if (filters.driver_name) params.driver_name = filters.driver_name;
+    if (filters.driver_id) params.driver_id = filters.driver_id;
+    const response = await apiClient.get('/api/executive/performance', {
+      params: Object.keys(params).length ? params : undefined,
+      ...requestConfigWithCompany(companyId)
+    });
+    const data = response.data;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Executive performance fetched for CXO', {
+      total_executives: data?.total_executives ?? data?.executives?.length ?? 0
+    });
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch executive performance', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch executive performance',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Executive Performance by driver name for CXO (single executive)
+ * Fetches performance for one executive via /api/executive/performance?driver_name=...
+ * Separate from getExecutivePerformanceService - do not change the all-executives endpoint.
+ * companyId: when set, sent as X-Company-ID to scope data by tenant.
+ */
+export const getExecutivePerformanceByDriverService = async (driver_name, companyId = null) => {
+  if (!driver_name || !String(driver_name).trim()) {
+    throw new Error('driver_name is required');
+  }
+  try {
+    const response = await apiClient.get('/api/executive/performance', {
+      params: { driver_name: String(driver_name).trim() },
+      ...requestConfigWithCompany(companyId)
+    });
+    const data = response.data;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Executive performance by driver fetched for CXO', {
+      driver_name: driver_name,
+      executives_count: data?.executives?.length ?? 0
+    });
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch executive performance by driver', {
+      error: error.message,
+      driver_name: driver_name,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch executive performance',
+      error.response?.status || 500
+    );
+  }
+};
+
+/**
+ * Get Manager–Executive Hierarchy for CXO
+ * GET /api/cxo/manager-executive-hierarchy (external API)
+ * Returns managers with their executives and performance. CEO, CFO, ADMIN only.
+ * Query params: days (default 30), or start_date, end_date.
+ * companyId and userId (X-User-ID) forwarded for role check and scoping.
+ */
+export const getManagerExecutiveHierarchyService = async (query = {}, companyId = null, userId = null) => {
+  try {
+    const params = {};
+    if (query.days != null && query.days !== '') params.days = query.days;
+    if (query.start_date) params.start_date = query.start_date;
+    if (query.end_date) params.end_date = query.end_date;
+    const config = withUserId(userId, withCompanyId(companyId, { params: Object.keys(params).length ? params : undefined }));
+    const response = await apiClient.get('/api/cxo/manager-executive-hierarchy', config);
+    const data = response.data;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Manager-executive hierarchy fetched for CXO', {
+      managers_count: data?.managers?.length ?? 0
+    });
+    return { success: true, ...data };
+  } catch (error) {
+    if (error.response?.status === 404) {
+      return { success: true, period: {}, managers: [], message: 'Hierarchy endpoint not available' };
+    }
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch manager-executive hierarchy', {
+      error: error.message,
+      response: error.response?.data
+    });
+    throw new AppError(
+      error.response?.data?.error || error.message || 'Failed to fetch manager-executive hierarchy',
+      error.response?.status || 500
     );
   }
 };

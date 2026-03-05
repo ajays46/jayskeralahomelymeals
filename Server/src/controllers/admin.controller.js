@@ -851,6 +851,15 @@ export const createAdminUser = async (req, res, next) => {
                 }
             }
 
+            // 6. If user is a delivery executive, create delivery_executive_profile record (user_id, joined_date, status, created_at)
+            if (rolesToAssign.includes('DELIVERY_EXECUTIVE')) {
+                const joinedDateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD for DATE column
+                await tx.$executeRaw`
+                    INSERT INTO delivery_executive_profile (user_id, joined_date, status)
+                    VALUES (${user.id}, ${joinedDateStr}, 'ACTIVE')
+                `;
+            }
+
             return {
                 id: user.id,
                 email: auth.email,
@@ -992,13 +1001,14 @@ export const updateUserStatus = async (req, res, next) => {
     }
 };
 
-// Get sellers with their orders for users
+// Get sellers with their orders for users. Company-scoped via req.adminCompanyId or req.companyId.
 export const getSellersWithOrders = async (req, res, next) => {
     try {
-        // Super admin (companyId === null) sees all; company admin sees only their company's sellers
-        const where = req.adminCompanyId != null
-            ? { companyId: req.adminCompanyId }
-            : {};
+        const where = {};
+        const companyId = req.adminCompanyId ?? req.companyId;
+        if (companyId && typeof companyId === 'string' && companyId.trim()) {
+            where.companyId = companyId.trim();
+        }
         // Get users with SELLER role (optionally scoped by company)
         const sellers = await prisma.user.findMany({
             where,
@@ -1192,47 +1202,58 @@ export const getSellersWithOrders = async (req, res, next) => {
     }
 };
 
-// Get delivery executives
+// Get delivery executives (all from DB; names from Contact when available). Company-scoped via req.adminCompanyId or req.companyId.
 export const getDeliveryExecutives = async (req, res, next) => {
     try {
-        // Super admin (companyId === null) sees all; company admin sees only their company's executives
-        const where = req.adminCompanyId != null
-            ? { companyId: req.adminCompanyId }
-            : {};
+        const where = {};
+        const companyId = req.adminCompanyId ?? req.companyId;
+        if (companyId && typeof companyId === 'string' && companyId.trim()) {
+            where.companyId = companyId.trim();
+        }
+        // Get users with DELIVERY_EXECUTIVE role from DB (optionally scoped by company), include contacts for names
         const executives = await prisma.user.findMany({
             where,
             include: {
                 auth: true,
                 userRoles: true,
-                company: true
+                company: true,
+                contacts: { take: 1 }
             },
             orderBy: {
                 createdAt: 'desc'
             }
         });
 
-        // Filter only delivery executives with valid auth records
+        // Filter to users who have DELIVERY_EXECUTIVE in userRoles (allow multiple roles)
         const deliveryExecutives = executives
             .filter(user => {
-                // Only include users with valid auth records and DELIVERY_EXECUTIVE role
                 if (!user.auth || !user.auth.email) return false;
-                const userRole = user.userRoles[0]?.name;
-                return userRole === 'DELIVERY_EXECUTIVE';
+                const hasDeliveryRole = (user.userRoles || []).some(r => r.name === 'DELIVERY_EXECUTIVE');
+                return hasDeliveryRole;
             })
-            .map(executive => ({
-                id: executive.id,
-                name: executive.auth.email.split('@')[0],
-                email: executive.auth.email,
-                phoneNumber: executive.auth.phoneNumber || 'No phone',
-                role: executive.userRoles[0]?.name || 'DELIVERY_EXECUTIVE',
-                companyName: executive.company?.name || 'No Company',
-                companyId: executive.companyId,
-                status: executive.status,
-                currentStatus: 'Available', // You might want to track this separately
-                joinedDate: executive.createdAt,
-                lastActive: executive.updatedAt || executive.createdAt,
-                createdAt: executive.createdAt
-            }));
+            .map(executive => {
+                // Name from Contact (firstName + lastName) when available, else email prefix
+                let name = executive.auth.email.split('@')[0];
+                if (executive.contacts && executive.contacts.length > 0) {
+                    const c = executive.contacts[0];
+                    const fullName = [c.firstName, c.lastName].filter(Boolean).join(' ').trim();
+                    if (fullName) name = fullName;
+                }
+                return {
+                    id: executive.id,
+                    name,
+                    email: executive.auth.email,
+                    phoneNumber: executive.auth.phoneNumber || 'No phone',
+                    role: (executive.userRoles || []).find(r => r.name === 'DELIVERY_EXECUTIVE')?.name || 'DELIVERY_EXECUTIVE',
+                    companyName: executive.company?.name || 'No Company',
+                    companyId: executive.companyId,
+                    status: executive.status,
+                    currentStatus: 'Available',
+                    joinedDate: executive.createdAt,
+                    lastActive: executive.updatedAt || executive.createdAt,
+                    createdAt: executive.createdAt
+                };
+            });
 
         res.status(200).json({
             status: 'success',
@@ -1249,6 +1270,72 @@ export const getDeliveryExecutives = async (req, res, next) => {
         res.status(500).json({
             status: 'error',
             message: 'Failed to fetch delivery executives. Please try again.',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Get delivery managers (all from DB; names from Contact when available) - for CXO view. Company-scoped when req.companyId is set.
+export const getDeliveryManagers = async (req, res, next) => {
+    try {
+        const where = {};
+        if (req.companyId && typeof req.companyId === 'string' && req.companyId.trim()) {
+            where.companyId = req.companyId.trim();
+        }
+        const managers = await prisma.user.findMany({
+            where,
+            include: {
+                auth: true,
+                userRoles: true,
+                company: true,
+                contacts: { take: 1 }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+
+        const deliveryManagers = managers
+            .filter(user => {
+                if (!user.auth || !user.auth.email) return false;
+                return (user.userRoles || []).some(r => r.name === 'DELIVERY_MANAGER');
+            })
+            .map(manager => {
+                let name = manager.auth.email.split('@')[0];
+                if (manager.contacts && manager.contacts.length > 0) {
+                    const c = manager.contacts[0];
+                    const fullName = [c.firstName, c.lastName].filter(Boolean).join(' ').trim();
+                    if (fullName) name = fullName;
+                }
+                return {
+                    id: manager.id,
+                    name,
+                    email: manager.auth.email,
+                    phoneNumber: manager.auth.phoneNumber || 'No phone',
+                    role: 'DELIVERY_MANAGER',
+                    companyName: manager.company?.name || 'No Company',
+                    companyId: manager.companyId,
+                    status: manager.status,
+                    joinedDate: manager.createdAt,
+                    lastActive: manager.updatedAt || manager.createdAt,
+                    createdAt: manager.createdAt
+                };
+            });
+
+        res.status(200).json({
+            status: 'success',
+            data: deliveryManagers,
+            total: deliveryManagers.length,
+            message: `Found ${deliveryManagers.length} delivery managers`
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching delivery managers', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch delivery managers. Please try again.',
             error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }
@@ -1989,19 +2076,22 @@ export const removeUserRoles = async (req, res, next) => {
     }
 };
 
-// Fetch active executives from external API
+// Fetch active executives from external API (company-scoped via req.adminCompanyId or req.companyId)
 export const getActiveExecutives = async (req, res, next) => {
     try {
-        const execHeaders = { 'Authorization': 'Bearer mysecretkey123' };
-        if (req.adminCompanyId) execHeaders['X-Company-ID'] = req.adminCompanyId;
+        const companyId = req.adminCompanyId ?? req.companyId;
+        const headers = { 'Authorization': 'Bearer mysecretkey123' };
+        if (companyId && typeof companyId === 'string' && companyId.trim()) {
+            headers['X-Company-ID'] = companyId.trim();
+        }
         logInfo(LOG_CATEGORIES.SYSTEM, 'getActiveExecutives: request to external API', {
-            hasCompanyId: !!req.adminCompanyId,
-            xCompanyId: req.adminCompanyId || '(not set)',
+            hasCompanyId: !!companyId,
+            xCompanyId: companyId || '(not set)',
             url: `${process.env.AI_ROUTE_API}/api/executives`
         });
         const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
             method: 'GET',
-            headers: execHeaders
+            headers
         });
         
         if (!response.ok) {
@@ -2028,6 +2118,32 @@ export const getActiveExecutives = async (req, res, next) => {
         } else if (data.success && Array.isArray(data.executives)) {
             executivesArray = data.executives;
             vehicleChoicesArray = data.vehicle_choices || [];
+        }
+        
+        // When company is set, filter executives to only those whose user belongs to that company (our DB)
+        if (req.companyId && typeof req.companyId === 'string' && req.companyId.trim()) {
+            const companyId = req.companyId.trim();
+            const executiveUserIds = [...new Set(
+                executivesArray
+                    .map((e) => e.user_id ?? e.id)
+                    .filter(Boolean)
+            )];
+            if (executiveUserIds.length > 0) {
+                const usersInCompany = await prisma.user.findMany({
+                    where: {
+                        id: { in: executiveUserIds },
+                        companyId
+                    },
+                    select: { id: true }
+                });
+                const allowedIds = new Set(usersInCompany.map((u) => u.id));
+                executivesArray = executivesArray.filter((e) => {
+                    const uid = e.user_id ?? e.id;
+                    return uid && allowedIds.has(uid);
+                });
+            } else {
+                executivesArray = [];
+            }
         }
         
         res.status(200).json({
@@ -2103,6 +2219,20 @@ export const updateExecutiveStatus = async (req, res, next) => {
 
             if (!response.ok) {
                 const errorText = await response.text();
+                let errData;
+                try { errData = JSON.parse(errorText); } catch (_) { errData = {}; }
+                const errMsg = errData.error || errData.message || errorText;
+                const hasInProgressMessage = /in progress|inactivate|cannot.*driver/i.test(errMsg);
+                const count = errData.in_progress_count ?? errData.deliveries_count ?? (hasInProgressMessage ? 1 : null);
+                // Forward 400 when driver has deliveries in progress (deactivate blocked)
+                if (response.status === 400 && (count != null || hasInProgressMessage)) {
+                    return res.status(400).json({
+                        success: false,
+                        error: errMsg || 'Cannot inactivate driver: deliveries in progress.',
+                        in_progress_count: count != null ? count : 1,
+                        user_id: errData.user_id || (updates[0]?.user_id)
+                    });
+                }
                 throw new Error(`External API responded with status: ${response.status} - ${errorText}`);
             }
 
@@ -2156,6 +2286,21 @@ export const updateExecutiveStatus = async (req, res, next) => {
 
                     if (!response.ok) {
                         const errorText = await response.text();
+                        let errData;
+                        try { errData = JSON.parse(errorText); } catch (_) { errData = {}; }
+                        const errMsg = errData.error || errData.message || errorText;
+                        const hasInProgressMessage = /in progress|inactivate|cannot.*driver/i.test(errMsg);
+                        const count = errData.in_progress_count ?? errData.deliveries_count ?? (hasInProgressMessage ? 1 : null);
+                        if (response.status === 400 && (count != null || hasInProgressMessage)) {
+                            errors.push({
+                                user_id: update.user_id,
+                                status: update.status,
+                                success: false,
+                                error: errMsg || 'Cannot inactivate driver: deliveries in progress.',
+                                in_progress_count: count != null ? count : 1
+                            });
+                            continue;
+                        }
                         throw new Error(`External API responded with status: ${response.status} - ${errorText}`);
                     }
 
@@ -2178,6 +2323,17 @@ export const updateExecutiveStatus = async (req, res, next) => {
 
             const successCount = results.length;
             const errorCount = errors.length;
+            const blockedError = errors.find(e => e.in_progress_count != null);
+
+            if (blockedError && errorCount > 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: blockedError.error,
+                    in_progress_count: blockedError.in_progress_count,
+                    user_id: blockedError.user_id,
+                    data: { results, errors, summary: { total: updates.length, successful: successCount, failed: errorCount } }
+                });
+            }
 
             return res.status(200).json({
                 success: errorCount === 0,

@@ -5,14 +5,31 @@ import { FiArrowLeft, FiLogOut, FiMapPin, FiPlay } from 'react-icons/fi';
 import { MdLocalShipping } from 'react-icons/md';
 import { message } from 'antd';
 import { toast } from 'react-toastify';
-import { useCompanyBasePath } from '../context/TenantContext';
+import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
-import { useStartJourney, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops } from '../hooks/deliverymanager/useAIRouteOptimization';
+import { useStartJourney, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops, useRouteMapData, useExecutivePerformanceByDriver } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { useUploadDeliveryPhoto, useUploadPreDeliveryPhoto, useCheckMultipleDeliveryImages, useCheckMultiplePreDeliveryImages } from '../hooks/deliverymanager';
+import { useTextCorrection } from '../hooks/useTextCorrection';
+import { useAllDeliveryExecutivesFromDb } from '../hooks/deliverymanager/useAllDeliveryExecutivesFromDb';
+import { useActiveExecutives } from '../hooks/deliverymanager/useActiveExecutives';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import TextCorrectionSuggestion from '../components/TextCorrectionSuggestion';
 import html2canvas from 'html2canvas';
+import { isCXO, isCEO, isCFO } from '../utils/roleUtils';
+import RecentRoutesView from '../components/RecentRoutesView';
+import ExecutivePerformanceView from '../components/ExecutivePerformanceView';
+import ExecutivePerformanceSingle from '../components/ExecutivePerformanceSingle';
+import AssistantChat from '../components/deliveryManager/AssistantChat';
+
+// Fix for default marker icons in Leaflet with React
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 /**
  * DeliveryExecutivePage - Delivery executive dashboard with route and order management
@@ -23,10 +40,32 @@ const DeliveryExecutivePage = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('routes'); // routes only
+  const [activeTab, setActiveTab] = useState('routes'); // routes for delivery execs; CXO sees only Recent Routes (no tab)
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  
+  // Route map data state for CXO (driver-first: choose executive, then date/session from API)
+  const [routeMapFilters, setRouteMapFilters] = useState({
+    date: '',
+    session: '',
+    route_id: '',
+    driver_name: ''
+  });
+
+  // Applied filters: route API is called only when user clicks Go (not when they change date/session)
+  const [appliedRouteMapFilters, setAppliedRouteMapFilters] = useState({
+    date: '',
+    session: '',
+    route_id: '',
+    driver_name: ''
+  });
+
+  // CXO: selected delivery executive (for left sidebar → Routes & Details)
+  const [selectedExecutiveIdCXO, setSelectedExecutiveIdCXO] = useState(null);
+
+  // CXO: tab when executive is selected — 'performance' | 'routes'
+  const [executiveViewTab, setExecutiveViewTab] = useState('performance');
+
+
   // Logout confirmation state
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
@@ -40,10 +79,120 @@ const DeliveryExecutivePage = () => {
   // Get user and roles first (before hooks that use them)
   const navigate = useNavigate();
   const basePath = useCompanyBasePath();
+  const tenant = useTenant();
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const logout = useAuthStore((state) => state.logout);
+  // company_id for driver maps API: tenant from URL (e.g. /jkhm) or user from login
+  const companyId = tenant?.companyId ?? user?.companyId ?? user?.company_id ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('company_id') : null);
   
+  // Check if user has CXO role (after roles is declared)
+  const isCXOUser = isCXO(roles) || isCEO(roles) || isCFO(roles);
+  
+  // Availability only (driver_name): for Date/Session dropdowns — always shows this executive's delivered dates
+  const { data: availabilityData, isLoading: availabilityLoading, refetch: refetchAvailability } = useRouteMapData(
+    { driver_name: routeMapFilters.driver_name },
+    { enabled: isCXOUser && !!routeMapFilters.driver_name }
+  );
+
+  // Route data (driver_name + date + session): for right-side route content — only when user has clicked Go (applied filters have date)
+  const { data: routeMapData, isLoading: routeMapLoading, error: routeMapError, refetch: refetchRouteMap } = useRouteMapData(
+    appliedRouteMapFilters,
+    { enabled: isCXOUser && !!appliedRouteMapFilters.driver_name && !!appliedRouteMapFilters.date }
+  );
+
+  // Single executive performance — shown when an executive is selected (before Go)
+  const { data: executivePerformanceSingleData, isLoading: executivePerformanceSingleLoading, error: executivePerformanceSingleError, refetch: refetchExecutivePerformanceSingle } = useExecutivePerformanceByDriver({
+    driver_name: routeMapFilters.driver_name,
+    enabled: isCXOUser && !!routeMapFilters.driver_name
+  });
+
+  // All delivery executives from DB for CXO Recent Routes (names from Contact when available)
+  const { data: allDeliveryExecutivesData, isLoading: allDeliveryExecutivesLoading } = useAllDeliveryExecutivesFromDb({
+    enabled: isCXOUser
+  });
+  const allExecutives = allDeliveryExecutivesData?.data ?? [];
+
+  // Currently active executives (from /admin/active-executives) for CXO
+  const { data: activeExecutivesResponse, isLoading: activeExecutivesLoading, error: activeExecutivesError, refetch: refetchActiveExecutives } = useActiveExecutives({
+    enabled: isCXOUser
+  });
+  const activeExecutives = activeExecutivesResponse?.data?.executives ?? [];
+
+  // Set of executive IDs that are currently active (for green dot in sidebar)
+  const activeExecutiveIds = useMemo(() => {
+    return new Set(
+      (activeExecutives || [])
+        .filter((e) => (e.status || '').toUpperCase() === 'ACTIVE')
+        .map((e) => e.user_id ?? e.id)
+        .filter(Boolean)
+    );
+  }, [activeExecutives]);
+
+  // When executive changes (sidebar), clear applied date/session and show Performance tab first
+  useEffect(() => {
+    if (isCXOUser && routeMapFilters.driver_name) {
+      setAppliedRouteMapFilters((prev) => ({
+        ...prev,
+        driver_name: routeMapFilters.driver_name,
+        date: '',
+        session: '',
+        route_id: ''
+      }));
+      setExecutiveViewTab('performance');
+    }
+  }, [isCXOUser, routeMapFilters.driver_name]);
+
+  // Do not clear selected executive when date/session changes — executive stays selected; only filters change
+
+  // CXO sidebar: normalized list of all delivery executives for left sidebar (exclude dummy driver1/driver2, Driver 1/2)
+  const isDummyDriverName = (name) => /^driver\s*\d+$/i.test((name || '').trim());
+  const sidebarExecutives = useMemo(() => {
+    const list = allExecutives ?? [];
+    return list
+      .filter((e) => e && (e.id ?? e.driver_id ?? e.userId))
+      .map((e) => ({
+        id: e.id ?? e.driver_id ?? e.userId,
+        name: e.name ?? e.driver_name ?? (e.firstName || e.lastName ? [e.firstName, e.lastName].filter(Boolean).join(' ') : null) ?? 'Unknown'
+      }))
+      .filter((e) => !isDummyDriverName(e.name));
+  }, [allExecutives]);
+
+  // Clear CXO selected executive when date/session changes; auto-select executive when we have routes for driver_name
+  const executiveIdForDriverName = useMemo(() => {
+    if (!routeMapFilters.driver_name || !sidebarExecutives.length) return null;
+    const name = routeMapFilters.driver_name.trim().toLowerCase();
+    const found = sidebarExecutives.find((e) => (e.name || '').toLowerCase() === name);
+    return found?.id ?? null;
+  }, [routeMapFilters.driver_name, sidebarExecutives]);
+
+  // When we have routes for the selected driver_name, auto-select that executive in the sidebar
+  useEffect(() => {
+    if (isCXOUser && executiveIdForDriverName && routeMapData?.routes?.length > 0) {
+      setSelectedExecutiveIdCXO(executiveIdForDriverName);
+    }
+  }, [isCXOUser, executiveIdForDriverName, routeMapData?.routes?.length]);
+
+  // Selected driver from availability (match by name; when API returns multiple drivers with same name, prefer one that has available_dates)
+  const selectedDriverAvailability = useMemo(() => {
+    const drivers = availabilityData?.drivers ?? [];
+    if (!routeMapFilters.driver_name || !drivers.length) return null;
+    const selectedName = routeMapFilters.driver_name.trim().toLowerCase();
+    const selectedFirstWord = selectedName.split(/\s+/)[0] || selectedName;
+    const matches = drivers.filter((d) => {
+      const driverName = (d.name || d.driver_name || '').toString().trim().toLowerCase();
+      if (!driverName) return false;
+      if (driverName === selectedName) return true;
+      if (selectedName.startsWith(driverName) || driverName.startsWith(selectedName)) return true;
+      const driverFirstWord = driverName.split(/\s+/)[0] || driverName;
+      if (driverFirstWord === selectedFirstWord) return true;
+      return false;
+    });
+    // When API returns multiple drivers with same name (e.g. Adharsh Kumar: one with empty dates, one with dates), prefer the one that has available_dates
+    const withDates = matches.find((d) => (d.available_dates?.length ?? 0) > 0);
+    return withDates ?? matches[0] ?? drivers[0];
+  }, [availabilityData?.drivers, routeMapFilters.driver_name]);
+
   // Get current date string (memoized to avoid unnecessary recalculations)
   const currentDateStr = useMemo(() => {
     const today = new Date();
@@ -66,17 +215,16 @@ const DeliveryExecutivePage = () => {
   const isMapsEnabled = !!user?.id && !!selectedSession && routes.sessions && Object.keys(routes.sessions).length > 0;
   
   const { data: driverMapsResponse, isLoading: mapsLoading, error: mapsError, refetch: refetchDriverMaps } = useDriverNextStopMaps(
-    { date: currentDateStr, session: selectedSession.toLowerCase() },
+    { date: currentDateStr, session: selectedSession.toLowerCase(), companyId: companyId || undefined },
     { 
-      enabled: isMapsEnabled
+      enabled: isMapsEnabled && !!companyId
     }
   );
   
+  // Route overview API used for Full Route Directions link only (View Overview Map button removed)
   const { data: routeOverviewResponse, isLoading: routeOverviewLoading, refetch: refetchRouteOverview } = useDriverRouteOverviewMaps(
-    { date: currentDateStr, session: selectedSession.toLowerCase() },
-    { 
-      enabled: isMapsEnabled
-    }
+    { date: currentDateStr, session: selectedSession.toLowerCase(), companyId: companyId || undefined },
+    { enabled: isMapsEnabled && !!companyId }
   );
   
   // Debug logging (remove in production)
@@ -345,6 +493,7 @@ const DeliveryExecutivePage = () => {
   const [gettingLocation, setGettingLocation] = useState(false); // Track geolocation loading state
   const [deliveryComments, setDeliveryComments] = useState(''); // Comments for delivery
   const MAX_COMMENTS_LENGTH = 500; // Maximum characters for comments
+  const correctionComments = useTextCorrection(deliveryComments, { onApply: setDeliveryComments });
   
   // Delivery note modal state
   const [showDeliveryNoteModal, setShowDeliveryNoteModal] = useState(false);
@@ -560,71 +709,83 @@ const DeliveryExecutivePage = () => {
     return user?.firstName || user?.name || user?.email?.split('@')[0] || 'Delivery Executive';
   };
 
+  // Allow access for Delivery Executive role OR CXO (CEO/CFO) — CXO sees executive list, route map, performance
   useEffect(() => {
-    if (!user || !roles.includes('DELIVERY_EXECUTIVE')) {
-      message.error('Access denied. Delivery Executive role required.');
+    if (!user) {
+      message.error('Access denied.');
+      navigate(basePath);
+      return;
+    }
+    const hasDeliveryExecutive = roles && roles.includes('DELIVERY_EXECUTIVE');
+    if (!hasDeliveryExecutive && !isCXOUser) {
+      message.error('Access denied. Delivery Executive or CXO role required.');
       navigate(basePath);
       return;
     }
     // Simulate loading for profile data
     setTimeout(() => setLoading(false), 1000);
-  }, [user, roles, navigate]);
+  }, [user, roles, isCXOUser, navigate, basePath]);
 
-  // Auto-fetch routes when component loads if on routes tab
+  // Auto-fetch routes when component loads if on routes tab (only for Delivery Executive, not CXO)
   useEffect(() => {
     const driverId = user?.id;
-    
-    if (activeTab === 'routes' && driverId && (!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading) {
+    if (!isCXOUser && activeTab === 'routes' && driverId && (!routes.sessions || Object.keys(routes.sessions).length === 0) && !routesLoading) {
       fetchRoutes();
     }
-  }, [activeTab, user]);
+  }, [activeTab, user, isCXOUser]);
 
-  // Update routes state when driver maps data is loaded
+  // Update routes state when driver maps data is loaded (per-stop Map_Link + session route_map_link/map_link for Full Route Directions)
   useEffect(() => {
     if (driverMapsData && routes.sessions && routes.sessions[selectedSession]) {
       const currentStops = routes.sessions[selectedSession].stops;
-      
+      const currentSession = routes.sessions[selectedSession];
+      const routeLink = driverMapsData.route_map_link || driverMapsData.map_link || '';
+      const sessionNeedsRouteLink = routeLink && (routeLink !== currentSession.route_map_link && routeLink !== currentSession.map_link);
+
       // Check if any stop needs updating (has map_link in driverMapsData but not in current stops)
-      const needsUpdate = currentStops.some(stop => {
-        const mapStop = driverMapsData.stops?.find(s => 
-          s.stop_order === stop.Stop_No || 
+      const stopsNeedUpdate = currentStops.some(stop => {
+        const mapStop = driverMapsData.stops?.find(s =>
+          s.stop_order === stop.Stop_No ||
           s.delivery_name === stop.Delivery_Name ||
           (s.delivery_name && stop.Delivery_Name && s.delivery_name.toLowerCase() === stop.Delivery_Name.toLowerCase())
         );
         return mapStop && mapStop.map_link && !stop.Map_Link;
       });
-      
-      // Only update if there are changes to avoid infinite loop
+
+      const needsUpdate = stopsNeedUpdate || sessionNeedsRouteLink;
+
       if (needsUpdate) {
-        const updatedStops = currentStops.map(stop => {
-          const mapStop = driverMapsData.stops?.find(s => 
-            s.stop_order === stop.Stop_No || 
-            s.delivery_name === stop.Delivery_Name ||
-            (s.delivery_name && stop.Delivery_Name && s.delivery_name.toLowerCase() === stop.Delivery_Name.toLowerCase())
-          );
-          
-          if (mapStop && mapStop.map_link) {
-            return {
-              ...stop,
-              Map_Link: mapStop.map_link
-            };
-          }
-          return stop;
-        });
-        
+        let updatedStops = currentStops;
+        if (stopsNeedUpdate) {
+          updatedStops = currentStops.map(stop => {
+            const mapStop = driverMapsData.stops?.find(s =>
+              s.stop_order === stop.Stop_No ||
+              s.delivery_name === stop.Delivery_Name ||
+              (s.delivery_name && stop.Delivery_Name && s.delivery_name.toLowerCase() === stop.Delivery_Name.toLowerCase())
+            );
+            if (mapStop && mapStop.map_link) {
+              return { ...stop, Map_Link: mapStop.map_link };
+            }
+            return stop;
+          });
+        }
         setRoutes(prev => ({
           ...prev,
           sessions: {
             ...prev.sessions,
             [selectedSession]: {
               ...prev.sessions[selectedSession],
-              stops: updatedStops
+              stops: updatedStops,
+              ...(routeLink && {
+                map_link: routeLink || prev.sessions[selectedSession].map_link,
+                route_map_link: routeLink || prev.sessions[selectedSession].route_map_link
+              })
             }
           }
         }));
       }
     }
-  }, [driverMapsData, selectedSession, routes.sessions]); // Added routes.sessions to ensure it runs when routes change
+  }, [driverMapsData, selectedSession, routes.sessions]);
 
   // Update routes state when route overview data is loaded
   useEffect(() => {
@@ -752,7 +913,7 @@ const DeliveryExecutivePage = () => {
     setCompletionLocationError(null);
     
     if (!navigator.geolocation) {
-      const errorMsg = 'Geolocation is not supported by this browser. Please use a different browser or device.';
+      const errorMsg = 'Location is not supported on this device. Try another device or app.';
       setCompletionLocationError(errorMsg);
       setCompletionLocationLoading(false);
       showErrorToast(errorMsg);
@@ -771,7 +932,7 @@ const DeliveryExecutivePage = () => {
         setCompletionLocationError(null);
         
         // Show success message
-        showSuccessToast(`Location captured: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        showSuccessToast('Your location was captured successfully.');
         
         // Reverse geocoding to get address
         reverseGeocodeCompletion(latitude, longitude);
@@ -992,7 +1153,7 @@ const DeliveryExecutivePage = () => {
         null;
       
       if (!addressId) {
-        setImageUploadError('No address ID found for this delivery stop.');
+        setImageUploadError('We couldn\'t find this delivery point. Please try again or contact support.');
         toast.error(
           <div className="flex items-center gap-3">
             <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1000,7 +1161,7 @@ const DeliveryExecutivePage = () => {
             </svg>
             <div>
               <div className="font-semibold text-red-800 text-base">❌ Upload Failed</div>
-              <div className="text-sm text-red-700 mt-1">No address ID found for this delivery stop.</div>
+              <div className="text-sm text-red-700 mt-1">We couldn't find this delivery point. Please try again or contact support.</div>
             </div>
           </div>,
           {
@@ -1063,7 +1224,7 @@ const DeliveryExecutivePage = () => {
           </svg>
           <div>
             <div className="font-semibold text-green-800 text-base">✅ {fileCount} File{fileCount > 1 ? 's' : ''} Uploaded!</div>
-            <div className="text-sm text-green-700 mt-1">{fileCount} file{fileCount > 1 ? 's' : ''} uploaded successfully to external API.</div>
+            <div className="text-sm text-green-700 mt-1">Your photo{fileCount > 1 ? 's have' : ' has'} been uploaded successfully.</div>
           </div>
         </div>,
         {
@@ -1139,8 +1300,8 @@ const DeliveryExecutivePage = () => {
         (currentStop?._original?.addressId && currentStop._original.addressId !== '') ? currentStop._original.addressId :
         null;
       if (!addressId) {
-        setImageUploadError('No address ID found for this delivery stop.');
-        toast.error('No address ID found for this stop. Cannot upload pre-delivery photo.');
+        setImageUploadError('We couldn\'t find this delivery point. Please try again or contact support.');
+        toast.error('We couldn\'t find this delivery point. Please try again or contact support.');
         return;
       }
       const sessionUpper = selectedSession.toUpperCase();
@@ -1179,8 +1340,8 @@ const DeliveryExecutivePage = () => {
         { position: "top-right", autoClose: 4000, hideProgressBar: false, theme: "light" }
       );
     } catch (apiError) {
-      setImageUploadError(apiError.response?.data?.message || apiError.message || 'Failed to upload pre-delivery photo.');
-      toast.error(apiError.response?.data?.message || apiError.message || 'Failed to upload pre-delivery photo.');
+      setImageUploadError(apiError.response?.data?.message || apiError.message || 'We couldn\'t upload the photo. Please try again.');
+      toast.error(apiError.response?.data?.message || apiError.message || 'We couldn\'t upload the photo. Please try again.');
     }
   };
 
@@ -1231,7 +1392,7 @@ const DeliveryExecutivePage = () => {
               </svg>
               <div>
                 <div className="font-semibold text-green-800 text-base">✅ Location Updated Successfully!</div>
-                <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated using address ID.</div>
+                <div className="text-sm text-green-700 mt-1">Delivery location has been updated.</div>
               </div>
             </div>,
             {
@@ -1340,7 +1501,7 @@ const DeliveryExecutivePage = () => {
               </svg>
               <div>
                 <div className="font-semibold text-green-800 text-base">✅ Location Updated Successfully!</div>
-                <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated using order and menu item IDs.</div>
+                <div className="text-sm text-green-700 mt-1">Delivery location has been updated.</div>
               </div>
             </div>,
             {
@@ -1375,7 +1536,7 @@ const DeliveryExecutivePage = () => {
         console.error('Stop _original keys:', Object.keys(currentStop?._original || {}));
         console.error('Stop data:', JSON.stringify(currentStop, null, 2));
         
-        const errorMsg = `No delivery item ID found for this delivery stop. Stop: ${currentStop?.Delivery_Name || 'Unknown'}. Please check the route data.`;
+        const errorMsg = 'We couldn\'t update this delivery. Please try again or contact support.';
         setCompletionLocationError(errorMsg);
         showErrorToast(errorMsg);
         setCompletionLoading(false);
@@ -1417,7 +1578,7 @@ const DeliveryExecutivePage = () => {
             </svg>
             <div>
               <div className="font-semibold text-green-800 text-base">✅ Location Updated Successfully!</div>
-              <div className="text-sm text-green-700 mt-1">GPS coordinates have been updated for this delivery location.</div>
+              <div className="text-sm text-green-700 mt-1">Delivery location has been updated.</div>
             </div>
           </div>,
           {
@@ -1457,7 +1618,7 @@ const DeliveryExecutivePage = () => {
           <div>
             <div className="font-semibold text-red-800 text-base">❌ Update Failed</div>
             <div className="text-sm text-red-700 mt-1">
-              {apiError.response?.data?.message || apiError.message || 'Failed to update delivery address. Please try again.'}
+              {apiError.response?.data?.message || apiError.message || 'We couldn\'t save the delivery location. Please try again.'}
             </div>
           </div>
         </div>,
@@ -1781,7 +1942,7 @@ const DeliveryExecutivePage = () => {
   // Get current GPS location
   const getCurrentLocationForJourney = () => {
     if (!navigator.geolocation) {
-      showErrorToast('Geolocation is not supported by your browser');
+      showErrorToast('Location is not supported on this device. Try another device or app.');
       return;
     }
     
@@ -1878,7 +2039,7 @@ const DeliveryExecutivePage = () => {
     const routeId = getRouteIdFromRoutes();
     
     if (!routeId) {
-      showErrorToast('No route found. Please ensure you have an active route.');
+      showErrorToast('No route found. Please make sure you have an active route.');
       return;
     }
     
@@ -1897,14 +2058,11 @@ const DeliveryExecutivePage = () => {
         // Refresh routes to show updated order
         fetchRoutes();
       } else {
-        showErrorToast(result.message || 'Failed to reoptimize route');
+        showErrorToast(result.message || 'We couldn\'t update the route. Please try again.');
       }
     } catch (error) {
-      if (error.response?.data?.message) {
-        showErrorToast(error.response.data.message);
-      } else {
-        showErrorToast(error.message || 'Failed to reoptimize route. Please try again.');
-      }
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t update the route. Please try again.';
+      showErrorToast(msg);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getRouteIdFromRoutes, reoptimizeRouteMutation]);
@@ -1912,7 +2070,7 @@ const DeliveryExecutivePage = () => {
   // Check traffic and auto-reoptimize (wrapped in useCallback to avoid dependency issues)
   const handleCheckTraffic = useCallback(async () => {
     if (!activeRouteId) {
-      showErrorToast('No active journey. Please start a journey first.');
+      showErrorToast('Please start a trip first.');
       return;
     }
     
@@ -1956,9 +2114,9 @@ const DeliveryExecutivePage = () => {
         const resetTime = error.rateLimitInfo.resetTime 
           ? new Date(error.rateLimitInfo.resetTime).toLocaleTimeString()
           : 'later';
-        showErrorToast(`Rate limit exceeded. Please try again after ${resetTime}`);
+        showErrorToast(`Too many attempts. Please try again in a few minutes.`);
       } else if (error.isApiKeyError) {
-        showErrorToast('API key authentication failed. Please contact support.');
+        showErrorToast('Something went wrong on our side. Please contact support.');
       } else {
         // Silently handle other errors - don't interrupt user experience
         console.error('Traffic check error:', error);
@@ -1995,7 +2153,7 @@ const DeliveryExecutivePage = () => {
   // Handle Start Journey button click
   const handleStartJourneyClick = () => {
     if (!user?.id) {
-      showErrorToast('User ID not found. Please log in again.');
+      showErrorToast('Please sign in again.');
       return;
     }
     
@@ -2037,7 +2195,7 @@ const DeliveryExecutivePage = () => {
   // Handle Start Journey submission
   const handleStartJourney = async () => {
     if (!startJourneyData.driver_id) {
-      showErrorToast('Driver ID is required');
+      showErrorToast('Please select a driver.');
       return;
     }
     
@@ -2046,7 +2204,7 @@ const DeliveryExecutivePage = () => {
       const currentSessionRouteId = getRouteIdFromSelectedSession();
       
       if (!currentSessionRouteId) {
-        showErrorToast('Route ID not found for current session. Please ensure routes are loaded.');
+        showErrorToast('No route is available. Please make sure you have an active route.');
         return;
       }
       
@@ -2084,7 +2242,8 @@ const DeliveryExecutivePage = () => {
         }
       });
     } catch (error) {
-      showErrorToast(error.message || 'Failed to start journey');
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t start the trip. Please try again.';
+      showErrorToast(msg);
     }
   };
 
@@ -2192,7 +2351,7 @@ const DeliveryExecutivePage = () => {
       });
       canvas.toBlob((blob) => {
         if (!blob) {
-          showErrorToast('Failed to create image.');
+          showErrorToast('We couldn\'t save the image. Please try again.');
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -2214,7 +2373,7 @@ const DeliveryExecutivePage = () => {
   const handleCaptureStopsSection = useCallback(async () => {
     const node = deliveryStopsSectionRef.current;
     if (!node) {
-      showErrorToast('Nothing to capture. Open a route first.');
+      showErrorToast('Open a route first, then capture.');
       return;
     }
     setCapturingStopsSection(true);
@@ -2230,7 +2389,7 @@ const DeliveryExecutivePage = () => {
       const filename = `delivery-proof-${session}-all-stops-${timestamp}.png`;
       canvas.toBlob((blob) => {
         if (!blob) {
-          showErrorToast('Failed to create image.');
+          showErrorToast('We couldn\'t save the image. Please try again.');
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -2257,10 +2416,10 @@ const DeliveryExecutivePage = () => {
       if (stop != null) {
         handleCaptureProof(lastDeliveredStopIndex, stop);
       } else {
-        showErrorToast('Stop no longer visible. Expand the list or capture again after delivery.');
+        showErrorToast('This delivery is not in the list. Expand the list or capture again after completing the delivery.');
       }
     } else {
-      showErrorToast('Mark a stop as delivered first, then tap capture to save proof for that stop.');
+      showErrorToast('Mark this delivery as delivered first, then tap capture to save proof.');
     }
   }, [lastDeliveredStopIndex, stopsWithDeliveryNotes, showAllStops, handleCaptureProof]);
 
@@ -2282,7 +2441,7 @@ const DeliveryExecutivePage = () => {
   // Handle marking a stop as reached/delivered with status
   const handleStopReached = async (stop, stopIndex, status = 'Delivered') => {
     if (!user?.id) {
-      showErrorToast('User ID not found. Please log in again.');
+      showErrorToast('Please sign in again.');
       return;
     }
     
@@ -2292,7 +2451,7 @@ const DeliveryExecutivePage = () => {
     // Check if session is completed
     const isSessionCompleted = completedSessions.has(selectedSession.toLowerCase());
     if (isSessionCompleted) {
-      showErrorToast('This session is already completed. Cannot mark stops for completed sessions.');
+      showErrorToast('This round is already completed. You can\'t add more deliveries to it.');
       return;
     }
     
@@ -2438,11 +2597,11 @@ const DeliveryExecutivePage = () => {
       
       // Better error handling
       if (error.code === 1) {
-        showErrorToast('Location access denied. Please enable location permissions in your browser settings.');
+        showErrorToast('Please turn on location access in your device settings.');
       } else if (error.code === 2) {
-        showErrorToast('Location unavailable. Please check your GPS or network connection.');
+        showErrorToast('We couldn\'t get your location. Please check your GPS or internet connection.');
       } else if (error.code === 3 || error.message?.includes('timeout')) {
-        showErrorToast('Location request timed out. The stop was marked without location data.');
+        showErrorToast('We couldn\'t get your location in time. The delivery was marked without location.');
         // Try to proceed without location
         try {
           const retryRequestData = {
@@ -2495,16 +2654,12 @@ const DeliveryExecutivePage = () => {
             fetchRoutes();
           }, 100);
         } catch (retryError) {
-          if (retryError.response?.data?.message) {
-            showErrorToast(retryError.response.data.message);
-          } else {
-            showErrorToast(retryError.message || 'Failed to mark stop as reached');
-          }
+          const retryMsg = retryError.response?.data?.error || retryError.response?.data?.message || retryError.message || 'Failed to mark stop as reached';
+          showErrorToast(retryMsg);
         }
-      } else if (error.response?.data?.message) {
-        showErrorToast(error.response.data.message);
       } else {
-        showErrorToast(error.message || 'Failed to mark stop as reached');
+        const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t mark this delivery as reached. Please try again.';
+        showErrorToast(msg);
       }
     }
   };
@@ -2512,7 +2667,7 @@ const DeliveryExecutivePage = () => {
   // Handle ending the journey
   const handleEndJourney = async () => {
     if (!user?.id || !activeRouteId) {
-      showErrorToast('No active journey to end.');
+      showErrorToast('There\'s no active trip to end.');
       return;
     }
     
@@ -2538,7 +2693,8 @@ const DeliveryExecutivePage = () => {
       localStorage.removeItem('activeRouteId');
       fetchRoutes();
     } catch (error) {
-      showErrorToast(error.message || 'Failed to end journey');
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t end the trip. Please try again.';
+      showErrorToast(msg);
     }
   };
 
@@ -2559,7 +2715,7 @@ const DeliveryExecutivePage = () => {
   const handleEndSession = async () => {
     const sessionName = (endSessionData.sessionName || selectedSession || '').toLowerCase();
     if (!sessionName) {
-      showErrorToast('Session not found.');
+      showErrorToast('This round wasn\'t found. Please refresh and try again.');
       return;
     }
 
@@ -2583,7 +2739,7 @@ const DeliveryExecutivePage = () => {
     }
 
     if (!routeId) {
-      showErrorToast('Route ID not found. Please ensure you have an active route.');
+      showErrorToast('No route is available. Please make sure you have an active route.');
       return;
     }
 
@@ -2612,7 +2768,8 @@ const DeliveryExecutivePage = () => {
       localStorage.removeItem('activeRouteId');
       fetchRoutes();
     } catch (error) {
-      showErrorToast(error.message || 'Failed to complete session');
+      const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'We couldn\'t complete this round. Please try again.';
+      showErrorToast(msg);
     }
   };
 
@@ -2685,13 +2842,271 @@ const DeliveryExecutivePage = () => {
 
       {/* Main Content */}
       <div className="pt-16 sm:pt-18">
-        {/* Dashboard Content - Full Width */}
+        {/* CXO: fixed left sidebar (full-height) + main content */}
+        {isCXOUser ? (
+          <>
+            {/* Left sidebar — fixed to viewport left, all delivery executives */}
+            <aside
+              className="fixed left-0 top-16 bottom-0 z-30 w-64 flex flex-col border-r border-white/10 shadow-xl"
+              style={{ backgroundColor: '#2A3F54' }}
+              aria-label="Delivery executives"
+            >
+              <div className="px-4 py-4 border-b border-white/10 shrink-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">General</p>
+                <h2 className="mt-1 text-base font-semibold text-white">Delivery Executives</h2>
+              </div>
+              <div className="p-2 flex-1 overflow-y-auto">
+                {allDeliveryExecutivesLoading && sidebarExecutives.length === 0 ? (
+                  <div className="flex items-center gap-2 py-6 px-2 text-white/70">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+                    <span className="text-sm">Loading…</span>
+                  </div>
+                ) : sidebarExecutives.length === 0 ? (
+                  <p className="py-6 px-3 text-sm text-white/70">No delivery executives.</p>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {sidebarExecutives.map((ex) => {
+                      const isSelected = selectedExecutiveIdCXO === ex.id;
+                      const initials = (() => {
+                        if (!ex.name || typeof ex.name !== 'string') return '?';
+                        const parts = ex.name.trim().split(/\s+/).filter(Boolean);
+                        if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                        return (ex.name[0] || '?').toUpperCase();
+                      })();
+                      return (
+                        <li key={ex.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedExecutiveIdCXO(null);
+                                setRouteMapFilters((prev) => ({ ...prev, driver_name: '', date: '', session: '', route_id: '' }));
+                              } else {
+                                setSelectedExecutiveIdCXO(ex.id);
+                                setRouteMapFilters((prev) => ({ ...prev, driver_name: ex.name, date: '', session: '', route_id: '' }));
+                              }
+                            }}
+                            className={`w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                              isSelected ? 'bg-teal-500/90 text-white' : 'text-white/90 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-semibold" aria-hidden>
+                              {initials}
+                            </span>
+                            <span className="truncate flex-1">{ex.name}</span>
+                            {activeExecutiveIds.has(ex.id) && (
+                              <span className="shrink-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white/30" title="Active now" aria-hidden />
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+              <div className="p-3 border-t border-white/10 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRouteMapFilters({ date: '', session: '', route_id: '', driver_name: '' });
+                    setAppliedRouteMapFilters({ date: '', session: '', route_id: '', driver_name: '' });
+                    setSelectedExecutiveIdCXO(null);
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-teal-400/80 bg-teal-500/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-500/40 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-[#2A3F54] transition-colors"
+                >
+                  See performance
+                </button>
+              </div>
+            </aside>
+            <main className="min-h-screen flex-1 pl-64">
+              <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto space-y-5">
+                    {/* No executive selected: all-executives performance */}
+                    {!routeMapFilters.driver_name ? (
+                      <ExecutivePerformanceView enabled={isCXOUser} />
+                    ) : (
+                      /* Executive selected: tabs — Performance | Routes */
+                      <div className="space-y-0">
+                        <div className="border-b border-gray-200">
+                          <nav className="flex gap-0" aria-label="Tabs">
+                            <button
+                              type="button"
+                              onClick={() => setExecutiveViewTab('performance')}
+                              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                executiveViewTab === 'performance'
+                                  ? 'border-teal-600 text-teal-600'
+                                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                              }`}
+                            >
+                              Performance
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setExecutiveViewTab('routes')}
+                              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                executiveViewTab === 'routes'
+                                  ? 'border-teal-600 text-teal-600'
+                                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                              }`}
+                            >
+                              Routes
+                            </button>
+                          </nav>
+                        </div>
+                        <div className="pt-5">
+                          {executiveViewTab === 'performance' ? (
+                            <ExecutivePerformanceSingle
+                              data={executivePerformanceSingleData}
+                              isLoading={executivePerformanceSingleLoading}
+                              error={executivePerformanceSingleError}
+                              refetch={refetchExecutivePerformanceSingle}
+                              driverName={routeMapFilters.driver_name}
+                            />
+                          ) : (
+                            <div className="space-y-5">
+                              {/* Filters — inside Routes tab */}
+                              <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                                <div className="px-5 py-4 border-b border-gray-200">
+                                  <h2 className="text-base font-semibold text-gray-900">Filters</h2>
+                                  <p className="mt-1 text-xs text-gray-500">Choose date and session below, then click Go to view route details.</p>
+                                </div>
+                                <div className="p-5">
+                                  <div className="flex flex-wrap items-end gap-4">
+                                    <div className="min-w-[140px]">
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                                      {(() => {
+                                        const availableDates = selectedDriverAvailability?.available_dates ?? [];
+                                        const hasDriver = !!routeMapFilters.driver_name;
+                                        if (hasDriver && availabilityLoading) {
+                                          return (
+                                            <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                                              Loading dates…
+                                            </div>
+                                          );
+                                        }
+                                        if (hasDriver && availableDates.length > 0) {
+                                          return (
+                                            <select
+                                              value={routeMapFilters.date || ''}
+                                              onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, date: e.target.value, session: '' }))}
+                                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                            >
+                                              <option value="">Select date</option>
+                                              {availableDates.map((d) => (
+                                                <option key={d} value={d}>{d}</option>
+                                              ))}
+                                            </select>
+                                          );
+                                        }
+                                        return (
+                                          <input
+                                            type="date"
+                                            value={routeMapFilters.date || ''}
+                                            onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, date: e.target.value, session: '' }))}
+                                            disabled={!hasDriver}
+                                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                                          />
+                                        );
+                                      })()}
+                                    </div>
+                                    <div className="min-w-[140px]">
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Session</label>
+                                      {(() => {
+                                        const sessionsForDate = selectedDriverAvailability?.available_sessions?.[routeMapFilters.date];
+                                        const availableSessions = Array.isArray(sessionsForDate) ? sessionsForDate : (sessionsForDate && typeof sessionsForDate === 'object' ? Object.keys(sessionsForDate) : []);
+                                        const hasDate = !!routeMapFilters.date;
+                                        if (hasDate && availableSessions.length > 0) {
+                                          return (
+                                            <select
+                                              value={routeMapFilters.session || ''}
+                                              onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, session: e.target.value }))}
+                                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                            >
+                                              <option value="">All Sessions</option>
+                                              {availableSessions.map((s) => (
+                                                <option key={s} value={s}>{s}</option>
+                                              ))}
+                                            </select>
+                                          );
+                                        }
+                                        return (
+                                          <select
+                                            value={routeMapFilters.session || ''}
+                                            onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, session: e.target.value }))}
+                                            disabled={!hasDate}
+                                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                                          >
+                                            <option value="">{hasDate ? 'All Sessions' : 'Select date first'}</option>
+                                            <option value="BREAKFAST">Breakfast</option>
+                                            <option value="LUNCH">Lunch</option>
+                                            <option value="DINNER">Dinner</option>
+                                          </select>
+                                        );
+                                      })()}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setAppliedRouteMapFilters({ ...routeMapFilters })}
+                                      disabled={!routeMapFilters.driver_name || !routeMapFilters.date}
+                                      className="inline-flex items-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      Go
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { refetchAvailability(); refetchRouteMap(); refetchExecutivePerformanceSingle(); }}
+                                      className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    >
+                                      Refresh
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setRouteMapFilters({ date: '', session: '', route_id: '', driver_name: '' });
+                                        setAppliedRouteMapFilters({ date: '', session: '', route_id: '', driver_name: '' });
+                                        setSelectedExecutiveIdCXO(null);
+                                      }}
+                                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    >
+                                      Clear
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              {!appliedRouteMapFilters.date ? (
+                                <div className="rounded-lg border border-gray-200 bg-white py-12 text-center shadow-sm">
+                                  <p className="text-sm font-medium text-gray-500">Select date and session above, then click Go to view route details.</p>
+                                </div>
+                              ) : (
+                                <RecentRoutesView
+                                  allExecutives={allExecutives}
+                                  allExecutivesLoading={allDeliveryExecutivesLoading}
+                                  routeMapData={routeMapData}
+                                  routeMapLoading={routeMapLoading}
+                                  routeMapError={routeMapError}
+                                  routeMapFilters={routeMapFilters}
+                                  setRouteMapFilters={setRouteMapFilters}
+                                  appliedRouteMapFilters={appliedRouteMapFilters}
+                                  refetchRouteMap={refetchRouteMap}
+                                  hideSidebar
+                                  selectedExecutiveId={selectedExecutiveIdCXO}
+                                  setSelectedExecutiveId={setSelectedExecutiveIdCXO}
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+              </div>
+            </main>
+          </>
+        ) : (
+        <>
         <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto">
 
-
-
-          {/* Routes Tab Content */}
-          {activeTab === 'routes' && (
+          {/* My Routes - Delivery Executive only (hidden for CXO) */}
+          {!isCXOUser && activeTab === 'routes' && (
             <div className="space-y-6">
               {/* Welcome Header - Standard Style */}
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 sm:p-8 text-white shadow-lg">
@@ -3047,22 +3462,7 @@ const DeliveryExecutivePage = () => {
                                       </a>
                                     )}
                                     
-                                    {/* Map View Link */}
-                                    {routes.sessions[selectedSession].map_view_link && (
-                                      <a
-                                        href={routes.sessions[selectedSession].map_view_link}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-1 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-semibold"
-                                        title="Overview map showing all stops"
-                                      >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                        View Overview Map
-                                      </a>
-                                    )}
+                                    {/* View Overview Map – disabled (not used) */}
                                   </div>
                                 )}
                               </div>
@@ -3396,6 +3796,8 @@ const DeliveryExecutivePage = () => {
                                           ? 'bg-yellow-50 border-yellow-300'
                                           : deliveryStatus[index].status === 'Confirmed'
                                           ? 'bg-blue-50 border-blue-300'
+                                          : deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress'
+                                          ? 'bg-amber-50 border-amber-300'
                                           : deliveryStatus[index].status === 'Cancelled'
                                           ? 'bg-red-50 border-red-300'
                                           : 'bg-gray-50 border-gray-200'
@@ -3418,6 +3820,8 @@ const DeliveryExecutivePage = () => {
                                                   ? 'bg-yellow-500'
                                                   : deliveryStatus[index].status === 'Confirmed'
                                                   ? 'bg-blue-500'
+                                                  : deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress'
+                                                  ? 'bg-amber-500'
                                                   : deliveryStatus[index].status === 'Cancelled'
                                                   ? 'bg-red-500'
                                                   : 'bg-gray-500'
@@ -3434,6 +3838,10 @@ const DeliveryExecutivePage = () => {
                                                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                   </svg>
+                                                ) : deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress' ? (
+                                                  <svg className="w-6 h-6 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                  </svg>
                                                 ) : deliveryStatus[index].status === 'Cancelled' ? (
                                                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3448,6 +3856,8 @@ const DeliveryExecutivePage = () => {
                                                     ? 'text-yellow-700'
                                                     : deliveryStatus[index].status === 'Confirmed'
                                                     ? 'text-blue-700'
+                                                    : deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress'
+                                                    ? 'text-amber-700'
                                                     : deliveryStatus[index].status === 'Cancelled'
                                                     ? 'text-red-700'
                                                     : 'text-gray-700'
@@ -3455,6 +3865,7 @@ const DeliveryExecutivePage = () => {
                                                   {deliveryStatus[index].status === 'Delivered' ? '✅ Delivered' :
                                                    deliveryStatus[index].status === 'Pending' ? '⏳ Pending' :
                                                    deliveryStatus[index].status === 'Confirmed' ? '✅ Confirmed' :
+                                                   deliveryStatus[index].status === 'In Progress' || deliveryStatus[index].status === 'In_Progress' ? '🚀 In Progress' :
                                                    deliveryStatus[index].status === 'Cancelled' ? '❌ Cancelled' :
                                                    deliveryStatus[index].status}
                                                 </div>
@@ -3856,28 +4267,7 @@ const DeliveryExecutivePage = () => {
 
             </div>
           )}
-          {routes.sessions && routes.sessions[selectedSession] && lastDeliveredStopIndex != null && basePath !== '/jlg' && (
-            <button
-              type="button"
-              onClick={handleCaptureProofClick}
-              disabled={capturingProofIndex === lastDeliveredStopIndex}
-              className="fixed top-20 right-4 z-30 flex h-12 w-12 min-h-[48px] min-w-[48px] items-center justify-center rounded-xl border-2 border-gray-200 bg-white shadow-lg text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 active:scale-95 transition-all touch-manipulation"
-              title="Capture last delivered stop as proof"
-              aria-label="Capture proof"
-            >
-              {capturingProofIndex === lastDeliveredStopIndex ? (
-                <div className="h-6 w-6 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" />
-              ) : (
-                <svg className="h-6 w-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13v4a2 2 0 01-2 2H7a2 2 0 01-2-2v-4M14 9v4" />
-                </svg>
-              )}
-            </button>
-          )}
         </div>
-      </div>
 
       {/* Logout Confirmation Modal - Swiggy Style */}
       {showLogoutConfirm && (
@@ -4059,6 +4449,7 @@ const DeliveryExecutivePage = () => {
                   disabled={gettingLocation || stopReachedMutation.isPending}
                   className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed resize-vertical"
                 />
+                <TextCorrectionSuggestion correcting={correctionComments.correcting} suggestion={correctionComments.suggestion} onApply={correctionComments.applySuggestion} />
                 {deliveryComments.length > MAX_COMMENTS_LENGTH * 0.9 && (
                   <p className="text-orange-500 text-xs mt-1">
                     {MAX_COMMENTS_LENGTH - deliveryComments.length} characters remaining
@@ -4221,6 +4612,12 @@ const DeliveryExecutivePage = () => {
           </div>
         </div>
       )}
+      </>
+  )}
+      {isCXOUser && companyId && user?.id && (
+        <AssistantChat companyId={companyId} userId={user.id} />
+      )}
+      </div>
     </div>
   );
 };

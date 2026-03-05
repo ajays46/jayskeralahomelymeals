@@ -10,7 +10,7 @@ import HomePage from './pages/HomePage';
 import ProtectedRoute from './protectRoute/Protect';
 import AdminPage from './pages/admin/AdminPage';
 import SellerPage from './pages/SellerPage';
-import DeliveryManagerPage from './pages/DeliveryManagerPage';
+import DeliveryManagerRoute from './pages/DeliveryManagerRoute';
 import RouteComparisonPage from './pages/RouteComparisonPage';
 import RouteViewPage from './pages/RouteViewPage';
 import DeliveryExecutivePage from './pages/DeliveryExecutivePage';
@@ -186,6 +186,12 @@ const App = () => {
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
           <Route path="/" element={<Navigate to={getCompanyBasePathFallback()} replace />} />
 
+          {/* Customer-facing routes at root (not under company path) */}
+          <Route path="/customer-portal" element={<CustomerPortalPage />} />
+          <Route path="/customer-password-setup" element={<CustomerPasswordSetupPage />} />
+          <Route path="/customer-login" element={<CustomerLoginPage />} />
+          <Route path="/customer-orders" element={<CustomerOrdersPage />} />
+
           {/* Multi-tenant: /:companyPath (e.g. /jkhm, /jlg) - TenantProvider resolves company by name */}
           <Route path="/:companyPath" element={<TenantProviderWrapper />}>
             <Route index element={<HomePage />} />
@@ -213,7 +219,7 @@ const App = () => {
               <Route path="customer-orders" element={<CustomerOrdersPage />} />
               <Route path="edit-customer" element={<EditCustomerPage />} />
               <Route path="delivery-items/:orderId" element={<DeliveryItemsPage />} />
-              <Route path="delivery-manager" element={<DeliveryManagerPage />} />
+              <Route path="delivery-manager" element={<DeliveryManagerRoute />} />
               <Route path="route-comparison" element={<RouteComparisonPage />} />
               <Route path="route-view" element={<RouteViewPage />} />
               <Route path="delivery-executive" element={<DeliveryExecutivePage />} />
@@ -222,14 +228,9 @@ const App = () => {
               <Route path="upload-receipt/:paymentId" element={<UploadReceiptPage />} />
               <Route path="role-test" element={<RoleTestPage />} />
             </Route>
+
+            <Route path="*" element={<NotFound />} />
           </Route>
-
-          <Route path="/customer-portal" element={<CustomerPortalPage />} />
-          <Route path="/customer-password-setup" element={<CustomerPasswordSetupPage />} />
-          <Route path="/customer-login" element={<CustomerLoginPage />} />
-          <Route path="/customer-orders" element={<CustomerOrdersPage />} />
-
-          <Route path="*" element={<NotFound />} />
         </Routes>
         
         {/* Footer - Conditionally rendered (hidden on NotFound page) */}
