@@ -95,6 +95,13 @@ export const isDeliveryManager = (roles) => hasRole(roles, 'DELIVERY_MANAGER');
 export const isDeliveryExecutive = (roles) => hasRole(roles, 'DELIVERY_EXECUTIVE');
 
 /**
+ * Check if user is delivery partner (MaXHub Logistics role)
+ * @param {string|Array} roles - Comma-separated role string or array
+ * @returns {boolean} - True if user is delivery partner
+ */
+export const isDeliveryPartner = (roles) => hasRole(roles, 'DELIVERY_PARTNER');
+
+/**
  * Check if user is regular user
  * @param {string|Array} roles - Comma-separated role string or array
  * @returns {boolean} - True if user is regular user
@@ -135,6 +142,7 @@ export const getRoleDisplayName = (role) => {
     'SELLER': 'Seller',
     'DELIVERY_MANAGER': 'Delivery Manager',
     'DELIVERY_EXECUTIVE': 'Delivery Executive',
+    'DELIVERY_PARTNER': 'Delivery Partner',
     'USER': 'User'
   };
   return roleMap[role] || role;
@@ -163,6 +171,7 @@ export const getRoleColor = (role) => {
     'SELLER': 'bg-blue-100 text-blue-800 border-blue-200',
     'DELIVERY_MANAGER': 'bg-purple-100 text-purple-800 border-purple-200',
     'DELIVERY_EXECUTIVE': 'bg-green-100 text-green-800 border-green-200',
+    'DELIVERY_PARTNER': 'bg-amber-100 text-amber-800 border-amber-200',
     'USER': 'bg-gray-100 text-gray-800 border-gray-200'
   };
   return roleColors[role?.toUpperCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
@@ -181,6 +190,7 @@ export const getRoleIcon = (role) => {
     'SELLER': '🏪',
     'DELIVERY_MANAGER': '🚚',
     'DELIVERY_EXECUTIVE': '📦',
+    'DELIVERY_PARTNER': '📦',
     'USER': '👤'
   };
   return roleIcons[role?.toUpperCase()] || '👤';

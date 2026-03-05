@@ -1,12 +1,18 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ConfigProvider } from 'antd';
 
 import Terms from './components/Terms';
 // import RegisterPage from './pages/RegisterPage';
 // import LoginPage from './pages/LoginPage';
 // import GustPage from './pages/GustPage';
 import HomePage from './pages/HomePage';
+import MLHomePage from './ml/pages/MLHomePage';
+import MLDeliveryPartnerDashboard from './ml/pages/MLDeliveryPartnerDashboard';
+import MLCXODashboard from './ml/pages/MLCXODashboard';
+import MLAddTripPage from './ml/pages/MLAddTripPage';
+import MLRouteGuard from './ml/components/MLRouteGuard';
 import ProtectedRoute from './protectRoute/Protect';
 import AdminPage from './pages/admin/AdminPage';
 import SellerPage from './pages/SellerPage';
@@ -49,6 +55,13 @@ import useAuthStore from './stores/Zustand.store';
 import api from './api/axios';
 import { TenantProvider, useTenant } from './context/TenantContext';
 import { getCompanyBasePathFallback } from './utils/companyPaths';
+
+/** Renders MLHomePage for /ml, else HomePage (food companies). */
+function TenantAwareHome() {
+  const tenant = useTenant();
+  const isMl = tenant?.companyPath?.toLowerCase() === 'ml';
+  return isMl ? <MLHomePage /> : <HomePage />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -173,8 +186,9 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        {/* Role Selection Sidebar */}
+      <ConfigProvider getPopupContainer={() => document.body}>
+        <Router>
+          {/* Role Selection Sidebar */}
         <RoleSelectionSidebar 
           isOpen={showRoleSelector}
           onClose={handleCloseRoleSelector}
@@ -194,12 +208,15 @@ const App = () => {
 
           {/* Multi-tenant: /:companyPath (e.g. /jkhm, /jlg) - TenantProvider resolves company by name */}
           <Route path="/:companyPath" element={<TenantProviderWrapper />}>
-            <Route index element={<HomePage />} />
+            <Route index element={<TenantAwareHome />} />
             <Route path="menu" element={<MenuPage />} />
             <Route path="place-order" element={<BookingWizardPage />} />
             <Route path="process-payment" element={<PaymentWizardPage />} />
 
             <Route element={<ProtectedRoute />}>
+              <Route path="dashboard" element={<MLRouteGuard><MLDeliveryPartnerDashboard /></MLRouteGuard>} />
+              <Route path="trips/add" element={<MLRouteGuard><MLAddTripPage /></MLRouteGuard>} />
+              <Route path="cxo-dashboard" element={<MLRouteGuard><MLCXODashboard /></MLRouteGuard>} />
               <Route path="management-dashboard" element={<ManagementDashboardPage />} />
               <Route path="financial-dashboard" element={<FinancialDashboardPage />} />
               <Route path="delivery-dashboard" element={<DeliveryDashboardPage />} />
@@ -236,6 +253,7 @@ const App = () => {
         {/* Footer - Conditionally rendered (hidden on NotFound page) */}
         <ConditionalFooter />
       </Router>
+      </ConfigProvider>
     </QueryClientProvider>
   );
 };

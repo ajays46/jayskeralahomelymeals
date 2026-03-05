@@ -42,6 +42,8 @@ model User {
   orders            Order[]
   deliveryExecutive DeliveryExecutive?
   customerPortalTokens CustomerPortalToken[]
+  mlTripAddresses     MlTripAddress[]
+  mlTrips             MlTrip[]
 
   @@map("users")
 }
@@ -89,6 +91,8 @@ model Company {
   productCategories ProductCategory[]
   menuCategories    MenuCategory[]
   menuItemPrices    MenuItemPrice[]
+  menuItems         MenuItem[]
+  mlTrips           MlTrip[]
 
   @@map("company")
 }
@@ -138,14 +142,18 @@ model ProductQuantity {
 model MenuItem {
   id            String          @id @default(uuid()) @db.VarChar(36)
   name          String          @db.VarChar(255)
-  menuId        String          @map("menu_id") @db.VarChar(36)
+  menuId        String?         @map("menu_id") @db.VarChar(36)
+  companyId     String?         @map("company_id") @db.VarChar(36)
+  platformType  String?         @map("platform_type") @db.VarChar(50)
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")
   productId     String?         @map("product_id") @db.VarChar(36)
-  menu          Menu            @relation(fields: [menuId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menu          Menu?           @relation(fields: [menuId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  company       Company?        @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   product       Product?        @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   prices        MenuItemPrice[]
   deliveryItems DeliveryItem[]
+  mlTrip        MlTrip?
 
   @@map("menu_items")
 }
@@ -245,6 +253,44 @@ model DeliveryItem {
   deliveryAddress  Address                           @relation(fields: [addressId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("delivery_items")
+}
+
+model MlTripAddress {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  userId        String    @map("user_id") @db.VarChar(36)
+  street        String    @db.VarChar(255)
+  housename     String    @db.VarChar(255)
+  city          String    @db.VarChar(255)
+  pincode       Int
+  geoLocation   String?   @map("geo_location") @db.VarChar(255)
+  googleMapsUrl String?   @map("google_maps_url") @db.VarChar(500)
+  addressType   String?   @map("address_type") @db.VarChar(20)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tripsAsPickup   MlTrip[] @relation("PickupAddress")
+  tripsAsDelivery MlTrip[] @relation("DeliveryAddress")
+  @@map("ml_trip_addresses")
+}
+
+model MlTrip {
+  id                  String         @id @default(uuid()) @db.VarChar(36)
+  companyId           String         @map("company_id") @db.VarChar(36)
+  userId              String         @map("user_id") @db.VarChar(36)
+  menuItemId          String?        @unique @map("menu_item_id") @db.VarChar(36)
+  platform            String         @db.VarChar(50)
+  orderAmount         Decimal        @map("order_amount") @db.Decimal(10, 2)
+  partnerPayment      Decimal        @map("partner_payment") @db.Decimal(10, 2)
+  pickupAddressId     String?        @map("pickup_address_id") @db.VarChar(36)
+  deliveryAddressId   String?        @map("delivery_address_id") @db.VarChar(36)
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  menuItem            MenuItem?     @relation(fields: [menuItemId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  pickupAddress       MlTripAddress? @relation("PickupAddress", fields: [pickupAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  deliveryAddress     MlTripAddress? @relation("DeliveryAddress", fields: [deliveryAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  @@map("ml_trips")
 }
 
 model Contact {
@@ -891,6 +937,7 @@ enum user_roles_name {
   USER
   DELIVERY_EXECUTIVE
   DELIVERY_MANAGER
+  DELIVERY_PARTNER
   CEO
   CFO
 }

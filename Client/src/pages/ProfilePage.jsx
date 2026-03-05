@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCompanyBasePath } from '../context/TenantContext';
+import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import Navbar from '../components/Navbar';
+import MLNavbar from '../ml/components/MLNavbar';
 import ChangePassword from '../components/ChangePassword';
 import { useLogout } from '../hooks/userHooks/useLogin';
-import { 
-  MdPerson, 
-  MdEmail, 
-  MdPhone, 
-  MdLocationOn, 
-  MdEdit, 
-  MdSave, 
+import { Modal } from 'antd';
+import {
+  MdPerson,
+  MdEmail,
+  MdPhone,
+  MdLocationOn,
+  MdEdit,
+  MdSave,
   MdCancel,
   MdHistory,
   MdFavorite,
@@ -23,11 +25,12 @@ import {
   MdAccessTime,
   MdNotifications
 } from 'react-icons/md';
-import { ExclamationCircleOutlined } from '@ant-design/icons';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
   const basePath = useCompanyBasePath();
+  const tenant = useTenant();
+  const isMl = tenant?.companyPath?.toLowerCase() === 'ml';
   const user = useAuthStore((state) => state.user);
   const logoutMutation = useLogout();
   const [activeTab, setActiveTab] = useState('profile');
@@ -80,16 +83,10 @@ const ProfilePage = () => {
     }
   ];
 
-  const handleLogout = () => {
-    setShowLogoutConfirm(true);
-  };
+  const handleLogout = () => setShowLogoutConfirm(true);
 
   const confirmLogout = () => {
     logoutMutation.mutate();
-    setShowLogoutConfirm(false);
-  };
-
-  const cancelLogout = () => {
     setShowLogoutConfirm(false);
   };
 
@@ -335,21 +332,23 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <header>
-        <div className='bg-[url("/banner_one.jpg")] bg-cover bg-center h-40 lg:h-[250px] flex items-center justify-center'>
-          <Navbar />
+        <div className={`flex items-center justify-center ${isMl ? 'bg-[#2d2d2d] min-h-[5rem]' : 'bg-[url("/banner_one.jpg")] bg-cover bg-center h-40 lg:h-[250px]'}`}>
+          {isMl ? <MLNavbar onSignInClick={() => {}} /> : <Navbar />}
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(basePath)}
-          className="flex items-center gap-2 text-[#FE8C00] hover:text-orange-600 mb-6 transition"
-        >
-          <MdArrowBack className="text-xl" />
-          <span className="hidden sm:inline">Back to Home</span>
-          <span className="sm:hidden">Back</span>
-        </button>
+        {/* Back Button - hidden on ML company dashboards */}
+        {!isMl && (
+          <button
+            onClick={() => navigate(basePath)}
+            className="flex items-center gap-2 text-[#FE8C00] hover:text-orange-600 mb-6 transition"
+          >
+            <MdArrowBack className="text-xl" />
+            <span className="hidden sm:inline">Back to Home</span>
+            <span className="sm:hidden">Back</span>
+          </button>
+        )}
 
         {/* Profile Header */}
         <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
@@ -402,37 +401,19 @@ const ProfilePage = () => {
         onClose={() => setShowChangePassword(false)} 
       />
 
-      {/* Custom Logout Confirmation Modal */}
-      {showLogoutConfirm && (
-        <div 
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
-          style={{ minHeight: '100vh' }}
-        >
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-11/12 mx-4 my-8 relative">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <ExclamationCircleOutlined className="text-red-600 text-xl" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Confirm Logout</h3>
-            </div>
-            <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
-            <div className="flex gap-3">
-              <button
-                onClick={cancelLogout}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmLogout}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Yes, Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        title="Confirm Logout"
+        open={showLogoutConfirm}
+        onOk={confirmLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+        okText="Yes, Logout"
+        cancelText="Cancel"
+        okType="danger"
+        centered
+        maskClosable={false}
+      >
+        <p className="pt-2">Are you sure you want to logout? You will need to sign in again to access your account.</p>
+      </Modal>
     </div>
   );
 };

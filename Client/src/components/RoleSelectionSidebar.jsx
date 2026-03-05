@@ -68,6 +68,13 @@ const roleConfig = {
     color: 'bg-teal-500',
     route: '/jkhm/delivery-executive'
   },
+  'DELIVERY_PARTNER': {
+    icon: TruckIcon,
+    title: 'Delivery Partner',
+    description: 'MaXHub Logistics delivery partner dashboard',
+    color: 'bg-amber-500',
+    route: '/ml/dashboard'
+  },
   'USER': {
     icon: UserIcon,
     title: 'User Dashboard',
@@ -77,8 +84,8 @@ const roleConfig = {
   }
 };
 
-// Display order: CEO/CFO commented out; then ADMIN, DM, Seller, DE, USER
-const ROLE_DISPLAY_ORDER = ['ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'USER'];
+// Display order: CEO/CFO commented out; then ADMIN, DM, Seller, DE, DELIVERY_PARTNER, USER
+const ROLE_DISPLAY_ORDER = ['ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'DELIVERY_PARTNER', 'USER'];
 
 const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const navigate = useNavigate();

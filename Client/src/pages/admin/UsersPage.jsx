@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCompanyBasePath } from '../../context/TenantContext';
+import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import AdminSlide from '../../components/AdminSlide';
 import Pagination from '../../components/Pagination';
 import { FiArrowLeft, FiUser, FiMail, FiPhone, FiLock, FiPlus, FiHome, FiCheckCircle, FiXCircle, FiSearch, FiFilter } from 'react-icons/fi';
@@ -40,7 +40,14 @@ const UsersPage = () => {
   const companies = companyList?.data || companyList || [];
 
   const { data: rolesData, isLoading: loadingRoles } = useUserRoles();
-  const availableRoles = rolesData?.data || [];
+  const tenant = useTenant();
+  const isMlCompany = tenant?.companyPath?.toLowerCase() === 'ml';
+  // DELIVERY_PARTNER only for MaXHub Logistics (ML) company; hide for jkhm, jlg, etc.
+  const availableRoles = useMemo(() => {
+    const all = rolesData?.data || [];
+    if (isMlCompany) return all;
+    return all.filter((r) => (r.value || r).toString().toUpperCase() !== 'DELIVERY_PARTNER');
+  }, [rolesData?.data, isMlCompany]);
 
   // Fetch users from backend
   const { data: usersData, isLoading: loadingUsers, refetch: fetchUsers, error: usersError } = useAdminUsers();

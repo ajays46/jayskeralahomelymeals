@@ -78,6 +78,19 @@ export const tenantThemes = {
     /** JLG: hide rates/pricing section and bottom CTA on home */
     hideRatesAndCta: true,
   },
+  ml: {
+    primaryColor: '#E85D04',
+    accentColor: '#F48C06',
+    logoUrl: '/Maxhub.jpeg',
+    brandName: 'MaXHub Logistics',
+    navBg: 'bg-[#2d2d2d]/90',
+    heroTitle: 'MaXHub',
+    heroSubtitle: 'Logistics',
+    heroDescription: 'Logistics platform for delivery partners and operations.',
+    homeGradient: 'from-orange-50 via-white to-orange-50',
+    /** ML: logistics company - use minimal home, no food/menu content */
+    isLogisticsCompany: true,
+  },
 };
 
 const DEFAULT_THEME = {

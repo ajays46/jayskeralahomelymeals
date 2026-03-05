@@ -27,6 +27,7 @@ import assistantRoutes from './routes/assistant.routes.js';
 import driverMapsRoutes from './routes/driverMaps.routes.js';
 import tenantRoutes from './routes/tenant.routes.js';
 import textRoutes from './routes/text.routes.js';
+import mlTripRoutes from './routes/mlTrip.routes.js';
 import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
 import logRotationManager from './utils/logRotationManager.js';
 import { logInfo, logError, LOG_CATEGORIES } from './utils/criticalLogger.js';
@@ -151,6 +152,7 @@ app.use('/api/assistant', assistantRoutes);
 app.use('/api/drivers', driverMapsRoutes);
 app.use('/api', textRoutes);
 app.use('/api', tenantRoutes);
+app.use('/api/ml-trips', mlTripRoutes);
 
 // Error logging middleware (should be after routes but before error handler)
 app.use(errorLogger);
