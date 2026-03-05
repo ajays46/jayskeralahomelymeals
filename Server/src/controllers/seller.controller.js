@@ -241,9 +241,11 @@ export const deleteUserAddressController = async (req, res, next) => {
 
 // Get user orders for a specific user created by the seller
 export const getUserOrdersController = async (req, res, next) => {
+  let userId;
+  let sellerId;
   try {
-    const sellerId = req.user.userId; // Get seller ID from JWT token
-    const { userId } = req.params; // Get user ID from URL params
+    sellerId = req.user.userId; // Get seller ID from JWT token
+    userId = req.params.userId; // Get user ID from URL params
 
     console.log('userId', userId);
     console.log('sellerId', sellerId);
