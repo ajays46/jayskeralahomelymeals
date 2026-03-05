@@ -273,6 +273,11 @@ model MlTripAddress {
   @@map("ml_trip_addresses")
 }
 
+enum MlTripStatus {
+  PENDING
+  DELIVERED
+}
+
 model MlTrip {
   id                  String         @id @default(uuid()) @db.VarChar(36)
   companyId           String         @map("company_id") @db.VarChar(36)
@@ -281,6 +286,7 @@ model MlTrip {
   platform            String         @db.VarChar(50)
   orderAmount         Decimal        @map("order_amount") @db.Decimal(10, 2)
   partnerPayment      Decimal        @map("partner_payment") @db.Decimal(10, 2)
+  status              MlTripStatus   @default(PENDING)
   pickupAddressId     String?        @map("pickup_address_id") @db.VarChar(36)
   deliveryAddressId   String?        @map("delivery_address_id") @db.VarChar(36)
   createdAt           DateTime       @default(now()) @map("created_at")

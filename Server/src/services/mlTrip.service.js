@@ -99,6 +99,7 @@ export const addTrips = async (companyId, userId, trips) => {
         platform,
         orderAmount,
         partnerPayment: partnerPaymentVal,
+        status: 'PENDING',
         pickupAddressId,
         deliveryAddressId,
       },
