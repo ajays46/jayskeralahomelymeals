@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { MdPerson, MdDashboard, MdLogout, MdClose, MdMenu, MdEmail, MdPhone, MdAdminPanelSettings, MdAddCircle, MdList } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../../stores/Zustand.store';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
@@ -15,6 +15,7 @@ import { Modal } from 'antd';
 import { isDeliveryPartner, isCEO, isCFO, isAdmin } from '../../utils/roleUtils';
 
 const MLNavbar = ({ onSignInClick }) => {
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -31,6 +32,11 @@ const MLNavbar = ({ onSignInClick }) => {
   const userIsDeliveryPartner = isDeliveryPartner(roles);
   const userIsCXO = isCEO(roles) || isCFO(roles);
   const userIsAdmin = isAdmin(roles);
+
+  const isActive = (path) => {
+    if (!path || path === base) return location.pathname === base || location.pathname === `${base}/`;
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -57,23 +63,31 @@ const MLNavbar = ({ onSignInClick }) => {
   };
 
   return (
+    <>
     <nav
-      className={`tenant-nav ${theme.navBg || 'bg-[#2d2d2d]/90'} shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`}
-      style={{ ['--tenant-accent']: accent }}
+      className={`tenant-nav w-full z-50 fixed top-0 left-0 right-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'} ${
+        user && userIsDeliveryPartner
+          ? 'bg-transparent shadow-none md:bg-[#2d2d2d]/95 md:shadow-lg'
+          : (theme.navBg || 'bg-[#2d2d2d]/95') + ' shadow-lg'
+      }`}
+      style={{ ['--tenant-accent']: accent, paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-3">
-        <div className="flex justify-between items-center h-20 lg:h-24">
-          <div className="flex items-center">
-            <Link to={base} className="flex items-center group">
+      <div className="max-w-7xl mx-auto px-3 sm:px-5">
+        <div className="flex justify-between items-center h-14 sm:h-16 md:h-20">
+          <div className="flex items-center min-w-0">
+            <Link to={base} className="flex items-center group gap-2 min-w-0">
               <motion.img
                 src={theme.logoUrl || '/Maxhub.jpeg'}
                 alt="MaXHub Logistics"
-                className="w-16 h-16 lg:w-20 lg:h-20 object-contain rounded-full shadow-lg group-hover:scale-105 transition-transform duration-300"
-                whileHover={{ rotate: 5 }}
+                className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 object-contain rounded-full shadow-md flex-shrink-0"
+                whileTap={{ scale: 0.98 }}
               />
-              <span className="text-white font-medium flex items-center gap-1 ml-3">
-                <span className="text-lg sm:text-xl md:text-[26px] tracking-wider whitespace-nowrap font-leagueSpartan font-black" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.5)', color: accent }}>
-                  {theme.brandName || 'MaXHub Logistics'}
+              <span className={`font-medium flex items-center gap-1 min-w-0 ${user && userIsDeliveryPartner ? 'text-gray-900 md:text-white' : 'text-white'}`}>
+                <span
+                  className={`text-base sm:text-lg md:text-xl truncate font-leagueSpartan font-bold ${user && userIsDeliveryPartner ? 'md:drop-shadow-sm' : ''}`}
+                  style={{ textShadow: user && userIsDeliveryPartner ? 'none' : '1px 1px 4px rgba(0,0,0,0.4)', color: accent }}
+                >
+                  {theme.brandName || 'MaXHub'}
                 </span>
               </span>
             </Link>
@@ -167,11 +181,14 @@ const MLNavbar = ({ onSignInClick }) => {
             )}
           </div>
 
-          <div className="md:hidden flex items-center">
-            <motion.button onClick={() => setMenuOpen(!menuOpen)} className="text-white focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300" whileTap={{ scale: 0.95 }}>
-              {menuOpen ? <MdClose className="w-8 h-8" /> : <MdMenu className="w-8 h-8" />}
-            </motion.button>
-          </div>
+          {/* Hamburger: only on mobile when not delivery partner (delivery partner uses bottom nav) */}
+          {!(user && userIsDeliveryPartner) && (
+            <div className="md:hidden flex items-center">
+              <motion.button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-900 focus:outline-none p-2 rounded-lg hover:bg-black/5 transition-all duration-300" whileTap={{ scale: 0.95 }}>
+                {menuOpen ? <MdClose className="w-8 h-8" /> : <MdMenu className="w-8 h-8" />}
+              </motion.button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -180,29 +197,29 @@ const MLNavbar = ({ onSignInClick }) => {
         {menuOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMenuOpen(false)} />
-            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="md:hidden fixed top-0 right-0 w-80 h-screen z-50 bg-white shadow-2xl overflow-y-auto">
-              <div className="flex justify-between items-center p-6 border-b border-gray-100" style={{ background: `linear-gradient(to right, ${accent}, ${accent})` }}>
-                <div className="flex items-center">
-                  <img src={theme.logoUrl || '/Maxhub.jpeg'} alt="Logo" className="w-14 h-14 object-contain rounded-full shadow-lg" />
-                  <span className="ml-3 font-bold text-white text-lg font-leagueSpartan" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.5)' }}>{theme.brandName || 'MaXHub Logistics'}</span>
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="md:hidden fixed top-0 right-0 w-[min(320px,85vw)] max-w-full h-full z-50 bg-white shadow-2xl overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+              <div className="flex justify-between items-center p-4 border-b border-gray-100" style={{ background: `linear-gradient(to right, ${accent}, ${accent})`, paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+                <div className="flex items-center min-w-0">
+                  <img src={theme.logoUrl || '/Maxhub.jpeg'} alt="Logo" className="w-12 h-12 object-contain rounded-full shadow-md flex-shrink-0" />
+                  <span className="ml-3 font-bold text-white text-base truncate font-leagueSpartan" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.4)' }}>{theme.brandName || 'MaXHub'}</span>
                 </div>
-                <button onClick={() => setMenuOpen(false)} className="text-white p-2 rounded-full hover:bg-white/20"><MdClose className="w-6 h-6" /></button>
+                <button onClick={() => setMenuOpen(false)} className="min-h-[44px] min-w-[44px] flex items-center justify-center text-white rounded-xl active:bg-white/20"><MdClose className="w-6 h-6" /></button>
               </div>
-              <div className="p-4 space-y-2">
+              <div className="p-4 space-y-1">
                 {userIsDeliveryPartner && (
                   <>
-                    <Link to={`${base}/dashboard`} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg" onClick={() => setMenuOpen(false)}><MdDashboard /> Dashboard</Link>
-                    <Link to={`${base}/trips`} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg" onClick={() => setMenuOpen(false)}><MdList /> My Trips</Link>
-                    <Link to={`${base}/trips/add`} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg" onClick={() => setMenuOpen(false)}><MdAddCircle /> Add Trip</Link>
+                    <Link to={`${base}/dashboard`} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium" onClick={() => setMenuOpen(false)}><MdDashboard className="text-xl flex-shrink-0" /> Dashboard</Link>
+                    <Link to={`${base}/trips`} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium" onClick={() => setMenuOpen(false)}><MdList className="text-xl flex-shrink-0" /> My Trips</Link>
+                    <Link to={`${base}/trips/add`} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium" onClick={() => setMenuOpen(false)}><MdAddCircle className="text-xl flex-shrink-0" /> Add Trip</Link>
                   </>
                 )}
-                {userIsCXO && <Link to={`${base}/cxo-dashboard`} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg" onClick={() => setMenuOpen(false)}><MdDashboard /> CXO Dashboard</Link>}
-                {userIsAdmin && <Link to={`${base}/admin`} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg" onClick={() => setMenuOpen(false)}><MdAdminPanelSettings /> Admin</Link>}
-                {user && <Link to={`${base}/profile`} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg" onClick={() => setMenuOpen(false)}><MdPerson /> Profile</Link>}
+                {userIsCXO && <Link to={`${base}/cxo-dashboard`} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium" onClick={() => setMenuOpen(false)}><MdDashboard className="text-xl flex-shrink-0" /> CXO Dashboard</Link>}
+                {userIsAdmin && <Link to={`${base}/admin`} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium" onClick={() => setMenuOpen(false)}><MdAdminPanelSettings className="text-xl flex-shrink-0" /> Admin</Link>}
+                {user && <Link to={`${base}/profile`} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium" onClick={() => setMenuOpen(false)}><MdPerson className="text-xl flex-shrink-0" /> Profile</Link>}
                 {user ? (
-                  <button onClick={() => { handleLogout(); setMenuOpen(false); }} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600 w-full text-left rounded-lg"><MdLogout /> Logout</button>
+                  <button onClick={() => { handleLogout(); setMenuOpen(false); }} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-red-50 active:text-red-600 w-full text-left rounded-xl text-base font-medium"><MdLogout className="text-xl flex-shrink-0" /> Logout</button>
                 ) : (
-                  <button onClick={() => { onSignInClick(); setMenuOpen(false); }} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg w-full text-left"><MdPerson /> Sign In</button>
+                  <button onClick={() => { onSignInClick(); setMenuOpen(false); }} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 w-full text-left rounded-xl text-base font-medium"><MdPerson className="text-xl flex-shrink-0" /> Sign In</button>
                 )}
               </div>
             </motion.div>
@@ -224,6 +241,68 @@ const MLNavbar = ({ onSignInClick }) => {
         <p className="pt-2">Are you sure you want to logout? You will need to sign in again to access your account.</p>
       </Modal>
     </nav>
+
+      {/* Bottom nav - fixed to bottom of screen, mobile only, delivery partner */}
+      {user && userIsDeliveryPartner && (
+        <div
+          className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
+          style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex items-stretch justify-around h-14 min-w-0">
+            <Link
+              to={`${base}/dashboard`}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 py-2 transition-colors ${
+                isActive(`${base}/dashboard`) ? 'text-opacity-100' : 'text-gray-500'
+              }`}
+              style={{ color: isActive(`${base}/dashboard`) ? accent : undefined }}
+            >
+              <MdDashboard className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-medium truncate max-w-full px-0.5">Dashboard</span>
+            </Link>
+            <Link
+              to={`${base}/trips`}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 py-2 transition-colors ${
+                isActive(`${base}/trips`) && !location.pathname.includes('/add') ? 'text-opacity-100' : 'text-gray-500'
+              }`}
+              style={{
+                color: isActive(`${base}/trips`) && !location.pathname.includes('/add') ? accent : undefined,
+              }}
+            >
+              <MdList className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-medium truncate max-w-full px-0.5">My Trips</span>
+            </Link>
+            <Link
+              to={`${base}/trips/add`}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 py-2 transition-colors ${
+                location.pathname === `${base}/trips/add` ? 'text-opacity-100' : 'text-gray-500'
+              }`}
+              style={{ color: location.pathname === `${base}/trips/add` ? accent : undefined }}
+            >
+              <MdAddCircle className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-medium truncate max-w-full px-0.5">Add Trip</span>
+            </Link>
+            <Link
+              to={`${base}/profile`}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 py-2 transition-colors ${
+                isActive(`${base}/profile`) ? 'text-opacity-100' : 'text-gray-500'
+              }`}
+              style={{ color: isActive(`${base}/profile`) ? accent : undefined }}
+            >
+              <MdPerson className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-medium truncate max-w-full px-0.5">Profile</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 py-2 transition-colors text-gray-500 active:text-red-600 active:bg-red-50/50"
+            >
+              <MdLogout className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs font-medium truncate max-w-full px-0.5">Logout</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

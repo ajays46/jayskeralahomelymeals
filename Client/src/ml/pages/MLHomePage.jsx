@@ -31,23 +31,23 @@ const MLHomePage = () => {
   }, [user, roles, base, navigate]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <MLNavbar onSignInClick={() => setAuthSliderOpen(true)} />
       <AuthSlider isOpen={authSliderOpen} onClose={() => setAuthSliderOpen(false)} />
 
-      <div className="pt-24 pb-16 px-4">
-        <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+      <div className="pt-24 sm:pt-28 pb-24 px-4 max-w-md mx-auto">
+        <div className="text-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">
             {theme.heroTitle || 'MaXHub'}
-            <span className="block mt-2" style={{ color: accent }}>{theme.heroSubtitle || 'Logistics'}</span>
+            <span className="block mt-1" style={{ color: accent }}>{theme.heroSubtitle || 'Logistics'}</span>
           </h1>
-          <p className="text-gray-600 text-lg mb-8">
+          <p className="text-gray-600 text-base sm:text-lg mb-8">
             {theme.heroDescription || 'Logistics platform for delivery partners and operations.'}
           </p>
           {!user && (
             <button
               onClick={() => setAuthSliderOpen(true)}
-              className="px-8 py-3 rounded-full font-semibold text-white shadow-lg hover:opacity-90 transition-all duration-300 transform hover:scale-105"
+              className="min-h-[48px] px-8 py-3 rounded-2xl font-semibold text-white shadow-lg active:scale-[0.98] transition-transform text-base"
               style={{ backgroundColor: accent }}
             >
               Sign In

@@ -12,6 +12,8 @@ import {
   listTrips,
   getTrip,
   updateTrip,
+  startShift,
+  startRoute,
 } from '../controllers/mlTrip.controller.js';
 
 const router = express.Router();
@@ -23,6 +25,24 @@ router.get(
   resolveCompanyId,
   requireCompanyId,
   getDashboard
+);
+
+router.post(
+  '/shift/start',
+  authenticateToken,
+  checkRole('DELIVERY_PARTNER'),
+  resolveCompanyId,
+  requireCompanyId,
+  startShift
+);
+
+router.post(
+  '/start-route',
+  authenticateToken,
+  checkRole('DELIVERY_PARTNER'),
+  resolveCompanyId,
+  requireCompanyId,
+  startRoute
 );
 
 router.get(

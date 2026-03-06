@@ -3,12 +3,12 @@
  * Pickup + delivery (each: map link primary, optional manual address). Multiple trips per session.
  */
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import MLNavbar from '../components/MLNavbar';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
-import { showSuccessToast, showErrorToast } from '../../utils/toastConfig';
+import { showSuccessToast, showErrorToast } from '../utils/mlToast';
 import { useAddMlTrips } from '../../hooks/mlHooks/useAddMlTrips';
 import { MdLocationOn, MdDelete } from 'react-icons/md';
 
@@ -59,7 +59,7 @@ function LocationBlock({
             if (errors.googleMapsUrl) clearError('googleMapsUrl');
           }}
           placeholder={`Paste Google Maps link for ${title.toLowerCase()}`}
-          className={`w-full py-2.5 px-3 rounded-lg border bg-white focus:ring-2 focus:ring-offset-0 ${
+          className={`w-full min-h-[44px] py-3 px-3 rounded-xl border bg-white focus:ring-2 focus:ring-offset-0 text-base ${
             errors.googleMapsUrl ? 'border-red-400' : 'border-gray-200'
           } focus:border-gray-400 focus:ring-gray-100`}
           aria-invalid={!!errors.googleMapsUrl}
@@ -93,7 +93,7 @@ function LocationBlock({
                 value={location.street}
                 onChange={onChange}
                 placeholder="Street address"
-                className={`w-full py-2.5 px-3 rounded-lg border bg-white focus:ring-2 focus:ring-offset-0 ${
+                className={`w-full min-h-[44px] py-3 px-3 rounded-xl border bg-white focus:ring-2 focus:ring-offset-0 text-base ${
                   errors.street ? 'border-red-400' : 'border-gray-200'
                 }`}
               />
@@ -107,7 +107,7 @@ function LocationBlock({
                 value={location.housename}
                 onChange={onChange}
                 placeholder="House or building name"
-                className={`w-full py-2.5 px-3 rounded-lg border bg-white focus:ring-2 focus:ring-offset-0 ${
+                className={`w-full min-h-[44px] py-3 px-3 rounded-xl border bg-white focus:ring-2 focus:ring-offset-0 text-base ${
                   errors.housename ? 'border-red-400' : 'border-gray-200'
                 }`}
               />
@@ -122,7 +122,7 @@ function LocationBlock({
                   value={location.city}
                   onChange={onChange}
                   placeholder="City"
-                  className={`w-full py-2.5 px-3 rounded-lg border bg-white focus:ring-2 focus:ring-offset-0 ${
+                  className={`w-full min-h-[44px] py-3 px-3 rounded-xl border bg-white focus:ring-2 focus:ring-offset-0 text-base ${
                     errors.city ? 'border-red-400' : 'border-gray-200'
                   }`}
                 />
@@ -137,7 +137,7 @@ function LocationBlock({
                   onChange={onChange}
                   placeholder="5–6 digits"
                   maxLength={6}
-                  className={`w-full py-2.5 px-3 rounded-lg border bg-white focus:ring-2 focus:ring-offset-0 ${
+                  className={`w-full min-h-[44px] py-3 px-3 rounded-xl border bg-white focus:ring-2 focus:ring-offset-0 text-base ${
                     errors.pincode ? 'border-red-400' : 'border-gray-200'
                   }`}
                 />
@@ -152,7 +152,7 @@ function LocationBlock({
                 value={location.geoLocation}
                 onChange={onChange}
                 placeholder="Coordinates or location name"
-                className="w-full py-2.5 px-3 rounded-lg border border-gray-200 bg-white focus:ring-2 focus:ring-offset-0 focus:border-gray-400"
+                className="w-full min-h-[44px] py-3 px-3 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-offset-0 focus:border-gray-400 text-base"
               />
             </div>
           </motion.div>
@@ -164,6 +164,7 @@ function LocationBlock({
 
 const MLAddTripPage = () => {
   const base = useCompanyBasePath();
+  const navigate = useNavigate();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
   const accent = theme.accentColor || theme.primaryColor || '#E85D04';
@@ -185,6 +186,7 @@ const MLAddTripPage = () => {
       showSuccessToast(data?.message || `${trips.length} trip(s) saved.`, 'Trips submitted');
       setTrips([]);
       setSubmitted(true);
+      navigate(`${base}/trips`);
     },
     onError: (err) => {
       const msg = err?.response?.data?.message || err?.message || 'Failed to submit trips.';
@@ -284,84 +286,35 @@ const MLAddTripPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <MLNavbar onSignInClick={() => {}} />
-      <main className="pt-24 pb-16 px-4 max-w-2xl mx-auto">
+      <main className="pt-20 sm:pt-24 pb-24 px-4 max-w-md sm:max-w-xl mx-auto">
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="space-y-6"
+          className="space-y-5"
         >
-          <div className="text-center mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Add trip(s)</h1>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Add trip(s)</h1>
+            <p className="text-sm text-gray-600 mt-0.5">Pickup and delivery details.</p>
           </div>
-
-          {trips.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl bg-white shadow-sm border border-gray-100 p-4 sm:p-5"
-            >
-              <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <MdLocationOn style={{ color: accent }} /> Your trips ({trips.length})
-              </h2>
-              <p className="text-sm text-gray-600 mb-3">
-                Got another trip at the same time? Use the form below to add it, then click &quot;Add this trip&quot;. Submit all when done.
-              </p>
-              <ul className="space-y-2 max-h-48 overflow-y-auto">
-                {trips.map((t) => (
-                  <li
-                    key={t.id}
-                    className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-gray-50 border border-gray-100"
-                  >
-                    <span className="text-sm font-medium text-gray-800 truncate">
-                      {t.platformLabel} — Order ₹{t.price.toFixed(2)} · My payment ₹{(t.partnerPayment ?? 0).toFixed(2)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeTrip(t.id)}
-                      className="p-1.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-200"
-                      aria-label="Remove trip"
-                    >
-                      <MdDelete className="w-5 h-5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center text-sm">
-                <span className="font-medium text-gray-700">Total my payment:</span>
-                <span className="font-semibold" style={{ color: accent }}>
-                  ₹{trips.reduce((sum, t) => sum + (t.partnerPayment || 0), 0).toFixed(2)}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleSubmitAll}
-                disabled={addTripsMutation.isPending}
-                className="mt-4 w-full py-3 px-4 rounded-xl font-semibold text-white shadow-md hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-300 disabled:opacity-70 disabled:cursor-not-allowed"
-                style={{ backgroundColor: accent }}
-              >
-                {addTripsMutation.isPending ? 'Submitting…' : `Submit all ${trips.length} trip${trips.length !== 1 ? 's' : ''}`}
-              </button>
-            </motion.div>
-          )}
 
           {submitted ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="rounded-2xl bg-white shadow-sm border border-gray-100 p-6 sm:p-8 text-center"
+              className="rounded-2xl bg-white shadow-md border border-gray-100 p-6 text-center"
             >
               <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center text-2xl mb-4" style={{ backgroundColor: `${accent}20`, color: accent }}>
                 ✓
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">All trips submitted</h2>
-              <p className="text-gray-600 mb-6">You can add more trips below.</p>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">All trips submitted</h2>
+              <p className="text-gray-600 text-sm mb-5">You can add more trips below.</p>
               <button
                 type="button"
                 onClick={handleAddMore}
-                className="px-6 py-3 rounded-xl font-semibold text-white shadow-md hover:opacity-90 transition-opacity"
+                className="min-h-[48px] px-6 py-3 rounded-2xl font-semibold text-white shadow-md active:scale-[0.98] transition-transform text-base"
                 style={{ backgroundColor: accent }}
               >
                 Add more trips
@@ -373,11 +326,11 @@ const MLAddTripPage = () => {
                 <div className="rounded-xl py-3 px-4 bg-orange-50 border border-orange-100 flex items-center gap-2">
                   <MdLocationOn className="flex-shrink-0" style={{ color: accent }} />
                   <p className="text-sm font-medium text-gray-800">
-                    Add another trip — fill the form and click &quot;Add this trip&quot; to add to your list above.
+                    Add another trip — fill the form and click &quot;Add this trip&quot; to add to your list below.
                   </p>
                 </div>
               )}
-              <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-4 sm:p-5">
+              <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   {trips.length > 0 ? 'Next trip — Platform' : 'Platform'}
                 </label>
@@ -389,8 +342,8 @@ const MLAddTripPage = () => {
                         key={p.id}
                         type="button"
                         onClick={() => setPlatform(p.id)}
-                        className={`py-3 px-4 rounded-xl font-medium text-sm sm:text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                          isActive ? 'text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 focus:ring-gray-300'
+                        className={`min-h-[44px] py-3 px-3 rounded-xl font-medium text-sm transition-all active:scale-[0.98] ${
+                          isActive ? 'text-white shadow' : 'bg-gray-100 text-gray-600 active:bg-gray-200'
                         }`}
                         style={isActive ? { backgroundColor: accent } : {}}
                       >
@@ -402,8 +355,8 @@ const MLAddTripPage = () => {
                 <p className="text-gray-500 text-sm mt-3">Order type: <span className="font-medium text-gray-700">{platformLabel}</span></p>
               </div>
 
-              <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-4 sm:p-5 space-y-4">
-                <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-100 pb-2">Order details</h2>
+              <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4 space-y-4">
+                <h2 className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-2">Order details</h2>
                 <div>
                   <label htmlFor="trip-price" className="block text-sm font-medium text-gray-700 mb-1">Order amount (₹) <span className="text-red-500">*</span></label>
                   <input
@@ -417,7 +370,7 @@ const MLAddTripPage = () => {
                       setPrice(e.target.value);
                       if (errors.price) setErrors((prev) => ({ ...prev, price: '' }));
                     }}
-                    className={`w-full py-2.5 px-3 rounded-lg border bg-white focus:ring-2 focus:ring-offset-0 ${
+                    className={`w-full min-h-[44px] py-3 px-3 rounded-xl border bg-white focus:ring-2 focus:ring-offset-0 text-base ${
                       errors.price ? 'border-red-400' : 'border-gray-200'
                     } focus:border-gray-400 focus:ring-gray-100`}
                     aria-invalid={!!errors.price}
@@ -437,7 +390,7 @@ const MLAddTripPage = () => {
                       setPartnerPayment(e.target.value);
                       if (errors.partnerPayment) setErrors((prev) => ({ ...prev, partnerPayment: '' }));
                     }}
-                    className={`w-full py-2.5 px-3 rounded-lg border bg-white focus:ring-2 focus:ring-offset-0 ${
+                    className={`w-full min-h-[44px] py-3 px-3 rounded-xl border bg-white focus:ring-2 focus:ring-offset-0 text-base ${
                       errors.partnerPayment ? 'border-red-400' : 'border-gray-200'
                     } focus:border-gray-400 focus:ring-gray-100`}
                     aria-invalid={!!errors.partnerPayment}
@@ -447,8 +400,8 @@ const MLAddTripPage = () => {
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-4 sm:p-5 space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-100 pb-2">Pickup & delivery</h2>
+              <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4 space-y-5">
+                <h2 className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-2">Pickup & delivery</h2>
                 <div className="space-y-6">
                   <div>
                     <LocationBlock
@@ -487,22 +440,72 @@ const MLAddTripPage = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex flex-col gap-3">
                 <button
                   type="submit"
-                  className="flex-1 py-3 px-6 rounded-xl font-semibold text-white shadow-md hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-300"
+                  className="w-full min-h-[48px] py-3 px-5 rounded-2xl font-semibold text-white shadow-md active:scale-[0.98] transition-transform text-base"
                   style={{ backgroundColor: accent }}
                 >
                   {trips.length > 0 ? 'Add this trip to list' : 'Add this trip'}
                 </button>
                 <Link
                   to={`${base}/dashboard`}
-                  className="flex-1 py-3 px-6 rounded-xl font-semibold text-center border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
+                  className="w-full min-h-[48px] py-3 px-5 rounded-2xl font-semibold text-center border-2 border-gray-300 text-gray-700 active:bg-gray-100 transition-colors text-base flex items-center justify-center"
                 >
                   Back to dashboard
                 </Link>
               </div>
             </form>
+          )}
+
+          {trips.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl bg-white shadow-md border border-gray-100 p-4"
+            >
+              <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <MdLocationOn style={{ color: accent }} /> Your trips ({trips.length})
+              </h2>
+              <p className="text-sm text-gray-600 mb-3">
+                Review your trips below. Add more above or submit all when done.
+              </p>
+              <ul className="space-y-2 max-h-48 overflow-y-auto">
+                {trips.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-gray-50 border border-gray-100"
+                  >
+                    <span className="text-sm font-medium text-gray-800 truncate">
+                      {t.platformLabel} — Order ₹{t.price.toFixed(2)} · My payment ₹{(t.partnerPayment ?? 0).toFixed(2)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeTrip(t.id)}
+                      className="p-1.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-200"
+                      aria-label="Remove trip"
+                    >
+                      <MdDelete className="w-5 h-5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center text-sm">
+                <span className="font-medium text-gray-700">Total my payment:</span>
+                <span className="font-semibold" style={{ color: accent }}>
+                  ₹{trips.reduce((sum, t) => sum + (t.partnerPayment || 0), 0).toFixed(2)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSubmitAll}
+                disabled={addTripsMutation.isPending}
+                className="mt-4 w-full min-h-[48px] py-3 px-4 rounded-2xl font-semibold text-white shadow-md active:scale-[0.98] transition-transform disabled:opacity-70 disabled:cursor-not-allowed text-base"
+                style={{ backgroundColor: accent }}
+              >
+                {addTripsMutation.isPending ? 'Submitting…' : `Submit all ${trips.length} trip${trips.length !== 1 ? 's' : ''}`}
+              </button>
+            </motion.div>
           )}
         </motion.div>
       </main>

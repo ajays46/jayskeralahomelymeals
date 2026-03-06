@@ -1,6 +1,7 @@
 /**
- * useMlTripsList - Fetch ML delivery partner trips list with optional platform and status filters.
- * @param {{ platform?: string, status?: string }} filters - platform: swiggy|flipkart|amazon; status: pending|picked_up|delivered
+ * useMlTripsList - Fetch ML delivery partner trips list (proxied to 5004 API).
+ * Filters: platform (swiggy|flipkart|amazon), status (pending|picked_up|delivered).
+ * Ref: FRONTEND_API_INTEGRATION_GUIDE_5004.md — GET /api/ml-trips?user_id=&platform=SWIGGY
  */
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
@@ -16,6 +17,9 @@ export function useMlTripsList(filters = {}, options = {}) {
       if (platform) params.platform = platform;
       if (status) params.status = status;
       const { data } = await api.get('/ml-trips', { params });
+      if (data && data.success === false) {
+        throw new Error(data.error || 'Failed to load trips');
+      }
       return data?.trips ?? [];
     },
     ...options,

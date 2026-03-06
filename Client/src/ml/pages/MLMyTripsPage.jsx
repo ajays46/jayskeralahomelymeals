@@ -1,171 +1,265 @@
 /**
- * MLMyTripsPage - MaXHub Logistics: list delivery partner trips with filters and map links.
+ * MLMyTripsPage - MaXHub Logistics: Start route, show route response and stop cards, GPS tracking, end shift.
+ * Stop cards: Mark stop reached (POST /api/journey/mark-stop) and Picked up/Delivered (PATCH /api/ml-trips/:trip_id).
  */
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MdRestaurant, MdLocationOn, MdOpenInNew, MdFilterList } from 'react-icons/md';
+import { MdPlayArrow, MdRestaurant, MdLocationOn } from 'react-icons/md';
 import MLNavbar from '../components/MLNavbar';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
-import { useMlTripsList } from '../../hooks/mlHooks/useMlTripsList';
+import { useStartRoute } from '../../hooks/mlHooks/useStartRoute';
+import { useVehicleTracking } from '../../hooks/mlHooks/useVehicleTracking';
+import { useEndShift } from '../../hooks/mlHooks/useEndShift';
+import { useMarkStop } from '../../hooks/mlHooks/useMarkStop';
+import { useUpdateMlTripStatus } from '../../hooks/mlHooks/useUpdateMlTripStatus';
+import { showSuccessToast, showErrorToast } from '../utils/mlToast';
 
-const PLATFORM_OPTIONS = [
-  { id: null, label: 'All' },
-  { id: 'swiggy', label: 'Swiggy' },
-  { id: 'flipkart', label: 'Flipkart' },
-  { id: 'amazon', label: 'Amazon' },
-];
-
-const STATUS_OPTIONS = [
-  { id: null, label: 'All' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'picked_up', label: 'Picked up' },
-  { id: 'delivered', label: 'Delivered' },
-];
-
-const formatStatus = (s) => {
-  if (!s) return '—';
-  const t = String(s).toLowerCase().replace('_', ' ');
-  return t.charAt(0).toUpperCase() + t.slice(1);
-};
+const LS_ROUTE_ID = 'ml_route_id';
+const LS_ROUTE_STOPS = 'ml_route_stops';
 
 const MLMyTripsPage = () => {
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
   const accent = theme.accentColor || theme.primaryColor || '#E85D04';
-  const [platform, setPlatform] = useState(null);
-  const [status, setStatus] = useState(null);
+  const [trackingEnabled, setTrackingEnabled] = useState(false);
+  const [routeResponse, setRouteResponse] = useState(null);
 
-  const { data: trips = [], isLoading, isError, error } = useMlTripsList({ platform, status });
+  const savedRouteId = useMemo(() => (typeof window !== 'undefined' ? localStorage.getItem(LS_ROUTE_ID) : null) || '', []);
+  const [routeId, setRouteId] = useState(savedRouteId);
+
+  const [actioningStopKey, setActioningStopKey] = useState(null);
+
+  const markStopMutation = useMarkStop();
+  const updateTripStatusMutation = useUpdateMlTripStatus();
+
+  const startRouteMutation = useStartRoute({
+    onSuccess: (data) => {
+      const rid = data?.route_id;
+      const stops = data?.stops;
+      if (rid) {
+        localStorage.setItem(LS_ROUTE_ID, String(rid));
+        setRouteId(String(rid));
+        setTrackingEnabled(true);
+      }
+      if (Array.isArray(stops)) {
+        localStorage.setItem(LS_ROUTE_STOPS, JSON.stringify(stops));
+      }
+      setRouteResponse(data ?? null);
+      showSuccessToast('Route created. GPS tracking started automatically.', 'Route started');
+    },
+    onError: (err) => {
+      const msg = err?.response?.data?.error?.message || err?.message || 'Failed to start route.';
+      showErrorToast(msg, 'Error');
+    },
+  });
+
+  const vehicleTrackingMutation = useVehicleTracking({
+    onError: (err) => {
+      const msg = err?.response?.data?.error?.message || err?.message || 'Failed to send GPS.';
+      showErrorToast(msg, 'Tracking error');
+    },
+  });
+
+  const endShiftMutation = useEndShift({
+    onSuccess: () => {
+      setTrackingEnabled(false);
+      setRouteId('');
+      setRouteResponse(null);
+      localStorage.removeItem(LS_ROUTE_ID);
+      localStorage.removeItem(LS_ROUTE_STOPS);
+      showSuccessToast('Shift ended. You are now offline.', 'Shift ended');
+    },
+    onError: (err) => {
+      const msg = err?.response?.data?.error?.message || err?.message || 'Failed to end shift.';
+      showErrorToast(msg, 'Error');
+    },
+  });
+
+  const getCurrentLocation = () =>
+    new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error('Geolocation not supported'));
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    });
+
+  const handleStartRoute = async () => {
+    if (startRouteMutation.isPending) return;
+    try {
+      const loc = await getCurrentLocation();
+      startRouteMutation.mutate({ platform: 'swiggy', current_location: loc });
+    } catch {
+      startRouteMutation.mutate({ platform: 'swiggy' });
+    }
+  };
+
+  const handleEndShift = () => {
+    if (endShiftMutation.isPending) return;
+    endShiftMutation.mutate({ platform: 'swiggy' });
+  };
+
+  const stopsList = useMemo(() => {
+    const fromResponse = routeResponse?.stops;
+    if (Array.isArray(fromResponse) && fromResponse.length > 0) return fromResponse;
+    if (typeof window === 'undefined') return [];
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_ROUTE_STOPS) || '[]');
+      return Array.isArray(s) ? s : [];
+    } catch {
+      return [];
+    }
+  }, [routeId, routeResponse]);
+
+  const handleStopAction = async (stop) => {
+    const key = stop.planned_stop_id;
+    if (!routeId || !key) return;
+    const tripStatus = stop.stop_type === 'pickup' ? 'picked_up' : 'delivered';
+    const label = stop.stop_type === 'pickup' ? 'Picked up' : 'Delivered';
+    setActioningStopKey(key);
+    try {
+      await markStopMutation.mutateAsync({ route_id: routeId, planned_stop_id: key });
+      if (stop.trip_id) {
+        await updateTripStatusMutation.mutateAsync({ tripId: stop.trip_id, trip_status: tripStatus });
+      }
+      showSuccessToast(`${label} recorded.`, label);
+    } catch (err) {
+      const msg = err?.response?.data?.error?.message || err?.message || `Failed to record ${label.toLowerCase()}.`;
+      showErrorToast(msg, 'Error');
+    } finally {
+      setActioningStopKey(null);
+    }
+  };
+
+  const sendTrackingPoint = async () => {
+    try {
+      const loc = await getCurrentLocation();
+      const point = {
+        latitude: loc.lat,
+        longitude: loc.lng,
+        timestamp: new Date().toISOString(),
+      };
+      vehicleTrackingMutation.mutate({
+        route_id: routeId,
+        tracking_points: [point],
+      });
+    } catch {
+      // ignore if GPS not available
+    }
+  };
+
+  useEffect(() => {
+    if (!trackingEnabled) return undefined;
+    if (!routeId) return undefined;
+
+    sendTrackingPoint();
+    const interval = setInterval(sendTrackingPoint, 90 * 1000); // every 1.5 min
+
+    return () => clearInterval(interval);
+  }, [trackingEnabled, routeId]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <MLNavbar onSignInClick={() => {}} />
-      <main className="pt-24 pb-12 px-4 max-w-4xl mx-auto">
+      <main className="pt-20 sm:pt-24 pb-24 px-4 max-w-md sm:max-w-xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="space-y-6"
+          className="space-y-5"
         >
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">My Trips</h1>
-            <p className="text-gray-600 text-sm">View and navigate to pickup and delivery addresses.</p>
+            <h1 className="text-xl font-bold text-gray-900 mb-0.5">My Trips</h1>
+            <p className="text-sm text-gray-600">Start route to begin tracking. Response data appears below.</p>
           </div>
 
-          {/* Filters */}
-          <div className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <MdFilterList className="text-lg" style={{ color: accent }} />
-              <span className="font-medium text-gray-700">Filters</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Platform</label>
-                <select
-                  value={platform ?? ''}
-                  onChange={(e) => setPlatform(e.target.value || null)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-offset-1"
-                  style={{ ['--tw-ring-color']: accent }}
-                >
-                  {PLATFORM_OPTIONS.map((o) => (
-                    <option key={o.id ?? 'all'} value={o.id ?? ''}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-                <select
-                  value={status ?? ''}
-                  onChange={(e) => setStatus(e.target.value || null)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-offset-1"
-                  style={{ ['--tw-ring-color']: accent }}
-                >
-                  {STATUS_OPTIONS.map((o) => (
-                    <option key={o.id ?? 'all'} value={o.id ?? ''}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
+          {/* Start route / End shift */}
+          <div className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md">
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleStartRoute}
+                disabled={startRouteMutation.isPending}
+                className="min-h-[48px] flex-1 min-w-[120px] px-4 py-3 rounded-2xl text-base font-semibold text-white disabled:opacity-70 shadow-md active:scale-[0.98] transition-transform"
+                style={{ backgroundColor: accent }}
+              >
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  <MdPlayArrow className="text-lg" /> {startRouteMutation.isPending ? 'Starting…' : 'Start route'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleEndShift}
+                disabled={endShiftMutation.isPending}
+                className="min-h-[48px] flex-1 min-w-[100px] px-4 py-3 rounded-2xl text-base font-semibold border disabled:opacity-70 active:scale-[0.98] transition-transform"
+                style={{ borderColor: '#ef4444', color: '#b91c1c' }}
+              >
+                {endShiftMutation.isPending ? 'Ending…' : 'End shift'}
+              </button>
             </div>
           </div>
 
-          {/* Trip list */}
-          {isLoading && (
-            <div className="rounded-xl bg-white border border-gray-100 p-8 text-center text-gray-500">
-              Loading trips…
+          {!routeId && !routeResponse && (
+            <div className="rounded-2xl bg-white border border-gray-100 p-6 text-center text-gray-500 text-sm">
+              Tap &quot;Start route&quot; to create a route and see stops here.
             </div>
           )}
-          {isError && (
-            <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-red-700">
-              {error?.message || 'Failed to load trips.'}
-            </div>
-          )}
-          {!isLoading && !isError && trips.length === 0 && (
-            <div className="rounded-xl bg-white border border-gray-100 p-8 text-center text-gray-500">
-              No trips found. Add trips from the dashboard.
-            </div>
-          )}
-          {!isLoading && !isError && trips.length > 0 && (
+
+          {/* Stop cards: Picked up / Delivered */}
+          {stopsList.length > 0 && routeId && (
             <div className="space-y-3">
-              {trips.map((trip, i) => (
-                <motion.div
-                  key={trip.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: i * 0.03 }}
-                  className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <span className="font-medium text-gray-900 capitalize">{trip.platform}</span>
-                    <span
-                      className="px-2 py-0.5 rounded-full text-xs font-medium"
-                      style={{
-                        backgroundColor: trip.trip_status === 'delivered' ? '#dcfce7' : trip.trip_status === 'picked_up' ? '#fef3c7' : '#e5e7eb',
-                        color: trip.trip_status === 'delivered' ? '#166534' : trip.trip_status === 'picked_up' ? '#92400e' : '#374151',
-                      }}
-                    >
-                      {formatStatus(trip.trip_status)}
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    {trip.pickup_address?.google_maps_url && (
-                      <a
-                        href={trip.pickup_address.google_maps_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-inherit hover:underline"
-                        style={{ color: accent }}
+              <p className="text-sm font-semibold text-gray-800">Stops</p>
+              {stopsList
+                .slice()
+                .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
+                .map((stop, i) => (
+                  <motion.div
+                    key={stop.planned_stop_id || `${stop.trip_id}-${stop.step}-${i}`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: i * 0.03 }}
+                    className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <span className="text-gray-500 text-sm">Stop {stop.step ?? i + 1}</span>
+                      <span
+                        className="px-2.5 py-1 rounded-full text-xs font-medium capitalize"
+                        style={{
+                          backgroundColor: stop.stop_type === 'delivery' ? '#dbeafe' : '#fef3c7',
+                          color: stop.stop_type === 'delivery' ? '#1e40af' : '#92400e',
+                        }}
                       >
-                        <MdRestaurant className="flex-shrink-0" /> Navigate to restaurant
-                        <MdOpenInNew className="w-3 h-3" />
-                      </a>
+                        {stop.stop_type === 'delivery' ? (
+                          <span className="inline-flex items-center gap-1"><MdLocationOn className="w-3.5 h-3.5" /> Delivery</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1"><MdRestaurant className="w-3.5 h-3.5" /> Pickup</span>
+                        )}
+                      </span>
+                    </div>
+                    {stop.trip_id && (
+                      <p className="text-xs text-gray-500 mb-2">
+                        <Link to={`${base}/trips/${stop.trip_id}`} className="font-medium underline" style={{ color: accent }}>Trip details</Link>
+                      </p>
                     )}
-                    {trip.delivery_address?.google_maps_url && (
-                      <a
-                        href={trip.delivery_address.google_maps_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-inherit hover:underline"
-                        style={{ color: accent }}
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => handleStopAction(stop)}
+                        disabled={!stop.planned_stop_id || actioningStopKey != null}
+                        className="min-h-[44px] w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50 transition-transform"
+                        style={{
+                          backgroundColor: stop.stop_type === 'pickup' ? '#d97706' : accent,
+                        }}
                       >
-                        <MdLocationOn className="flex-shrink-0" /> Navigate to customer
-                        <MdOpenInNew className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
-                    <Link
-                      to={`${base}/trips/${trip.id}`}
-                      className="text-sm font-medium"
-                      style={{ color: accent }}
-                    >
-                      View details →
-                    </Link>
-                  </div>
-                </motion.div>
-              ))}
+                        {actioningStopKey === stop.planned_stop_id ? '…' : stop.stop_type === 'pickup' ? 'Picked up' : 'Delivered'}
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
             </div>
           )}
         </motion.div>

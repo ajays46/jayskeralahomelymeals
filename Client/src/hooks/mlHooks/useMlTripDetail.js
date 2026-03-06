@@ -1,5 +1,6 @@
 /**
- * useMlTripDetail - Fetch a single ML trip by id (for the logged-in delivery partner).
+ * useMlTripDetail - Fetch a single ML trip by id (proxied to 5004 API).
+ * Ref: FRONTEND_API_INTEGRATION_GUIDE_5004.md — GET /api/ml-trips/<trip_id>
  */
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
@@ -11,6 +12,9 @@ export function useMlTripDetail(tripId, options = {}) {
     queryKey: [...TRIP_DETAIL_KEY, tripId],
     queryFn: async () => {
       const { data } = await api.get(`/ml-trips/${tripId}`);
+      if (data && data.success === false) {
+        throw new Error(data.error || 'Trip not found');
+      }
       return data?.trip ?? null;
     },
     enabled: !!tripId,

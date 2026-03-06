@@ -3,13 +3,15 @@
  * Shows trips done (today / this week / total), revenue earned, recent trips. Filter by platform (All, Swiggy, Flipkart, Amazon).
  */
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import MLNavbar from '../components/MLNavbar';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
 import { useMlPartnerDashboard } from '../../hooks/mlHooks/useMlPartnerDashboard';
-import { MdAddCircle, MdLocalShipping, MdToday, MdDateRange, MdTrendingUp } from 'react-icons/md';
+import { useStartShift } from '../../hooks/mlHooks/useStartShift';
+import { showSuccessToast, showErrorToast } from '../utils/mlToast';
+import { MdPlayArrow, MdLocalShipping, MdToday, MdDateRange, MdTrendingUp } from 'react-icons/md';
 
 const PLATFORM_FILTERS = [
   { id: null, label: 'All' },
@@ -31,61 +33,104 @@ const formatDateTime = (d) => {
 };
 
 const StatCard = ({ title, trips, revenue, icon: Icon, accent }) => (
-  <div className="rounded-xl bg-white border border-gray-100 p-4 sm:p-5 shadow-sm">
-    <div className="flex items-center gap-2 mb-3">
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg" style={{ backgroundColor: `${accent}18`, color: accent }}>
-        <Icon />
+  <div className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md">
+    <div className="flex items-center gap-2 mb-2">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accent}20`, color: accent }}>
+        <Icon className="text-lg" />
       </div>
       <span className="text-sm font-medium text-gray-600">{title}</span>
     </div>
-    <p className="text-2xl font-bold text-gray-900">{trips} trip{trips !== 1 ? 's' : ''}</p>
+    <p className="text-xl font-bold text-gray-900">{trips} trip{trips !== 1 ? 's' : ''}</p>
     <p className="text-sm font-semibold mt-1" style={{ color: accent }}>{formatCurrency(revenue)} earned</p>
   </div>
 );
 
 const MLDeliveryPartnerDashboard = () => {
   const base = useCompanyBasePath();
+  const navigate = useNavigate();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
   const accent = theme.accentColor || theme.primaryColor || '#E85D04';
   const [platformFilter, setPlatformFilter] = useState(null);
 
   const { data: stats, isLoading, isError, error } = useMlPartnerDashboard(platformFilter);
+  const startShiftMutation = useStartShift({
+    onSuccess: () => {
+      showSuccessToast('Shift started. You are now online.', 'Shift started');
+      navigate(`${base}/trips/add`);
+    },
+    onError: (err) => {
+      const msg = err?.response?.data?.error?.message || err?.response?.data?.message || err?.message || 'Failed to start shift.';
+      showErrorToast(msg, 'Error');
+    },
+  });
+
+  const handleStartShift = () => {
+    if (startShiftMutation.isPending) return;
+    const selectedPlatform = platformFilter || 'swiggy';
+    if (!navigator.geolocation) {
+      startShiftMutation.mutate({ platform: selectedPlatform });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        startShiftMutation.mutate({
+          platform: selectedPlatform,
+          current_location: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+        });
+      },
+      () => {
+        startShiftMutation.mutate({ platform: selectedPlatform });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <MLNavbar onSignInClick={() => {}} />
-      <main className="pt-24 pb-12 px-4 max-w-4xl mx-auto">
+      <main className="pt-20 sm:pt-24 pb-24 px-4 max-w-md sm:max-w-xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="space-y-8"
+          className="space-y-5"
         >
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Delivery Partner Dashboard</h1>
-            <p className="text-gray-600">Welcome to MaXHub Logistics. View your stats and add delivery trips.</p>
+            <h1 className="text-xl font-bold text-gray-900 mb-1">Dashboard</h1>
+            <p className="text-sm text-gray-600">View stats and start your shift.</p>
           </div>
 
-          {/* Add Trip CTA */}
+          {/* Start Shift CTA - mobile primary action */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.05 }}
-            className="rounded-2xl bg-white shadow-sm border border-gray-100 p-6 sm:p-8 flex items-center justify-center"
+            className="rounded-2xl bg-white shadow-md border border-gray-100 p-5 sm:p-6"
           >
-            <Link
-              to={`${base}/trips/add`}
-              className="w-full sm:w-auto py-3 px-6 rounded-xl font-semibold text-white shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-300"
-              style={{ backgroundColor: accent }}
-            >
-              <MdAddCircle className="text-xl" /> Add Trip
-            </Link>
+            <div className="flex flex-col gap-4">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900 mb-0.5">Start your shift</h2>
+                <p className="text-sm text-gray-600">
+                  Go online, then you’ll be taken to add trips.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleStartShift}
+                disabled={startShiftMutation.isPending}
+                className="w-full min-h-[48px] py-3 px-5 rounded-2xl font-semibold text-white shadow-md active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-base"
+                style={{ backgroundColor: accent }}
+              >
+                <MdPlayArrow className="text-xl flex-shrink-0" />
+                {startShiftMutation.isPending ? 'Starting…' : 'Start shift'}
+              </button>
+            </div>
           </motion.div>
 
           {/* Platform filter */}
-          <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-4 sm:p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Show data by platform</h2>
+          <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4">
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">By platform</h2>
             <div className="grid grid-cols-4 gap-2">
               {PLATFORM_FILTERS.map(({ id, label }) => {
                 const isActive = platformFilter === id;
@@ -94,8 +139,8 @@ const MLDeliveryPartnerDashboard = () => {
                     key={label}
                     type="button"
                     onClick={() => setPlatformFilter(id)}
-                    className={`min-w-0 py-2.5 px-2 rounded-xl font-medium text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 truncate ${
-                      isActive ? 'text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    className={`min-h-[44px] min-w-0 py-2.5 px-2 rounded-xl font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 truncate active:scale-[0.98] ${
+                      isActive ? 'text-white shadow' : 'bg-gray-100 text-gray-600 active:bg-gray-200'
                     }`}
                     style={isActive ? { backgroundColor: accent } : {}}
                     title={label}
@@ -109,8 +154,8 @@ const MLDeliveryPartnerDashboard = () => {
 
           {/* Stats */}
           {isLoading && (
-            <div className="rounded-2xl bg-white border border-gray-100 p-8 text-center text-gray-500">
-              Loading your stats…
+            <div className="rounded-2xl bg-white border border-gray-100 p-8 text-center text-gray-500 text-sm">
+              Loading…
             </div>
           )}
           {isError && (
@@ -120,7 +165,7 @@ const MLDeliveryPartnerDashboard = () => {
           )}
           {!isLoading && !isError && stats && (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <StatCard
                   title="Today"
                   trips={stats.tripsToday ?? 0}
@@ -149,17 +194,17 @@ const MLDeliveryPartnerDashboard = () => {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.15 }}
-                className="rounded-2xl bg-white shadow-sm border border-gray-100 p-5 sm:p-6"
+                className="rounded-2xl bg-white shadow-md border border-gray-100 p-4 sm:p-5"
               >
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <MdLocalShipping className="text-gray-500" /> Recent trips
                 </h2>
                 {stats.recentTrips && stats.recentTrips.length > 0 ? (
-                  <ul className="space-y-2 max-h-72 overflow-y-auto">
+                  <ul className="space-y-2 max-h-64 overflow-y-auto">
                     {stats.recentTrips.map((trip) => (
                       <li
                         key={trip.id}
-                        className="flex flex-wrap items-center justify-between gap-2 py-3 px-4 rounded-xl bg-gray-50 border border-gray-100"
+                        className="flex flex-wrap items-center justify-between gap-2 py-3 px-4 rounded-xl bg-gray-50 border border-gray-100 text-sm"
                       >
                         <div className="flex items-center gap-3">
                           <span className="font-medium text-gray-900 capitalize">{trip.platform}</span>

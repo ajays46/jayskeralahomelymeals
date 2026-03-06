@@ -2,8 +2,19 @@
  * ML Trip Service - MaXHub Logistics: create trips, trip addresses (MlTripAddress), and linked MenuItem + MenuItemPrice.
  * Each trip: MlTripAddress for pickup/delivery, one MenuItem (platform) + MenuItemPrice (order amount), MlTrip linked to all.
  */
+import axios from 'axios';
+import AppError from '../utils/AppError.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import prisma from '../config/prisma.js';
 import { createMlTripAddress } from './mlTripAddress.service.js';
+
+const AI_ROUTE_API_FOURTH = process.env.AI_ROUTE_API_FOURTH || 'http://localhost:5004';
+
+const deliveryPartnerApiClient = axios.create({
+  baseURL: AI_ROUTE_API_FOURTH.replace(/\/$/, ''),
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+});
 
 /**
  * Check if location object has enough data to create an address (map link or street+city+pincode).
@@ -311,4 +322,318 @@ export const getPartnerDashboardStats = async (companyId, userId, platform) => {
     recentTrips,
     revenueByDay,
   };
+};
+
+/**
+ * Start shift (driver goes online) - forwards to external delivery partner API (AI_ROUTE_API_FOURTH).
+ * POST /api/shift/start with user_id, company_id, platform, current_location.
+ * @param {string} userId
+ * @param {string} companyId
+ * @param {string} [platform] - e.g. 'SWIGGY' (default), 'AMAZON', 'FLIPKART'
+ * @param {{ lat: number, lng: number }|null} [currentLocation]
+ * @returns {Promise<object>} External API response
+ */
+export const startShift = async (userId, companyId, platform, currentLocation) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required (header X-Company-ID or user context)', 400);
+  }
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    throw new AppError('user_id required (authenticated user)', 400);
+  }
+  try {
+    const platformValue = (platform || 'SWIGGY').toString().trim().toUpperCase();
+    const body = {
+      user_id: userId.trim(),
+      company_id: companyId.trim(),
+      platform: platformValue,
+    };
+    if (currentLocation && typeof currentLocation === 'object' && currentLocation.lat != null && currentLocation.lng != null) {
+      body.current_location = {
+        lat: Number(currentLocation.lat),
+        lng: Number(currentLocation.lng),
+      };
+    }
+    const response = await deliveryPartnerApiClient.post('/api/shift/start', body, {
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+
+    if (data && data.success === false) {
+      throw new Error(data.error || 'Failed to start shift');
+    }
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Shift started', {
+      company_id: companyId,
+      user_id: userId,
+      platform: platformValue,
+    });
+
+    return {
+      success: true,
+      ...data,
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to start shift', {
+      error: error.message,
+      company_id: companyId,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to start shift',
+      error.response?.status === 404 ? 502 : 500
+    );
+  }
+};
+
+/**
+ * List trips from external 5004 API (Delivery Partner). GET /api/ml-trips?user_id=&platform=&status=
+ * @param {string} userId
+ * @param {string} companyId
+ * @param {{ platform?: string, status?: string }} filters
+ */
+export const listTripsFrom5004 = async (userId, companyId, filters = {}) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required', 400);
+  }
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    throw new AppError('user_id required', 400);
+  }
+  try {
+    const params = { user_id: userId.trim() };
+    if (filters.platform) params.platform = String(filters.platform).trim().toUpperCase();
+    if (filters.status) params.status = String(filters.status).trim().toLowerCase();
+    const response = await deliveryPartnerApiClient.get('/api/ml-trips', {
+      params,
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+    if (data && data.success === false) {
+      throw new Error(data.error || 'Failed to list trips');
+    }
+    logInfo(LOG_CATEGORIES.SYSTEM, 'ML trips list fetched from 5004', { company_id: companyId, count: (data?.trips || []).length });
+    return { success: true, trips: data?.trips ?? [] };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to list trips from 5004', {
+      error: error.message,
+      company_id: companyId,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to list trips',
+      error.response?.status === 404 ? 502 : 500
+    );
+  }
+};
+
+/**
+ * Get single trip from external 5004 API. GET /api/ml-trips/:tripId
+ */
+export const getTripFrom5004 = async (tripId, userId, companyId) => {
+  if (!tripId || !companyId || !userId) {
+    throw new AppError('tripId, company_id and user context required', 400);
+  }
+  try {
+    const response = await deliveryPartnerApiClient.get(`/api/ml-trips/${tripId}`, {
+      params: { user_id: userId.trim() },
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+    if (data && data.success === false) {
+      throw new Error(data.error || 'Trip not found');
+    }
+    if (!data?.trip) {
+      throw new AppError('Trip not found', 404);
+    }
+    logInfo(LOG_CATEGORIES.SYSTEM, 'ML trip detail fetched from 5004', { tripId, company_id: companyId });
+    return { success: true, trip: data.trip };
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to get trip from 5004', {
+      error: error.message,
+      tripId,
+      company_id: companyId,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to get trip',
+      error.response?.status === 404 ? 404 : 500
+    );
+  }
+};
+
+/**
+ * Update trip status on external 5004 API. PATCH /api/ml-trips/:tripId { trip_status }
+ */
+export const updateTripStatus5004 = async (tripId, userId, companyId, trip_status) => {
+  if (!tripId || !companyId || !userId) {
+    throw new AppError('tripId, company_id and user context required', 400);
+  }
+  const ts = String(trip_status || '').trim().toLowerCase();
+  if (ts !== 'picked_up' && ts !== 'delivered') {
+    throw new AppError('trip_status must be picked_up or delivered', 400);
+  }
+  try {
+    const response = await deliveryPartnerApiClient.patch(`/api/ml-trips/${tripId}`, { trip_status: ts }, {
+      headers: { 'X-Company-ID': companyId.trim(), 'Content-Type': 'application/json' },
+    });
+    const data = response.data;
+    if (data && data.success === false) {
+      throw new Error(data.error || 'Failed to update trip status');
+    }
+    logInfo(LOG_CATEGORIES.SYSTEM, 'ML trip status updated on 5004', { tripId, trip_status: ts, company_id: companyId });
+    return { success: true, trip: data?.trip ?? data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update trip status on 5004', {
+      error: error.message,
+      tripId,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to update trip status',
+      error.response?.status === 404 ? 502 : 500
+    );
+  }
+};
+
+/**
+ * Start route (tracking) on external 5004 API.
+ * POST /api/ml-trips/start-route
+ * @returns {Promise<{ success: boolean, route_id: string, driver_id: string, stops: any[] }>}
+ */
+export const startRoute5004 = async (userId, companyId, platform, currentLocation) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required', 400);
+  }
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    throw new AppError('user_id required', 400);
+  }
+  try {
+    const platformValue = (platform || 'SWIGGY').toString().trim().toUpperCase();
+    const body = {
+      user_id: userId.trim(),
+      company_id: companyId.trim(),
+      platform: platformValue,
+    };
+    if (currentLocation && typeof currentLocation === 'object' && currentLocation.lat != null && currentLocation.lng != null) {
+      body.current_location = { lat: Number(currentLocation.lat), lng: Number(currentLocation.lng) };
+    }
+    const response = await deliveryPartnerApiClient.post('/api/ml-trips/start-route', body, {
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+    if (data && data.success === false) throw new Error(data.error || 'Failed to start route');
+    logInfo(LOG_CATEGORIES.SYSTEM, 'ML start-route created on 5004', { company_id: companyId, user_id: userId });
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to start-route on 5004', {
+      error: error.message,
+      company_id: companyId,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to start route',
+      error.response?.status === 404 ? 502 : 500
+    );
+  }
+};
+
+/**
+ * Vehicle tracking on external 5004 API.
+ * POST /api/vehicle-tracking
+ */
+export const vehicleTracking5004 = async (companyId, body) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required', 400);
+  }
+  if (!body || typeof body !== 'object') throw new AppError('tracking body required', 400);
+  if (!body.route_id) throw new AppError('route_id required', 400);
+  if (!Array.isArray(body.tracking_points) || body.tracking_points.length === 0) {
+    throw new AppError('tracking_points must be a non-empty array', 400);
+  }
+  try {
+    const response = await deliveryPartnerApiClient.post('/api/vehicle-tracking', body, {
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+    if (data && data.success === false) throw new Error(data.error || 'Failed to send vehicle tracking');
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed vehicle-tracking on 5004', {
+      error: error.message,
+      company_id: companyId,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to send vehicle tracking',
+      error.response?.status === 404 ? 502 : 500
+    );
+  }
+};
+
+/**
+ * Mark stop reached on external 5004 API.
+ * POST /api/journey/mark-stop
+ */
+export const markStop5004 = async (companyId, body) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required', 400);
+  }
+  if (!body || typeof body !== 'object') throw new AppError('mark-stop body required', 400);
+  if (!body.route_id) throw new AppError('route_id required', 400);
+  if (!body.driver_id) throw new AppError('driver_id required', 400);
+  if (!body.planned_stop_id && !body.delivery_id && !body.stop_order) {
+    throw new AppError('planned_stop_id (recommended) or delivery_id or stop_order is required', 400);
+  }
+  try {
+    const response = await deliveryPartnerApiClient.post('/api/journey/mark-stop', body, {
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+    if (data && data.success === false) throw new Error(data.error || 'Failed to mark stop');
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed mark-stop on 5004', {
+      error: error.message,
+      company_id: companyId,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to mark stop',
+      error.response?.status === 404 ? 502 : 500
+    );
+  }
+};
+
+/**
+ * End shift on external 5004 API.
+ * POST /api/shift/end
+ */
+export const endShift5004 = async (userId, companyId, platform) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required', 400);
+  }
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    throw new AppError('user_id required', 400);
+  }
+  try {
+    const platformValue = (platform || 'SWIGGY').toString().trim().toUpperCase();
+    const body = { user_id: userId.trim(), platform: platformValue };
+    const response = await deliveryPartnerApiClient.post('/api/shift/end', body, {
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+    if (data && data.success === false) throw new Error(data.error || 'Failed to end shift');
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Shift ended', { company_id: companyId, user_id: userId, platform: platformValue });
+    return { success: true, ...data };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to end shift', {
+      error: error.message,
+      company_id: companyId,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to end shift',
+      error.response?.status === 404 ? 502 : 500
+    );
+  }
 };

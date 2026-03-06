@@ -1,16 +1,15 @@
 /**
- * MLTripDetailPage - MaXHub Logistics: single trip detail with map links and status actions (Picked up / Delivered).
+ * MLTripDetailPage - MaXHub Logistics: single trip detail with map links.
  */
 import React from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MdRestaurant, MdLocationOn, MdOpenInNew, MdArrowBack } from 'react-icons/md';
-import { Button, Spin } from 'antd';
+import { Spin } from 'antd';
 import MLNavbar from '../components/MLNavbar';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
 import { useMlTripDetail } from '../../hooks/mlHooks/useMlTripDetail';
-import { useUpdateMlTripStatus } from '../../hooks/mlHooks/useUpdateMlTripStatus';
 
 const formatStatus = (s) => {
   if (!s) return '—';
@@ -26,59 +25,46 @@ const formatCurrency = (n) => {
 
 const MLTripDetailPage = () => {
   const { tripId } = useParams();
-  const navigate = useNavigate();
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
   const accent = theme.accentColor || theme.primaryColor || '#E85D04';
 
-  const { data: trip, isLoading, isError, error, refetch } = useMlTripDetail(tripId);
-  const updateStatus = useUpdateMlTripStatus({
-    onSuccess: () => refetch(),
-  });
-
-  const canMarkPickedUp = trip?.trip_status === 'pending';
-  const canMarkDelivered = trip?.trip_status === 'picked_up' || trip?.trip_status === 'pending';
-
-  const handlePickedUp = () => {
-    if (!tripId) return;
-    updateStatus.mutate({ tripId, trip_status: 'picked_up' });
-  };
-
-  const handleDelivered = () => {
-    if (!tripId) return;
-    updateStatus.mutate({ tripId, trip_status: 'delivered' });
-  };
+  const { data: trip, isLoading, isError, error } = useMlTripDetail(tripId);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <MLNavbar onSignInClick={() => {}} />
-      <main className="pt-24 pb-12 px-4 max-w-2xl mx-auto">
+      <main className="pt-20 sm:pt-24 pb-24 px-4 max-w-md sm:max-w-xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="space-y-6"
+          className="space-y-5"
         >
-          <Link to={`${base}/trips`} className="inline-flex items-center gap-2 text-sm font-medium mb-2" style={{ color: accent }}>
-            <MdArrowBack /> Back to My Trips
+          <Link
+            to={`${base}/trips`}
+            className="inline-flex items-center gap-2 min-h-[44px] text-sm font-medium rounded-xl px-3 -ml-1 active:bg-gray-200/50 transition-colors"
+            style={{ color: accent }}
+          >
+            <MdArrowBack className="text-lg" /> Back to My Trips
           </Link>
 
           {isLoading && (
-            <div className="rounded-xl bg-white border border-gray-100 p-12 flex justify-center">
+            <div className="rounded-2xl bg-white border border-gray-100 p-12 flex justify-center shadow-md">
               <Spin size="large" />
             </div>
           )}
           {isError && (
-            <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-red-700">
-              {error?.message || 'Trip not found.'}
+            <div className="rounded-2xl bg-red-50 border border-red-100 p-4 text-red-700 text-sm">
+              {error?.response?.data?.error?.message || error?.message || 'Trip not found.'}
             </div>
           )}
           {!isLoading && !isError && trip && (
             <>
-              <div className="rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
+              <div className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                  <h1 className="text-xl font-bold text-gray-900 capitalize">{trip.platform} Trip</h1>
+                  <h1 className="text-lg font-bold text-gray-900 capitalize">{trip.platform} Trip</h1>
                   <span
                     className="px-3 py-1 rounded-full text-sm font-medium"
                     style={{
@@ -92,17 +78,17 @@ const MLTripDetailPage = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-500">Order amount</span>
-                    <p className="font-semibold text-gray-900">{formatCurrency(trip.orderAmount)}</p>
+                    <p className="font-semibold text-gray-900">{formatCurrency(trip.order_amount ?? trip.orderAmount)}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Your payment</span>
-                    <p className="font-semibold" style={{ color: accent }}>{formatCurrency(trip.partnerPayment)}</p>
+                    <p className="font-semibold" style={{ color: accent }}>{formatCurrency(trip.partner_payment ?? trip.partnerPayment)}</p>
                   </div>
                 </div>
               </div>
 
               {/* Pickup */}
-              <div className="rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
+              <div className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md">
                 <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <MdRestaurant style={{ color: accent }} /> Pickup
                 </h2>
@@ -124,7 +110,7 @@ const MLTripDetailPage = () => {
               </div>
 
               {/* Delivery */}
-              <div className="rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
+              <div className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md">
                 <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <MdLocationOn style={{ color: accent }} /> Delivery
                 </h2>
@@ -143,31 +129,6 @@ const MLTripDetailPage = () => {
                     {[trip.delivery_address?.street, trip.delivery_address?.city, trip.delivery_address?.pincode].filter(Boolean).join(', ') || 'No address'}
                   </p>
                 )}
-              </div>
-
-              {/* Status actions */}
-              <div className="rounded-xl bg-white border border-gray-100 p-5 shadow-sm space-y-3">
-                <h2 className="text-sm font-semibold text-gray-700">Update status</h2>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="primary"
-                    onClick={handlePickedUp}
-                    disabled={!canMarkPickedUp || updateStatus.isPending}
-                    loading={updateStatus.isPending}
-                    style={{ backgroundColor: canMarkPickedUp ? accent : undefined, borderColor: accent }}
-                  >
-                    Picked up
-                  </Button>
-                  <Button
-                    type="primary"
-                    onClick={handleDelivered}
-                    disabled={!canMarkDelivered || updateStatus.isPending}
-                    loading={updateStatus.isPending}
-                    style={{ backgroundColor: trip?.trip_status === 'delivered' ? undefined : accent, borderColor: accent }}
-                  >
-                    Delivered
-                  </Button>
-                </div>
               </div>
             </>
           )}
