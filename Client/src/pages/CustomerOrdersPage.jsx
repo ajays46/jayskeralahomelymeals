@@ -1544,13 +1544,11 @@ const CustomerOrdersPage = () => {
                                               </div>
                                             </div>
                                           </div>
-                                          <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border ${
-                                            (item.status?.toLowerCase() === 'completed' || item.status?.toLowerCase() === 'delivered') ? 'bg-green-100 text-green-700 border-green-200' :
-                                            item.status?.toLowerCase() === 'cancelled' ? 'bg-red-100 text-red-700 border-red-200' :
-                                            'bg-blue-100 text-blue-700 border-blue-200'
-                                          }`}>
-                                            {item.status}
+                                          {(() => { const itemStatusInfo = getOrderStatusInfo(item.status); return (
+                                          <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border border-gray-200 ${itemStatusInfo.bgColor} ${itemStatusInfo.color}`}>
+                                            {itemStatusInfo.label}
                                           </div>
+                                          ); })()}
                                         </div>
 
                                         {/* Delivery Address */}
@@ -1696,13 +1694,11 @@ const CustomerOrdersPage = () => {
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                          <div className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                                            (item.status?.toLowerCase() === 'completed' || item.status?.toLowerCase() === 'delivered') ? 'bg-green-100 text-green-700 border-green-200' :
-                                            item.status?.toLowerCase() === 'cancelled' ? 'bg-red-100 text-red-700 border-red-200' :
-                                            'bg-blue-100 text-blue-700 border-blue-200'
-                                          }`}>
-                                            {item.status}
+                                          {(() => { const itemStatusInfo = getOrderStatusInfo(item.status); return (
+                                          <div className={`px-3 py-1 rounded-full text-xs font-medium border border-gray-200 ${itemStatusInfo.bgColor} ${itemStatusInfo.color}`}>
+                                            {itemStatusInfo.label}
                                           </div>
+                                          ); })()}
                                           {!['cancelled', 'completed', 'delivered'].includes(item.status?.toLowerCase()) && (
                                             <button
                                               onClick={() => handleCancelDeliveryItem(item.id)}

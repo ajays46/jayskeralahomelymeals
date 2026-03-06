@@ -371,7 +371,16 @@ export const getUserAddresses = async (userId, sellerId) => {
   }
 };
 
-// Get orders for a specific user created by a seller
+// Valid OrderStatus values (used when normalizing invalid/empty status from DB)
+const VALID_ORDER_STATUS = ['Pending', 'Confirmed', 'Cancelled', 'Delivered', 'Payment_Confirmed', 'CUSTOMER_UNAVAILABLE', 'In_Progress'];
+
+function normalizeOrderStatus(value) {
+  if (value && VALID_ORDER_STATUS.includes(value)) return value;
+  return 'Pending';
+}
+
+// Get orders for a specific user created by a seller.
+// Fetches delivery items via raw query so empty/invalid status in DB is normalized to Pending (no DB patch needed).
 export const getUserOrders = async (userId, sellerId) => {
   try {
     // First verify that this user was created by the seller
@@ -386,11 +395,9 @@ export const getUserOrders = async (userId, sellerId) => {
       throw new AppError('User not found or not created by this seller', 404);
     }
 
-    // Get orders for this user with related data
+    // Fetch orders with payments only (do not include deliveryItems — they may have invalid status in DB)
     const orders = await prisma.order.findMany({
-      where: {
-        userId: userId
-      },
+      where: { userId },
       include: {
         payments: {
           include: {
@@ -402,47 +409,79 @@ export const getUserOrders = async (userId, sellerId) => {
               }
             }
           }
-        },
-        deliveryItems: {
-          select: {
-            id: true,
-            deliveryDate: true,
-            deliveryTimeSlot: true,
-            status: true,
-            quantity: true,
-            deliveryNote: true,
-            menuItem: {
-              select: {
-                id: true,
-                name: true,
-                menu: {
-                  select: {
-                    id: true,
-                    name: true
-                  }
-                }
-              }
-            },
-            deliveryAddress: {
-              select: {
-                id: true,
-                street: true,
-                housename: true,
-                city: true,
-                pincode: true,
-                googleMapsUrl: true,
-                geoLocation: true
-              }
-            }
-          }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     });
 
-    return orders;
+    if (orders.length === 0) return orders;
+
+    const orderIds = orders.map((o) => o.id);
+    const placeholders = orderIds.map(() => '?').join(',');
+    // Normalize empty/NULL status to 'Pending' in SQL so Prisma enum is never violated
+    const rawItems = await prisma.$queryRawUnsafe(
+      `SELECT id, order_id AS orderId, menu_item_id AS menuItemId, quantity, delivery_date AS deliveryDate,
+              delivery_time_slot AS deliveryTimeSlot, address_id AS addressId,
+              COALESCE(NULLIF(TRIM(status), ''), 'Pending') AS status,
+              delivery_note AS deliveryNote, created_at AS createdAt, updated_at AS updatedAt, user_id AS userId
+       FROM delivery_items WHERE order_id IN (${placeholders})`,
+      ...orderIds
+    );
+
+    const itemIds = [...new Set(rawItems.map((i) => i.menuItemId))];
+    const addressIds = [...new Set(rawItems.map((i) => i.addressId))];
+
+    const [menuItems, addresses] = await Promise.all([
+      itemIds.length
+        ? prisma.menuItem.findMany({
+            where: { id: { in: itemIds } },
+            select: {
+              id: true,
+              name: true,
+              menu: { select: { id: true, name: true } }
+            }
+          })
+        : [],
+      addressIds.length
+        ? prisma.address.findMany({
+            where: { id: { in: addressIds } },
+            select: {
+              id: true,
+              street: true,
+              housename: true,
+              city: true,
+              pincode: true,
+              googleMapsUrl: true,
+              geoLocation: true
+            }
+          })
+        : []
+    ]);
+
+    const menuById = Object.fromEntries((Array.isArray(menuItems) ? menuItems : []).map((m) => [m.id, m]));
+    const addressById = Object.fromEntries((Array.isArray(addresses) ? addresses : []).map((a) => [a.id, a]));
+
+    const itemsByOrderId = {};
+    for (const row of rawItems) {
+      const status = normalizeOrderStatus(row.status);
+      const item = {
+        id: row.id,
+        deliveryDate: row.deliveryDate,
+        deliveryTimeSlot: row.deliveryTimeSlot,
+        status,
+        quantity: row.quantity,
+        deliveryNote: row.deliveryNote,
+        menuItem: menuById[row.menuItemId] ?? null,
+        deliveryAddress: addressById[row.addressId] ?? null
+      };
+      if (!itemsByOrderId[row.orderId]) itemsByOrderId[row.orderId] = [];
+      itemsByOrderId[row.orderId].push(item);
+    }
+
+    return orders.map((order) => ({
+      ...order,
+      deliveryItems: itemsByOrderId[order.id] ?? []
+    }));
   } catch (error) {
     throw new AppError('Failed to fetch user orders: ' + error.message, 500);
   }
