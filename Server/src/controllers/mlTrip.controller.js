@@ -2,7 +2,13 @@
  * ML Trip Controller - MaXHub Logistics: add trips with pickup/delivery addresses; dashboard stats for delivery partner.
  */
 import AppError from '../utils/AppError.js';
-import { addTrips as addTripsService, getPartnerDashboardStats } from '../services/mlTrip.service.js';
+import {
+  addTrips as addTripsService,
+  getPartnerDashboardStats,
+  listTripsForPartner,
+  getTripById,
+  updateTripStatus,
+} from '../services/mlTrip.service.js';
 
 /**
  * POST /api/ml-trips
@@ -36,6 +42,63 @@ export const addTrips = async (req, res, next) => {
         mlTrips: result.mlTrips,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/ml-trips
+ * Query: platform?, status? (pending | picked_up | delivered)
+ */
+export const listTrips = async (req, res, next) => {
+  try {
+    const companyId = req.companyId;
+    if (!companyId) throw new AppError('Company context is required.', 400);
+    const userId = req.user?.userId;
+    if (!userId) throw new AppError('User not authenticated.', 401);
+    const platform = req.query?.platform;
+    const status = req.query?.status;
+    const trips = await listTripsForPartner(companyId, userId, { platform, status });
+    res.status(200).json({ success: true, trips });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/ml-trips/:tripId
+ */
+export const getTrip = async (req, res, next) => {
+  try {
+    const companyId = req.companyId;
+    if (!companyId) throw new AppError('Company context is required.', 400);
+    const userId = req.user?.userId;
+    if (!userId) throw new AppError('User not authenticated.', 401);
+    const { tripId } = req.params;
+    const trip = await getTripById(tripId, userId, companyId);
+    if (!trip) throw new AppError('Trip not found.', 404);
+    res.status(200).json({ success: true, trip });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/ml-trips/:tripId
+ * Body: { trip_status: "picked_up" | "delivered" }
+ */
+export const updateTrip = async (req, res, next) => {
+  try {
+    const companyId = req.companyId;
+    if (!companyId) throw new AppError('Company context is required.', 400);
+    const userId = req.user?.userId;
+    if (!userId) throw new AppError('User not authenticated.', 401);
+    const { tripId } = req.params;
+    const { trip_status } = req.body;
+    if (!trip_status) throw new AppError('trip_status is required (picked_up or delivered).', 400);
+    const trip = await updateTripStatus(tripId, userId, companyId, trip_status);
+    res.status(200).json({ success: true, trip });
   } catch (error) {
     next(error);
   }

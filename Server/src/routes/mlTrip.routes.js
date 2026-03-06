@@ -6,7 +6,13 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { resolveCompanyId, requireCompanyId } from '../middleware/resolveCompanyId.js';
-import { addTrips, getDashboard } from '../controllers/mlTrip.controller.js';
+import {
+  addTrips,
+  getDashboard,
+  listTrips,
+  getTrip,
+  updateTrip,
+} from '../controllers/mlTrip.controller.js';
 
 const router = express.Router();
 
@@ -17,6 +23,33 @@ router.get(
   resolveCompanyId,
   requireCompanyId,
   getDashboard
+);
+
+router.get(
+  '/',
+  authenticateToken,
+  checkRole('DELIVERY_PARTNER'),
+  resolveCompanyId,
+  requireCompanyId,
+  listTrips
+);
+
+router.get(
+  '/:tripId',
+  authenticateToken,
+  checkRole('DELIVERY_PARTNER'),
+  resolveCompanyId,
+  requireCompanyId,
+  getTrip
+);
+
+router.patch(
+  '/:tripId',
+  authenticateToken,
+  checkRole('DELIVERY_PARTNER'),
+  resolveCompanyId,
+  requireCompanyId,
+  updateTrip
 );
 
 router.post(

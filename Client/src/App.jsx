@@ -12,6 +12,8 @@ import MLHomePage from './ml/pages/MLHomePage';
 import MLDeliveryPartnerDashboard from './ml/pages/MLDeliveryPartnerDashboard';
 import MLCXODashboard from './ml/pages/MLCXODashboard';
 import MLAddTripPage from './ml/pages/MLAddTripPage';
+import MLMyTripsPage from './ml/pages/MLMyTripsPage';
+import MLTripDetailPage from './ml/pages/MLTripDetailPage';
 import MLRouteGuard from './ml/components/MLRouteGuard';
 import ProtectedRoute from './protectRoute/Protect';
 import AdminPage from './pages/admin/AdminPage';
@@ -215,7 +217,9 @@ const App = () => {
 
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<MLRouteGuard><MLDeliveryPartnerDashboard /></MLRouteGuard>} />
+              <Route path="trips" element={<MLRouteGuard><MLMyTripsPage /></MLRouteGuard>} />
               <Route path="trips/add" element={<MLRouteGuard><MLAddTripPage /></MLRouteGuard>} />
+              <Route path="trips/:tripId" element={<MLRouteGuard><MLTripDetailPage /></MLRouteGuard>} />
               <Route path="cxo-dashboard" element={<MLRouteGuard><MLCXODashboard /></MLRouteGuard>} />
               <Route path="management-dashboard" element={<ManagementDashboardPage />} />
               <Route path="financial-dashboard" element={<FinancialDashboardPage />} />

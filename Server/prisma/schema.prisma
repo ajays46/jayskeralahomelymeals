@@ -275,6 +275,7 @@ model MlTripAddress {
 
 enum MlTripStatus {
   PENDING
+  PICKED_UP
   DELIVERED
 }
 

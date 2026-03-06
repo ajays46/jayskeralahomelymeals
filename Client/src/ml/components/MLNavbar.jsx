@@ -3,7 +3,7 @@
  * Used when companyPath === 'ml'. Sign In opens same AuthSlider with ML theme.
  */
 import React, { useState, useEffect } from 'react';
-import { MdPerson, MdDashboard, MdLogout, MdClose, MdMenu, MdEmail, MdPhone, MdAdminPanelSettings, MdAddCircle } from 'react-icons/md';
+import { MdPerson, MdDashboard, MdLogout, MdClose, MdMenu, MdEmail, MdPhone, MdAdminPanelSettings, MdAddCircle, MdList } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -84,6 +84,9 @@ const MLNavbar = ({ onSignInClick }) => {
               <>
                 <Link to={`${base}/dashboard`} className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 group">
                   <MdDashboard className="text-xl group-hover:scale-110 transition-transform duration-300" /> Dashboard
+                </Link>
+                <Link to={`${base}/trips`} className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 group">
+                  <MdList className="text-xl group-hover:scale-110 transition-transform duration-300" /> My Trips
                 </Link>
                 <Link to={`${base}/trips/add`} className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 group">
                   <MdAddCircle className="text-xl group-hover:scale-110 transition-transform duration-300" /> Add Trip
@@ -189,6 +192,7 @@ const MLNavbar = ({ onSignInClick }) => {
                 {userIsDeliveryPartner && (
                   <>
                     <Link to={`${base}/dashboard`} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg" onClick={() => setMenuOpen(false)}><MdDashboard /> Dashboard</Link>
+                    <Link to={`${base}/trips`} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg" onClick={() => setMenuOpen(false)}><MdList /> My Trips</Link>
                     <Link to={`${base}/trips/add`} className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-orange-50 rounded-lg" onClick={() => setMenuOpen(false)}><MdAddCircle /> Add Trip</Link>
                   </>
                 )}

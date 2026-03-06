@@ -138,6 +138,111 @@ function startOfWeekUTC() {
 }
 
 const VALID_PLATFORMS = ['swiggy', 'flipkart', 'amazon'];
+const VALID_STATUSES = ['pending', 'picked_up', 'delivered'];
+
+/** Map Prisma status to guide's trip_status (lowercase). */
+function toTripStatus(status) {
+  if (!status) return 'pending';
+  const s = String(status).toUpperCase();
+  if (s === 'PICKED_UP') return 'picked_up';
+  if (s === 'DELIVERED') return 'delivered';
+  return 'pending';
+}
+
+/** Map MlTripAddress to guide shape: { street, city, pincode, geo_location, google_maps_url }. */
+function formatAddressForResponse(addr) {
+  if (!addr) return null;
+  return {
+    street: addr.street ?? '',
+    housename: addr.housename ?? '',
+    city: addr.city ?? '',
+    pincode: addr.pincode ?? 0,
+    geo_location: addr.geoLocation ?? null,
+    google_maps_url: addr.googleMapsUrl ?? null,
+  };
+}
+
+/** Map MlTrip (with include) to guide response shape. */
+function formatTripForResponse(trip) {
+  if (!trip) return null;
+  return {
+    id: trip.id,
+    trip_status: toTripStatus(trip.status),
+    status: trip.status,
+    platform: trip.platform,
+    orderAmount: trip.orderAmount,
+    partnerPayment: trip.partnerPayment,
+    createdAt: trip.createdAt,
+    updatedAt: trip.updatedAt,
+    pickup_address: formatAddressForResponse(trip.pickupAddress),
+    delivery_address: formatAddressForResponse(trip.deliveryAddress),
+  };
+}
+
+/**
+ * List trips for delivery partner. Optional filters: platform, status (pending | picked_up | delivered).
+ * @param {string} companyId
+ * @param {string} userId
+ * @param {{ platform?: string, status?: string }} filters
+ * @returns {Promise<object[]>} trips in guide shape
+ */
+export const listTripsForPartner = async (companyId, userId, filters = {}) => {
+  if (!companyId || !userId) throw new Error('companyId and userId are required');
+  const where = { companyId, userId };
+  if (filters.platform && VALID_PLATFORMS.includes(String(filters.platform).trim().toLowerCase())) {
+    where.platform = String(filters.platform).trim().toLowerCase();
+  }
+  if (filters.status && VALID_STATUSES.includes(String(filters.status).trim().toLowerCase())) {
+    const s = String(filters.status).trim().toLowerCase();
+    where.status = s === 'pending' ? 'PENDING' : s === 'picked_up' ? 'PICKED_UP' : 'DELIVERED';
+  }
+  const trips = await prisma.mlTrip.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    include: { pickupAddress: true, deliveryAddress: true },
+  });
+  return trips.map(formatTripForResponse);
+};
+
+/**
+ * Get single trip by id for the partner. Returns null if not found or not owner.
+ */
+export const getTripById = async (tripId, userId, companyId) => {
+  if (!tripId || !userId || !companyId) return null;
+  const trip = await prisma.mlTrip.findFirst({
+    where: { id: tripId, userId, companyId },
+    include: { pickupAddress: true, deliveryAddress: true, menuItem: true },
+  });
+  return trip ? formatTripForResponse(trip) : null;
+};
+
+/**
+ * Update trip status. Valid transitions: PENDING -> PICKED_UP -> DELIVERED.
+ * @param {string} tripId
+ * @param {string} userId
+ * @param {string} companyId
+ * @param {string} trip_status - "picked_up" | "delivered"
+ */
+export const updateTripStatus = async (tripId, userId, companyId, trip_status) => {
+  if (!tripId || !userId || !companyId) throw new Error('tripId, userId, companyId are required');
+  const ts = String(trip_status).trim().toLowerCase();
+  if (ts !== 'picked_up' && ts !== 'delivered') throw new Error('trip_status must be picked_up or delivered');
+  const newStatus = ts === 'picked_up' ? 'PICKED_UP' : 'DELIVERED';
+  const trip = await prisma.mlTrip.findFirst({ where: { id: tripId, userId, companyId } });
+  if (!trip) throw new Error('Trip not found');
+  const current = String(trip.status).toUpperCase();
+  if (newStatus === 'PICKED_UP' && current !== 'PENDING') throw new Error('Only PENDING trips can be marked picked_up');
+  if (newStatus === 'DELIVERED' && current !== 'PICKED_UP' && current !== 'PENDING') throw new Error('Trip must be PICKED_UP or PENDING before delivered');
+  await prisma.mlTrip.update({
+    where: { id: tripId },
+    data: { status: newStatus },
+  });
+  const updated = await prisma.mlTrip.findFirst({
+    where: { id: tripId },
+    include: { pickupAddress: true, deliveryAddress: true },
+  });
+  return formatTripForResponse(updated);
+};
 
 /**
  * Get dashboard stats for a delivery partner: trips count and revenue (partner payment) for today, this week, and all time.
