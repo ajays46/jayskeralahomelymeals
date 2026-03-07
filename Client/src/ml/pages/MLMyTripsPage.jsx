@@ -227,20 +227,6 @@ const MLMyTripsPage = () => {
             </div>
           </div>
 
-          {/* Route started - visible when route is active (persisted in store) */}
-          {effectiveRouteId && (
-            <div
-              className="rounded-2xl border p-4 flex items-center gap-3"
-              style={{ backgroundColor: '#ecfdf5', borderColor: '#a7f3d0' }}
-            >
-              <MdCheckCircle className="text-2xl flex-shrink-0" style={{ color: '#059669' }} />
-              <div>
-                <p className="font-semibold text-gray-900">Route started</p>
-                <p className="text-sm text-gray-600">GPS tracking is active. Mark stops below as Picked up or Delivered.</p>
-              </div>
-            </div>
-          )}
-
           {!effectiveRouteId && !routeResponse && (
             <div className="rounded-2xl bg-white border border-gray-100 p-6 text-center text-gray-500 text-sm">
               Tap &quot;Start route&quot; to create a route and see stops here.
@@ -253,7 +239,7 @@ const MLMyTripsPage = () => {
               <p className="text-sm font-semibold text-gray-800">Stops</p>
               {stopsList
                 .slice()
-                .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
+                .sort((a, b) => (a.step ?? a.stop ?? 0) - (b.step ?? b.stop ?? 0))
                 .map((stop, i) => {
                   const persistedStatus = stop.trip_id ? (tripStatusByTripId[stop.trip_id] || '').toLowerCase() : '';
                   const isPickup = stop.stop_type === 'pickup';
@@ -262,16 +248,17 @@ const MLMyTripsPage = () => {
                   const isDelivered = !isPickup && persistedStatus === 'delivered';
                   const alreadyDone = isPickedUp || isDelivered;
                   const label = isPickedUp ? 'Picked up' : isDelivered ? 'Delivered' : isPickup ? 'Picked up' : 'Delivered';
+                  const stopNumber = stop.step ?? stop.stop ?? i + 1;
                   return (
                     <motion.div
-                      key={stop.planned_stop_id || `${stop.trip_id}-${stop.step}-${i}`}
+                      key={stop.planned_stop_id || `${stop.trip_id}-${stopNumber}-${i}`}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2, delay: i * 0.03 }}
                       className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                        <span className="text-gray-500 text-sm">Stop {stop.step ?? i + 1}</span>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <span className="text-gray-500 text-sm">Stop {stopNumber}</span>
                         <span
                           className="px-2.5 py-1 rounded-full text-xs font-medium capitalize"
                           style={{
@@ -286,6 +273,9 @@ const MLMyTripsPage = () => {
                           )}
                         </span>
                       </div>
+                      {stop.order_id && (
+                        <p className="text-sm font-medium text-gray-800 mb-2">Order #{stop.order_id}</p>
+                      )}
                       {stop.trip_id && (
                         <p className="text-xs text-gray-500 mb-2">
                           <Link to={`${base}/trips/${stop.trip_id}`} className="font-medium underline" style={{ color: accent }}>Trip details</Link>

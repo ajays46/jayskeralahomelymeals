@@ -524,6 +524,7 @@ export const startRoute5004 = async (userId, companyId, platform, currentLocatio
       headers: { 'X-Company-ID': companyId.trim() },
     });
     const data = response.data;
+    console.log('data', data);
     if (data && data.success === false) throw new Error(data.error || 'Failed to start route');
     logInfo(LOG_CATEGORIES.SYSTEM, 'ML start-route created on 5004', { company_id: companyId, user_id: userId });
     return { success: true, ...data };
