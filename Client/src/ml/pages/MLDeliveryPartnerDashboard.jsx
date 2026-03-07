@@ -1,17 +1,131 @@
 /**
  * MLDeliveryPartnerDashboard - MaXHub Logistics Delivery Partner dashboard.
  * Shows trips done (today / this week / total), revenue earned, recent trips. Filter by platform (All, Swiggy, Flipkart, Amazon).
+ * Start shift: Swiggy-style swipe button; on complete → navigate to Add Trips.
  */
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import MLNavbar from '../components/MLNavbar';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
 import { useMlPartnerDashboard } from '../../hooks/mlHooks/useMlPartnerDashboard';
 import { useStartShift } from '../../hooks/mlHooks/useStartShift';
+import { useShiftStatus, SHIFT_STATUS_KEY } from '../../hooks/mlHooks/useShiftStatus';
+import useMLDeliveryPartnerStore from '../../stores/MLDeliveryPartner.store.js';
 import { showSuccessToast, showErrorToast } from '../utils/mlToast';
-import { MdPlayArrow, MdLocalShipping, MdToday, MdDateRange, MdTrendingUp } from 'react-icons/md';
+import { MdPlayArrow, MdLocalShipping, MdToday, MdDateRange, MdTrendingUp, MdCheckCircle } from 'react-icons/md';
+
+const SWIPE_THRESHOLD = 0.85; // 85% to trigger
+
+/** Swiggy-style swipe to confirm: drag thumb right to end to trigger onSwipeComplete. */
+const SwipeToStartButton = ({ onSwipeComplete, disabled, accent, isPending }) => {
+  const trackRef = useRef(null);
+  const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [triggered, setTriggered] = useState(false);
+  const startXRef = useRef(0);
+  const maxXRef = useRef(0);
+
+  const getMaxX = useCallback(() => {
+    if (!trackRef.current) return 0;
+    const track = trackRef.current;
+    const thumbWidth = 56;
+    return Math.max(0, track.offsetWidth - thumbWidth - 8);
+  }, []);
+
+  const handleStart = useCallback((clientX) => {
+    if (disabled || isPending || triggered) return;
+    const track = trackRef.current;
+    if (!track) return;
+    const rect = track.getBoundingClientRect();
+    startXRef.current = clientX - dragX;
+    maxXRef.current = getMaxX();
+    setIsDragging(true);
+  }, [disabled, isPending, triggered, dragX, getMaxX]);
+
+  const handleMove = useCallback((clientX) => {
+    if (!isDragging || disabled || triggered) return;
+    let x = clientX - startXRef.current;
+    x = Math.max(0, Math.min(x, maxXRef.current));
+    setDragX(x);
+    if (x >= maxXRef.current * SWIPE_THRESHOLD) {
+      setTriggered(true);
+      setIsDragging(false);
+      onSwipeComplete();
+    }
+  }, [isDragging, disabled, triggered, onSwipeComplete]);
+
+  const handleEnd = useCallback(() => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    if (!triggered) setDragX(0);
+  }, [isDragging, triggered]);
+
+  React.useEffect(() => {
+    if (!isDragging) return;
+    const onMouseMove = (e) => handleMove(e.clientX);
+    const onMouseUp = () => handleEnd();
+    const onTouchMove = (e) => {
+      e.preventDefault();
+      handleMove(e.touches[0].clientX);
+    };
+    const onTouchEnd = () => handleEnd();
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isDragging, handleMove, handleEnd]);
+
+  const maxX = getMaxX();
+  const isComplete = triggered || isPending;
+
+  return (
+    <div className="w-full">
+      <div
+        ref={trackRef}
+        role="button"
+        tabIndex={0}
+        aria-label="Swipe right to start shift"
+        onMouseDown={(e) => { e.preventDefault(); handleStart(e.clientX); }}
+        onTouchStart={(e) => { e.preventDefault(); handleStart(e.touches[0].clientX); }}
+        className="relative w-full min-h-[56px] rounded-full overflow-hidden select-none touch-none flex items-center"
+        style={{ backgroundColor: isComplete ? accent : '#e5e7eb' }}
+      >
+        <motion.div
+          className="absolute left-1 top-1 bottom-1 w-14 rounded-full flex items-center justify-center shadow-md z-10"
+          style={{
+            backgroundColor: isComplete ? '#fff' : '#f9fafb',
+            color: accent,
+          }}
+          animate={{ x: isPending ? maxX : dragX }}
+          transition={isDragging ? { type: 'tween', duration: 0 } : { type: 'spring', stiffness: 400, damping: 35 }}
+        >
+          {isPending ? (
+            <span className="text-lg font-bold">…</span>
+          ) : (
+            <MdPlayArrow className="text-2xl" />
+          )}
+        </motion.div>
+        <div className="flex-1 flex items-center justify-center pointer-events-none min-h-[56px]">
+          <span
+            className="font-semibold text-base"
+            style={{ color: isComplete ? '#fff' : '#6b7280' }}
+          >
+            {isPending ? 'Starting…' : triggered ? 'Started!' : 'Swipe to start shift'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const PLATFORM_FILTERS = [
   { id: null, label: 'All' },
@@ -48,14 +162,19 @@ const StatCard = ({ title, trips, revenue, icon: Icon, accent }) => (
 const MLDeliveryPartnerDashboard = () => {
   const base = useCompanyBasePath();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const setInShift = useMLDeliveryPartnerStore((s) => s.setInShift);
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
   const accent = theme.accentColor || theme.primaryColor || '#E85D04';
   const [platformFilter, setPlatformFilter] = useState(null);
 
   const { data: stats, isLoading, isError, error } = useMlPartnerDashboard(platformFilter);
+  const { inShift, isLoading: shiftStatusLoading } = useShiftStatus();
   const startShiftMutation = useStartShift({
     onSuccess: () => {
+      setInShift(true);
+      queryClient.invalidateQueries({ queryKey: SHIFT_STATUS_KEY });
       showSuccessToast('Shift started. You are now online.', 'Shift started');
       navigate(`${base}/trips/add`);
     },
@@ -101,31 +220,49 @@ const MLDeliveryPartnerDashboard = () => {
             <p className="text-sm text-gray-600">View stats and start your shift.</p>
           </div>
 
-          {/* Start Shift CTA - mobile primary action */}
+          {/* Start Shift CTA or You're online - Zustand store + API */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.05 }}
             className="rounded-2xl bg-white shadow-md border border-gray-100 p-5 sm:p-6"
           >
-            <div className="flex flex-col gap-4">
+            {shiftStatusLoading ? (
+              <p className="text-sm text-gray-500">Checking shift status…</p>
+            ) : inShift ? (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <MdCheckCircle className="text-2xl flex-shrink-0" style={{ color: '#16a34a' }} />
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900 mb-0.5">You're online</h2>
+                    <p className="text-sm text-gray-600">Go to My Trips to start a route or add trips.</p>
+                  </div>
+                </div>
+                <Link
+                  to={`${base}/trips`}
+                  className="min-h-[48px] py-3 px-5 rounded-2xl font-semibold text-white shadow-md active:scale-[0.98] transition-transform flex items-center justify-center gap-2 text-base"
+                  style={{ backgroundColor: accent }}
+                >
+                  <MdLocalShipping className="text-xl flex-shrink-0" />
+                  Go to My Trips
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
               <div>
                 <h2 className="text-base font-semibold text-gray-900 mb-0.5">Start your shift</h2>
                 <p className="text-sm text-gray-600">
-                  Go online, then you’ll be taken to add trips.
+                  Swipe right to go online, then you’ll be taken to add trips.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleStartShift}
-                disabled={startShiftMutation.isPending}
-                className="w-full min-h-[48px] py-3 px-5 rounded-2xl font-semibold text-white shadow-md active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-base"
-                style={{ backgroundColor: accent }}
-              >
-                <MdPlayArrow className="text-xl flex-shrink-0" />
-                {startShiftMutation.isPending ? 'Starting…' : 'Start shift'}
-              </button>
-            </div>
+                <SwipeToStartButton
+                  onSwipeComplete={handleStartShift}
+                  disabled={false}
+                  accent={accent}
+                  isPending={startShiftMutation.isPending}
+                />
+              </div>
+            )}
           </motion.div>
 
           {/* Platform filter */}

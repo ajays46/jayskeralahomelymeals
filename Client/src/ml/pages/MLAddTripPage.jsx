@@ -172,6 +172,7 @@ const MLAddTripPage = () => {
   const [platform, setPlatform] = useState('swiggy');
   const [price, setPrice] = useState('');
   const [partnerPayment, setPartnerPayment] = useState('');
+  const [orderId, setOrderId] = useState('');
   const [pickup, setPickup] = useState(initialLocation);
   const [delivery, setDelivery] = useState(initialLocation);
   const [showManualPickup, setShowManualPickup] = useState(false);
@@ -254,12 +255,14 @@ const MLAddTripPage = () => {
       platformLabel,
       price: parseFloat(price),
       partnerPayment: parseFloat(partnerPayment),
+      orderId: (orderId && String(orderId).trim()) || undefined,
       pickup: { ...pickup, pincode: pickup.pincode ? parseInt(pickup.pincode, 10) : '' },
       delivery: { ...delivery, pincode: delivery.pincode ? parseInt(delivery.pincode, 10) : '' },
     };
     setTrips((prev) => [...prev, trip]);
     setPrice('');
     setPartnerPayment('');
+    setOrderId('');
     setPickup(initialLocation);
     setDelivery(initialLocation);
     setShowManualPickup(false);
@@ -398,6 +401,17 @@ const MLAddTripPage = () => {
                   {errors.partnerPayment && <p className="mt-1 text-sm text-red-600" role="alert">{errors.partnerPayment}</p>}
                   <p className="mt-1 text-xs text-gray-500">Amount you receive as delivery partner for this trip.</p>
                 </div>
+                <div>
+                  <label htmlFor="trip-order-id" className="block text-sm font-medium text-gray-700 mb-1">Order ID <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    id="trip-order-id"
+                    type="text"
+                    placeholder="e.g. SW123456"
+                    value={orderId}
+                    onChange={(e) => setOrderId(e.target.value)}
+                    className="w-full min-h-[44px] py-3 px-3 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-offset-0 text-base focus:border-gray-400 focus:ring-gray-100"
+                  />
+                </div>
               </div>
 
               <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4 space-y-5">
@@ -478,6 +492,7 @@ const MLAddTripPage = () => {
                   >
                     <span className="text-sm font-medium text-gray-800 truncate">
                       {t.platformLabel} — Order ₹{t.price.toFixed(2)} · My payment ₹{(t.partnerPayment ?? 0).toFixed(2)}
+                      {t.orderId ? ` · #${t.orderId}` : ''}
                     </span>
                     <button
                       type="button"

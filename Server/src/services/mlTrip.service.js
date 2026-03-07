@@ -102,12 +102,14 @@ export const addTrips = async (companyId, userId, trips) => {
     const menuItem = await createMenuItemForTrip(companyId, platformLabel, platform);
     await createMenuItemPriceForTrip(companyId, menuItem.id, orderAmount);
 
+    const orderIdVal = (trip.orderId != null && String(trip.orderId).trim() !== '') ? String(trip.orderId).trim() : null;
     const mlTrip = await prisma.mlTrip.create({
       data: {
         companyId,
         userId,
         menuItemId: menuItem.id,
         platform,
+        orderId: orderIdVal,
         orderAmount,
         partnerPayment: partnerPaymentVal,
         status: 'PENDING',
@@ -181,6 +183,7 @@ function formatTripForResponse(trip) {
     trip_status: toTripStatus(trip.status),
     status: trip.status,
     platform: trip.platform,
+    orderId: trip.orderId ?? null,
     orderAmount: trip.orderAmount,
     partnerPayment: trip.partnerPayment,
     createdAt: trip.createdAt,
@@ -601,6 +604,25 @@ export const markStop5004 = async (companyId, body) => {
       error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to mark stop',
       error.response?.status === 404 ? 502 : 500
     );
+  }
+};
+
+/**
+ * Get shift status from DB (driver_availability). Read-only; 5004 is the writer.
+ * @returns { Promise<{ success: true, inShift: boolean }> }
+ */
+export const getShiftStatusFromDb = async (userId, companyId) => {
+  if (!userId || !companyId) return { success: true, inShift: false };
+  try {
+    const row = await prisma.driverAvailability.findUnique({
+      where: {
+        userId_companyId: { userId: String(userId).trim(), companyId: String(companyId).trim() },
+      },
+    });
+    return { success: true, inShift: !!row };
+  } catch (err) {
+    logError(LOG_CATEGORIES.SYSTEM, 'getShiftStatusFromDb error', { error: err?.message });
+    return { success: true, inShift: false };
   }
 };
 

@@ -22,6 +22,7 @@ export const useAddMlTrips = (options = {}) => {
         platformLabel: t.platformLabel,
         price: t.price,
         partnerPayment: t.partnerPayment,
+        orderId: t.orderId ?? undefined,
         pickup: t.pickup,
         delivery: t.delivery,
       }));

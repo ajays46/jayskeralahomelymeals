@@ -285,6 +285,7 @@ model MlTrip {
   userId              String         @map("user_id") @db.VarChar(36)
   menuItemId          String?        @unique @map("menu_item_id") @db.VarChar(36)
   platform            String         @db.VarChar(50)
+  orderId             String?        @map("order_id") @db.VarChar(255)
   orderAmount         Decimal        @map("order_amount") @db.Decimal(10, 2)
   partnerPayment      Decimal        @map("partner_payment") @db.Decimal(10, 2)
   status              MlTripStatus   @default(PENDING)
@@ -298,6 +299,22 @@ model MlTrip {
   pickupAddress       MlTripAddress? @relation("PickupAddress", fields: [pickupAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   deliveryAddress     MlTripAddress? @relation("DeliveryAddress", fields: [deliveryAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   @@map("ml_trips")
+}
+
+/// Read-only: written by external 5004 API. No updated_at in DB.
+model DriverAvailability {
+  id             String   @id @default(uuid()) @db.VarChar(36)
+  userId         String   @map("user_id") @db.VarChar(36)
+  platform       String?  @db.VarChar(100)
+  companyId      String   @map("company_id") @db.VarChar(191)
+  routeId        String?  @map("route_id") @db.VarChar(36)
+  depotLatitude  Decimal? @map("depot_latitude") @db.Decimal(10, 7)
+  depotLongitude Decimal? @map("depot_longitude") @db.Decimal(10, 7)
+  availableAt    DateTime? @map("available_at") @db.Timestamp(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, companyId])
+  @@map("driver_availability")
 }
 
 model Contact {
