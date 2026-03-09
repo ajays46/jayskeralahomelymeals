@@ -6,6 +6,7 @@ import {
   addTrips as addTripsService,
   getPartnerDashboardStats,
   listTripsFrom5004,
+  getTripsByOrderId5004,
   getTripFrom5004,
   updateTripStatus5004,
   startShift as startShiftService,
@@ -63,6 +64,24 @@ export const listTrips = async (req, res, next) => {
     const platform = req.query?.platform;
     const status = req.query?.status;
     const result = await listTripsFrom5004(userId, companyId, { platform, status });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/ml-trips/by-order-id?order_id=<full_or_last_4_or_5>
+ * Proxies to external 5004 Delivery Partner API. Returns trips matching order ID.
+ */
+export const getTripsByOrderId = async (req, res, next) => {
+  try {
+    const companyId = req.companyId;
+    if (!companyId) throw new AppError('Company context is required.', 400);
+    const userId = req.user?.userId;
+    if (!userId) throw new AppError('User not authenticated.', 401);
+    const orderId = req.query?.order_id ?? req.query?.orderId ?? '';
+    const result = await getTripsByOrderId5004(userId, companyId, orderId);
     res.status(200).json(result);
   } catch (error) {
     next(error);

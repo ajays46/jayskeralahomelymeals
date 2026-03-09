@@ -5,7 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdPlayArrow, MdRestaurant, MdLocationOn, MdCheckCircle, MdPowerSettingsNew } from 'react-icons/md';
+import { MdPlayArrow, MdRestaurant, MdLocationOn, MdCheckCircle, MdPowerSettingsNew, MdSearch } from 'react-icons/md';
 import MLNavbar from '../components/MLNavbar';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
@@ -14,6 +14,8 @@ import { useVehicleTracking } from '../../hooks/mlHooks/useVehicleTracking';
 import { useEndShift } from '../../hooks/mlHooks/useEndShift';
 import { useMarkStop } from '../../hooks/mlHooks/useMarkStop';
 import { useUpdateMlTripStatus } from '../../hooks/mlHooks/useUpdateMlTripStatus';
+import { useMlTripsByOrderId } from '../../hooks/mlHooks/useMlTripsByOrderId';
+import { useMlTripsList } from '../../hooks/mlHooks/useMlTripsList';
 import useMLDeliveryPartnerStore from '../../stores/MLDeliveryPartner.store.js';
 import { showSuccessToast, showErrorToast } from '../utils/mlToast';
 
@@ -43,9 +45,20 @@ const MLMyTripsPage = () => {
 
   const [actioningStopKey, setActioningStopKey] = useState(null);
   const [showEndShiftConfirm, setShowEndShiftConfirm] = useState(false);
+  const [orderSearchInput, setOrderSearchInput] = useState('');
 
   const markStopMutation = useMarkStop();
+  const byOrderIdMutation = useMlTripsByOrderId({
+    onError: (err) => {
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'No trips found for this order ID.';
+      showErrorToast(String(msg), 'Search');
+    },
+  });
   const updateTripStatusMutation = useUpdateMlTripStatus();
+  const { data: tripsFromList = [] } = useMlTripsList(
+    {},
+    { enabled: !!effectiveRouteId }
+  );
 
   const startRouteMutation = useStartRoute({
     onSuccess: (data) => {
@@ -121,18 +134,51 @@ const MLMyTripsPage = () => {
     endShiftMutation.mutate({ platform: 'swiggy' });
   };
 
-  const stopsList = useMemo(() => {
+  const handleOrderIdSearch = () => {
+    const value = (orderSearchInput ?? '').toString().trim();
+    if (!value) {
+      showErrorToast('Enter an order ID (full or last 4/5 digits).', 'Search');
+      return;
+    }
+    byOrderIdMutation.mutate({ orderId: value });
+  };
+
+  const orderFilter = (orderSearchInput ?? '').toString().trim();
+
+  const stopsListRaw = useMemo(() => {
     const fromResponse = routeResponse?.stops;
     if (Array.isArray(fromResponse) && fromResponse.length > 0) return fromResponse;
     if (Array.isArray(storeStops) && storeStops.length > 0) return storeStops;
-    if (typeof window === 'undefined') return [];
-    try {
-      const s = JSON.parse(localStorage.getItem(LS_ROUTE_STOPS) || '[]');
-      return Array.isArray(s) ? s : [];
-    } catch {
-      return [];
+    if (typeof window !== 'undefined') {
+      try {
+        const s = JSON.parse(localStorage.getItem(LS_ROUTE_STOPS) || '[]');
+        if (Array.isArray(s) && s.length > 0) return s;
+      } catch {
+        // ignore
+      }
     }
-  }, [effectiveRouteId, routeResponse, storeStops]);
+    // Fallback: when route has 0 stops from API (e.g. 5004 only returns stops for 3+ trips), show partner's trips as stops so 1–2 show
+    if (effectiveRouteId && Array.isArray(tripsFromList) && tripsFromList.length > 0) {
+      return tripsFromList.map((trip, i) => ({
+        trip_id: trip.id,
+        order_id: trip.order_id ?? trip.orderId,
+        stop_type: 'delivery',
+        step: i + 1,
+        stop: i + 1,
+      }));
+    }
+    return [];
+  }, [effectiveRouteId, routeResponse, storeStops, tripsFromList]);
+
+  const stopsList = useMemo(() => {
+    const raw = stopsListRaw;
+    const filter = orderFilter.toLowerCase();
+    if (!filter) return raw;
+    return raw.filter((stop) => {
+      const oid = (stop.order_id ?? '').toString().toLowerCase();
+      return oid === filter || oid.endsWith(filter) || oid.includes(filter);
+    });
+  }, [stopsListRaw, orderFilter]);
 
   const handleStopAction = async (stop) => {
     const key = stop.planned_stop_id;
@@ -175,6 +221,10 @@ const MLMyTripsPage = () => {
   useEffect(() => {
     if (effectiveRouteId && !trackingEnabled) setTrackingEnabled(true);
   }, [effectiveRouteId]);
+
+  useEffect(() => {
+    if (stopsListRaw.length < 3 && orderSearchInput) setOrderSearchInput('');
+  }, [stopsListRaw.length, orderSearchInput]);
 
   useEffect(() => {
     if (!trackingEnabled) return undefined;
@@ -230,6 +280,58 @@ const MLMyTripsPage = () => {
           {!effectiveRouteId && !routeResponse && (
             <div className="rounded-2xl bg-white border border-gray-100 p-6 text-center text-gray-500 text-sm">
               Tap &quot;Start route&quot; to create a route and see stops here.
+            </div>
+          )}
+
+          {/* Find trip by Order ID — only when 3+ stops (filter is useful for longer lists) */}
+          {stopsListRaw.length >= 3 && effectiveRouteId && (
+            <div className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md">
+              <h2 className="text-sm font-semibold text-gray-800 mb-3">Find trip by Order ID</h2>
+              <p className="text-xs text-gray-500 mb-3">Enter full order ID or last 4/5 digits to look up a trip or filter stops below.</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={orderSearchInput}
+                  onChange={(e) => setOrderSearchInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleOrderIdSearch()}
+                  placeholder="e.g. ORD-2024-12345 or 1234"
+                  className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleOrderIdSearch}
+                  disabled={byOrderIdMutation.isPending}
+                  className="px-4 py-3 rounded-xl font-semibold text-white disabled:opacity-70 active:scale-[0.98] transition-transform flex items-center gap-1.5 shrink-0"
+                  style={{ backgroundColor: accent }}
+                >
+                  <MdSearch className="w-5 h-5" />
+                  {byOrderIdMutation.isPending ? '…' : 'Search'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {orderFilter
+                  ? `Showing ${stopsList.length} of ${stopsListRaw.length} stop(s)`
+                  : `${stopsListRaw.length} stop(s) in this route`}
+              </p>
+              {byOrderIdMutation.data && (
+                <div className="mt-3 space-y-2">
+                  {byOrderIdMutation.data.trips?.length > 0 ? (
+                    byOrderIdMutation.data.trips.map((trip) => (
+                      <Link
+                        key={trip.id}
+                        to={`${base}/trips/${trip.id}`}
+                        className="block p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                      >
+                        <span className="font-medium text-gray-900">Order #{trip.order_id ?? trip.id}</span>
+                        <span className="ml-2 text-xs capitalize text-gray-500">({trip.trip_status ?? '—'})</span>
+                        <span className="block text-xs mt-1" style={{ color: accent }}>View trip details →</span>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">{byOrderIdMutation.data.message || 'No order found for this order ID.'}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

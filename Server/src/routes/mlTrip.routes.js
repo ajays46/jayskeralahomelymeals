@@ -10,6 +10,7 @@ import {
   addTrips,
   getDashboard,
   listTrips,
+  getTripsByOrderId,
   getTrip,
   updateTrip,
   startShift,
@@ -52,6 +53,15 @@ router.get(
   resolveCompanyId,
   requireCompanyId,
   listTrips
+);
+
+router.get(
+  '/by-order-id',
+  authenticateToken,
+  checkRole('DELIVERY_PARTNER'),
+  resolveCompanyId,
+  requireCompanyId,
+  getTripsByOrderId
 );
 
 router.get(

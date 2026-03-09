@@ -12,7 +12,8 @@ import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
 import { useLogout } from '../../hooks/userHooks/useLogin';
 import { Modal } from 'antd';
-import { isDeliveryPartner, isCEO, isCFO, isAdmin } from '../../utils/roleUtils';
+import { isDeliveryPartner, isCEO, isCFO, isAdmin, isDeliveryManager } from '../../utils/roleUtils';
+import MLJaiceChat from './MLJaiceChat';
 
 const MLNavbar = ({ onSignInClick }) => {
   const location = useLocation();
@@ -32,6 +33,7 @@ const MLNavbar = ({ onSignInClick }) => {
   const userIsDeliveryPartner = isDeliveryPartner(roles);
   const userIsCXO = isCEO(roles) || isCFO(roles);
   const userIsAdmin = isAdmin(roles);
+  const canUseJaice = user && (isDeliveryManager(roles) || isCEO(roles) || isCFO(roles) || isAdmin(roles));
 
   const isActive = (path) => {
     if (!path || path === base) return location.pathname === base || location.pathname === `${base}/`;
@@ -241,6 +243,9 @@ const MLNavbar = ({ onSignInClick }) => {
         <p className="pt-2">Are you sure you want to logout? You will need to sign in again to access your account.</p>
       </Modal>
     </nav>
+
+      {/* Jaice chat - for CXO / Delivery Manager / Admin */}
+      {canUseJaice && <MLJaiceChat />}
 
       {/* Bottom nav - fixed to bottom of screen, mobile only, delivery partner */}
       {user && userIsDeliveryPartner && (

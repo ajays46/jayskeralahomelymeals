@@ -429,6 +429,54 @@ export const listTripsFrom5004 = async (userId, companyId, filters = {}) => {
 };
 
 /**
+ * Get trips by order ID from external 5004 API. GET /api/ml-trips/by-order-id?order_id=<full_or_last_4_or_5>
+ * @param {string} userId
+ * @param {string} companyId
+ * @param {string} orderId - full order ID or last 4/5 digits
+ */
+export const getTripsByOrderId5004 = async (userId, companyId, orderId) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required', 400);
+  }
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    throw new AppError('user_id required', 400);
+  }
+  const orderIdStr = (orderId ?? '').toString().trim();
+  if (!orderIdStr) {
+    throw new AppError('order_id is required', 400);
+  }
+  try {
+    const response = await deliveryPartnerApiClient.get('/api/ml-trips/by-order-id', {
+      params: { order_id: orderIdStr },
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+    if (data && data.success === false) {
+      throw new Error(data.error || data.message || 'Failed to get trips by order ID');
+    }
+    const trips = Array.isArray(data?.trips) ? data.trips : [];
+    logInfo(LOG_CATEGORIES.SYSTEM, 'ML trips by order ID fetched from 5004', { company_id: companyId, order_id: orderIdStr, count: trips.length });
+    return {
+      success: true,
+      trips,
+      trip: data?.trip ?? (trips.length === 1 ? trips[0] : null),
+      message: data?.message,
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to get trips by order ID from 5004', {
+      error: error.message,
+      company_id: companyId,
+      order_id: orderIdStr,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to get trips by order ID',
+      error.response?.status === 400 ? 400 : error.response?.status === 404 ? 404 : 500
+    );
+  }
+};
+
+/**
  * Get single trip from external 5004 API. GET /api/ml-trips/:tripId
  */
 export const getTripFrom5004 = async (tripId, userId, companyId) => {

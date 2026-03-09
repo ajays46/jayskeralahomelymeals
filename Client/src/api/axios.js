@@ -34,8 +34,9 @@ axiosInstance.interceptors.request.use(
     const isDriverMapsApi = url.includes('drivers/next-stop-maps') || url.includes('drivers/route-overview-maps');
     const isMlTripsApi = url.includes('ml-trips');
     const isShiftApi = url.includes('shift');
-    const isCompanyScoped = url.includes('sellers-with-orders') || url.includes('delivery-managers') || url.includes('active-executives') || isAiApi || isCxoApi || isDeliveryExecutiveApi || isDriverMapsApi || isMlTripsApi || isShiftApi;
-    const needsUserId = isAiApi || isCxoApi || isDriverMapsApi;
+    const isMlAssistantApi = url.includes('ml-assistant');
+    const isCompanyScoped = url.includes('sellers-with-orders') || url.includes('delivery-managers') || url.includes('active-executives') || isAiApi || isCxoApi || isDeliveryExecutiveApi || isDriverMapsApi || isMlTripsApi || isShiftApi || isMlAssistantApi;
+    const needsUserId = isAiApi || isCxoApi || isDriverMapsApi || isMlAssistantApi;
     if (isCompanyScoped) {
       const companyId = store.user?.companyId || store.user?.company_id || localStorage.getItem('company_id');
       if (companyId) {
