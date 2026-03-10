@@ -2,6 +2,7 @@
  * ML Trip Controller - MaXHub Logistics: add trips with pickup/delivery addresses; dashboard stats for delivery partner.
  */
 import AppError from '../utils/AppError.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import {
   addTrips as addTripsService,
   getPartnerDashboardStats,
@@ -38,6 +39,13 @@ export const addTrips = async (req, res, next) => {
 
     const result = await addTripsService(companyId, userId, trips);
 
+    logInfo(LOG_CATEGORIES.TRANSACTION, 'ML trips added successfully', {
+      companyId,
+      userId,
+      created: result.created,
+      requestedTrips: trips.length,
+    });
+
     res.status(201).json({
       status: 'success',
       message: `${result.created} trip(s) added.`,
@@ -47,6 +55,12 @@ export const addTrips = async (req, res, next) => {
       },
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.TRANSACTION, 'Failed to add ML trips', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      tripsCount: Array.isArray(req.body?.trips) ? req.body.trips.length : 0,
+    });
     next(error);
   }
 };
@@ -65,8 +79,24 @@ export const listTrips = async (req, res, next) => {
     const platform = req.query?.platform;
     const status = req.query?.status;
     const result = await listTripsFrom5004(userId, companyId, { platform, status });
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Fetched ML trips from external provider', {
+      companyId,
+      userId,
+      platform,
+      status,
+      totalTrips: Array.isArray(result?.trips) ? result.trips.length : undefined,
+    });
+
     res.status(200).json(result);
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch ML trips', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      platform: req.query?.platform,
+      status: req.query?.status,
+    });
     next(error);
   }
 };
@@ -83,8 +113,22 @@ export const getTripsByOrderId = async (req, res, next) => {
     if (!userId) throw new AppError('User not authenticated.', 401);
     const orderId = req.query?.order_id ?? req.query?.orderId ?? '';
     const result = await getTripsByOrderId5004(userId, companyId, orderId);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Fetched ML trips by order ID', {
+      companyId,
+      userId,
+      orderId,
+      totalTrips: Array.isArray(result?.trips) ? result.trips.length : undefined,
+    });
+
     res.status(200).json(result);
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch ML trips by order ID', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      orderId: req.query?.order_id ?? req.query?.orderId ?? '',
+    });
     next(error);
   }
 };
@@ -101,8 +145,21 @@ export const getTrip = async (req, res, next) => {
     if (!userId) throw new AppError('User not authenticated.', 401);
     const { tripId } = req.params;
     const result = await getTripFrom5004(tripId, userId, companyId);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Fetched ML trip details', {
+      companyId,
+      userId,
+      tripId,
+    });
+
     res.status(200).json(result);
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch ML trip details', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      tripId: req.params?.tripId,
+    });
     next(error);
   }
 };
@@ -122,8 +179,23 @@ export const updateTrip = async (req, res, next) => {
     const { trip_status } = req.body;
     if (!trip_status) throw new AppError('trip_status is required (picked_up or delivered).', 400);
     const result = await updateTripStatus5004(tripId, userId, companyId, trip_status);
+
+    logInfo(LOG_CATEGORIES.TRANSACTION, 'ML trip status updated', {
+      companyId,
+      userId,
+      tripId,
+      trip_status,
+    });
+
     res.status(200).json(result);
   } catch (error) {
+    logError(LOG_CATEGORIES.TRANSACTION, 'Failed to update ML trip status', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      tripId: req.params?.tripId,
+      body: req.body,
+    });
     next(error);
   }
 };
@@ -135,11 +207,21 @@ export const updateTrip = async (req, res, next) => {
 export const getVehicles = async (req, res, next) => {
   try {
     const vehicles = await listAllVehicles();
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Fetched ML delivery vehicles', {
+      totalVehicles: Array.isArray(vehicles) ? vehicles.length : undefined,
+      companyId: req.companyId,
+    });
+
     res.status(200).json({
       status: 'success',
       data: vehicles,
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch ML delivery vehicles', {
+      error: error.message,
+      companyId: req.companyId,
+    });
     next(error);
   }
 };
@@ -161,11 +243,26 @@ export const startShift = async (req, res, next) => {
     }
     const { platform, current_location: currentLocation, vehicle_number: vehicleNumber } = req.body || {};
     const result = await startShiftService(userId, companyId, platform, currentLocation, vehicleNumber);
+
+    logInfo(LOG_CATEGORIES.TRANSACTION, 'ML delivery partner shift started', {
+      companyId,
+      userId,
+      platform,
+      vehicleNumber,
+      hasCurrentLocation: !!currentLocation,
+    });
+
     res.status(200).json({
       success: true,
       ...result,
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.TRANSACTION, 'Failed to start ML delivery partner shift', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      body: req.body,
+    });
     next(error);
   }
 };
@@ -183,8 +280,22 @@ export const startRoute = async (req, res, next) => {
     if (!userId) throw new AppError('User not authenticated.', 401);
     const { platform, current_location: currentLocation } = req.body || {};
     const result = await startRoute5004(userId, companyId, platform, currentLocation);
+
+    logInfo(LOG_CATEGORIES.TRANSACTION, 'ML delivery route started', {
+      companyId,
+      userId,
+      platform,
+      hasCurrentLocation: !!currentLocation,
+    });
+
     res.status(200).json(result);
   } catch (error) {
+    logError(LOG_CATEGORIES.TRANSACTION, 'Failed to start ML delivery route', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      body: req.body,
+    });
     next(error);
   }
 };
@@ -205,11 +316,25 @@ export const getDashboard = async (req, res, next) => {
     }
     const platform = req.query?.platform;
     const stats = await getPartnerDashboardStats(companyId, userId, platform);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Fetched ML delivery dashboard stats', {
+      companyId,
+      userId,
+      platform,
+      hasStats: !!stats,
+    });
+
     res.status(200).json({
       status: 'success',
       data: stats,
     });
   } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch ML delivery dashboard stats', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      platform: req.query?.platform,
+    });
     next(error);
   }
 };
