@@ -1,7 +1,7 @@
 /**
  * useStartShift - Start delivery partner shift (driver goes online).
  * Calls backend POST /api/ml-trips/shift/start which proxies to external API (AI_ROUTE_API_FOURTH).
- * Body: platform (e.g. 'swiggy'), current_location?: { lat, lng }.
+ * Body: platform (e.g. 'swiggy'), current_location?: { lat, lng }, vehicle_number?: string (registration number).
  * user_id and company_id are taken from auth (X-Company-ID and JWT) on the backend.
  */
 import { useMutation } from '@tanstack/react-query';
@@ -15,7 +15,7 @@ import api from '../../api/axios';
  */
 export const useStartShift = (options = {}) => {
   return useMutation({
-    mutationFn: async ({ platform, current_location } = {}) => {
+    mutationFn: async ({ platform, current_location, vehicle_number } = {}) => {
       const payload = {};
       if (platform != null) payload.platform = platform;
       if (current_location && typeof current_location === 'object' && (current_location.lat != null && current_location.lng != null)) {
@@ -24,6 +24,7 @@ export const useStartShift = (options = {}) => {
           lng: Number(current_location.lng),
         };
       }
+      if (vehicle_number != null && String(vehicle_number).trim()) payload.vehicle_number = String(vehicle_number).trim();
       const response = await api.post('/ml-trips/shift/start', payload);
       return response.data;
     },

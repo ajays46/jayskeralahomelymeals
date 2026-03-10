@@ -94,6 +94,8 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const [selectedRole, setSelectedRole] = useState(null);
   const pathSegment = location.pathname.split('/')[1];
   const basePath = pathSegment ? `/${pathSegment}` : getCompanyBasePathFallback();
+  // DELIVERY_PARTNER is only for MaXHub Logistics (ML); hide when not on ML URL so other companies' UI is unaffected
+  const isMlTenant = basePath?.toLowerCase() === '/ml';
 
   // CXO (CEO/CFO) can access CXO views for Delivery Manager, Seller, Delivery Executive even without those roles
   const userIsCXO = isCXO(userRoles);
@@ -104,6 +106,9 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
     const r = (role || '').toUpperCase();
     return r !== 'CEO' && r !== 'CFO';
   });
+  if (!isMlTenant) {
+    availableRoles = availableRoles.filter(role => (role || '').toUpperCase() !== 'DELIVERY_PARTNER');
+  }
   if (userIsCXO) {
     cxoAccessRoles.forEach(role => {
       if (!availableRoles.some(r => (r || '').toUpperCase() === role)) {

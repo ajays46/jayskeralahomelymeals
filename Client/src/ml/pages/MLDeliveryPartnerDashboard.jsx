@@ -12,6 +12,7 @@ import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
 import { useMlPartnerDashboard } from '../../hooks/mlHooks/useMlPartnerDashboard';
 import { useStartShift } from '../../hooks/mlHooks/useStartShift';
+import { useVehicles } from '../../hooks/mlHooks/useVehicles';
 import { useShiftStatus, SHIFT_STATUS_KEY } from '../../hooks/mlHooks/useShiftStatus';
 import useMLDeliveryPartnerStore from '../../stores/MLDeliveryPartner.store.js';
 import { showSuccessToast, showErrorToast } from '../utils/mlToast';
@@ -168,8 +169,10 @@ const MLDeliveryPartnerDashboard = () => {
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
   const accent = theme.accentColor || theme.primaryColor || '#E85D04';
   const [platformFilter, setPlatformFilter] = useState(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
 
   const { data: stats, isLoading, isError, error } = useMlPartnerDashboard(platformFilter);
+  const { data: vehicles = [], isLoading: vehiclesLoading } = useVehicles();
   const { inShift, isLoading: shiftStatusLoading } = useShiftStatus();
   const startShiftMutation = useStartShift({
     onSuccess: () => {
@@ -186,20 +189,31 @@ const MLDeliveryPartnerDashboard = () => {
 
   const handleStartShift = () => {
     if (startShiftMutation.isPending) return;
+    if (!selectedVehicleId?.trim()) {
+      showErrorToast('Please select a vehicle before starting your shift.', 'Vehicle required');
+      return;
+    }
+    const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
+    const vehicleNumber = selectedVehicle?.registration_number || selectedVehicle?.model || null;
+    if (!vehicleNumber?.trim()) {
+      showErrorToast('Selected vehicle has no registration number.', 'Vehicle required');
+      return;
+    }
     const selectedPlatform = platformFilter || 'swiggy';
+    const payload = { platform: selectedPlatform, vehicle_number: vehicleNumber.trim() };
     if (!navigator.geolocation) {
-      startShiftMutation.mutate({ platform: selectedPlatform });
+      startShiftMutation.mutate(payload);
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         startShiftMutation.mutate({
-          platform: selectedPlatform,
+          ...payload,
           current_location: { lat: pos.coords.latitude, lng: pos.coords.longitude },
         });
       },
       () => {
-        startShiftMutation.mutate({ platform: selectedPlatform });
+        startShiftMutation.mutate(payload);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
@@ -215,9 +229,31 @@ const MLDeliveryPartnerDashboard = () => {
           transition={{ duration: 0.3 }}
           className="space-y-5"
         >
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 mb-1">Dashboard</h1>
-            <p className="text-sm text-gray-600">View stats and start your shift.</p>
+          <div className="flex flex-row items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-gray-900 mb-1">Dashboard</h1>
+              <p className="text-sm text-gray-600">View stats and start your shift.</p>
+            </div>
+            {!inShift && (
+              <div className="flex-shrink-0">
+                <select
+                  id="vehicle-select"
+                  value={selectedVehicleId}
+                  onChange={(e) => setSelectedVehicleId(e.target.value)}
+                  disabled={vehiclesLoading}
+                  title="Select vehicle"
+                  className="min-h-[34px] w-[120px] sm:w-[130px] pl-2 pr-7 py-1 rounded-lg border border-gray-200 bg-white text-gray-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-60 truncate"
+                  style={{ borderColor: selectedVehicleId ? undefined : '#e5e7eb' }}
+                >
+                  <option value="">Vehicle</option>
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.registration_number || v.model || v.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Start Shift CTA or You're online - Zustand store + API */}
@@ -257,7 +293,7 @@ const MLDeliveryPartnerDashboard = () => {
               </div>
                 <SwipeToStartButton
                   onSwipeComplete={handleStartShift}
-                  disabled={false}
+                  disabled={!selectedVehicleId?.trim()}
                   accent={accent}
                   isPending={startShiftMutation.isPending}
                 />

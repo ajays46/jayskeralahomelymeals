@@ -328,15 +328,40 @@ export const getPartnerDashboardStats = async (companyId, userId, platform) => {
 };
 
 /**
+ * List vehicles with unique registration numbers for delivery partner vehicle selection.
+ * Only one entry per distinct registration_number (no duplicates).
+ * @returns {Promise<Array<{ id, registration_number, model }>>}
+ */
+export const listAllVehicles = async () => {
+  const vehicles = await prisma.vehicles.findMany({
+    orderBy: { created_at: 'desc' },
+    select: {
+      id: true,
+      registration_number: true,
+      model: true,
+    },
+  });
+  const seen = new Set();
+  return vehicles.filter((v) => {
+    const num = (v.registration_number || '').trim();
+    if (!num) return false;
+    if (seen.has(num)) return false;
+    seen.add(num);
+    return true;
+  });
+};
+
+/**
  * Start shift (driver goes online) - forwards to external delivery partner API (AI_ROUTE_API_FOURTH).
- * POST /api/shift/start with user_id, company_id, platform, current_location.
+ * POST /api/shift/start with user_id, company_id, platform, current_location, optional vehicle_id.
  * @param {string} userId
  * @param {string} companyId
  * @param {string} [platform] - e.g. 'SWIGGY' (default), 'AMAZON', 'FLIPKART'
  * @param {{ lat: number, lng: number }|null} [currentLocation]
+ * @param {string} [vehicleNumber] - optional vehicle registration number for the shift
  * @returns {Promise<object>} External API response
  */
-export const startShift = async (userId, companyId, platform, currentLocation) => {
+export const startShift = async (userId, companyId, platform, currentLocation, vehicleNumber) => {
   if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
     throw new AppError('company_id required (header X-Company-ID or user context)', 400);
   }
@@ -355,6 +380,10 @@ export const startShift = async (userId, companyId, platform, currentLocation) =
         lat: Number(currentLocation.lat),
         lng: Number(currentLocation.lng),
       };
+    }
+    if (vehicleNumber && typeof vehicleNumber === 'string' && vehicleNumber.trim()) {
+      body.vehicle_number = vehicleNumber.trim();
+      body.registration_number = vehicleNumber.trim();
     }
     const response = await deliveryPartnerApiClient.post('/api/shift/start', body, {
       headers: { 'X-Company-ID': companyId.trim() },

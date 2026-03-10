@@ -453,16 +453,17 @@ model vehicle_tracking_log {
 }
 
 model vehicles {
-  id                  String    @id @db.VarChar(36)
-  user_id             String?   @map("user_id") @db.VarChar(36)
-  registration_number String?   @map("registration_number") @db.VarChar(50)
-  model               String?   @db.VarChar(100)
-  purchase_date       DateTime? @map("purchase_date") @db.Date
-  insurance_expiry    DateTime? @map("insurance_expiry") @db.Date
-  puc_expiry          DateTime? @map("puc_expiry") @db.Date
-  fitness_expiry      DateTime? @map("fitness_expiry") @db.Date
-  road_tax_expiry     DateTime? @map("road_tax_expiry") @db.Date
-  created_at          DateTime? @default(now()) @map("created_at") @db.Timestamp(0)
+  id                    String    @id @db.VarChar(36)
+  user_id               String?   @map("user_id") @db.VarChar(36)
+  registration_number   String?   @map("registration_number") @db.VarChar(50)
+  model                 String?   @db.VarChar(100)
+  mapmyindia_device_id  String?   @map("mapmyindia_device_id") @db.VarChar(100)
+  purchase_date         DateTime? @map("purchase_date") @db.Date
+  insurance_expiry      DateTime? @map("insurance_expiry") @db.Date
+  puc_expiry            DateTime? @map("puc_expiry") @db.Date
+  fitness_expiry        DateTime? @map("fitness_expiry") @db.Date
+  road_tax_expiry       DateTime? @map("road_tax_expiry") @db.Date
+  created_at            DateTime? @default(now()) @map("created_at") @db.Timestamp(0)
 
   @@map("vehicles")
 }

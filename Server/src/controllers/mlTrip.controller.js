@@ -11,6 +11,7 @@ import {
   updateTripStatus5004,
   startShift as startShiftService,
   startRoute5004,
+  listAllVehicles,
 } from '../services/mlTrip.service.js';
 
 /**
@@ -128,8 +129,24 @@ export const updateTrip = async (req, res, next) => {
 };
 
 /**
+ * GET /api/ml-trips/vehicles
+ * Returns all vehicles (no user filter) for delivery partner vehicle selection.
+ */
+export const getVehicles = async (req, res, next) => {
+  try {
+    const vehicles = await listAllVehicles();
+    res.status(200).json({
+      status: 'success',
+      data: vehicles,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * POST /api/ml-trips/shift/start
- * Body: { platform?, current_location?: { lat, lng } }
+ * Body: { platform?, current_location?: { lat, lng }, vehicle_number? } — vehicle_number = registration number of chosen vehicle
  * Proxies to external delivery partner API (AI_ROUTE_API_FOURTH) to start shift. Uses auth user_id and companyId.
  */
 export const startShift = async (req, res, next) => {
@@ -142,8 +159,8 @@ export const startShift = async (req, res, next) => {
     if (!userId) {
       throw new AppError('User not authenticated.', 401);
     }
-    const { platform, current_location: currentLocation } = req.body || {};
-    const result = await startShiftService(userId, companyId, platform, currentLocation);
+    const { platform, current_location: currentLocation, vehicle_number: vehicleNumber } = req.body || {};
+    const result = await startShiftService(userId, companyId, platform, currentLocation, vehicleNumber);
     res.status(200).json({
       success: true,
       ...result,

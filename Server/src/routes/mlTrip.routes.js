@@ -9,6 +9,7 @@ import { resolveCompanyId, requireCompanyId } from '../middleware/resolveCompany
 import {
   addTrips,
   getDashboard,
+  getVehicles,
   listTrips,
   getTripsByOrderId,
   getTrip,
@@ -26,6 +27,15 @@ router.get(
   resolveCompanyId,
   requireCompanyId,
   getDashboard
+);
+
+router.get(
+  '/vehicles',
+  authenticateToken,
+  checkRole('DELIVERY_PARTNER'),
+  resolveCompanyId,
+  requireCompanyId,
+  getVehicles
 );
 
 router.post(
