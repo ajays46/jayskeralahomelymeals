@@ -12,7 +12,7 @@ import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLogout } from '../hooks/userHooks/useLogin';
-import { ExclamationCircleOutlined } from '@ant-design/icons';
+import { Modal } from 'antd';
 import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO } from '../utils/roleUtils';
 
 /**
@@ -57,16 +57,12 @@ const Navbar = ({ onSignInClick }) => {
   }, [lastScrollY]);
 
   const handleLogout = () => {
-    setShowLogoutConfirm(true);
     setUserDropdownOpen(false);
+    setShowLogoutConfirm(true);
   };
 
   const confirmLogout = () => {
     logoutMutation.mutate();
-    setShowLogoutConfirm(false);
-  };
-
-  const cancelLogout = () => {
     setShowLogoutConfirm(false);
   };
 
@@ -511,37 +507,19 @@ const Navbar = ({ onSignInClick }) => {
         )}
       </AnimatePresence>
 
-      {/* Custom Logout Confirmation Modal */}
-      {showLogoutConfirm && (
-        <div 
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
-          style={{ minHeight: '100vh' }}
-        >
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-11/12 mx-4 my-8 relative">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <ExclamationCircleOutlined className="text-red-600 text-xl" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Confirm Logout</h3>
-            </div>
-            <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
-            <div className="flex gap-3">
-              <button
-                onClick={cancelLogout}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmLogout}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Yes, Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        title="Confirm Logout"
+        open={showLogoutConfirm}
+        onOk={confirmLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+        okText="Yes, Logout"
+        cancelText="Cancel"
+        okType="danger"
+        centered
+        maskClosable={false}
+      >
+        <p className="pt-2">Are you sure you want to logout? You will need to sign in again to access your account.</p>
+      </Modal>
     </nav>
   );
 };

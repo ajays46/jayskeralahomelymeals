@@ -501,3 +501,75 @@ img[src] {
     display: none;
   }
 }
+
+/* ML mobile-style notification popups (Ant Design) */
+.ant-notification.ant-notification-top {
+  top: max(env(safe-area-inset-top), 12px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  right: auto !important;
+  width: calc(100% - 24px) !important;
+  max-width: 400px !important;
+}
+
+.ml-mobile-notification.ant-notification-notice {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  border: none !important;
+}
+
+.ml-mobile-notification .ant-notification-notice-message {
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  margin-bottom: 4px !important;
+  color: #1f2937 !important;
+}
+
+.ml-mobile-notification .ant-notification-notice-description {
+  font-size: 14px !important;
+  color: #4b5563 !important;
+  line-height: 1.4 !important;
+}
+
+.ml-mobile-notification-success.ant-notification-notice {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
+}
+
+.ml-mobile-notification-success .ant-notification-notice-message {
+  color: #166534 !important;
+}
+
+.ml-mobile-notification-success .ant-notification-notice-description {
+  color: #15803d !important;
+}
+
+.ml-mobile-notification-error.ant-notification-notice {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+}
+
+.ml-mobile-notification-error .ant-notification-notice-message {
+  color: #b91c1c !important;
+}
+
+.ml-mobile-notification-error .ant-notification-notice-description {
+  color: #991b1b !important;
+}
+
+.ml-mobile-notification-warning.ant-notification-notice {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+}
+
+.ml-mobile-notification-warning .ant-notification-notice-message {
+  color: #92400e !important;
+}
+
+.ml-mobile-notification-info.ant-notification-notice {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+}
+
+.ml-mobile-notification-info .ant-notification-notice-message {
+  color: #1e40af !important;
+}

@@ -68,6 +68,13 @@ const roleConfig = {
     color: 'bg-teal-500',
     route: '/jkhm/delivery-executive'
   },
+  'DELIVERY_PARTNER': {
+    icon: TruckIcon,
+    title: 'Delivery Partner',
+    description: 'MaXHub Logistics delivery partner dashboard',
+    color: 'bg-amber-500',
+    route: '/ml/dashboard'
+  },
   'USER': {
     icon: UserIcon,
     title: 'User Dashboard',
@@ -77,8 +84,8 @@ const roleConfig = {
   }
 };
 
-// Display order: CEO/CFO commented out; then ADMIN, DM, Seller, DE, USER
-const ROLE_DISPLAY_ORDER = ['ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'USER'];
+// Display order: CEO/CFO commented out; then ADMIN, DM, Seller, DE, DELIVERY_PARTNER, USER
+const ROLE_DISPLAY_ORDER = ['ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'DELIVERY_PARTNER', 'USER'];
 
 const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const navigate = useNavigate();
@@ -87,6 +94,8 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const [selectedRole, setSelectedRole] = useState(null);
   const pathSegment = location.pathname.split('/')[1];
   const basePath = pathSegment ? `/${pathSegment}` : getCompanyBasePathFallback();
+  // DELIVERY_PARTNER is only for MaXHub Logistics (ML); hide when not on ML URL so other companies' UI is unaffected
+  const isMlTenant = basePath?.toLowerCase() === '/ml';
 
   // CXO (CEO/CFO) can access CXO views for Delivery Manager, Seller, Delivery Executive even without those roles
   const userIsCXO = isCXO(userRoles);
@@ -97,6 +106,9 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
     const r = (role || '').toUpperCase();
     return r !== 'CEO' && r !== 'CFO';
   });
+  if (!isMlTenant) {
+    availableRoles = availableRoles.filter(role => (role || '').toUpperCase() !== 'DELIVERY_PARTNER');
+  }
   if (userIsCXO) {
     cxoAccessRoles.forEach(role => {
       if (!availableRoles.some(r => (r || '').toUpperCase() === role)) {
