@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'Server/**'
+      - '.github/**'
   workflow_dispatch:
 
 jobs:
@@ -32,6 +33,17 @@ jobs:
       working-directory: ./Server
       run: npm run db:generate
       
+    - name: Resolve failed migrations (if already applied in DB)
+      working-directory: ./Server
+      run: |
+        npx prisma migrate resolve --applied "20260306120000_add_menuitem_platform_type" || true
+        npx prisma migrate resolve --applied "20260306130000_menuitem_optional_menu_company" || true
+        npx prisma migrate resolve --applied "20260306140000_add_ml_trip_tables" || true
+        npx prisma migrate resolve --applied "20260306150000_ml_trip_menu_item_id" || true
+        npx prisma migrate resolve --applied "20260310120000_add_mapmyindia_device_id_to_vehicles" || true
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
     - name: Run database migrations
       working-directory: ./Server
       run: npx prisma migrate deploy

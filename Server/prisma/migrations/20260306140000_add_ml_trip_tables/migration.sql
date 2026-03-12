@@ -1,5 +1,6 @@
 -- CreateTable: ML trip addresses (pickup/delivery for MaXHub Logistics trips)
-CREATE TABLE `ml_trip_addresses` (
+-- Idempotent: skip if table already exists
+CREATE TABLE IF NOT EXISTS `ml_trip_addresses` (
     `id` VARCHAR(36) NOT NULL,
     `user_id` VARCHAR(36) NOT NULL,
     `street` VARCHAR(255) NOT NULL,
@@ -16,7 +17,7 @@ CREATE TABLE `ml_trip_addresses` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable: ML trips (delivery partner trips: platform, order amount, partner payment, addresses)
-CREATE TABLE `ml_trips` (
+CREATE TABLE IF NOT EXISTS `ml_trips` (
     `id` VARCHAR(36) NOT NULL,
     `company_id` VARCHAR(36) NOT NULL,
     `user_id` VARCHAR(36) NOT NULL,
