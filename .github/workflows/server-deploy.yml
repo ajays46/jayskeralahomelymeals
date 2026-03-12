@@ -34,9 +34,7 @@ jobs:
       
     - name: Run database migrations
       working-directory: ./Server
-      run: |
-        npx prisma migrate resolve --applied 20260306120000_add_menuitem_platform_type || true
-        npx prisma migrate deploy
+      run: npx prisma migrate deploy
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
