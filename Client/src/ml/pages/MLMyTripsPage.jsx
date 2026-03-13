@@ -33,6 +33,8 @@ const MLMyTripsPage = () => {
 
   const storeRouteId = useMLDeliveryPartnerStore((s) => s.routeId);
   const storeStops = useMLDeliveryPartnerStore((s) => s.stops);
+  const storePlatform = useMLDeliveryPartnerStore((s) => s.platform);
+  const setStorePlatform = useMLDeliveryPartnerStore((s) => s.setPlatform);
   const setActiveRoute = useMLDeliveryPartnerStore((s) => s.setActiveRoute);
   const clearAll = useMLDeliveryPartnerStore((s) => s.clearAll);
   const setTripStatus = useMLDeliveryPartnerStore((s) => s.setTripStatus);
@@ -118,11 +120,12 @@ const MLMyTripsPage = () => {
 
   const handleStartRoute = async () => {
     if (startRouteMutation.isPending) return;
+    const platform = (useMLDeliveryPartnerStore.getState().platform || 'swiggy').toUpperCase();
     try {
       const loc = await getCurrentLocation();
-      startRouteMutation.mutate({ platform: 'swiggy', current_location: loc });
+      startRouteMutation.mutate({ platform, current_location: loc });
     } catch {
-      startRouteMutation.mutate({ platform: 'swiggy' });
+      startRouteMutation.mutate({ platform });
     }
   };
 
@@ -131,7 +134,8 @@ const MLMyTripsPage = () => {
   const handleEndShiftConfirm = () => {
     if (endShiftMutation.isPending) return;
     setShowEndShiftConfirm(false);
-    endShiftMutation.mutate({ platform: 'swiggy' });
+    const platform = (useMLDeliveryPartnerStore.getState().platform || 'swiggy').toUpperCase();
+    endShiftMutation.mutate({ platform });
   };
 
   const handleOrderIdSearch = () => {

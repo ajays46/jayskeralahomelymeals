@@ -19,6 +19,10 @@ const useMLDeliveryPartnerStore = create(
       inShift: false,
       setInShift: (inShift) => set({ inShift, lastActivityAt: Date.now() }),
 
+      // Start route: preferred platform (used when starting route without explicit selection)
+      platform: 'swiggy',
+      setPlatform: (platform) => set({ platform: platform || 'swiggy', lastActivityAt: Date.now() }),
+
       // Start route: active route (from driver_availability.route_id + stops)
       routeId: null,
       stops: [],
@@ -51,6 +55,7 @@ const useMLDeliveryPartnerStore = create(
           routeId: null,
           stops: [],
           tripStatusByTripId: {},
+          platform: 'swiggy',
           lastActivityAt: Date.now(),
         }),
 
@@ -61,6 +66,7 @@ const useMLDeliveryPartnerStore = create(
       name: 'ml_delivery_partner',
       partialize: (state) => ({
         inShift: state.inShift,
+        platform: state.platform,
         routeId: state.routeId,
         stops: state.stops,
         tripStatusByTripId: state.tripStatusByTripId,

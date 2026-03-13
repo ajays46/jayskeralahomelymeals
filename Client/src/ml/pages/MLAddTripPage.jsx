@@ -10,6 +10,7 @@ import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
 import { showSuccessToast, showErrorToast } from '../utils/mlToast';
 import { useAddMlTrips } from '../../hooks/mlHooks/useAddMlTrips';
+import useMLDeliveryPartnerStore from '../../stores/MLDeliveryPartner.store.js';
 import { MdLocationOn, MdDelete } from 'react-icons/md';
 
 function hasAddressData(loc) {
@@ -18,6 +19,7 @@ function hasAddressData(loc) {
 
 const PLATFORMS = [
   { id: 'swiggy', label: 'Swiggy' },
+  { id: 'uber', label: 'Uber' },
   { id: 'amazon', label: 'Amazon' },
   { id: 'flipkart', label: 'Flipkart' },
 ];
@@ -169,7 +171,10 @@ const MLAddTripPage = () => {
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
   const accent = theme.accentColor || theme.primaryColor || '#E85D04';
 
-  const [platform, setPlatform] = useState('swiggy');
+  const storePlatform = useMLDeliveryPartnerStore((s) => s.platform);
+  const platform = storePlatform || 'swiggy';
+  const platformLabel = PLATFORMS.find((p) => p.id === platform)?.label || 'Swiggy';
+
   const [price, setPrice] = useState('');
   const [partnerPayment, setPartnerPayment] = useState('');
   const [orderId, setOrderId] = useState('');
@@ -180,8 +185,6 @@ const MLAddTripPage = () => {
   const [errors, setErrors] = useState({});
   const [trips, setTrips] = useState([]);
   const [submitted, setSubmitted] = useState(false);
-
-  const platformLabel = PLATFORMS.find((p) => p.id === platform)?.label || 'Swiggy';
   const addTripsMutation = useAddMlTrips({
     onSuccess: (data) => {
       showSuccessToast(data?.message || `${trips.length} trip(s) saved.`, 'Trips submitted');
@@ -298,9 +301,14 @@ const MLAddTripPage = () => {
           transition={{ duration: 0.3 }}
           className="space-y-5"
         >
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Add trip(s)</h1>
-            <p className="text-sm text-gray-600 mt-0.5">Pickup and delivery details.</p>
+          <div className="flex flex-row items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-gray-900">Add trip(s)</h1>
+              <p className="text-sm text-gray-600 mt-0.5">Pickup and delivery details.</p>
+            </div>
+            <span className="flex-shrink-0 text-sm font-semibold text-gray-700 capitalize" style={{ color: accent }}>
+              {platformLabel}
+            </span>
           </div>
 
           {submitted ? (
@@ -333,31 +341,6 @@ const MLAddTripPage = () => {
                   </p>
                 </div>
               )}
-              <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  {trips.length > 0 ? 'Next trip — Platform' : 'Platform'}
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {PLATFORMS.map((p) => {
-                    const isActive = platform === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => setPlatform(p.id)}
-                        className={`min-h-[44px] py-3 px-3 rounded-xl font-medium text-sm transition-all active:scale-[0.98] ${
-                          isActive ? 'text-white shadow' : 'bg-gray-100 text-gray-600 active:bg-gray-200'
-                        }`}
-                        style={isActive ? { backgroundColor: accent } : {}}
-                      >
-                        {p.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-gray-500 text-sm mt-3">Order type: <span className="font-medium text-gray-700">{platformLabel}</span></p>
-              </div>
-
               <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4 space-y-4">
                 <h2 className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-2">Order details</h2>
                 <div>

@@ -131,8 +131,17 @@ const SwipeToStartButton = ({ onSwipeComplete, disabled, accent, isPending }) =>
 const PLATFORM_FILTERS = [
   { id: null, label: 'All' },
   { id: 'swiggy', label: 'Swiggy' },
-  { id: 'flipkart', label: 'Flipkart' },
+  { id: 'uber', label: 'Uber' },
   { id: 'amazon', label: 'Amazon' },
+  { id: 'flipkart', label: 'Flipkart' },
+];
+
+/** Platform options when starting shift (stored and used for Add Trip / Start route). */
+const SHIFT_PLATFORMS = [
+  { id: 'swiggy', label: 'Swiggy' },
+  { id: 'uber', label: 'Uber' },
+  { id: 'amazon', label: 'Amazon' },
+  { id: 'flipkart', label: 'Flipkart' },
 ];
 
 const formatCurrency = (n) => {
@@ -165,10 +174,12 @@ const MLDeliveryPartnerDashboard = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const setInShift = useMLDeliveryPartnerStore((s) => s.setInShift);
+  const setStorePlatform = useMLDeliveryPartnerStore((s) => s.setPlatform);
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
   const accent = theme.accentColor || theme.primaryColor || '#E85D04';
   const [platformFilter, setPlatformFilter] = useState(null);
+  const [shiftPlatform, setShiftPlatform] = useState('swiggy');
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
 
   const { data: stats, isLoading, isError, error } = useMlPartnerDashboard(platformFilter);
@@ -199,8 +210,9 @@ const MLDeliveryPartnerDashboard = () => {
       showErrorToast('Selected vehicle has no registration number.', 'Vehicle required');
       return;
     }
-    const selectedPlatform = platformFilter || 'swiggy';
-    const payload = { platform: selectedPlatform, vehicle_number: vehicleNumber.trim() };
+    const platformForShift = shiftPlatform || 'swiggy';
+    setStorePlatform(platformForShift);
+    const payload = { platform: platformForShift, vehicle_number: vehicleNumber.trim() };
     if (!navigator.geolocation) {
       startShiftMutation.mutate(payload);
       return;
@@ -285,12 +297,20 @@ const MLDeliveryPartnerDashboard = () => {
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900 mb-0.5">Start your shift</h2>
-                <p className="text-sm text-gray-600">
-                  Swipe right to go online, then you’ll be taken to add trips.
-                </p>
-              </div>
+                <div className="flex items-center gap-3">
+                  <label htmlFor="shift-platform" className="text-sm font-semibold text-gray-700 shrink-0">Platform</label>
+                  <select
+                    id="shift-platform"
+                    value={shiftPlatform || 'swiggy'}
+                    onChange={(e) => setShiftPlatform(e.target.value || 'swiggy')}
+                    className="flex-1 min-h-[40px] py-2 px-3 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-1"
+                    style={{ borderColor: accent }}
+                  >
+                    {SHIFT_PLATFORMS.map((p) => (
+                      <option key={p.id} value={p.id}>{p.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <SwipeToStartButton
                   onSwipeComplete={handleStartShift}
                   disabled={!selectedVehicleId?.trim()}
@@ -304,25 +324,18 @@ const MLDeliveryPartnerDashboard = () => {
           {/* Platform filter */}
           <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">By platform</h2>
-            <div className="grid grid-cols-4 gap-2">
-              {PLATFORM_FILTERS.map(({ id, label }) => {
-                const isActive = platformFilter === id;
-                return (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setPlatformFilter(id)}
-                    className={`min-h-[44px] min-w-0 py-2.5 px-2 rounded-xl font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 truncate active:scale-[0.98] ${
-                      isActive ? 'text-white shadow' : 'bg-gray-100 text-gray-600 active:bg-gray-200'
-                    }`}
-                    style={isActive ? { backgroundColor: accent } : {}}
-                    title={label}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+            <select
+              value={platformFilter ?? ''}
+              onChange={(e) => setPlatformFilter(e.target.value || null)}
+              className="w-full min-h-[44px] py-3 px-4 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-1 focus:border-transparent"
+              style={{ borderColor: platformFilter ? accent : undefined }}
+            >
+              {PLATFORM_FILTERS.map(({ id, label }) => (
+                <option key={label} value={id ?? ''}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Stats */}
