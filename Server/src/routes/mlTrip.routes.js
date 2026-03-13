@@ -14,6 +14,7 @@ import {
   getTripsByOrderId,
   getTrip,
   updateTrip,
+  updateTripDeliveryAddress,
   startShift,
   startRoute,
 } from '../controllers/mlTrip.controller.js';
@@ -81,6 +82,15 @@ router.get(
   resolveCompanyId,
   requireCompanyId,
   getTrip
+);
+
+router.patch(
+  '/:tripId/delivery-address',
+  authenticateToken,
+  checkRole('DELIVERY_PARTNER'),
+  resolveCompanyId,
+  requireCompanyId,
+  updateTripDeliveryAddress
 );
 
 router.patch(

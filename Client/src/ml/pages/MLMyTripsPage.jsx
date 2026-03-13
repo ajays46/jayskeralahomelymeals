@@ -14,6 +14,7 @@ import { useVehicleTracking } from '../../hooks/mlHooks/useVehicleTracking';
 import { useEndShift } from '../../hooks/mlHooks/useEndShift';
 import { useMarkStop } from '../../hooks/mlHooks/useMarkStop';
 import { useUpdateMlTripStatus } from '../../hooks/mlHooks/useUpdateMlTripStatus';
+import { useUpdateDeliveryAddress } from '../../hooks/mlHooks/useUpdateDeliveryAddress';
 import { useMlTripsByOrderId } from '../../hooks/mlHooks/useMlTripsByOrderId';
 import { useMlTripsList } from '../../hooks/mlHooks/useMlTripsList';
 import useMLDeliveryPartnerStore from '../../stores/MLDeliveryPartner.store.js';
@@ -21,6 +22,15 @@ import { showSuccessToast, showErrorToast } from '../utils/mlToast';
 
 const LS_ROUTE_ID = 'ml_route_id';
 const LS_ROUTE_STOPS = 'ml_route_stops';
+
+const initialDeliveryAddressForm = {
+  googleMapsUrl: '',
+  street: '',
+  housename: '',
+  city: '',
+  pincode: '',
+  geoLocation: '',
+};
 
 const MLMyTripsPage = () => {
   const base = useCompanyBasePath();
@@ -48,6 +58,9 @@ const MLMyTripsPage = () => {
   const [actioningStopKey, setActioningStopKey] = useState(null);
   const [showEndShiftConfirm, setShowEndShiftConfirm] = useState(false);
   const [orderSearchInput, setOrderSearchInput] = useState('');
+  const [editingDeliveryStopKey, setEditingDeliveryStopKey] = useState(null);
+  const [deliveryAddressForm, setDeliveryAddressForm] = useState(initialDeliveryAddressForm);
+  const [deliveryAddressAddedForTripIds, setDeliveryAddressAddedForTripIds] = useState(() => new Set());
 
   const markStopMutation = useMarkStop();
   const byOrderIdMutation = useMlTripsByOrderId({
@@ -104,6 +117,26 @@ const MLMyTripsPage = () => {
     },
     onError: (err) => {
       const msg = err?.response?.data?.error?.message || err?.message || 'Failed to end shift.';
+      showErrorToast(msg, 'Error');
+    },
+  });
+
+  const updateDeliveryAddressMutation = useUpdateDeliveryAddress({
+    onSuccess: async (_data, { tripId }) => {
+      if (tripId) setDeliveryAddressAddedForTripIds((prev) => new Set(prev).add(tripId));
+      showSuccessToast('Delivery address saved. Refreshing route…', 'Saved');
+      setEditingDeliveryStopKey(null);
+      setDeliveryAddressForm(initialDeliveryAddressForm);
+      const platform = (useMLDeliveryPartnerStore.getState().platform || 'swiggy').toUpperCase();
+      try {
+        const loc = await getCurrentLocation();
+        startRouteMutation.mutate({ platform, current_location: loc });
+      } catch {
+        startRouteMutation.mutate({ platform });
+      }
+    },
+    onError: (err) => {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to save delivery address.';
       showErrorToast(msg, 'Error');
     },
   });
@@ -204,6 +237,26 @@ const MLMyTripsPage = () => {
       setActioningStopKey(null);
     }
   };
+
+  const handleDeliveryOnlyAction = async (tripId) => {
+    if (!tripId) return;
+    setActioningStopKey(`delivery-only-${tripId}`);
+    try {
+      await updateTripStatusMutation.mutateAsync({ tripId, trip_status: 'delivered' });
+      setTripStatus(tripId, 'delivered');
+      showSuccessToast('Delivered recorded.', 'Delivered');
+    } catch (err) {
+      const msg = err?.response?.data?.error?.message || err?.message || 'Failed to record delivered.';
+      showErrorToast(msg, 'Error');
+    } finally {
+      setActioningStopKey(null);
+    }
+  };
+
+  const tripIdsWithDeliveryStop = useMemo(
+    () => new Set(stopsList.filter((s) => s.stop_type === 'delivery' && s.trip_id).map((s) => s.trip_id)),
+    [stopsList]
+  );
 
   const sendTrackingPoint = async () => {
     try {
@@ -339,7 +392,7 @@ const MLMyTripsPage = () => {
             </div>
           )}
 
-          {/* Stop cards: Picked up / Delivered (persisted in store) */}
+          {/* Stop cards: Picked up / Delivered (persisted in store). Under each pickup without a delivery stop, show a Delivery card to add address. */}
           {stopsList.length > 0 && effectiveRouteId && (
             <div className="space-y-3">
               <p className="text-sm font-semibold text-gray-800">Stops</p>
@@ -349,67 +402,195 @@ const MLMyTripsPage = () => {
                 .map((stop, i) => {
                   const persistedStatus = stop.trip_id ? (tripStatusByTripId[stop.trip_id] || '').toLowerCase() : '';
                   const isPickup = stop.stop_type === 'pickup';
-                  // Trip has one status; delivered implies pickup was done. So pickup stop is done when picked_up OR delivered.
                   const isPickedUp = isPickup && (persistedStatus === 'picked_up' || persistedStatus === 'delivered');
                   const isDelivered = !isPickup && persistedStatus === 'delivered';
                   const alreadyDone = isPickedUp || isDelivered;
                   const label = isPickedUp ? 'Picked up' : isDelivered ? 'Delivered' : isPickup ? 'Picked up' : 'Delivered';
+                  const buttonLabel = isPickup ? 'Picked up' : 'Deliver';
                   const stopNumber = stop.step ?? stop.stop ?? i + 1;
-                  return (
-                    <motion.div
-                      key={stop.planned_stop_id || `${stop.trip_id}-${stopNumber}-${i}`}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: i * 0.03 }}
-                      className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <span className="text-gray-500 text-sm">Stop {stopNumber}</span>
-                        <span
-                          className="px-2.5 py-1 rounded-full text-xs font-medium capitalize"
-                          style={{
-                            backgroundColor: stop.stop_type === 'delivery' ? '#dbeafe' : '#fef3c7',
-                            color: stop.stop_type === 'delivery' ? '#1e40af' : '#92400e',
+                  const showDeliveryCardUnderPickup = isPickup && stop.trip_id && !tripIdsWithDeliveryStop.has(stop.trip_id);
+                  const deliveryCardKey = `delivery-card-${stop.trip_id}`;
+
+                  const renderDeliveryAddressBlock = (tripId) => {
+                    if (deliveryAddressAddedForTripIds.has(tripId)) {
+                      return (
+                        <div className="mb-3 border-t border-gray-100 pt-3">
+                          <p className="text-xs font-medium flex items-center gap-1.5" style={{ color: '#059669' }}>
+                            <MdCheckCircle className="w-4 h-4" /> Delivery address added
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (
+                    <div className="mb-3 border-t border-gray-100 pt-3">
+                      {editingDeliveryStopKey !== deliveryCardKey ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingDeliveryStopKey(deliveryCardKey);
+                            setDeliveryAddressForm(initialDeliveryAddressForm);
                           }}
+                          className="text-sm font-medium flex items-center gap-1.5"
+                          style={{ color: accent }}
                         >
-                          {stop.stop_type === 'delivery' ? (
-                            <span className="inline-flex items-center gap-1"><MdLocationOn className="w-3.5 h-3.5" /> Delivery</span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1"><MdRestaurant className="w-3.5 h-3.5" /> Pickup</span>
-                          )}
-                        </span>
-                      </div>
-                      {stop.order_id && (
-                        <p className="text-sm font-medium text-gray-800 mb-2">Order #{stop.order_id}</p>
-                      )}
-                      {stop.trip_id && (
-                        <p className="text-xs text-gray-500 mb-2">
-                          <Link to={`${base}/trips/${stop.trip_id}`} className="font-medium underline" style={{ color: accent }}>Trip details</Link>
-                        </p>
-                      )}
-                      <div className="mt-3">
-                        {alreadyDone ? (
-                          <div
-                            className="min-h-[44px] w-full px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
-                            style={{ backgroundColor: '#d1fae5', color: '#065f46' }}
-                          >
-                            <MdCheckCircle className="w-5 h-5" /> {label} ✓
+                          <MdLocationOn className="w-4 h-4" /> Add delivery location
+                        </button>
+                      ) : (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="space-y-3"
+                        >
+                          <p className="text-xs font-medium text-gray-600">Delivery address (map link)</p>
+                          <input
+                            type="url"
+                            placeholder="Paste Google Maps link"
+                            value={deliveryAddressForm.googleMapsUrl}
+                            onChange={(e) => setDeliveryAddressForm((f) => ({ ...f, googleMapsUrl: e.target.value }))}
+                            className="w-full min-h-[40px] py-2 px-3 rounded-xl border border-gray-200 text-sm"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingDeliveryStopKey(null);
+                                setDeliveryAddressForm(initialDeliveryAddressForm);
+                              }}
+                              className="flex-1 min-h-[40px] py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              disabled={updateDeliveryAddressMutation.isPending || !deliveryAddressForm.googleMapsUrl?.trim()}
+                              onClick={() => {
+                                const mapLink = deliveryAddressForm.googleMapsUrl?.trim();
+                                if (!mapLink) {
+                                  showErrorToast('Paste a Google Maps link.', 'Validation');
+                                  return;
+                                }
+                                updateDeliveryAddressMutation.mutate({
+                                  tripId,
+                                  googleMapsUrl: mapLink,
+                                });
+                              }}
+                              className="flex-1 min-h-[40px] py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                              style={{ backgroundColor: accent }}
+                            >
+                              {updateDeliveryAddressMutation.isPending ? 'Saving…' : 'Save'}
+                            </button>
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleStopAction(stop)}
-                            disabled={!stop.planned_stop_id || actioningStopKey != null}
-                            className="min-h-[44px] w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50 transition-transform"
+                        </motion.div>
+                      )}
+                    </div>
+                  );
+                  };
+
+                  return (
+                    <React.Fragment key={stop.planned_stop_id || `${stop.trip_id}-${stopNumber}-${i}`}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: i * 0.03 }}
+                        className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                          <span className="text-gray-500 text-sm">Stop {stopNumber}</span>
+                          <span
+                            className="px-2.5 py-1 rounded-full text-xs font-medium capitalize"
                             style={{
-                              backgroundColor: stop.stop_type === 'pickup' ? '#d97706' : accent,
+                              backgroundColor: stop.stop_type === 'delivery' ? '#dbeafe' : '#fef3c7',
+                              color: stop.stop_type === 'delivery' ? '#1e40af' : '#92400e',
                             }}
                           >
-                            {actioningStopKey === stop.planned_stop_id ? '…' : label}
-                          </button>
+                            {stop.stop_type === 'delivery' ? (
+                              <span className="inline-flex items-center gap-1"><MdLocationOn className="w-3.5 h-3.5" /> Delivery</span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1"><MdRestaurant className="w-3.5 h-3.5" /> Pickup</span>
+                            )}
+                          </span>
+                        </div>
+                        {stop.order_id && (
+                          <p className="text-sm font-medium text-gray-800 mb-2">Order #{stop.order_id}</p>
                         )}
-                      </div>
-                    </motion.div>
+                        {stop.trip_id && (
+                          <p className="text-xs text-gray-500 mb-2">
+                            <Link to={`${base}/trips/${stop.trip_id}`} className="font-medium underline" style={{ color: accent }}>Trip details</Link>
+                          </p>
+                        )}
+                        {stop.stop_type === 'delivery' && stop.trip_id && renderDeliveryAddressBlock(stop.trip_id)}
+                        <div className="mt-3">
+                          {alreadyDone ? (
+                            <div
+                              className="min-h-[44px] w-full px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+                              style={{ backgroundColor: '#d1fae5', color: '#065f46' }}
+                            >
+                              <MdCheckCircle className="w-5 h-5" /> {label} ✓
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleStopAction(stop)}
+                              disabled={!stop.planned_stop_id || actioningStopKey != null}
+                              className="min-h-[44px] w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50 transition-transform"
+                              style={{
+                                backgroundColor: stop.stop_type === 'pickup' ? '#d97706' : accent,
+                              }}
+                            >
+                              {actioningStopKey === stop.planned_stop_id ? '…' : buttonLabel}
+                            </button>
+                          )}
+                        </div>
+                      </motion.div>
+                      {showDeliveryCardUnderPickup && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: (i + 1) * 0.03 }}
+                          className="rounded-2xl bg-white border border-gray-100 p-4 shadow-md border-l-4"
+                          style={{ borderLeftColor: accent }}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <span className="text-gray-500 text-sm">Delivery (same order)</span>
+                            <span
+                              className="px-2.5 py-1 rounded-full text-xs font-medium"
+                              style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}
+                            >
+                              <span className="inline-flex items-center gap-1"><MdLocationOn className="w-3.5 h-3.5" /> Delivery</span>
+                            </span>
+                          </div>
+                          {stop.order_id && (
+                            <p className="text-sm font-medium text-gray-800 mb-2">Order #{stop.order_id}</p>
+                          )}
+                          {stop.trip_id && (
+                            <p className="text-xs text-gray-500 mb-2">
+                              <Link to={`${base}/trips/${stop.trip_id}`} className="font-medium underline" style={{ color: accent }}>Trip details</Link>
+                            </p>
+                          )}
+                          {renderDeliveryAddressBlock(stop.trip_id)}
+                          <div className="mt-3">
+                            {persistedStatus === 'delivered' ? (
+                              <div
+                                className="min-h-[44px] w-full px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+                                style={{ backgroundColor: '#d1fae5', color: '#065f46' }}
+                              >
+                                <MdCheckCircle className="w-5 h-5" /> Delivered ✓
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleDeliveryOnlyAction(stop.trip_id)}
+                                disabled={actioningStopKey != null}
+                                className="min-h-[44px] w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50 transition-transform"
+                                style={{ backgroundColor: accent }}
+                              >
+                                {actioningStopKey === `delivery-only-${stop.trip_id}` ? '…' : 'Deliver'}
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </React.Fragment>
                   );
                 })}
             </div>

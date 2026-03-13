@@ -6,7 +6,7 @@ import axios from 'axios';
 import AppError from '../utils/AppError.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import prisma from '../config/prisma.js';
-import { createMlTripAddress } from './mlTripAddress.service.js';
+import { createMlTripAddress, updateMlTripAddress } from './mlTripAddress.service.js';
 
 const AI_ROUTE_API_FOURTH = process.env.AI_ROUTE_API_FOURTH || 'http://localhost:5004';
 
@@ -251,6 +251,45 @@ export const updateTripStatus = async (tripId, userId, companyId, trip_status) =
     where: { id: tripId },
     data: { status: newStatus },
   });
+  const updated = await prisma.mlTrip.findFirst({
+    where: { id: tripId },
+    include: { pickupAddress: true, deliveryAddress: true },
+  });
+  return formatTripForResponse(updated);
+};
+
+/**
+ * Update or set delivery address for an ML trip (used from My Trips stop card).
+ * @param {string} tripId
+ * @param {string} userId
+ * @param {string} companyId
+ * @param {object} addressData - { googleMapsUrl?, street?, housename?, city?, pincode?, geoLocation? }
+ */
+export const updateTripDeliveryAddress = async (tripId, userId, companyId, addressData) => {
+  if (!tripId || !userId || !companyId) {
+    throw new AppError('tripId, userId, and companyId are required', 400);
+  }
+  if (!hasAddressData(addressData)) {
+    throw new AppError('Either Google Maps URL or street, city, and pincode are required', 400);
+  }
+  const trip = await prisma.mlTrip.findFirst({
+    where: { id: tripId, userId, companyId },
+    include: { deliveryAddress: true },
+  });
+  if (!trip) {
+    throw new AppError('Trip not found', 404);
+  }
+  let deliveryAddressId = trip.deliveryAddressId;
+  if (deliveryAddressId) {
+    await updateMlTripAddress(deliveryAddressId, userId, addressData);
+  } else {
+    const newAddr = await createMlTripAddress(userId, addressData, 'DELIVERY');
+    deliveryAddressId = newAddr.id;
+    await prisma.mlTrip.update({
+      where: { id: tripId },
+      data: { deliveryAddressId },
+    });
+  }
   const updated = await prisma.mlTrip.findFirst({
     where: { id: tripId },
     include: { pickupAddress: true, deliveryAddress: true },

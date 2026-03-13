@@ -10,6 +10,7 @@ import {
   getTripsByOrderId5004,
   getTripFrom5004,
   updateTripStatus5004,
+  updateTripDeliveryAddress as updateTripDeliveryAddressService,
   startShift as startShiftService,
   startRoute5004,
   listAllVehicles,
@@ -195,6 +196,39 @@ export const updateTrip = async (req, res, next) => {
       userId: req.user?.userId,
       tripId: req.params?.tripId,
       body: req.body,
+    });
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/ml-trips/:tripId/delivery-address
+ * Body: { googleMapsUrl?, street?, housename?, city?, pincode?, geoLocation? }
+ * Updates or sets the delivery address for the trip (used from My Trips delivery stop card).
+ */
+export const updateTripDeliveryAddress = async (req, res, next) => {
+  try {
+    const companyId = req.companyId;
+    if (!companyId) throw new AppError('Company context is required.', 400);
+    const userId = req.user?.userId;
+    if (!userId) throw new AppError('User not authenticated.', 401);
+    const { tripId } = req.params;
+    const addressData = req.body || {};
+    const result = await updateTripDeliveryAddressService(tripId, userId, companyId, addressData);
+
+    logInfo(LOG_CATEGORIES.TRANSACTION, 'ML trip delivery address updated', {
+      companyId,
+      userId,
+      tripId,
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.TRANSACTION, 'Failed to update ML trip delivery address', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      tripId: req.params?.tripId,
     });
     next(error);
   }

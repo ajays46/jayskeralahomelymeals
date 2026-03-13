@@ -1,6 +1,6 @@
 /**
  * MLAddTripPage - MaXHub Logistics: Delivery partner adds trip(s).
- * Pickup + delivery (each: map link primary, optional manual address). Multiple trips per session.
+ * Pickup location only; delivery address is added later on My Trips (delivery stop card). Multiple trips per session.
  */
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -179,9 +179,7 @@ const MLAddTripPage = () => {
   const [partnerPayment, setPartnerPayment] = useState('');
   const [orderId, setOrderId] = useState('');
   const [pickup, setPickup] = useState(initialLocation);
-  const [delivery, setDelivery] = useState(initialLocation);
   const [showManualPickup, setShowManualPickup] = useState(false);
-  const [showManualDelivery, setShowManualDelivery] = useState(false);
   const [errors, setErrors] = useState({});
   const [trips, setTrips] = useState([]);
   const [submitted, setSubmitted] = useState(false);
@@ -224,7 +222,6 @@ const MLAddTripPage = () => {
       next.partnerPayment = 'Enter the payment you get for this trip (₹)';
     }
     Object.assign(next, validateLocation(pickup, showManualPickup, 'pickup'));
-    Object.assign(next, validateLocation(delivery, showManualDelivery, 'delivery'));
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -260,16 +257,14 @@ const MLAddTripPage = () => {
       partnerPayment: parseFloat(partnerPayment),
       orderId: (orderId && String(orderId).trim()) || undefined,
       pickup: { ...pickup, pincode: pickup.pincode ? parseInt(pickup.pincode, 10) : '' },
-      delivery: { ...delivery, pincode: delivery.pincode ? parseInt(delivery.pincode, 10) : '' },
+      delivery: {},
     };
     setTrips((prev) => [...prev, trip]);
     setPrice('');
     setPartnerPayment('');
     setOrderId('');
     setPickup(initialLocation);
-    setDelivery(initialLocation);
     setShowManualPickup(false);
-    setShowManualDelivery(false);
     setErrors({});
     showSuccessToast('Trip added to list. Add more or submit all.', 'Trip added');
   };
@@ -304,7 +299,7 @@ const MLAddTripPage = () => {
           <div className="flex flex-row items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-gray-900">Add trip(s)</h1>
-              <p className="text-sm text-gray-600 mt-0.5">Pickup and delivery details.</p>
+              <p className="text-sm text-gray-600 mt-0.5">Pickup and order details. Add delivery address later on My Trips.</p>
             </div>
             <span className="flex-shrink-0 text-sm font-semibold text-gray-700 capitalize" style={{ color: accent }}>
               {platformLabel}
@@ -398,43 +393,22 @@ const MLAddTripPage = () => {
               </div>
 
               <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4 space-y-5">
-                <h2 className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-2">Pickup & delivery</h2>
-                <div className="space-y-6">
-                  <div>
-                    <LocationBlock
-                      title="Pickup location"
-                      idPrefix="pickup"
-                      location={pickup}
-                      onChange={(e) => {
-                        const { name, value } = e.target;
-                        setPickup((prev) => ({ ...prev, [name]: value }));
-                        clearError(`pickup.${name}`);
-                      }}
-                      showManual={showManualPickup}
-                      onToggleManual={() => setShowManualPickup((p) => !p)}
-                      errors={getErrorsFor('pickup')}
-                      clearError={(k) => clearError(`pickup.${k}`)}
-                      accent={accent}
-                    />
-                  </div>
-                  <div className="border-t border-gray-100 pt-6">
-                    <LocationBlock
-                      title="Delivery address"
-                      idPrefix="delivery"
-                      location={delivery}
-                      onChange={(e) => {
-                        const { name, value } = e.target;
-                        setDelivery((prev) => ({ ...prev, [name]: value }));
-                        clearError(`delivery.${name}`);
-                      }}
-                      showManual={showManualDelivery}
-                      onToggleManual={() => setShowManualDelivery((p) => !p)}
-                      errors={getErrorsFor('delivery')}
-                      clearError={(k) => clearError(`delivery.${k}`)}
-                      accent={accent}
-                    />
-                  </div>
-                </div>
+                <h2 className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-2">Pickup location</h2>
+                <LocationBlock
+                  title="Pickup location"
+                  idPrefix="pickup"
+                  location={pickup}
+                  onChange={(e) => {
+                    const { name, value } = e.target;
+                    setPickup((prev) => ({ ...prev, [name]: value }));
+                    clearError(`pickup.${name}`);
+                  }}
+                  showManual={showManualPickup}
+                  onToggleManual={() => setShowManualPickup((p) => !p)}
+                  errors={getErrorsFor('pickup')}
+                  clearError={(k) => clearError(`pickup.${k}`)}
+                  accent={accent}
+                />
               </div>
 
               <div className="flex flex-col gap-3">
