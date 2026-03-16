@@ -75,6 +75,13 @@ const roleConfig = {
     color: 'bg-amber-500',
     route: '/ml/dashboard'
   },
+  'PARTNER_MANAGER': {
+    icon: TruckIcon,
+    title: 'Partner Manager',
+    description: 'MaXHub Logistics — add vehicles for delivery partners',
+    color: 'bg-emerald-500',
+    route: '/ml/partner-manager'
+  },
   'USER': {
     icon: UserIcon,
     title: 'User Dashboard',
@@ -85,7 +92,7 @@ const roleConfig = {
 };
 
 // Display order: CEO/CFO commented out; then ADMIN, DM, Seller, DE, DELIVERY_PARTNER, USER
-const ROLE_DISPLAY_ORDER = ['ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'DELIVERY_PARTNER', 'USER'];
+const ROLE_DISPLAY_ORDER = ['ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'USER'];
 
 const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const navigate = useNavigate();
@@ -107,7 +114,10 @@ const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
     return r !== 'CEO' && r !== 'CFO';
   });
   if (!isMlTenant) {
-    availableRoles = availableRoles.filter(role => (role || '').toUpperCase() !== 'DELIVERY_PARTNER');
+    availableRoles = availableRoles.filter(role => {
+      const r = (role || '').toUpperCase();
+      return r !== 'DELIVERY_PARTNER' && r !== 'PARTNER_MANAGER';
+    });
   }
   if (userIsCXO) {
     cxoAccessRoles.forEach(role => {

@@ -743,7 +743,7 @@ export const createAdminUser = async (req, res, next) => {
         }
 
         // Validate roles
-        const validRoles = ['ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'CEO', 'CFO'];
+        const validRoles = ['ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'CEO', 'CFO'];
         const invalidRoles = rolesToAssign.filter(r => !validRoles.includes(r));
         if (invalidRoles.length > 0) {
             throw new AppError(`Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${validRoles.join(', ')}`, 400);
@@ -851,8 +851,8 @@ export const createAdminUser = async (req, res, next) => {
                 }
             }
 
-            // 6. If user is a delivery executive, create delivery_executive_profile record (user_id, joined_date, status, created_at)
-            if (rolesToAssign.includes('DELIVERY_EXECUTIVE')) {
+            // 6. If user is a delivery executive or delivery partner, create delivery_executive_profile record (same table for both)
+            if (rolesToAssign.includes('DELIVERY_EXECUTIVE') || rolesToAssign.includes('DELIVERY_PARTNER')) {
                 const joinedDateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD for DATE column
                 await tx.$executeRaw`
                     INSERT INTO delivery_executive_profile (user_id, joined_date, status)
@@ -912,7 +912,7 @@ export const getAdminUsers = async (req, res, next) => {
         });
 
         // Filter out users without auth records and only include specific roles
-        const allowedRoles = ['CEO', 'CFO', 'ADMIN', 'SELLER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'USER'];
+        const allowedRoles = ['CEO', 'CFO', 'ADMIN', 'SELLER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'USER'];
         const transformedUsers = users
             .filter(user => {
                 // Only include users with valid auth records
@@ -1924,7 +1924,7 @@ export const addUserRoles = async (req, res, next) => {
         }
 
         // Validate roles
-        const validRoles = ['ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'CEO', 'CFO'];
+        const validRoles = ['ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'CEO', 'CFO'];
         const invalidRoles = roles.filter(r => !validRoles.includes(r));
         if (invalidRoles.length > 0) {
             throw new AppError(`Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${validRoles.join(', ')}`, 400);

@@ -32,6 +32,7 @@ import mlAssistantRoutes from './routes/mlAssistant.routes.js';
 import mlShiftRoutes from './routes/mlShift.routes.js';
 import mlJourneyRoutes from './routes/mlJourney.routes.js';
 import mlVehicleTrackingRoutes from './routes/mlVehicleTracking.routes.js';
+import mlPartnerManagerRoutes from './routes/mlPartnerManager.routes.js';
 import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
 import logRotationManager from './utils/logRotationManager.js';
 import { logInfo, logError, LOG_CATEGORIES } from './utils/criticalLogger.js';
@@ -161,6 +162,7 @@ app.use('/api/ml-assistant', mlAssistantRoutes);
 app.use('/api/shift', mlShiftRoutes);
 app.use('/api/journey', mlJourneyRoutes);
 app.use('/api', mlVehicleTrackingRoutes);
+app.use('/api/ml-partner-manager', mlPartnerManagerRoutes);
 
 // Error logging middleware (should be after routes but before error handler)
 app.use(errorLogger);

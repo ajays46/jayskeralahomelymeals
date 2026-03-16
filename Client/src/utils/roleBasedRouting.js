@@ -14,17 +14,19 @@ export const getDashboardRoute = (roles, basePath, selectedRole = null) => {
   const roleArray = roles && Array.isArray(roles) ? roles : roles ? [roles] : [];
   const isMl = path === '/ml' || path.toLowerCase().endsWith('/ml');
 
-  // MaXHub Logistics (ML): ADMIN → /ml/admin (create users), DELIVERY_PARTNER, CEO/CFO dashboards
+  // MaXHub Logistics (ML): ADMIN → /ml/admin, DELIVERY_PARTNER → dashboard, PARTNER_MANAGER → partner-manager, CEO/CFO → cxo-dashboard
   if (isMl) {
     if (selectedRole && typeof selectedRole === 'string') {
       const su = selectedRole.toUpperCase();
       if (su === 'ADMIN') return `${path}/admin`;
       if (su === 'DELIVERY_PARTNER') return `${path}/dashboard`;
+      if (su === 'PARTNER_MANAGER') return `${path}/partner-manager`;
       if (su === 'CEO' || su === 'CFO') return `${path}/cxo-dashboard`;
       return path;
     }
     if (roleArray.some(r => (r || '').toUpperCase() === 'ADMIN')) return `${path}/admin`;
     if (roleArray.some(r => (r || '').toUpperCase() === 'DELIVERY_PARTNER')) return `${path}/dashboard`;
+    if (roleArray.some(r => (r || '').toUpperCase() === 'PARTNER_MANAGER')) return `${path}/partner-manager`;
     if (roleArray.some(r => (r || '').toUpperCase() === 'CEO') || roleArray.some(r => (r || '').toUpperCase() === 'CFO')) return `${path}/cxo-dashboard`;
     return path;
   }

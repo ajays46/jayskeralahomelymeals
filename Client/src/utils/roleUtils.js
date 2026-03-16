@@ -143,6 +143,7 @@ export const getRoleDisplayName = (role) => {
     'DELIVERY_MANAGER': 'Delivery Manager',
     'DELIVERY_EXECUTIVE': 'Delivery Executive',
     'DELIVERY_PARTNER': 'Delivery Partner',
+    'PARTNER_MANAGER': 'Partner Manager',
     'USER': 'User'
   };
   return roleMap[role] || role;
@@ -172,6 +173,7 @@ export const getRoleColor = (role) => {
     'DELIVERY_MANAGER': 'bg-purple-100 text-purple-800 border-purple-200',
     'DELIVERY_EXECUTIVE': 'bg-green-100 text-green-800 border-green-200',
     'DELIVERY_PARTNER': 'bg-amber-100 text-amber-800 border-amber-200',
+    'PARTNER_MANAGER': 'bg-emerald-100 text-emerald-800 border-emerald-200',
     'USER': 'bg-gray-100 text-gray-800 border-gray-200'
   };
   return roleColors[role?.toUpperCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
@@ -191,6 +193,7 @@ export const getRoleIcon = (role) => {
     'DELIVERY_MANAGER': '🚚',
     'DELIVERY_EXECUTIVE': '📦',
     'DELIVERY_PARTNER': '📦',
+    'PARTNER_MANAGER': '🚛',
     'USER': '👤'
   };
   return roleIcons[role?.toUpperCase()] || '👤';
