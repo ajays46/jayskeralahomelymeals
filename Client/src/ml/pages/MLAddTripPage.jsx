@@ -11,7 +11,8 @@ import { getThemeForCompany } from '../../config/tenantThemes';
 import { showSuccessToast, showErrorToast } from '../utils/mlToast';
 import { useAddMlTrips } from '../../hooks/mlHooks/useAddMlTrips';
 import useMLDeliveryPartnerStore from '../../stores/MLDeliveryPartner.store.js';
-import { MdLocationOn, MdDelete } from 'react-icons/md';
+import { MdLocationOn, MdDelete, MdMap } from 'react-icons/md';
+import MapLocationPickerModal from '../components/MapLocationPickerModal';
 
 function hasAddressData(loc) {
   return !!(loc && ((loc.googleMapsUrl || '').trim() || ((loc.street || '').trim() && (loc.city || '').trim() && (loc.pincode || '').toString().trim())));
@@ -43,10 +44,22 @@ function LocationBlock({
   errors,
   clearError,
   accent,
+  onOpenMapPicker,
 }) {
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
+      {onOpenMapPicker && (
+        <button
+          type="button"
+          onClick={onOpenMapPicker}
+          className="w-full min-h-[44px] py-3 px-4 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 text-gray-700 font-medium flex items-center justify-center gap-2 hover:bg-gray-100 hover:border-gray-400 transition-colors"
+          style={{ borderColor: accent, color: accent }}
+        >
+          <MdMap className="w-5 h-5" />
+          Pick location on map
+        </button>
+      )}
       <div>
         <label htmlFor={`${idPrefix}-maplink`} className="block text-sm font-medium text-gray-700 mb-1">
           Map link <span className="text-red-500">*</span>
@@ -180,6 +193,7 @@ const MLAddTripPage = () => {
   const [orderId, setOrderId] = useState('');
   const [pickup, setPickup] = useState(initialLocation);
   const [showManualPickup, setShowManualPickup] = useState(false);
+  const [showPickupMapPicker, setShowPickupMapPicker] = useState(false);
   const [errors, setErrors] = useState({});
   const [trips, setTrips] = useState([]);
   const [submitted, setSubmitted] = useState(false);
@@ -407,6 +421,24 @@ const MLAddTripPage = () => {
                   onToggleManual={() => setShowManualPickup((p) => !p)}
                   errors={getErrorsFor('pickup')}
                   clearError={(k) => clearError(`pickup.${k}`)}
+                  accent={accent}
+                  onOpenMapPicker={() => setShowPickupMapPicker(true)}
+                />
+                <MapLocationPickerModal
+                  isOpen={showPickupMapPicker}
+                  onClose={() => setShowPickupMapPicker(false)}
+                  onSelect={(loc) => {
+                    setPickup({
+                      street: loc.street || '',
+                      housename: loc.housename || '',
+                      city: loc.city || '',
+                      pincode: loc.pincode || '',
+                      geoLocation: loc.geoLocation || '',
+                      googleMapsUrl: loc.googleMapsUrl || '',
+                    });
+                    clearError('pickup');
+                    setShowPickupMapPicker(false);
+                  }}
                   accent={accent}
                 />
               </div>

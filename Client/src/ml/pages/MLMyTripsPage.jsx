@@ -19,6 +19,7 @@ import { useMlTripsByOrderId } from '../../hooks/mlHooks/useMlTripsByOrderId';
 import { useMlTripsList } from '../../hooks/mlHooks/useMlTripsList';
 import useMLDeliveryPartnerStore from '../../stores/MLDeliveryPartner.store.js';
 import { showSuccessToast, showErrorToast } from '../utils/mlToast';
+import RouteStopsMap from '../components/RouteStopsMap';
 
 const LS_ROUTE_ID = 'ml_route_id';
 const LS_ROUTE_STOPS = 'ml_route_stops';
@@ -182,6 +183,21 @@ const MLMyTripsPage = () => {
 
   const orderFilter = (orderSearchInput ?? '').toString().trim();
 
+  const stopsWithCoordsForMap = useMemo(() => {
+    const fromResponse = routeResponse?.stops;
+    if (Array.isArray(fromResponse) && fromResponse.length > 0) return fromResponse;
+    if (Array.isArray(storeStops) && storeStops.length > 0) return storeStops;
+    if (typeof window !== 'undefined') {
+      try {
+        const s = JSON.parse(localStorage.getItem(LS_ROUTE_STOPS) || '[]');
+        if (Array.isArray(s) && s.length > 0) return s;
+      } catch {
+        // ignore
+      }
+    }
+    return [];
+  }, [routeResponse?.stops, storeStops]);
+
   const stopsListRaw = useMemo(() => {
     const fromResponse = routeResponse?.stops;
     if (Array.isArray(fromResponse) && fromResponse.length > 0) return fromResponse;
@@ -338,6 +354,11 @@ const MLMyTripsPage = () => {
             <div className="rounded-2xl bg-white border border-gray-100 p-6 text-center text-gray-500 text-sm">
               Tap &quot;Start route&quot; to create a route and see stops here.
             </div>
+          )}
+
+          {/* Route map (when stops have latitude/longitude from Start route response) */}
+          {effectiveRouteId && stopsWithCoordsForMap.some((s) => s != null && typeof s.latitude === 'number' && typeof s.longitude === 'number') && (
+            <RouteStopsMap stops={stopsWithCoordsForMap} accent={accent} className="w-full" />
           )}
 
           {/* Find trip by Order ID — only when 3+ stops (filter is useful for longer lists) */}

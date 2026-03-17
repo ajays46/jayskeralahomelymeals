@@ -3,7 +3,7 @@
  * for tracking + mark-stop + shift end. Shift status read from DB (driver_availability).
  */
 import AppError from '../utils/AppError.js';
-import { endShift5004, vehicleTracking5004, markStop5004, getShiftStatusFromDb } from '../services/mlTrip.service.js';
+import { endShift5004, vehicleTracking5004, getLiveVehiclePosition5004, markStop5004, getShiftStatusFromDb } from '../services/mlTrip.service.js';
 
 /**
  * GET /api/shift/status - Read shift status from DB (driver_availability). 5004 is the writer.
@@ -53,6 +53,22 @@ export const vehicleTracking = async (req, res, next) => {
     const body = { ...(req.body || {}) };
     if (!body.user_id) body.user_id = userId;
     const result = await vehicleTracking5004(companyId, body);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/vehicle-tracking/live?vehicle_number=...
+ * Proxies to 5004 GET /api/vehicle-tracking/live. Returns live position (location.latitude, location.longitude, status, etc.).
+ */
+export const getLiveVehicleTracking = async (req, res, next) => {
+  try {
+    const companyId = req.companyId;
+    if (!companyId) throw new AppError('Company context is required.', 400);
+    const vehicleNumber = req.query?.vehicle_number;
+    const result = await getLiveVehiclePosition5004(companyId, vehicleNumber);
     res.status(200).json(result);
   } catch (error) {
     next(error);

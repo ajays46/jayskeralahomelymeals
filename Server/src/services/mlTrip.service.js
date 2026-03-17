@@ -658,8 +658,21 @@ export const startRoute5004 = async (userId, companyId, platform, currentLocatio
 };
 
 /**
+ * Normalize a timestamp to Unix seconds (integer) for 5004 to avoid Python naive/aware datetime mismatch.
+ * Accepts ISO string, Date, or number (ms or s).
+ */
+function toUnixSeconds(ts) {
+  if (ts == null) return Math.floor(Date.now() / 1000);
+  if (typeof ts === 'number') return ts < 1e12 ? ts : Math.floor(ts / 1000);
+  if (typeof ts === 'string') return Math.floor(new Date(ts).getTime() / 1000);
+  if (ts instanceof Date && !Number.isNaN(ts.getTime())) return Math.floor(ts.getTime() / 1000);
+  return Math.floor(Date.now() / 1000);
+}
+
+/**
  * Vehicle tracking on external 5004 API.
  * POST /api/vehicle-tracking
+ * Normalizes tracking_points[].timestamp to Unix seconds so 5004 (Python) avoids naive/aware datetime errors.
  */
 export const vehicleTracking5004 = async (companyId, body) => {
   if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
@@ -670,8 +683,17 @@ export const vehicleTracking5004 = async (companyId, body) => {
   if (!Array.isArray(body.tracking_points) || body.tracking_points.length === 0) {
     throw new AppError('tracking_points must be a non-empty array', 400);
   }
+  const payload = {
+    route_id: body.route_id,
+    user_id: body.user_id,
+    tracking_points: body.tracking_points.map((p) => ({
+      latitude: p.latitude,
+      longitude: p.longitude,
+      timestamp: toUnixSeconds(p.timestamp),
+    })),
+  };
   try {
-    const response = await deliveryPartnerApiClient.post('/api/vehicle-tracking', body, {
+    const response = await deliveryPartnerApiClient.post('/api/vehicle-tracking', payload, {
       headers: { 'X-Company-ID': companyId.trim() },
     });
     const data = response.data;
@@ -686,6 +708,38 @@ export const vehicleTracking5004 = async (companyId, body) => {
     throw new AppError(
       error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to send vehicle tracking',
       error.response?.status === 404 ? 502 : 500
+    );
+  }
+};
+
+/**
+ * Live vehicle position from 5004.
+ * GET /api/vehicle-tracking/live?vehicle_number=...
+ * Returns { active, location: { latitude, longitude, address, ... }, device_details, status, ... }.
+ */
+export const getLiveVehiclePosition5004 = async (companyId, vehicleNumber) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required', 400);
+  }
+  const vn = vehicleNumber != null ? String(vehicleNumber).trim() : '';
+  if (!vn) throw new AppError('vehicle_number is required', 400);
+  try {
+    const response = await deliveryPartnerApiClient.get('/api/vehicle-tracking/live', {
+      params: { vehicle_number: vn },
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Live vehicle-tracking 5004 failed', {
+      error: error.message,
+      company_id: companyId,
+      vehicle_number: vn,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to get live vehicle position',
+      error.response?.status === 404 ? 404 : error.response?.status >= 500 ? 502 : 500
     );
   }
 };
