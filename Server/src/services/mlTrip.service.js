@@ -157,7 +157,7 @@ function startOfWeekUTC() {
   return d;
 }
 
-const VALID_PLATFORMS = ['swiggy', 'flipkart', 'amazon'];
+const VALID_PLATFORMS = ['swiggy', 'uber', 'flipkart', 'amazon'];
 const VALID_STATUSES = ['pending', 'picked_up', 'delivered'];
 
 /** Map Prisma status to guide's trip_status (lowercase). */

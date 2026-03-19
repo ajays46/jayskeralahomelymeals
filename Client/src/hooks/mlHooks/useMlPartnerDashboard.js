@@ -1,6 +1,6 @@
 /**
  * useMlPartnerDashboard - Fetch ML delivery partner dashboard stats (trips, revenue today/week/total, recent trips).
- * @param {string} [platform] - Optional: 'swiggy' | 'flipkart' | 'amazon' to filter by platform
+ * @param {string} [platform] - Optional: 'swiggy' | 'uber' | 'flipkart' | 'amazon' to filter by platform
  */
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';

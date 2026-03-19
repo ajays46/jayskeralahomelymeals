@@ -185,7 +185,19 @@ const MLNavbar = ({ onSignInClick }) => {
 
           {/* Hamburger: only on mobile when not delivery partner (delivery partner uses bottom nav) */}
           {!(user && userIsDeliveryPartner) && (
-            <div className="md:hidden flex items-center">
+            <div className="md:hidden flex items-center gap-1">
+              {user && (
+                <motion.button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-gray-900 focus:outline-none p-2 rounded-lg hover:bg-black/5 transition-all duration-300"
+                  whileTap={{ scale: 0.95 }}
+                  aria-label="Logout"
+                  title="Logout"
+                >
+                  <MdLogout className="w-7 h-7" />
+                </motion.button>
+              )}
               <motion.button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-900 focus:outline-none p-2 rounded-lg hover:bg-black/5 transition-all duration-300" whileTap={{ scale: 0.95 }}>
                 {menuOpen ? <MdClose className="w-8 h-8" /> : <MdMenu className="w-8 h-8" />}
               </motion.button>

@@ -28,10 +28,33 @@ function reverseGeocode(lat, lng) {
 function searchPlaces(query) {
   const q = String(query || '').trim();
   if (!q) return Promise.resolve([]);
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=6`;
-  return fetch(url, { headers: { Accept: 'application/json' } })
+  const headers = {
+    Accept: 'application/json',
+    'Accept-Language': 'en-IN,en;q=0.9',
+  };
+
+  const indiaBiasedUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+    q
+  )}&addressdetails=1&limit=15&countrycodes=in&dedupe=1`;
+
+  const globalFallbackUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+    q
+  )}&addressdetails=1&limit=15&dedupe=1`;
+
+  const normalize = (data) =>
+    (Array.isArray(data) ? data : [])
+      .filter((r) => Number.isFinite(Number(r?.lat)) && Number.isFinite(Number(r?.lon)))
+      .sort((a, b) => Number(b?.importance || 0) - Number(a?.importance || 0));
+
+  return fetch(indiaBiasedUrl, { headers })
     .then((r) => r.json())
-    .then((data) => (Array.isArray(data) ? data : []));
+    .then((data) => {
+      const primary = normalize(data);
+      if (primary.length > 0) return primary;
+      return fetch(globalFallbackUrl, { headers })
+        .then((r) => r.json())
+        .then((fallbackData) => normalize(fallbackData));
+    });
 }
 
 function buildLocationFromNominatim(data, lat, lng) {
