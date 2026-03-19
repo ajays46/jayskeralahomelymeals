@@ -3,7 +3,14 @@
  * for tracking + mark-stop + shift end. Shift status read from DB (driver_availability).
  */
 import AppError from '../utils/AppError.js';
-import { endShift5004, vehicleTracking5004, getLiveVehiclePosition5004, markStop5004, getShiftStatusFromDb } from '../services/mlTrip.service.js';
+import {
+  endShift5004,
+  vehicleTracking5004,
+  getLiveVehiclePosition5004,
+  getLiveVehiclePositionByDriverId,
+  markStop5004,
+  getShiftStatusFromDb,
+} from '../services/mlTrip.service.js';
 
 /**
  * GET /api/shift/status - Read shift status from DB (driver_availability). 5004 is the writer.
@@ -60,15 +67,24 @@ export const vehicleTracking = async (req, res, next) => {
 };
 
 /**
- * GET /api/vehicle-tracking/live?vehicle_number=...
- * Proxies to 5004 GET /api/vehicle-tracking/live. Returns live position (location.latitude, location.longitude, status, etc.).
+ * GET /api/vehicle-tracking/live
+ * With vehicle_number: GET external API ?vehicle_number=...
+ * Without: uses JWT user id → GET external API ?driver_id=userId (e.g. http://localhost:5003/api/vehicle-tracking/live?driver_id=...)
  */
 export const getLiveVehicleTracking = async (req, res, next) => {
   try {
     const companyId = req.companyId;
     if (!companyId) throw new AppError('Company context is required.', 400);
     const vehicleNumber = req.query?.vehicle_number;
-    const result = await getLiveVehiclePosition5004(companyId, vehicleNumber);
+    const vn = vehicleNumber != null ? String(vehicleNumber).trim() : '';
+    if (vn) {
+      const result = await getLiveVehiclePosition5004(companyId, vehicleNumber);
+      res.status(200).json(result);
+      return;
+    }
+    const userId = req.user?.userId;
+    if (!userId) throw new AppError('User not authenticated.', 401);
+    const result = await getLiveVehiclePositionByDriverId(companyId, userId);
     res.status(200).json(result);
   } catch (error) {
     next(error);

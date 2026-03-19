@@ -2,25 +2,15 @@ import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { resolveCompanyId, requireCompanyId } from '../middleware/resolveCompanyId.js';
-import { vehicleTracking, getLiveVehicleTracking } from '../controllers/mlPartner.controller.js';
+import { getLiveVehicleTracking } from '../controllers/mlPartner.controller.js';
 
 const router = express.Router();
 
-// POST /api/vehicle-tracking
-router.post(
-  '/vehicle-tracking',
-  authenticateToken,
-  checkRole('DELIVERY_PARTNER'),
-  resolveCompanyId,
-  requireCompanyId,
-  vehicleTracking
-);
-
-// GET /api/vehicle-tracking/live?vehicle_number=... — proxy to 5004 live tracking (same format as 5004 response)
+// GET /api/vehicle-tracking/live — live vehicle position (omit vehicle_number to use JWT driver)
 router.get(
   '/vehicle-tracking/live',
   authenticateToken,
-  checkRole('DELIVERY_PARTNER', 'PARTNER_MANAGER'),
+  checkRole('DELIVERY_PARTNER'),
   resolveCompanyId,
   requireCompanyId,
   getLiveVehicleTracking

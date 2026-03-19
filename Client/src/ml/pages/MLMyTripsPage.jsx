@@ -1,6 +1,7 @@
 /**
- * MLMyTripsPage - MaXHub Logistics: Start route, show route response and stop cards, GPS tracking, end shift.
+ * MLMyTripsPage - MaXHub Logistics: Start route, show route response and stop cards, end shift.
  * Stop cards: Mark stop reached (POST /api/journey/mark-stop) and Picked up/Delivered (PATCH /api/ml-trips/:trip_id).
+ * Live vehicle map: GET /api/vehicle-tracking/live (polled here; JWT driver when no vehicle_number).
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -10,19 +11,21 @@ import MLNavbar from '../components/MLNavbar';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
 import { useStartRoute } from '../../hooks/mlHooks/useStartRoute';
-import { useVehicleTracking } from '../../hooks/mlHooks/useVehicleTracking';
 import { useEndShift } from '../../hooks/mlHooks/useEndShift';
 import { useMarkStop } from '../../hooks/mlHooks/useMarkStop';
 import { useUpdateMlTripStatus } from '../../hooks/mlHooks/useUpdateMlTripStatus';
 import { useUpdateDeliveryAddress } from '../../hooks/mlHooks/useUpdateDeliveryAddress';
 import { useMlTripsByOrderId } from '../../hooks/mlHooks/useMlTripsByOrderId';
 import { useMlTripsList } from '../../hooks/mlHooks/useMlTripsList';
+import { useLiveVehiclePosition } from '../../hooks/mlHooks/useVehicleTracking';
 import useMLDeliveryPartnerStore from '../../stores/MLDeliveryPartner.store.js';
 import { showSuccessToast, showErrorToast } from '../utils/mlToast';
 import RouteStopsMap from '../components/RouteStopsMap';
+import MapLocationPickerModal from '../components/MapLocationPickerModal';
 
 const LS_ROUTE_ID = 'ml_route_id';
 const LS_ROUTE_STOPS = 'ml_route_stops';
+const LIVE_VEHICLE_POLL_MS = 5000;
 
 const initialDeliveryAddressForm = {
   googleMapsUrl: '',
@@ -31,6 +34,56 @@ const initialDeliveryAddressForm = {
   city: '',
   pincode: '',
   geoLocation: '',
+};
+
+const parseCoordinatePair = (value) => {
+  if (typeof value !== 'string') return null;
+  const match = value.match(/(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)/);
+  if (!match) return null;
+
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+
+  return { latitude, longitude };
+};
+
+const getCoordsFromTripAddress = (address) => {
+  if (!address || typeof address !== 'object') return null;
+
+  const fromGeoLocation = parseCoordinatePair(address.geo_location || address.geoLocation || '');
+  if (fromGeoLocation) return fromGeoLocation;
+
+  const mapUrl = String(address.google_maps_url || address.googleMapsUrl || '').trim();
+  if (!mapUrl) return null;
+
+  try {
+    const parsedUrl = new URL(mapUrl);
+    const queryValue = parsedUrl.searchParams.get('q') || parsedUrl.searchParams.get('query');
+    const fromQuery = parseCoordinatePair(queryValue || '');
+    if (fromQuery) return fromQuery;
+  } catch {
+    // Ignore URL parsing failures and fall back to regex parsing below.
+  }
+
+  const decodedUrl = decodeURIComponent(mapUrl);
+  const fromAtMarker = decodedUrl.match(/@(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/);
+  if (fromAtMarker) {
+    return {
+      latitude: Number(fromAtMarker[1]),
+      longitude: Number(fromAtMarker[2]),
+    };
+  }
+
+  return parseCoordinatePair(decodedUrl);
+};
+
+const getStopCoordinateKey = (latitude, longitude) => {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return `${lat.toFixed(6)},${lng.toFixed(6)}`;
 };
 
 const MLMyTripsPage = () => {
@@ -58,10 +111,15 @@ const MLMyTripsPage = () => {
 
   const [actioningStopKey, setActioningStopKey] = useState(null);
   const [showEndShiftConfirm, setShowEndShiftConfirm] = useState(false);
+  /** Current location when route was started (for map: current → pickup/delivery). */
+  const [startRouteCurrentLocation, setStartRouteCurrentLocation] = useState(null);
+  /** Trip ID for which the delivery-location map picker modal is open (null = closed). */
+  const [deliveryMapPickerTripId, setDeliveryMapPickerTripId] = useState(null);
   const [orderSearchInput, setOrderSearchInput] = useState('');
   const [editingDeliveryStopKey, setEditingDeliveryStopKey] = useState(null);
   const [deliveryAddressForm, setDeliveryAddressForm] = useState(initialDeliveryAddressForm);
   const [deliveryAddressAddedForTripIds, setDeliveryAddressAddedForTripIds] = useState(() => new Set());
+  const [updatedTripsById, setUpdatedTripsById] = useState({});
 
   const markStopMutation = useMarkStop();
   const byOrderIdMutation = useMlTripsByOrderId({
@@ -75,6 +133,12 @@ const MLMyTripsPage = () => {
     {},
     { enabled: !!effectiveRouteId }
   );
+
+  /** GET /api/vehicle-tracking/live — same route as Server/mlVehicleTracking.routes.js; no vehicle_number = JWT driver */
+  const liveVehicleQuery = useLiveVehiclePosition(null, {
+    enabled: !!effectiveRouteId,
+    refetchInterval: effectiveRouteId ? LIVE_VEHICLE_POLL_MS : false,
+  });
 
   const startRouteMutation = useStartRoute({
     onSuccess: (data) => {
@@ -98,19 +162,13 @@ const MLMyTripsPage = () => {
     },
   });
 
-  const vehicleTrackingMutation = useVehicleTracking({
-    onError: (err) => {
-      const msg = err?.response?.data?.error?.message || err?.message || 'Failed to send GPS.';
-      showErrorToast(msg, 'Tracking error');
-    },
-  });
-
   const endShiftMutation = useEndShift({
     onSuccess: () => {
       clearAll();
       setTrackingEnabled(false);
       setRouteId('');
       setRouteResponse(null);
+      setStartRouteCurrentLocation(null);
       localStorage.removeItem(LS_ROUTE_ID);
       localStorage.removeItem(LS_ROUTE_STOPS);
       showSuccessToast('Shift ended. You are now offline.', 'Shift ended');
@@ -123,7 +181,11 @@ const MLMyTripsPage = () => {
   });
 
   const updateDeliveryAddressMutation = useUpdateDeliveryAddress({
-    onSuccess: async (_data, { tripId }) => {
+    onSuccess: async (data, { tripId }) => {
+      const updatedTripId = data?.id || tripId;
+      if (updatedTripId && data) {
+        setUpdatedTripsById((prev) => ({ ...prev, [updatedTripId]: data }));
+      }
       if (tripId) setDeliveryAddressAddedForTripIds((prev) => new Set(prev).add(tripId));
       showSuccessToast('Delivery address saved. Refreshing route…', 'Saved');
       setEditingDeliveryStopKey(null);
@@ -131,8 +193,10 @@ const MLMyTripsPage = () => {
       const platform = (useMLDeliveryPartnerStore.getState().platform || 'swiggy').toUpperCase();
       try {
         const loc = await getCurrentLocation();
+        setStartRouteCurrentLocation(loc);
         startRouteMutation.mutate({ platform, current_location: loc });
       } catch {
+        setStartRouteCurrentLocation(null);
         startRouteMutation.mutate({ platform });
       }
     },
@@ -157,8 +221,10 @@ const MLMyTripsPage = () => {
     const platform = (useMLDeliveryPartnerStore.getState().platform || 'swiggy').toUpperCase();
     try {
       const loc = await getCurrentLocation();
+      setStartRouteCurrentLocation(loc);
       startRouteMutation.mutate({ platform, current_location: loc });
     } catch {
+      setStartRouteCurrentLocation(null);
       startRouteMutation.mutate({ platform });
     }
   };
@@ -183,7 +249,7 @@ const MLMyTripsPage = () => {
 
   const orderFilter = (orderSearchInput ?? '').toString().trim();
 
-  const stopsWithCoordsForMap = useMemo(() => {
+  const routeStopsForMap = useMemo(() => {
     const fromResponse = routeResponse?.stops;
     if (Array.isArray(fromResponse) && fromResponse.length > 0) return fromResponse;
     if (Array.isArray(storeStops) && storeStops.length > 0) return storeStops;
@@ -197,6 +263,91 @@ const MLMyTripsPage = () => {
     }
     return [];
   }, [routeResponse?.stops, storeStops]);
+
+  const tripsForMap = useMemo(() => {
+    const merged = new Map();
+    (Array.isArray(tripsFromList) ? tripsFromList : []).forEach((trip) => {
+      if (trip?.id) merged.set(trip.id, trip);
+    });
+    Object.values(updatedTripsById).forEach((trip) => {
+      if (trip?.id) merged.set(trip.id, trip);
+    });
+    return Array.from(merged.values());
+  }, [tripsFromList, updatedTripsById]);
+
+  const stopsWithCoordsForMap = useMemo(() => {
+    const mapStops = Array.isArray(routeStopsForMap) ? [...routeStopsForMap] : [];
+    const existingPickupTripIds = new Set(
+      mapStops
+        .filter((stop) => stop?.stop_type === 'pickup' && stop?.trip_id)
+        .map((stop) => stop.trip_id)
+    );
+    const existingDeliveryTripIds = new Set(
+      mapStops
+        .filter((stop) => stop?.stop_type === 'delivery' && stop?.trip_id)
+        .map((stop) => stop.trip_id)
+    );
+    const existingCoordinateKeys = new Set(
+      mapStops
+        .map((stop) => getStopCoordinateKey(stop?.latitude, stop?.longitude))
+        .filter(Boolean)
+    );
+    const fallbackPickupStops = [];
+    const fallbackDeliveryStops = [];
+
+    tripsForMap.forEach((trip) => {
+      const persistedStatus = (tripStatusByTripId[trip.id] || trip.trip_status || '').toLowerCase();
+      if (!trip?.id) return;
+
+      if (!existingPickupTripIds.has(trip.id)) {
+        const pickupCoords = getCoordsFromTripAddress(trip.pickup_address);
+        const pickupCoordKey = getStopCoordinateKey(pickupCoords?.latitude, pickupCoords?.longitude);
+        if (pickupCoords && (!pickupCoordKey || !existingCoordinateKeys.has(pickupCoordKey))) {
+          fallbackPickupStops.push({
+            latitude: pickupCoords.latitude,
+            longitude: pickupCoords.longitude,
+            order_id: trip.order_id ?? trip.orderId,
+            trip_id: trip.id,
+            stop_type: 'pickup',
+          });
+          existingPickupTripIds.add(trip.id);
+          if (pickupCoordKey) existingCoordinateKeys.add(pickupCoordKey);
+        }
+      }
+
+      if (existingDeliveryTripIds.has(trip.id)) return;
+
+      const shouldShowDelivery =
+        persistedStatus === 'picked_up' ||
+        persistedStatus === 'delivered' ||
+        deliveryAddressAddedForTripIds.has(trip.id);
+      if (!shouldShowDelivery) return;
+
+      const deliveryCoords = getCoordsFromTripAddress(trip.delivery_address);
+      if (!deliveryCoords) return;
+      const deliveryCoordKey = getStopCoordinateKey(deliveryCoords.latitude, deliveryCoords.longitude);
+      if (deliveryCoordKey && existingCoordinateKeys.has(deliveryCoordKey)) {
+        existingDeliveryTripIds.add(trip.id);
+        return;
+      }
+
+      fallbackDeliveryStops.push({
+        latitude: deliveryCoords.latitude,
+        longitude: deliveryCoords.longitude,
+        order_id: trip.order_id ?? trip.orderId,
+        trip_id: trip.id,
+        stop_type: 'delivery',
+      });
+      existingDeliveryTripIds.add(trip.id);
+      if (deliveryCoordKey) existingCoordinateKeys.add(deliveryCoordKey);
+    });
+
+    return [...fallbackPickupStops, ...mapStops, ...fallbackDeliveryStops].map((stop, index) => ({
+      ...stop,
+      stop: index + 1,
+      step: index + 1,
+    }));
+  }, [routeStopsForMap, tripsForMap, tripStatusByTripId, deliveryAddressAddedForTripIds]);
 
   const stopsListRaw = useMemo(() => {
     const fromResponse = routeResponse?.stops;
@@ -274,23 +425,6 @@ const MLMyTripsPage = () => {
     [stopsList]
   );
 
-  const sendTrackingPoint = async () => {
-    try {
-      const loc = await getCurrentLocation();
-      const point = {
-        latitude: loc.lat,
-        longitude: loc.lng,
-        timestamp: new Date().toISOString(),
-      };
-      vehicleTrackingMutation.mutate({
-        route_id: effectiveRouteId,
-        tracking_points: [point],
-      });
-    } catch {
-      // ignore if GPS not available
-    }
-  };
-
   useEffect(() => {
     if (effectiveRouteId && !trackingEnabled) setTrackingEnabled(true);
   }, [effectiveRouteId]);
@@ -298,16 +432,6 @@ const MLMyTripsPage = () => {
   useEffect(() => {
     if (stopsListRaw.length < 3 && orderSearchInput) setOrderSearchInput('');
   }, [stopsListRaw.length, orderSearchInput]);
-
-  useEffect(() => {
-    if (!trackingEnabled) return undefined;
-    if (!effectiveRouteId) return undefined;
-
-    sendTrackingPoint();
-    const interval = setInterval(sendTrackingPoint, 90 * 1000); // every 1.5 min
-
-    return () => clearInterval(interval);
-  }, [trackingEnabled, effectiveRouteId]);
 
   return (
     <div className="min-h-screen bg-gray-100" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -356,9 +480,16 @@ const MLMyTripsPage = () => {
             </div>
           )}
 
-          {/* Route map (when stops have latitude/longitude from Start route response) */}
-          {effectiveRouteId && stopsWithCoordsForMap.some((s) => s != null && typeof s.latitude === 'number' && typeof s.longitude === 'number') && (
-            <RouteStopsMap stops={stopsWithCoordsForMap} accent={accent} className="w-full" />
+          {/* Route map + live vehicle: GET /api/vehicle-tracking/live polled in this page */}
+          {!!effectiveRouteId && (
+            <RouteStopsMap
+              stops={stopsWithCoordsForMap}
+              currentLocation={startRouteCurrentLocation}
+              accent={accent}
+              className="w-full"
+              liveVehicleFromParent
+              liveVehicleData={liveVehicleQuery.data}
+            />
           )}
 
           {/* Find trip by Order ID — only when 3+ stops (filter is useful for longer lists) */}
@@ -462,7 +593,7 @@ const MLMyTripsPage = () => {
                           animate={{ opacity: 1, height: 'auto' }}
                           className="space-y-3"
                         >
-                          <p className="text-xs font-medium text-gray-600">Delivery address (map link)</p>
+                          <p className="text-xs font-medium text-gray-600">Delivery address</p>
                           <input
                             type="url"
                             placeholder="Paste Google Maps link"
@@ -470,6 +601,14 @@ const MLMyTripsPage = () => {
                             onChange={(e) => setDeliveryAddressForm((f) => ({ ...f, googleMapsUrl: e.target.value }))}
                             className="w-full min-h-[40px] py-2 px-3 rounded-xl border border-gray-200 text-sm"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setDeliveryMapPickerTripId(tripId)}
+                            className="w-full min-h-[40px] py-2 px-3 rounded-xl border text-sm font-medium flex items-center justify-center gap-2"
+                            style={{ borderColor: accent, color: accent }}
+                          >
+                            <MdLocationOn className="w-5 h-5" /> Pick on map
+                          </button>
                           <div className="flex gap-2">
                             <button
                               type="button"
@@ -619,7 +758,29 @@ const MLMyTripsPage = () => {
         </motion.div>
       </main>
 
-      {/* End shift confirmation - mobile-style popup */}
+      {/* Delivery location map picker - visual map selection when adding delivery address */}
+      <MapLocationPickerModal
+        isOpen={!!deliveryMapPickerTripId}
+        onClose={() => setDeliveryMapPickerTripId(null)}
+        accent={accent}
+        onSelect={(locationResult) => {
+          const tripId = deliveryMapPickerTripId;
+          if (!tripId) return;
+          updateDeliveryAddressMutation.mutate({
+            tripId,
+            googleMapsUrl: locationResult.googleMapsUrl,
+            street: locationResult.street,
+            housename: locationResult.housename,
+            city: locationResult.city,
+            pincode: locationResult.pincode,
+            geoLocation: locationResult.geoLocation,
+          });
+          setDeliveryMapPickerTripId(null);
+          setEditingDeliveryStopKey(null);
+        }}
+      />
+
+      {/* End shift confirmation - above map (high z-index so it shows on top of live map) */}
       <AnimatePresence>
         {showEndShiftConfirm && (
           <motion.div
@@ -628,7 +789,7 @@ const MLMyTripsPage = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+            className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4"
             style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)' }}
           >
             <div

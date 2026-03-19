@@ -9,11 +9,18 @@ import prisma from '../config/prisma.js';
 import { createMlTripAddress, updateMlTripAddress } from './mlTripAddress.service.js';
 
 const AI_ROUTE_API_FOURTH = process.env.AI_ROUTE_API_FOURTH || 'http://localhost:5004';
+/** Vehicle tracking live API (e.g. http://localhost:5003). Falls back to AI_ROUTE_API_FOURTH. */
+const VEHICLE_TRACKING_API_BASE = (process.env.AI_ROUTE_API_FOURT|| AI_ROUTE_API_FOURTH).replace(/\/$/, '');
 
 const deliveryPartnerApiClient = axios.create({
   baseURL: AI_ROUTE_API_FOURTH.replace(/\/$/, ''),
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
+});
+
+const vehicleTrackingLiveClient = axios.create({
+  baseURL: VEHICLE_TRACKING_API_BASE,
+  timeout: 15000,
 });
 
 /**
@@ -693,7 +700,7 @@ export const vehicleTracking5004 = async (companyId, body) => {
     })),
   };
   try {
-    const response = await deliveryPartnerApiClient.post('/api/vehicle-tracking', payload, {
+    const response = await deliveryPartnerApiClient.post('/api/vehicle-tracking/live', payload, {
       headers: { 'X-Company-ID': companyId.trim() },
     });
     const data = response.data;
@@ -713,9 +720,8 @@ export const vehicleTracking5004 = async (companyId, body) => {
 };
 
 /**
- * Live vehicle position from 5004.
- * GET /api/vehicle-tracking/live?vehicle_number=...
- * Returns { active, location: { latitude, longitude, address, ... }, device_details, status, ... }.
+ * Live vehicle position: GET /api/vehicle-tracking/live?vehicle_number=...
+ * Uses vehicle tracking service (e.g. localhost:5003).
  */
 export const getLiveVehiclePosition5004 = async (companyId, vehicleNumber) => {
   if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
@@ -724,17 +730,47 @@ export const getLiveVehiclePosition5004 = async (companyId, vehicleNumber) => {
   const vn = vehicleNumber != null ? String(vehicleNumber).trim() : '';
   if (!vn) throw new AppError('vehicle_number is required', 400);
   try {
-    const response = await deliveryPartnerApiClient.get('/api/vehicle-tracking/live', {
+    const response = await vehicleTrackingLiveClient.get('/api/vehicle-tracking/live', {
       params: { vehicle_number: vn },
       headers: { 'X-Company-ID': companyId.trim() },
     });
-    const data = response.data;
-    return data;
+    return response.data;
   } catch (error) {
-    logError(LOG_CATEGORIES.SYSTEM, 'Live vehicle-tracking 5004 failed', {
+    logError(LOG_CATEGORIES.SYSTEM, 'Live vehicle-tracking failed', {
       error: error.message,
       company_id: companyId,
       vehicle_number: vn,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to get live vehicle position',
+      error.response?.status === 404 ? 404 : error.response?.status >= 500 ? 502 : 500
+    );
+  }
+};
+
+/**
+ * Live vehicle position by driver (JWT user id).
+ * GET /api/vehicle-tracking/live?driver_id=USER_ID
+ * Uses vehicle tracking service (e.g. http://localhost:5003).
+ */
+export const getLiveVehiclePositionByDriverId = async (companyId, userId) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required', 400);
+  }
+  const uid = userId != null ? String(userId).trim() : '';
+  if (!uid) throw new AppError('user_id required', 401);
+  try {
+    const response = await vehicleTrackingLiveClient.get('/api/vehicle-tracking/live', {
+      params: { driver_id: uid },
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    return response.data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Live vehicle-tracking by driver_id failed', {
+      error: error.message,
+      company_id: companyId,
+      driver_id: uid,
       response: error.response?.data,
     });
     throw new AppError(

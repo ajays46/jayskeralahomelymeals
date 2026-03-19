@@ -19,23 +19,23 @@ export const useVehicleTracking = (options = {}) => {
 const LIVE_VEHICLE_KEY = ['ml', 'vehicle-tracking', 'live'];
 
 /**
- * useLiveVehiclePosition - Fetch live vehicle position from 5004 via Node proxy.
- * GET /api/vehicle-tracking/live?vehicle_number=...
- * Returns 5004 response: { active, location: { latitude, longitude, address }, device_details, status, ... }.
- * Use refetchInterval to poll (e.g. 10000 for every 10s). Only runs when vehicle_number is truthy.
+ * useLiveVehiclePosition - GET /api/vehicle-tracking/live via Node proxy.
+ * With vehicleNumber: adds ?vehicle_number=...
+ * Without (null/''): backend resolves vehicle from JWT (logged-in driver).
  */
 export const useLiveVehiclePosition = (vehicleNumber, options = {}) => {
+  const vn = vehicleNumber != null ? String(vehicleNumber).trim() : '';
+  const { enabled: enabledOverride, ...rest } = options;
+  const defaultEnabled = vn.length > 0;
   return useQuery({
-    queryKey: [...LIVE_VEHICLE_KEY, vehicleNumber || ''],
+    queryKey: [...LIVE_VEHICLE_KEY, vn || '__auto__'],
     queryFn: async () => {
-      const { data } = await api.get('/vehicle-tracking/live', {
-        params: { vehicle_number: vehicleNumber },
-      });
+      const { data } = await api.get('/vehicle-tracking/live', vn ? { params: { vehicle_number: vn } } : undefined);
       return data;
     },
-    enabled: !!vehicleNumber && typeof vehicleNumber === 'string' && vehicleNumber.trim().length > 0,
+    enabled: enabledOverride !== undefined ? enabledOverride : defaultEnabled,
     refetchOnWindowFocus: false,
-    ...options,
+    ...rest,
   });
 };
 
