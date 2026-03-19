@@ -112,6 +112,12 @@ const RouteStopsMap = ({
   const liveData = liveVehicleFromParent ? liveVehicleData : internalLive.data;
   const livePosition = useMemo(() => extractLiveLatLngFromPayload(liveData), [liveData]);
   const vehicleMarkerIcon = useMemo(() => createBikeVehicleIcon(accent), [accent]);
+  const currentLocationPoint = useMemo(() => {
+    if (!currentLocation || !Number.isFinite(currentLocation.lat) || !Number.isFinite(currentLocation.lng)) return null;
+    return [currentLocation.lat, currentLocation.lng];
+  }, [currentLocation]);
+  // If vehicle GPS is available, prefer it and hide mobile-location dot.
+  const useMobileCurrentOnMap = !livePosition && currentLocationPoint != null;
 
   const stopsWithCoords = useMemo(() => {
     const list = Array.isArray(stops) ? stops : [];
@@ -131,14 +137,11 @@ const RouteStopsMap = ({
     [stopsWithCoords]
   );
 
-  /** For OSRM: current → first stop → ... so we get road from current location to pickup/delivery. */
+  /** For OSRM: current → first stop only when live vehicle GPS is unavailable. */
   const positionsForRoute = useMemo(() => {
-    const curr = currentLocation && Number.isFinite(currentLocation.lat) && Number.isFinite(currentLocation.lng)
-      ? [currentLocation.lat, currentLocation.lng]
-      : null;
-    if (curr && stopPositions.length > 0) return [curr, ...stopPositions];
+    if (useMobileCurrentOnMap && stopPositions.length > 0) return [currentLocationPoint, ...stopPositions];
     return stopPositions;
-  }, [currentLocation, stopPositions]);
+  }, [useMobileCurrentOnMap, currentLocationPoint, stopPositions]);
 
   const [roadRoutePositions, setRoadRoutePositions] = useState([]);
 
@@ -181,32 +184,27 @@ const RouteStopsMap = ({
   const polylinePositions = roadRoutePositions.length > 1 ? roadRoutePositions : positionsForRoute;
   const positions = stopPositions;
 
-  const currentLocationPoint = useMemo(() => {
-    if (!currentLocation || !Number.isFinite(currentLocation.lat) || !Number.isFinite(currentLocation.lng)) return null;
-    return [currentLocation.lat, currentLocation.lng];
-  }, [currentLocation]);
-
   const center = useMemo(() => {
     const basePoints = polylinePositions.length > 0 ? polylinePositions : positions;
     let points = [...basePoints];
-    if (currentLocationPoint) points = [currentLocationPoint, ...points];
+    if (useMobileCurrentOnMap) points = [currentLocationPoint, ...points];
     if (livePosition) points = [...points, livePosition];
     if (points.length === 0) return DEFAULT_CENTER;
     const sumLat = points.reduce((a, p) => a + p[0], 0);
     const sumLng = points.reduce((a, p) => a + p[1], 0);
     return [sumLat / points.length, sumLng / points.length];
-  }, [polylinePositions, positions, livePosition, currentLocationPoint]);
+  }, [polylinePositions, positions, livePosition, useMobileCurrentOnMap, currentLocationPoint]);
 
   const fitPoints = useMemo(() => {
     const basePoints = polylinePositions.length > 0 ? polylinePositions : positions;
     let points = [...basePoints];
-    if (currentLocationPoint) points = [currentLocationPoint, ...points];
+    if (useMobileCurrentOnMap) points = [currentLocationPoint, ...points];
     if (livePosition) points = [...points, livePosition];
     return points;
-  }, [polylinePositions, positions, livePosition, currentLocationPoint]);
+  }, [polylinePositions, positions, livePosition, useMobileCurrentOnMap, currentLocationPoint]);
 
   const hasStops = stopsWithCoords.length > 0;
-  const hasCurrentLocation = currentLocationPoint != null;
+  const hasCurrentLocation = useMobileCurrentOnMap;
   const showMap = hasStops || hasCurrentLocation || liveVehicleFromParent || !!vehicleNumber;
   if (!showMap) return null;
 
@@ -240,7 +238,7 @@ const RouteStopsMap = ({
               pathOptions={{ color: accent, weight: 4, opacity: 0.8 }}
             />
           )}
-          {currentLocationPoint && (
+          {useMobileCurrentOnMap && (
             <Marker key="current-location" position={currentLocationPoint} zIndexOffset={400} icon={currentLocationIcon}>
               <Popup>
                 <div className="text-sm">
