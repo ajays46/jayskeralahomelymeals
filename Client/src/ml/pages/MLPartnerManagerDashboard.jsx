@@ -3,10 +3,9 @@
  * Executives + vehicle_choices from 5004; assign by registration_number; 409 → confirm → force_assign.
  */
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import MLNavbar from '../components/MLNavbar';
-import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
+import { useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
 import { showSuccessToast, showErrorToast } from '../utils/mlToast';
 import {
@@ -18,7 +17,6 @@ import {
 import { MdPerson, MdDirectionsBike } from 'react-icons/md';
 
 const MLPartnerManagerDashboard = () => {
-  const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
   const accent = theme.accentColor || theme.primaryColor || '#E85D04';
@@ -84,6 +82,10 @@ const MLPartnerManagerDashboard = () => {
   const isLoading = executivesQuery.isLoading;
   const isError = executivesQuery.isError;
   const isPending = assignMutation.isPending || unassignMutation.isPending;
+  const activeExecutives = executives.filter((exec) => String(exec.status || 'ACTIVE').toUpperCase() !== 'INACTIVE').length;
+
+  const inputClass =
+    'w-full min-h-[42px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0';
 
   const handleCreatePartnerChange = (e) => {
     const { name, value } = e.target;
@@ -111,7 +113,7 @@ const MLPartnerManagerDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <MLNavbar onSignInClick={() => {}} />
       <main className="pt-20 sm:pt-24 pb-24 px-4 max-w-6xl mx-auto">
         <motion.div
@@ -120,26 +122,38 @@ const MLPartnerManagerDashboard = () => {
           transition={{ duration: 0.3 }}
           className="space-y-6"
         >
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Partner Manager</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Create delivery partners and assign vehicles for today&apos;s routes.
-              </p>
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 sm:p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Partner Manager Dashboard</h1>
+                <p className="text-sm text-gray-600 mt-1">
+                  Create delivery partners and assign vehicles for today&apos;s routes.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:min-w-[260px]">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500">Partners</p>
+                  <p className="text-lg font-bold text-gray-900">{executives.length}</p>
+                </div>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500">Active</p>
+                  <p className="text-lg font-bold" style={{ color: accent }}>{activeExecutives}</p>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4 sm:p-5">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 border-b border-gray-100 pb-2 flex items-center gap-2">
-                <MdPerson style={{ color: accent }} />
+            <section className="rounded-2xl bg-white border border-gray-100 p-5 sm:p-6 shadow-sm">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
+                <MdPerson className="text-xl" style={{ color: accent }} />
                 Create delivery partner
               </h2>
               <form
                 onSubmit={handleCreatePartnerSubmit}
-                className="mt-4 grid grid-cols-1 gap-3"
+                className="mt-4 grid grid-cols-1 gap-4"
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-600">First name</label>
                     <input
@@ -147,7 +161,8 @@ const MLPartnerManagerDashboard = () => {
                       name="firstName"
                       value={newPartner.firstName}
                       onChange={handleCreatePartnerChange}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-orange-400"
+                      className={inputClass}
+                      style={{ ['--tw-ring-color']: `${accent}55` }}
                       placeholder="e.g. Anu"
                       disabled={createPartnerMutation.isPending}
                     />
@@ -159,14 +174,15 @@ const MLPartnerManagerDashboard = () => {
                       name="lastName"
                       value={newPartner.lastName}
                       onChange={handleCreatePartnerChange}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-orange-400"
+                      className={inputClass}
+                      style={{ ['--tw-ring-color']: `${accent}55` }}
                       placeholder="e.g. Kumar"
                       disabled={createPartnerMutation.isPending}
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-600">Email</label>
                     <input
@@ -174,7 +190,8 @@ const MLPartnerManagerDashboard = () => {
                       name="email"
                       value={newPartner.email}
                       onChange={handleCreatePartnerChange}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-orange-400"
+                      className={inputClass}
+                      style={{ ['--tw-ring-color']: `${accent}55` }}
                       placeholder="partner@example.com"
                       disabled={createPartnerMutation.isPending}
                     />
@@ -186,7 +203,8 @@ const MLPartnerManagerDashboard = () => {
                       name="phone"
                       value={newPartner.phone}
                       onChange={handleCreatePartnerChange}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-orange-400"
+                      className={inputClass}
+                      style={{ ['--tw-ring-color']: `${accent}55` }}
                       placeholder="+91 98765 43210"
                       disabled={createPartnerMutation.isPending}
                     />
@@ -200,16 +218,17 @@ const MLPartnerManagerDashboard = () => {
                     name="password"
                     value={newPartner.password}
                     onChange={handleCreatePartnerChange}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-orange-400"
+                    className={inputClass}
+                    style={{ ['--tw-ring-color']: `${accent}55` }}
                     placeholder="Minimum 8 characters"
                     disabled={createPartnerMutation.isPending}
                   />
                 </div>
 
-                <div className="flex justify-end pt-1">
+                <div className="flex justify-end pt-2">
                   <button
                     type="submit"
-                    className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-white shadow-sm"
+                    className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm active:scale-[0.98] transition-transform disabled:opacity-70"
                     style={{ backgroundColor: accent }}
                     disabled={createPartnerMutation.isPending}
                   >
@@ -217,11 +236,11 @@ const MLPartnerManagerDashboard = () => {
                   </button>
                 </div>
               </form>
-            </div>
+            </section>
 
-            <div className="rounded-2xl bg-white shadow-md border border-gray-100 p-4 sm:p-5 flex flex-col min-h-[260px]">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 border-b border-gray-100 pb-2 flex items-center gap-2">
-                <MdPerson style={{ color: accent }} />
+            <section className="rounded-2xl bg-white border border-gray-100 p-5 sm:p-6 flex flex-col min-h-[260px] shadow-sm">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
+                <MdPerson className="text-xl" style={{ color: accent }} />
                 Delivery partners
               </h2>
               {isLoading && <p className="py-4 text-sm text-gray-500">Loading…</p>}
@@ -234,31 +253,33 @@ const MLPartnerManagerDashboard = () => {
                 <p className="py-4 text-sm text-gray-500">No delivery partners in this company yet.</p>
               )}
               {!isLoading && !isError && executives.length > 0 && (
-                <ul className="mt-3 space-y-3 overflow-y-auto max-h-[420px] pr-1">
+                <ul className="mt-4 space-y-3 overflow-y-auto max-h-[460px] pr-1">
                   {executives.map((exec) => {
                     const userId = exec.user_id ?? exec.id;
                     const currentVehicle = exec.vehicle ?? '';
                     return (
                       <li
                         key={userId}
-                        className="flex flex-col sm:flex-row sm:items-center gap-3 py-3 px-4 rounded-xl bg-gray-50 border border-gray-100"
+                        className="flex flex-col gap-3 py-3.5 px-4 rounded-xl bg-gray-50 border border-gray-100"
                       >
                         <div className="min-w-0 flex-1">
-                          <span className="font-medium text-gray-800 block truncate">
+                          <span className="font-semibold text-gray-900 block truncate">
                             {exec.exec_name ?? exec.email ?? userId}
                           </span>
-                          <span className="text-xs text-gray-500 capitalize">({exec.status ?? 'ACTIVE'})</span>
+                          <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[11px] font-medium capitalize bg-white border border-gray-200 text-gray-600">
+                            {exec.status ?? 'ACTIVE'}
+                          </span>
                           {exec.whatsapp_number && (
                             <span className="text-xs text-gray-600 block mt-0.5">WhatsApp: {exec.whatsapp_number}</span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                          <MdDirectionsBike className="w-5 h-5 flex-shrink-0 text-gray-400" />
+                        <div className="flex items-center gap-2 w-full">
+                          <MdDirectionsBike className="w-5 h-5 flex-shrink-0" style={{ color: accent }} />
                           <select
                             value={currentVehicle}
                             onChange={(e) => handleVehicleChange(userId, e.target.value)}
                             disabled={isPending}
-                            className="flex-1 min-w-0 min-h-[44px] pl-3 pr-8 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-medium focus:ring-2 focus:ring-offset-0 focus:border-gray-400 disabled:opacity-60"
+                            className="flex-1 min-w-0 min-h-[44px] pl-3 pr-8 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-medium focus:ring-2 focus:ring-offset-0 disabled:opacity-60"
                             style={{ borderColor: accent, maxWidth: '100%' }}
                           >
                             <option value="">— No vehicle —</option>
@@ -274,7 +295,7 @@ const MLPartnerManagerDashboard = () => {
                   })}
                 </ul>
               )}
-            </div>
+            </section>
           </div>
 
         </motion.div>

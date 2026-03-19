@@ -306,7 +306,17 @@ const MLMyTripsPage = () => {
   }, [tripsFromList, updatedTripsById]);
 
   const stopsWithCoordsForMap = useMemo(() => {
-    const mapStops = Array.isArray(routeStopsForMap) ? [...routeStopsForMap] : [];
+    const tripsById = new Map(
+      tripsForMap
+        .filter((trip) => trip?.id)
+        .map((trip) => [trip.id, trip])
+    );
+    const mapStops = (Array.isArray(routeStopsForMap) ? routeStopsForMap : []).filter((stop) => {
+      if (stop?.stop_type !== 'pickup' || !stop?.trip_id) return true;
+      const trip = tripsById.get(stop.trip_id);
+      const persistedStatus = (tripStatusByTripId[stop.trip_id] || trip?.trip_status || '').toLowerCase();
+      return persistedStatus !== 'picked_up' && persistedStatus !== 'delivered';
+    });
     const existingPickupTripIds = new Set(
       mapStops
         .filter((stop) => stop?.stop_type === 'pickup' && stop?.trip_id)
