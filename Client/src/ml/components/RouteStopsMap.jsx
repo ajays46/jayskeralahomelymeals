@@ -47,10 +47,14 @@ const createBikeVehicleIcon = (accent = '#E85D04') =>
         box-shadow: 0 2px 6px rgba(0,0,0,0.35);
         border: 2px solid #fff;
       ">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="bike">
           <circle cx="6" cy="17" r="3.5"/>
           <circle cx="18" cy="17" r="3.5"/>
-          <path d="M6 17 L12 5 L18 17 M12 5 L12 9 M9 17 L15 17"/>
+          <path d="M6 17l4-8h4"/>
+          <path d="M10 9l3 8"/>
+          <path d="M13 17h1.5"/>
+          <path d="M14 9h3l1 2"/>
+          <path d="M8.5 9h1.5"/>
         </svg>
       </div>
     `,
@@ -137,11 +141,12 @@ const RouteStopsMap = ({
     [stopsWithCoords]
   );
 
-  /** For OSRM: current → first stop only when live vehicle GPS is unavailable. */
+  /** For OSRM: live vehicle → stops. Fallback: mobile current → stops. */
   const positionsForRoute = useMemo(() => {
+    if (livePosition && stopPositions.length > 0) return [livePosition, ...stopPositions];
     if (useMobileCurrentOnMap && stopPositions.length > 0) return [currentLocationPoint, ...stopPositions];
     return stopPositions;
-  }, [useMobileCurrentOnMap, currentLocationPoint, stopPositions]);
+  }, [livePosition, useMobileCurrentOnMap, currentLocationPoint, stopPositions]);
 
   const [roadRoutePositions, setRoadRoutePositions] = useState([]);
 

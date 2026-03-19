@@ -49,6 +49,44 @@ const parseCoordinatePair = (value) => {
   return { latitude, longitude };
 };
 
+const extractCoordsFromMapUrl = (mapUrl) => {
+  const raw = String(mapUrl || '').trim();
+  if (!raw) return null;
+
+  try {
+    const parsedUrl = new URL(raw);
+    const queryValue =
+      parsedUrl.searchParams.get('q') ||
+      parsedUrl.searchParams.get('query') ||
+      parsedUrl.searchParams.get('ll');
+    const fromQuery = parseCoordinatePair(queryValue || '');
+    if (fromQuery) return fromQuery;
+  } catch {
+    // Ignore URL parse failures; continue with regex strategies.
+  }
+
+  const decoded = decodeURIComponent(raw);
+
+  const fromAtMarker = decoded.match(/@(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/);
+  if (fromAtMarker) {
+    return {
+      latitude: Number(fromAtMarker[1]),
+      longitude: Number(fromAtMarker[2]),
+    };
+  }
+
+  const from3d4d = decoded.match(/!3d(-?\d{1,3}(?:\.\d+)?)!4d(-?\d{1,3}(?:\.\d+)?)/);
+  if (from3d4d) {
+    return {
+      latitude: Number(from3d4d[1]),
+      longitude: Number(from3d4d[2]),
+    };
+  }
+
+  const fromPair = parseCoordinatePair(decoded);
+  return fromPair || null;
+};
+
 const getCoordsFromTripAddress = (address) => {
   if (!address || typeof address !== 'object') return null;
 
@@ -67,16 +105,7 @@ const getCoordsFromTripAddress = (address) => {
     // Ignore URL parsing failures and fall back to regex parsing below.
   }
 
-  const decodedUrl = decodeURIComponent(mapUrl);
-  const fromAtMarker = decodedUrl.match(/@(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/);
-  if (fromAtMarker) {
-    return {
-      latitude: Number(fromAtMarker[1]),
-      longitude: Number(fromAtMarker[2]),
-    };
-  }
-
-  return parseCoordinatePair(decodedUrl);
+  return extractCoordsFromMapUrl(mapUrl);
 };
 
 const getStopCoordinateKey = (latitude, longitude) => {
@@ -168,6 +197,7 @@ const MLMyTripsPage = () => {
       setTrackingEnabled(false);
       setRouteId('');
       setRouteResponse(null);
+      setIsRouteMapMinimized(false);
       setStartRouteCurrentLocation(null);
       localStorage.removeItem(LS_ROUTE_ID);
       localStorage.removeItem(LS_ROUTE_STOPS);
@@ -629,10 +659,22 @@ const MLMyTripsPage = () => {
                                   showErrorToast('Paste a Google Maps link.', 'Validation');
                                   return;
                                 }
-                                updateDeliveryAddressMutation.mutate({
-                                  tripId,
-                                  googleMapsUrl: mapLink,
-                                });
+                                const coords = extractCoordsFromMapUrl(mapLink);
+                                // Allow saving map link even when coords are not directly parsable
+                                // (some short/share links hide lat/lng). If coords exist, include geoLocation
+                                // so map routing is reliable.
+                                updateDeliveryAddressMutation.mutate(
+                                  coords
+                                    ? {
+                                        tripId,
+                                        googleMapsUrl: mapLink,
+                                        geoLocation: `${coords.latitude},${coords.longitude}`,
+                                      }
+                                    : {
+                                        tripId,
+                                        googleMapsUrl: mapLink,
+                                      }
+                                );
                               }}
                               className="flex-1 min-h-[40px] py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
                               style={{ backgroundColor: accent }}
