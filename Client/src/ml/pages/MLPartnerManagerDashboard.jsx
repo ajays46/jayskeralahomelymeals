@@ -23,7 +23,11 @@ const MLPartnerManagerDashboard = () => {
 
   const executivesQuery = useMlPartnerManagerExecutives();
   const assignMutation = useMlPartnerManagerAssignVehicle({
-    onSuccess: () => showSuccessToast('Vehicle assigned to partner.', 'Success'),
+    onSuccess: () => {
+      showSuccessToast('Vehicle assigned to partner.', 'Success');
+      // Refresh so <select value={exec.vehicle}> updates instantly without page reload.
+      executivesQuery.refetch();
+    },
     onError: (err) => {
       if (err?.response?.status !== 409) {
         showErrorToast(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to assign.', 'Error');
@@ -31,7 +35,10 @@ const MLPartnerManagerDashboard = () => {
     },
   });
   const unassignMutation = useMlPartnerManagerUnassignVehicle({
-    onSuccess: () => showSuccessToast('Vehicle unassigned.', 'Success'),
+    onSuccess: () => {
+      showSuccessToast('Vehicle unassigned.', 'Success');
+      executivesQuery.refetch();
+    },
     onError: (err) => showErrorToast(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to unassign.', 'Error'),
   });
   const createPartnerMutation = useMlPartnerManagerCreatePartner({
