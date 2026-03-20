@@ -866,3 +866,46 @@ export const endShift5004 = async (userId, companyId, platform) => {
     );
   }
 };
+
+/**
+ * Get route overview maps for delivery executives.
+ * Proxies to vehicle tracking API: GET /api/drivers/route-overview-maps
+ * Query supports start_date, end_date, session.
+ */
+export const getRouteOverviewMaps5003 = async (companyId, params = {}) => {
+  if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+    throw new AppError('company_id required', 400);
+  }
+
+  const normalizedParams = {};
+  if (params.start_date) normalizedParams.start_date = String(params.start_date).trim();
+  if (params.end_date) normalizedParams.end_date = String(params.end_date).trim();
+  if (params.session) normalizedParams.session = String(params.session).trim().toUpperCase();
+  if (params.driver_id) normalizedParams.driver_id = String(params.driver_id).trim();
+  if (!normalizedParams.driver_id) {
+    throw new AppError('driver_id required', 400);
+  }
+
+  try {
+    const response = await vehicleTrackingLiveClient.get('/api/drivers/route-overview-maps', {
+      params: normalizedParams,
+      headers: { 'X-Company-ID': companyId.trim() },
+    });
+    const data = response.data;
+    if (data && data.success === false) {
+      throw new Error(data.error || 'Failed to fetch route overview maps');
+    }
+    return data;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Route overview maps fetch failed', {
+      error: error.message,
+      company_id: companyId,
+      params: normalizedParams,
+      response: error.response?.data,
+    });
+    throw new AppError(
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to fetch route overview maps',
+      error.response?.status === 404 ? 404 : error.response?.status >= 500 ? 502 : 500
+    );
+  }
+};

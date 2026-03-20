@@ -13,6 +13,7 @@ import {
   updateTripDeliveryAddress as updateTripDeliveryAddressService,
   startShift as startShiftService,
   startRoute5004,
+  getRouteOverviewMaps5003,
   listAllVehicles,
 } from '../services/mlTrip.service.js';
 
@@ -368,6 +369,53 @@ export const getDashboard = async (req, res, next) => {
       companyId: req.companyId,
       userId: req.user?.userId,
       platform: req.query?.platform,
+    });
+    next(error);
+  }
+};
+
+/**
+ * GET /api/ml-trips/route-overview-maps
+ * Query: start_date?, end_date?, session?
+ * Proxies to /api/drivers/route-overview-maps and returns driver route map links.
+ */
+export const getRouteOverviewMaps = async (req, res, next) => {
+  try {
+    const companyId = req.companyId;
+    if (!companyId) throw new AppError('Company context is required.', 400);
+    const userId = req.user?.userId ?? req.user?.id;
+    if (!userId) throw new AppError('User not authenticated.', 401);
+
+    const start_date = req.query?.start_date;
+    const end_date = req.query?.end_date;
+    const session = req.query?.session;
+
+    const result = await getRouteOverviewMaps5003(companyId, { start_date, end_date, session, driver_id: userId });
+    const allDrivers = Array.isArray(result?.drivers) ? result.drivers : [];
+    const drivers = allDrivers.filter((d) => d?.driver_id === userId);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Fetched ML route overview maps', {
+      companyId,
+      userId,
+      start_date,
+      end_date,
+      session,
+      totalDrivers: drivers.length,
+    });
+
+    res.status(200).json({
+      ...result,
+      drivers,
+      total_drivers: drivers.length,
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch ML route overview maps', {
+      error: error.message,
+      companyId: req.companyId,
+      userId: req.user?.userId,
+      start_date: req.query?.start_date,
+      end_date: req.query?.end_date,
+      session: req.query?.session,
     });
     next(error);
   }
