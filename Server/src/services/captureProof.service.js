@@ -9,6 +9,7 @@ import { logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 function getDeliveryCardHtml(payload) {
   const stop = payload.stop || {};
   const opts = payload.options || {};
+  const session = payload.session ? String(payload.session) : '';
   const stopNo = stop.Stop_No ?? stop.stop_order ?? 1;
   const deliveryName = stop.Delivery_Name || stop.delivery_name || 'Unknown Delivery';
   const location = stop.Location || stop.location || 'Location not specified';
@@ -106,6 +107,11 @@ function getDeliveryCardHtml(payload) {
 </head>
 <body>
   <div id="delivery-proof-card">
+    ${session ? `<div class="mb-2 flex items-center justify-center">
+      <span class="px-3 py-1.5 bg-gray-50 text-blue-700 text-xs font-semibold rounded-full border border-gray-200">
+        ${escapeHtml(session.toUpperCase())}
+      </span>
+    </div>` : ''}
     <div class="flex items-start justify-between mb-2 gap-3">
       <div class="flex items-start gap-4 flex-1 min-w-0">
         <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0 shadow-md">${stopNo}</div>
