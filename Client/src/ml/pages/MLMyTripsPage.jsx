@@ -339,7 +339,8 @@ const MLMyTripsPage = () => {
       const persistedStatus = (tripStatusByTripId[trip.id] || trip.trip_status || '').toLowerCase();
       if (!trip?.id) return;
 
-      if (!existingPickupTripIds.has(trip.id)) {
+      const shouldShowPickup = persistedStatus !== 'picked_up' && persistedStatus !== 'delivered';
+      if (shouldShowPickup && !existingPickupTripIds.has(trip.id)) {
         const pickupCoords = getCoordsFromTripAddress(trip.pickup_address);
         const pickupCoordKey = getStopCoordinateKey(pickupCoords?.latitude, pickupCoords?.longitude);
         if (pickupCoords && (!pickupCoordKey || !existingCoordinateKeys.has(pickupCoordKey))) {
