@@ -17,6 +17,7 @@ import {
   updateTripDeliveryAddress,
   startShift,
   startRoute,
+  getRouteOverviewMaps,
 } from '../controllers/mlTrip.controller.js';
 
 const router = express.Router();
@@ -55,6 +56,15 @@ router.post(
   resolveCompanyId,
   requireCompanyId,
   startRoute
+);
+
+router.get(
+  '/route-overview-maps',
+  authenticateToken,
+  checkRole('DELIVERY_PARTNER'),
+  resolveCompanyId,
+  requireCompanyId,
+  getRouteOverviewMaps
 );
 
 router.get(
