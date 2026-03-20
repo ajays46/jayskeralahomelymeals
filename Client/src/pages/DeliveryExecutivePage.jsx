@@ -22,6 +22,7 @@ import RecentRoutesView from '../components/RecentRoutesView';
 import ExecutivePerformanceView from '../components/ExecutivePerformanceView';
 import ExecutivePerformanceSingle from '../components/ExecutivePerformanceSingle';
 import AssistantChat from '../components/deliveryManager/AssistantChat';
+import StopsOnOsmMap from '../components/StopsOnOsmMap';
 
 // Fix for default marker icons in Leaflet with React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -210,6 +211,46 @@ const DeliveryExecutivePage = () => {
     if (!s) return s;
     return String(s).toLowerCase() === 'any' ? 'Delivery' : (s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
   };
+
+  // OpenStreetMap directions expects points in "lon,lat" order.
+  // Some APIs send "lat,lon"; normalize so the external Full Route Directions button works.
+  const normalizeOsmDirectionsUrl = useCallback((url) => {
+    try {
+      if (!url || typeof url !== 'string') return url;
+      if (!url.includes('openstreetmap.org/directions') || !url.includes('route=')) return url;
+
+      const parsed = new URL(url);
+      const routeParam = parsed.searchParams.get('route');
+      if (!routeParam) return url;
+
+      const normalizedRoute = routeParam
+        .split(';')
+        .map((point) => point.trim())
+        .filter(Boolean)
+        .map((point) => {
+          const parts = point.split(',');
+          if (parts.length !== 2) return point;
+
+          const a = Number(parts[0]);
+          const b = Number(parts[1]);
+          if (!Number.isFinite(a) || !Number.isFinite(b)) return point;
+
+          const aAbs = Math.abs(a);
+          const bAbs = Math.abs(b);
+
+          // Heuristic: when in "lat,lon", usually lon magnitude > lat magnitude (e.g., 10,76).
+          // If second has bigger magnitude, swap to "lon,lat".
+          if (aAbs <= 90 && bAbs <= 180 && bAbs > aAbs) return `${b},${a}`;
+          return point;
+        })
+        .join(';');
+
+      parsed.searchParams.set('route', normalizedRoute);
+      return parsed.toString();
+    } catch {
+      return url;
+    }
+  }, []);
   
   // Use React Query hooks for driver maps
   const isMapsEnabled = !!user?.id && !!selectedSession && routes.sessions && Object.keys(routes.sessions).length > 0;
@@ -793,9 +834,66 @@ const DeliveryExecutivePage = () => {
       const currentSession = routes.sessions[selectedSession];
       
       // Check if update is needed (data has changed)
-      const needsUpdate = 
+      const overviewStops = Array.isArray(routeOverviewData.stops) ? routeOverviewData.stops : [];
+
+      // Merge overview stop coordinates into current session stops (so Leaflet map can render all points)
+      const mergedStops = overviewStops.length
+        ? currentSession.stops.map((stop) => {
+            const mapStop =
+              overviewStops.find((s) => {
+                // Prefer matching by stop order if available
+                const stopNo = stop.Stop_No ?? stop.stop_order ?? stop.StopNumber;
+                const mapStopOrder = s.stop_order ?? s.stopOrder ?? s.stopNo;
+                if (stopNo != null && mapStopOrder != null && stopNo === mapStopOrder) return true;
+
+                // Fallback to delivery name match
+                const stopName = stop.Delivery_Name ?? stop.delivery_name;
+                const mapName = s.delivery_name ?? s.Delivery_Name ?? s.deliveryName;
+                return (
+                  stopName &&
+                  mapName &&
+                  String(stopName).toLowerCase() === String(mapName).toLowerCase()
+                );
+              });
+
+            if (!mapStop) return stop;
+
+            const lat = mapStop.latitude ?? mapStop.Latitude;
+            const lng = mapStop.longitude ?? mapStop.Longitude;
+
+            return {
+              ...stop,
+              // Add both naming styles so other parts of the app and RouteStopsMap can use it.
+              latitude: lat ?? stop.latitude,
+              longitude: lng ?? stop.longitude,
+              Latitude: lat ?? stop.Latitude,
+              Longitude: lng ?? stop.Longitude,
+              delivery_name: mapStop.delivery_name ?? stop.delivery_name,
+              status: mapStop.status ?? mapStop.Delivery_Status ?? stop.status,
+              stop_order: mapStop.stop_order ?? stop.stop_order,
+              phone_number: mapStop.phone_number ?? mapStop.phoneNumber ?? mapStop.Phone_Number ?? stop.phone_number ?? stop.phone ?? null,
+              phone: mapStop.phone ?? mapStop.phoneNumber ?? stop.phone ?? null,
+            };
+          })
+        : currentSession.stops;
+
+      const stopsNeedUpdate =
+        overviewStops.length > 0 &&
+        (mergedStops.length !== currentSession.stops.length ||
+          mergedStops.some((s, i) => {
+            const a = s.latitude ?? s.Latitude;
+            const b = currentSession.stops[i]?.latitude ?? currentSession.stops[i]?.Latitude;
+            const a2 = s.longitude ?? s.Longitude;
+            const b2 = currentSession.stops[i]?.longitude ?? currentSession.stops[i]?.Longitude;
+            const phoneA = s.phone_number ?? s.phone;
+            const phoneB = currentSession.stops[i]?.phone_number ?? currentSession.stops[i]?.phone;
+            return a !== b || a2 !== b2 || phoneA !== phoneB;
+          }));
+
+      const needsUpdate =
         routeOverviewData.route_map_link !== currentSession.route_map_link ||
-        routeOverviewData.map_view_link !== currentSession.map_view_link;
+        routeOverviewData.map_view_link !== currentSession.map_view_link ||
+        stopsNeedUpdate;
       
       // Only update if there are changes to avoid infinite loop
       if (needsUpdate) {
@@ -805,6 +903,7 @@ const DeliveryExecutivePage = () => {
             ...prev.sessions,
             [selectedSession]: {
               ...prev.sessions[selectedSession],
+              stops: mergedStops,
               map_link: routeOverviewData.route_map_link || prev.sessions[selectedSession].map_link,
               route_map_link: routeOverviewData.route_map_link,
               map_view_link: routeOverviewData.map_view_link
@@ -2342,8 +2441,29 @@ const DeliveryExecutivePage = () => {
       showErrorToast('Could not capture card. Please try again.');
       return;
     }
+    let prevPosition = '';
+    let badge = null;
     try {
       const scale = Math.max(2, Math.min(3, Math.round(window.devicePixelRatio || 2)));
+      // Add session badge into the captured image for pixel-accurate fallback.
+      const sessionLabel = String(session || 'SESSION').toUpperCase();
+      prevPosition = node.style.position;
+      if (!prevPosition) node.style.position = 'relative';
+      badge = document.createElement('div');
+      badge.textContent = sessionLabel;
+      badge.style.position = 'absolute';
+      badge.style.top = '10px';
+      badge.style.right = '12px';
+      badge.style.padding = '6px 12px';
+      badge.style.background = '#f9fafb';
+      badge.style.border = '1px solid #e5e7eb';
+      badge.style.borderRadius = '9999px';
+      badge.style.color = '#1d4ed8';
+      badge.style.fontSize = '12px';
+      badge.style.fontWeight = '600';
+      badge.style.zIndex = '9999';
+      node.appendChild(badge);
+
       const canvas = await html2canvas(node, {
         scale,
         useCORS: true,
@@ -2366,6 +2486,14 @@ const DeliveryExecutivePage = () => {
       console.error('Capture proof error:', err);
       showErrorToast('Screenshot failed. Please try again.');
     } finally {
+      // Clean up the temporary badge overlay (if it exists).
+      if (node && node.contains && badge) {
+        try {
+          if (node.contains(badge)) node.removeChild(badge);
+        } catch (_) {}
+      }
+      // Restore prior positioning to avoid affecting layout.
+      if (node && typeof node.style?.position === 'string') node.style.position = prevPosition;
       setCapturingProofIndex(null);
     }
   }, [selectedSession, activeRouteId, markedStops, updatedLocationStops, isPreDeliveryUploaded, isPhotoUploaded, isLocationUpdated]);
@@ -3444,25 +3572,16 @@ const DeliveryExecutivePage = () => {
                                 </div>
                                 
                                 {/* Route Overview Maps - Swiggy Style */}
-                                {(routes.sessions[selectedSession].map_link || routes.sessions[selectedSession].route_map_link || routes.sessions[selectedSession].map_view_link) && (
-                                  <div className="flex flex-col sm:flex-row gap-3">
-                                    {/* Full Route Map Link */}
-                                    {(routes.sessions[selectedSession].route_map_link || routes.sessions[selectedSession].map_link) && (
-                                      <a
-                                        href={routes.sessions[selectedSession].route_map_link || routes.sessions[selectedSession].map_link}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-1 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-semibold"
-                                        title="Full route with all stops as waypoints"
-                                      >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                                        </svg>
-                                        Full Route Directions
-                                      </a>
-                                    )}
-                                    
-                                    {/* View Overview Map – disabled (not used) */}
+                               
+
+                                {/* In-app Leaflet preview (markers) for all stops */}
+                                {routes.sessions?.[selectedSession]?.stops?.length > 0 && (
+                                  <div className="mt-4">
+                                    <StopsOnOsmMap
+                                      stops={routes.sessions[selectedSession].stops.filter(
+                                        (stop) => (stop?.Delivery_Name ?? stop?.delivery_name) !== 'Return to Hub'
+                                      )}
+                                    />
                                   </div>
                                 )}
                               </div>
