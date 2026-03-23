@@ -959,6 +959,8 @@ enum actual_route_stops_status {
 enum user_roles_name {
   ADMIN
   SELLER
+  STORE_MANAGER
+  STORE_OPERATOR
   USER
   DELIVERY_EXECUTIVE
   DELIVERY_MANAGER

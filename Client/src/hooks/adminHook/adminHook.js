@@ -470,6 +470,8 @@ export const useUserRoles = () => {
                     { value: 'CFO', label: 'Chief Financial Officer' },
                     { value: 'ADMIN', label: 'Administrator' },
                     { value: 'SELLER', label: 'Seller' },
+                    { value: 'STORE_MANAGER', label: 'Store Manager' },
+                    { value: 'STORE_OPERATOR', label: 'Store Operator' },
                     { value: 'DELIVERY_EXECUTIVE', label: 'Delivery Executive' },
                     { value: 'DELIVERY_MANAGER', label: 'Delivery Manager' },
                     { value: 'DELIVERY_PARTNER', label: 'Delivery Partner (MaXHub Logistics)' },

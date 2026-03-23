@@ -743,7 +743,7 @@ export const createAdminUser = async (req, res, next) => {
         }
 
         // Validate roles
-        const validRoles = ['ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'CEO', 'CFO'];
+        const validRoles = ['ADMIN', 'SELLER', 'STORE_MANAGER', 'STORE_OPERATOR', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'CEO', 'CFO'];
         const invalidRoles = rolesToAssign.filter(r => !validRoles.includes(r));
         if (invalidRoles.length > 0) {
             throw new AppError(`Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${validRoles.join(', ')}`, 400);
@@ -912,7 +912,7 @@ export const getAdminUsers = async (req, res, next) => {
         });
 
         // Filter out users without auth records and only include specific roles
-        const allowedRoles = ['CEO', 'CFO', 'ADMIN', 'SELLER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'USER'];
+        const allowedRoles = ['CEO', 'CFO', 'ADMIN', 'SELLER', 'STORE_MANAGER', 'STORE_OPERATOR', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'USER'];
         const transformedUsers = users
             .filter(user => {
                 // Only include users with valid auth records
@@ -1924,7 +1924,7 @@ export const addUserRoles = async (req, res, next) => {
         }
 
         // Validate roles
-        const validRoles = ['ADMIN', 'SELLER', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'CEO', 'CFO'];
+        const validRoles = ['ADMIN', 'SELLER', 'STORE_MANAGER', 'STORE_OPERATOR', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'CEO', 'CFO'];
         const invalidRoles = roles.filter(r => !validRoles.includes(r));
         if (invalidRoles.length > 0) {
             throw new AppError(`Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${validRoles.join(', ')}`, 400);

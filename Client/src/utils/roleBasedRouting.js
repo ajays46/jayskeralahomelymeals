@@ -34,6 +34,8 @@ export const getDashboardRoute = (roles, basePath, selectedRole = null) => {
   // When a specific role is selected (e.g. role sidebar), resolve route for that role only
   if (selectedRole && typeof selectedRole === 'string') {
     const su = selectedRole.toUpperCase();
+    if (su === 'STORE_MANAGER') return `${path}/store-manager/kitchen-dashboard`;
+    if (su === 'STORE_OPERATOR') return `${path}/store-operator/inventory`;
     if (su === 'CEO') return `${path}/management-dashboard`;
     if (su === 'CFO') return `${path}/financial-dashboard`;
     if (su === 'ADMIN') return `${path}/admin`;
@@ -49,6 +51,8 @@ export const getDashboardRoute = (roles, basePath, selectedRole = null) => {
 
   if (!roleArray.length) return path;
 
+  if (roleArray.some(role => role.toUpperCase() === 'STORE_MANAGER')) return `${path}/store-manager/kitchen-dashboard`;
+  if (roleArray.some(role => role.toUpperCase() === 'STORE_OPERATOR')) return `${path}/store-operator/inventory`;
   if (roleArray.some(role => role.toUpperCase() === 'CEO')) return `${path}/management-dashboard`;
   if (roleArray.some(role => role.toUpperCase() === 'CFO')) return `${path}/financial-dashboard`;
   if (roleArray.some(role => role.toUpperCase() === 'ADMIN')) return `${path}/admin`;

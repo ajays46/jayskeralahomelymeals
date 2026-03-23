@@ -47,6 +47,20 @@ const roleConfig = {
     color: 'bg-blue-500',
     route: '/jkhm/admin'
   },
+  'STORE_MANAGER': {
+    icon: ChartBarIcon,
+    title: 'Store Manager',
+    description: 'Kitchen planning approvals and reports',
+    color: 'bg-violet-500',
+    route: '/jkhm/store-manager/kitchen-dashboard'
+  },
+  'STORE_OPERATOR': {
+    icon: ShoppingBagIcon,
+    title: 'Store Operator',
+    description: 'Inventory operations, issue, and stock adjustments',
+    color: 'bg-cyan-600',
+    route: '/jkhm/store-operator/inventory'
+  },
   'DELIVERY_MANAGER': {
     icon: TruckIcon,
     title: 'Delivery Manager',
@@ -92,7 +106,7 @@ const roleConfig = {
 };
 
 // Display order: CEO/CFO commented out; then ADMIN, DM, Seller, DE, DELIVERY_PARTNER, USER
-const ROLE_DISPLAY_ORDER = ['ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'USER'];
+const ROLE_DISPLAY_ORDER = ['STORE_MANAGER', 'STORE_OPERATOR', 'ADMIN', 'DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'USER'];
 
 const RoleSelectionSidebar = ({ isOpen, onClose, userRoles = [] }) => {
   const navigate = useNavigate();
