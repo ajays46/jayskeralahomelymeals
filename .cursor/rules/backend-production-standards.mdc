@@ -1,0 +1,77 @@
+---
+description: Backend production standards for API validation, MySQL performance, security, and error handling
+alwaysApply: false
+globs:
+  - Server/src/**/*.js
+  - Server/prisma/**/*.prisma
+---
+
+# Backend production standards (project-aligned)
+
+Apply for backend API and database work in this repo. Prefer predictable contracts over implicit behavior, and match existing project conventions.
+
+## 1) API quality and validation
+
+- Validate all `params`, `query`, and `body` inputs before business logic.
+- Reject invalid/missing input with `400` and a clear message.
+- Use the project response envelope consistently:
+  - Success: `{ success: true, data?: any, message?: string }`
+  - Error: `{ success: false, message: string }` (or `{ success: false, error: { message, details } }` only where legacy handlers still use nested error objects)
+- For new or refactored endpoints, prefer the flat error form (`success` + `message`) unless route group already depends on nested `error.details`.
+- Use proper status codes:
+  - `200` read/update success, `201` create success, `204` delete success (no body)
+  - `400` bad request, `401` unauthenticated, `403` unauthorized, `404` not found
+  - `409` conflict, `422` validation failure, `500` internal server error
+- Controllers should stay thin: parse request, call service, map response, and call `next(error)` on failure.
+
+## 2) Database and MySQL practices
+
+- Use selective queries (`SELECT` only needed columns).
+- Avoid unnecessary joins and N+1 patterns.
+- Add indexes for frequently filtered/joined/sorted columns (validate via schema migration / Prisma model updates where applicable).
+- Use transactions for critical multi-step operations (orders, payments, stock updates).
+- Keep data normalized; avoid duplicate source-of-truth fields unless denormalization is intentional and documented.
+- Enforce pagination and sane limits for large reads.
+
+## 3) Error handling and security
+
+- Wrap async controller/service logic with proper error handling.
+- Use `AppError` for operational/business errors with appropriate `statusCode`.
+- Return meaningful user-safe errors; never expose stack traces, SQL details, or secrets in API responses.
+- Log errors using project logger (`logError`, `LOG_CATEGORIES`) with context (`requestId`, route, userId/companyId when available).
+- Do not hardcode secrets or fallback credentials in code.
+- Always apply auth + authorization checks for protected routes.
+- For multi-tenant endpoints, ensure company scoping middleware is applied and enforced.
+
+## 4) Refactoring and code quality
+
+- Keep functions focused and modular; avoid large mixed-responsibility blocks.
+- Remove duplication by extracting shared helpers/services.
+- Use clear naming for variables/functions and domain actions.
+- Preserve backward compatibility unless change is explicitly approved.
+- Keep router/controller/service boundaries clean:
+  - Router: route + middleware wiring
+  - Controller: request parsing + response mapping
+  - Service: business logic + data access
+- Keep module format consistent in touched files (avoid mixing CommonJS `require/module.exports` into ESM `import/export` areas unless intentionally isolated).
+
+## 5) Testing expectations for backend changes
+
+- Add or update tests for changed behavior and key failure paths.
+- At minimum, verify:
+  - Validation failures and status codes
+  - Authorization boundaries
+  - Tenant/company scoping behavior for protected multi-tenant APIs
+  - Transaction rollback on partial failures
+  - Response contract consistency
+
+## 6) Done criteria
+
+- Inputs validated
+- Correct status codes used
+- Response format consistent
+- Critical operations wrapped in transactions
+- No sensitive error leakage
+- Error paths call `next(error)` from controllers and use centralized handler
+- Logger includes actionable context for failures
+- Tests or verification evidence included

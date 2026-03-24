@@ -95,6 +95,9 @@ const StoreOperatorInventoryPage = () => {
         </div>
 
         <div className="flex flex-wrap gap-3 mt-6">
+          <Link to={`${basePath}/store-operator/purchases`} className="px-4 py-2 bg-emerald-700 text-white rounded-md">
+            Purchase Receipts
+          </Link>
           <Link to={`${basePath}/store-operator/issue`} className="px-4 py-2 bg-blue-600 text-white rounded-md">
             Issue Items
           </Link>

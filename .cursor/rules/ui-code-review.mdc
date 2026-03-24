@@ -1,0 +1,44 @@
+---
+description: UI/React review — accessibility, states, layout, UX consistency; use when reviewing pages or components
+alwaysApply: false
+globs:
+  - Client/src/pages/**/*
+  - Client/src/components/**/*
+  - Client/src/App.jsx
+---
+
+# UI code review
+
+## When to use
+
+Apply when the user asks for a **UI review**, **UX review**, **component review**, or says to use the **UI code review** rule. Attach `@.cursor/rules/ui-code-review.mdc` if it is not already in context.
+
+## Align with API flow
+
+- Pages and presentational components should not own raw API calls; data and mutations live in hooks (see project API integration rule).
+
+## Review priorities (UI)
+
+1. Correctness — UI matches requirements; no broken flows or wrong conditional branches  
+2. States — loading, empty, error, and success are all handled visibly  
+3. Accessibility — semantics, labels, focus, keyboard paths for interactive controls  
+4. Layout & responsiveness — breakpoints, overflow, scroll traps, small screens  
+5. Consistency — spacing, typography, colors match existing patterns (e.g. Tailwind usage)  
+6. Performance — avoid unnecessary re-renders; heavy lists (virtualization / pagination) when needed  
+7. Safety — no unsafe HTML; validate user-facing strings from APIs  
+
+## Output format
+
+- Findings by severity: `Critical`, `High`, `Medium`, `Low`  
+- Each: what is wrong, user impact, suggested fix, file + component name  
+- Short summary at the end  
+- If clean: **No critical UI issues found** + any residual UX or a11y notes  
+
+## Quick checklist
+
+- [ ] Buttons/links have clear purpose; disabled states explained where needed  
+- [ ] Forms: validation feedback, submit disabled or loading during requests  
+- [ ] Lists/tables: empty state copy; loading skeleton or spinner  
+- [ ] Modals/drawers: focus trap and escape/close behavior  
+- [ ] Images/icons: meaningful `alt` or decorative handling  
+- [ ] No duplicated UI patterns that should be a shared component  

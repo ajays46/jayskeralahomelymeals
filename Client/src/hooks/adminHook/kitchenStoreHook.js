@@ -90,6 +90,16 @@ function useKitchenStoreData() {
     return map;
   }, [items]);
 
+  const refreshItems = async () => {
+    const itemsRes = await api.get('/kitchen-store/v1/items', {
+      params: { page: 1, page_size: 50 }
+    });
+    const itemsData = itemsRes.data?.data || {};
+    const fetchedItems = normalizeItems(itemsData.items || itemsData || []);
+    setItems(fetchedItems);
+    return fetchedItems;
+  };
+
   // Bootstrap UI state from kitchen-store proxy APIs
   useEffect(() => {
     let cancelled = false;
@@ -97,11 +107,7 @@ function useKitchenStoreData() {
     const bootstrap = async () => {
       try {
         // 1) Items
-        const itemsRes = await api.get('/kitchen-store/v1/items', {
-          params: { page: 1, page_size: 50 }
-        });
-        const itemsData = itemsRes.data?.data || {};
-        const fetchedItems = normalizeItems(itemsData.items || itemsData || []);
+        const fetchedItems = await refreshItems();
         if (fetchedItems.length > 0) {
           if (cancelled) return;
           setItems(fetchedItems);
@@ -280,6 +286,33 @@ function useKitchenStoreData() {
     return res.data?.data;
   };
 
+  const createItem = async (payload) => {
+    if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
+    try {
+      await api.post('/kitchen-store/v1/items', payload);
+      await refreshItems();
+      try {
+        const lowRes = await api.get('/kitchen-store/v1/alerts/low-stock');
+        const lowData = lowRes.data?.data || {};
+        setLowStockItems(normalizeItems(lowData.items || []));
+      } catch {
+        // ignore low stock refresh failure
+      }
+      return { ok: true };
+    } catch (e) {
+      return {
+        ok: false,
+        message: e?.response?.data?.detail || e?.response?.data?.message || e.message || 'Failed to create item'
+      };
+    }
+  };
+
+  const getItemDetail = async (itemId) => {
+    if (!apiAvailable) return null;
+    const res = await api.get(`/kitchen-store/v1/items/${itemId}`);
+    return res.data?.data || null;
+  };
+
   const refreshItemMovements = async (itemId) => {
     const movRes = await api.get(`/kitchen-store/v1/items/${itemId}/movements`, {
       params: { page: 1, page_size: 50 }
@@ -445,6 +478,9 @@ function useKitchenStoreData() {
     issuePlan,
     addRecipeLine: upsertRecipeLine,
     deleteRecipeLine,
+    createItem,
+    getItemDetail,
+    refreshItems,
     // Forecast UI contracts
     pipelineRuns,
     demandForecasts,
@@ -459,6 +495,9 @@ export const useKitchenInventoryMock = () => {
     items: data.items,
     lowStockItems: data.lowStockItems,
     movements: data.movements,
+    createItem: data.createItem,
+    getItemDetail: data.getItemDetail,
+    refreshItems: data.refreshItems,
     addStock: data.addStock,
     removeStock: data.removeStock,
     expireStock: data.expireStock

@@ -1,0 +1,47 @@
+---
+description: Code review checklist — security, correctness, architecture, tests; use when reviewing changes or new features
+alwaysApply: false
+globs:
+  - Client/**/*.{js,jsx}
+  - Server/**/*.js
+---
+
+# Code review
+
+## When to use this rule
+
+Apply this checklist when the user asks for a **code review**, **PR review**, **review my feature**, or says to use the **code review** rule. If the chat does not include this rule automatically, add it via Cursor’s rule picker or attach `@.cursor/rules/code-review.mdc` (or your editor’s equivalent) so the full checklist is in context.
+
+## Review priorities (highest first)
+
+1. Correctness and regressions  
+2. Security (auth, validation, secrets, injection, data exposure)  
+3. Data integrity and error handling  
+4. Performance (hot paths, N+1, unnecessary work)  
+5. Maintainability and readability  
+6. Test coverage and missing edge cases  
+
+## Respect other project rules
+
+- Follow the API integration flow (hook → route → controller → service) when reviewing API-related changes.
+
+## Output format
+
+- Start with **findings** grouped by severity: `Critical`, `High`, `Medium`, `Low`.  
+- For each finding: what is wrong, why it matters, suggested fix, and file + symbol when known.  
+- End with a **short summary** (optional).  
+- If nothing major: state **No critical issues found** and still note residual risks or untested paths.
+
+## Must-check
+
+- Inputs validated at boundaries; authz where needed.  
+- Errors handled consistently; no silent failures on critical paths.  
+- No business logic in the wrong layer (router vs controller vs service; UI vs hook).  
+- No secrets or PII in logs/responses.  
+- Async/timeouts/failures considered.  
+- Duplication that should be shared is called out.
+
+## Testing
+
+- Point out missing tests for new behavior, edge cases, and failure paths.  
+- Untested critical logic → at least **Medium** severity.

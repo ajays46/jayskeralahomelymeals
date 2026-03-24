@@ -42,10 +42,13 @@ import StoreManagerRecipeBomPage from './pages/store-manager/StoreManagerRecipeB
 import StoreManagerPlanListPage from './pages/store-manager/StoreManagerPlanListPage';
 import StoreManagerForecastDashboardPage from './pages/store-manager/StoreManagerForecastDashboardPage';
 import StoreManagerPurchaseSuggestionsPage from './pages/store-manager/StoreManagerPurchaseSuggestionsPage';
+import StoreManagerItemMasterPage from './pages/store-manager/StoreManagerItemMasterPage';
 import StoreOperatorInventoryPage from './pages/store-operator/StoreOperatorInventoryPage';
 import StoreOperatorIssuePage from './pages/store-operator/StoreOperatorIssuePage';
 import StoreOperatorAdjustmentsPage from './pages/store-operator/StoreOperatorAdjustmentsPage';
 import StoreOperatorItemDetailPage from './pages/store-operator/StoreOperatorItemDetailPage';
+import StoreOperatorPurchaseReceiptsPage from './pages/store-operator/StoreOperatorPurchaseReceiptsPage';
+import StoreModuleLayout from './pages/store-common/StoreModuleLayout';
 import ManagementDashboardPage from './pages/ManagementDashboardPage';
 import FinancialDashboardPage from './pages/FinancialDashboardPage';
 import DeliveryDashboardPage from './pages/DeliveryDashboardPage';
@@ -250,19 +253,23 @@ const App = () => {
               <Route path="admin/menu-items/:menuItemId" element={<MenuItemPage />} />
               <Route path="admin/menu-items-table" element={<MenuItemsTablePage />} />
               <Route path="admin/users" element={<UsersPage />} />
-              <Route path="store-manager/kitchen-dashboard" element={<StoreManagerKitchenDashboard />} />
-              <Route path="store-manager/plan-approval" element={<StoreManagerPlanApprovalPage />} />
-              <Route path="store-manager/reports" element={<StoreManagerReportsPage />} />
-              <Route path="store-manager/inventory" element={<StoreManagerInventoryViewPage />} />
-              <Route path="store-manager/stock-logs" element={<StoreManagerStockLogsPage />} />
-              <Route path="store-manager/recipe-bom" element={<StoreManagerRecipeBomPage />} />
-              <Route path="store-manager/plan-list" element={<StoreManagerPlanListPage />} />
-              <Route path="store-manager/forecast" element={<StoreManagerForecastDashboardPage />} />
-              <Route path="store-manager/purchase-suggestions" element={<StoreManagerPurchaseSuggestionsPage />} />
-              <Route path="store-operator/inventory" element={<StoreOperatorInventoryPage />} />
-              <Route path="store-operator/issue" element={<StoreOperatorIssuePage />} />
-              <Route path="store-operator/adjustments" element={<StoreOperatorAdjustmentsPage />} />
-              <Route path="store-operator/item/:itemId" element={<StoreOperatorItemDetailPage />} />
+              <Route element={<StoreModuleLayout />}>
+                <Route path="store-manager/kitchen-dashboard" element={<StoreManagerKitchenDashboard />} />
+                <Route path="store-manager/plan-approval" element={<StoreManagerPlanApprovalPage />} />
+                <Route path="store-manager/reports" element={<StoreManagerReportsPage />} />
+                <Route path="store-manager/inventory" element={<StoreManagerInventoryViewPage />} />
+                <Route path="store-manager/stock-logs" element={<StoreManagerStockLogsPage />} />
+                <Route path="store-manager/recipe-bom" element={<StoreManagerRecipeBomPage />} />
+                <Route path="store-manager/plan-list" element={<StoreManagerPlanListPage />} />
+                <Route path="store-manager/forecast" element={<StoreManagerForecastDashboardPage />} />
+                <Route path="store-manager/purchase-suggestions" element={<StoreManagerPurchaseSuggestionsPage />} />
+                <Route path="store-manager/item-master" element={<StoreManagerItemMasterPage />} />
+                <Route path="store-operator/inventory" element={<StoreOperatorInventoryPage />} />
+                <Route path="store-operator/issue" element={<StoreOperatorIssuePage />} />
+                <Route path="store-operator/adjustments" element={<StoreOperatorAdjustmentsPage />} />
+                <Route path="store-operator/item/:itemId" element={<StoreOperatorItemDetailPage />} />
+                <Route path="store-operator/purchases" element={<StoreOperatorPurchaseReceiptsPage />} />
+              </Route>
               <Route path="seller" element={<SellerPage />} />
               <Route path="seller/customers" element={<CustomersListPage />} />
               <Route path="customer-orders" element={<CustomerOrdersPage />} />

@@ -77,7 +77,7 @@ const StoreOperatorAdjustmentsPage = () => {
 
         {done && (
           <div className="mt-4 border border-emerald-300 rounded-md p-3 bg-emerald-50 text-sm text-emerald-800">
-            {movementType} movement recorded in UI mock. Backend save will be connected to `inventory_stock_movements`.
+            {movementType} movement recorded successfully in `inventory_stock_movements`.
           </div>
         )}
       </div>

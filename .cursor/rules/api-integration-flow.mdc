@@ -1,0 +1,33 @@
+---
+alwaysApply: false
+---
+# API integration flow
+
+For API work, follow this chain:
+
+1. **Frontend hook** — API calls, loading/error state, data shape for UI
+2. **Backend router** — path, method, middleware; delegate to controller
+3. **Backend controller** — parse request, call service, map to HTTP response
+4. **Backend service** — business logic and data / external API access
+
+## Rules
+
+- Pages and components use hooks for API access, not raw `fetch` / `axios` in the component.
+- Routers do not contain business logic or direct DB access.
+- Controllers stay thin; no heavy domain logic.
+- Services own business rules and persistence / external calls.
+- Handle errors consistently with appropriate status codes.
+
+## Checklist for a new or changed endpoint
+
+- [ ] Hook added or updated (for example in `*/hooks/`)
+- [ ] Route added or updated (for example in `*/routes/`)
+- [ ] Controller added or updated (for example in `*/controllers/`)
+- [ ] Service added or updated (for example in `*/services/`)
+
+## Naming (match existing project style)
+
+- Hooks: `use<Resource><Action>` (e.g. `useOrderManagement`)
+- Router: `*.routes.js` wired to controller
+- Controller: `*.controller.js`
+- Service: `*.service.js`

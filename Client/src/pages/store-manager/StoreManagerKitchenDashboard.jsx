@@ -69,6 +69,9 @@ const StoreManagerKitchenDashboard = () => {
             <Link to={`${basePath}/store-manager/inventory`} className="px-4 py-2 bg-emerald-700 text-white rounded-md">
               Inventory Table
             </Link>
+            <Link to={`${basePath}/store-manager/item-master`} className="px-4 py-2 bg-green-700 text-white rounded-md">
+              Item Master
+            </Link>
             <Link to={`${basePath}/store-manager/stock-logs`} className="px-4 py-2 bg-orange-600 text-white rounded-md">
               Stock Logs
             </Link>
@@ -83,6 +86,9 @@ const StoreManagerKitchenDashboard = () => {
             </Link>
             <Link to={`${basePath}/store-manager/purchase-suggestions`} className="px-4 py-2 bg-purple-700 text-white rounded-md">
               Purchase Suggestions
+            </Link>
+            <Link to={`${basePath}/store-operator/purchases`} className="px-4 py-2 bg-slate-700 text-white rounded-md">
+              Purchase Receipts
             </Link>
           </div>
         </div>
