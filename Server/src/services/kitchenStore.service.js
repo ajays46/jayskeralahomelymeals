@@ -311,24 +311,47 @@ export const listFinancialForecastsService = async (query = {}, companyId) => {
 
 export const getMealReportService = async (query = {}, companyId) => {
   try {
+    const upstreamParams = {
+      ...query,
+      company_id: query?.company_id || companyId || undefined,
+      include_zero_locations:
+        query?.include_zero_locations != null ? query.include_zero_locations : 'false',
+      include_customer_names:
+        query?.include_customer_names != null ? query.include_customer_names : 'true'
+    };
+
     // Some deployments expose this endpoint as /api/meal-report, others as /meal-report.
     // Try the API-prefixed path first to match current API documentation.
     let response;
     try {
-      response = await apiClientAI.get('/api/meal-report', withCompanyId(companyId, { params: query }));
+      response = await apiClientAI.get('/api/meal-report', withCompanyId(companyId, { params: upstreamParams }));
     } catch (firstError) {
       if (firstError?.response?.status === 404) {
-        response = await apiClientAI.get('/meal-report', withCompanyId(companyId, { params: query }));
+        response = await apiClientAI.get('/meal-report', withCompanyId(companyId, { params: upstreamParams }));
       } else {
         throw firstError;
       }
     }
 
     const payload = response.data?.data || response.data || {};
-    logKitchenSuccess('getMealReport', { endpoint: '/api/meal-report', companyId: companyId || null, date: query?.date || null });
+    logKitchenSuccess('getMealReport', {
+      endpoint: '/api/meal-report',
+      companyId: companyId || null,
+      date: upstreamParams?.date || null,
+      requestCompanyId: upstreamParams?.company_id || null,
+      includeZeroLocations: upstreamParams?.include_zero_locations ?? null,
+      includeCustomerNames: upstreamParams?.include_customer_names ?? null
+    });
     return payload;
   } catch (error) {
-    logKitchenError('getMealReport', error, { endpoint: '/api/meal-report', companyId: companyId || null, date: query?.date || null });
+    logKitchenError('getMealReport', error, {
+      endpoint: '/api/meal-report',
+      companyId: companyId || null,
+      date: query?.date || null,
+      requestCompanyId: query?.company_id || companyId || null,
+      includeZeroLocations: query?.include_zero_locations ?? 'false',
+      includeCustomerNames: query?.include_customer_names ?? 'true'
+    });
     throw mapAxiosError(error);
   }
 };
