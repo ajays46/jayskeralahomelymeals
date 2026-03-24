@@ -2399,6 +2399,7 @@ const DeliveryExecutivePage = () => {
 
     const payload = {
       session,
+      sessionLabel: getSessionDisplayName(selectedSession),
       stop: {
         Stop_No: stopNo,
         Delivery_Name: stop?.Delivery_Name ?? stop?.delivery_name,
@@ -2445,8 +2446,8 @@ const DeliveryExecutivePage = () => {
     let badge = null;
     try {
       const scale = Math.max(2, Math.min(3, Math.round(window.devicePixelRatio || 2)));
-      // Add session badge into the captured image for pixel-accurate fallback.
-      const sessionLabel = String(session || 'SESSION').toUpperCase();
+      // Add session badge in fallback capture so screenshot includes session even when UI badge is hidden.
+      const sessionLabel = String(getSessionDisplayName(selectedSession) || session || 'SESSION').toUpperCase();
       prevPosition = node.style.position;
       if (!prevPosition) node.style.position = 'relative';
       badge = document.createElement('div');
@@ -2459,8 +2460,10 @@ const DeliveryExecutivePage = () => {
       badge.style.border = '1px solid #e5e7eb';
       badge.style.borderRadius = '9999px';
       badge.style.color = '#1d4ed8';
-      badge.style.fontSize = '12px';
+      badge.style.fontSize = '11px';
       badge.style.fontWeight = '600';
+      badge.style.textTransform = 'uppercase';
+      badge.style.letterSpacing = '0.02em';
       badge.style.zIndex = '9999';
       node.appendChild(badge);
 
@@ -2486,17 +2489,16 @@ const DeliveryExecutivePage = () => {
       console.error('Capture proof error:', err);
       showErrorToast('Screenshot failed. Please try again.');
     } finally {
-      // Clean up the temporary badge overlay (if it exists).
+      // Clean up temporary overlay from fallback capture.
       if (node && node.contains && badge) {
         try {
           if (node.contains(badge)) node.removeChild(badge);
         } catch (_) {}
       }
-      // Restore prior positioning to avoid affecting layout.
       if (node && typeof node.style?.position === 'string') node.style.position = prevPosition;
       setCapturingProofIndex(null);
     }
-  }, [selectedSession, activeRouteId, markedStops, updatedLocationStops, isPreDeliveryUploaded, isPhotoUploaded, isLocationUpdated]);
+  }, [selectedSession, activeRouteId, markedStops, updatedLocationStops, isPreDeliveryUploaded, isPhotoUploaded, isLocationUpdated, getSessionDisplayName]);
 
   const handleCaptureStopsSection = useCallback(async () => {
     const node = deliveryStopsSectionRef.current;
@@ -3605,12 +3607,15 @@ const DeliveryExecutivePage = () => {
                                     <div className="flex items-start justify-between mb-2 gap-3">
                                       <div className="flex items-start gap-4 flex-1 min-w-0">
                                         <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0 shadow-md">
-                                          {stop.Stop_No}
+                                          <span className="text-[10px] font-semibold mr-0.5 opacity-90">S</span>
+                                          <span>{stop.Stop_No}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h6 className="text-gray-900 font-bold text-base mb-1 truncate">
-                                            {stop.Delivery_Name || 'Unknown Delivery'}
-                                          </h6>
+                                          <div className="flex items-center justify-between gap-2 mb-1">
+                                            <h6 className="text-gray-900 font-bold text-base truncate min-w-0">
+                                              {stop.Delivery_Name || 'Unknown Delivery'}
+                                            </h6>
+                                          </div>
                                           <p className="text-gray-600 text-sm truncate flex items-center gap-1">
                                             <FiMapPin className="w-4 h-4 text-gray-400" />
                                             {stop.Location || 'Location not specified'}

@@ -10,6 +10,8 @@ function getDeliveryCardHtml(payload) {
   const stop = payload.stop || {};
   const opts = payload.options || {};
   const session = payload.session ? String(payload.session) : '';
+  const sessionLabelFromPayload = payload.sessionLabel ? String(payload.sessionLabel) : '';
+  const sessionLabel = sessionLabelFromPayload || (session ? session.toUpperCase() : '');
   const stopNo = stop.Stop_No ?? stop.stop_order ?? 1;
   const deliveryName = stop.Delivery_Name || stop.delivery_name || 'Unknown Delivery';
   const location = stop.Location || stop.location || 'Location not specified';
@@ -28,18 +30,18 @@ function getDeliveryCardHtml(payload) {
   <meta name="viewport" content="width=420, initial-scale=1">
   <style>
     *{box-sizing:border-box}
-    body{background:#f3f4f6;padding:16px;min-width:380px;margin:0;font-family:system-ui,sans-serif;font-size:14px}
-    #delivery-proof-card{width:100%;max-width:420px;margin:0 auto;background:#fff;border-radius:12px;padding:20px;box-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);border:1px solid #e5e7eb}
+    body{background:#f3f4f6;padding:8px;min-width:340px;margin:0;font-family:system-ui,sans-serif;font-size:13px}
+    #delivery-proof-card{width:100%;max-width:400px;margin:0 auto;background:#fff;border-radius:12px;padding:14px;box-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);border:1px solid #e5e7eb}
     .flex{display:flex}
     .items-start{align-items:flex-start}
     .justify-between{justify-content:space-between}
     .gap-2{gap:8px}
-    .gap-3{gap:12px}
-    .gap-4{gap:16px}
+    .gap-3{gap:10px}
+    .gap-4{gap:12px}
     .gap-1\\.5{gap:6px}
-    .mb-2{margin-bottom:8px}
-    .mb-3{margin-bottom:12px}
-    .mt-4{margin-top:16px}
+    .mb-2{margin-bottom:6px}
+    .mb-3{margin-bottom:10px}
+    .mt-4{margin-top:10px}
     .min-w-0{min-width:0}
     .flex-1{flex:1 1 0}
     .flex-shrink-0{flex-shrink:0}
@@ -56,8 +58,8 @@ function getDeliveryCardHtml(payload) {
     .rounded-lg{border-radius:8px}
     .rounded-xl{border-radius:12px}
     .rounded-br{border-bottom-right-radius:6px}
-    .w-12{width:48px}
-    .h-12{height:48px}
+    .w-12{width:42px}
+    .h-12{height:42px}
     .w-4{width:16px}
     .h-4{height:16px}
     .w-5{width:20px}
@@ -67,11 +69,11 @@ function getDeliveryCardHtml(payload) {
     .p-2\\.5{padding:10px}
     .p-3{padding:12px}
     .px-3{padding-left:12px;padding-right:12px}
-    .py-1\\.5{padding-top:6px;padding-bottom:6px}
-    .px-4{padding-left:16px;padding-right:16px}
-    .py-2\\.5{padding-top:10px;padding-bottom:10px}
-    .py-3{padding-top:12px;padding-bottom:12px}
-    .text-base{font-size:16px}
+    .py-1\\.5{padding-top:5px;padding-bottom:5px}
+    .px-4{padding-left:14px;padding-right:14px}
+    .py-2\\.5{padding-top:8px;padding-bottom:8px}
+    .py-3{padding-top:9px;padding-bottom:9px}
+    .text-base{font-size:15px}
     .text-sm{font-size:14px}
     .text-xs{font-size:12px}
     .font-bold{font-weight:700}
@@ -103,20 +105,19 @@ function getDeliveryCardHtml(payload) {
     .bg-gradient-to-br{background-image:linear-gradient(to bottom right,#3b82f6,#2563eb)}
     .bg-gradient-to-r{background-image:linear-gradient(to right,#fefce8,#fef3c7)}
     .line-clamp-1{overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}
+    h6,p{margin:0}
   </style>
 </head>
 <body>
   <div id="delivery-proof-card">
-    ${session ? `<div class="mb-2 flex items-center justify-center">
-      <span class="px-3 py-1.5 bg-gray-50 text-blue-700 text-xs font-semibold rounded-full border border-gray-200">
-        ${escapeHtml(session.toUpperCase())}
-      </span>
-    </div>` : ''}
     <div class="flex items-start justify-between mb-2 gap-3">
       <div class="flex items-start gap-4 flex-1 min-w-0">
-        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0 shadow-md">${stopNo}</div>
+        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0 shadow-md"><span style="font-size:10px;font-weight:600;margin-right:2px;opacity:.9;">S</span><span>${escapeHtml(String(stopNo))}</span></div>
         <div class="flex-1 min-w-0">
-          <h6 class="text-gray-900 font-bold text-base mb-1 truncate">${escapeHtml(deliveryName)}</h6>
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <h6 class="text-gray-900 font-bold text-base truncate min-w-0">${escapeHtml(deliveryName)}</h6>
+            ${sessionLabel ? `<span class="px-2.5 py-1 bg-gray-50 text-blue-700 text-xs font-semibold rounded-full border border-gray-200 flex-shrink-0" style="font-size:10px;line-height:1;text-transform:uppercase;letter-spacing:.02em;">${escapeHtml(sessionLabel)}</span>` : ''}
+          </div>
           <p class="text-gray-600 text-sm truncate flex items-center gap-1">
             <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             <span class="truncate">${escapeHtml(location)}</span>
