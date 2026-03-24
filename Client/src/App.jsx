@@ -48,6 +48,7 @@ import StoreOperatorIssuePage from './pages/store-operator/StoreOperatorIssuePag
 import StoreOperatorAdjustmentsPage from './pages/store-operator/StoreOperatorAdjustmentsPage';
 import StoreOperatorItemDetailPage from './pages/store-operator/StoreOperatorItemDetailPage';
 import StoreOperatorPurchaseReceiptsPage from './pages/store-operator/StoreOperatorPurchaseReceiptsPage';
+import StoreOperatorMealReportPage from './pages/store-operator/StoreOperatorMealReportPage';
 import StoreModuleLayout from './pages/store-common/StoreModuleLayout';
 import ManagementDashboardPage from './pages/ManagementDashboardPage';
 import FinancialDashboardPage from './pages/FinancialDashboardPage';
@@ -269,6 +270,7 @@ const App = () => {
                 <Route path="store-operator/adjustments" element={<StoreOperatorAdjustmentsPage />} />
                 <Route path="store-operator/item/:itemId" element={<StoreOperatorItemDetailPage />} />
                 <Route path="store-operator/purchases" element={<StoreOperatorPurchaseReceiptsPage />} />
+                <Route path="store-operator/meal-report" element={<StoreOperatorMealReportPage />} />
               </Route>
               <Route path="seller" element={<SellerPage />} />
               <Route path="seller/customers" element={<CustomersListPage />} />

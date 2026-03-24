@@ -20,7 +20,8 @@ const operatorLinks = [
   { to: 'store-operator/inventory', label: 'Operator Inventory' },
   { to: 'store-operator/purchases', label: 'Purchase Receipts' },
   { to: 'store-operator/issue', label: 'Issue to Kitchen' },
-  { to: 'store-operator/adjustments', label: 'Adjustments' }
+  { to: 'store-operator/adjustments', label: 'Adjustments' },
+  { to: 'store-operator/meal-report', label: 'Meal Report' }
 ];
 
 const linkClassName = ({ isActive }) =>

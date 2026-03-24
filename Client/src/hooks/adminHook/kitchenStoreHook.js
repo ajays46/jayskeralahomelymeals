@@ -619,3 +619,14 @@ export const useKitchenReceiptsApi = () => {
   return { createReceipt, addReceiptLine, listReceipts, listReceiptLines };
 };
 
+export const useKitchenMealReportApi = () => {
+  const getMealReport = async (date) => {
+    const res = await api.get('/kitchen-store/meal-report', {
+      params: { date }
+    });
+    return res.data?.data?.data || res.data?.data || res.data || {};
+  };
+
+  return { getMealReport };
+};
+

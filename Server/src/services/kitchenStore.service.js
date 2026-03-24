@@ -2,6 +2,7 @@ import axios from 'axios';
 import AppError from '../utils/AppError.js';
 import { logError, LOG_CATEGORIES, logInfo } from '../utils/criticalLogger.js';
 
+const AI_ROUTE_API = process.env.AI_ROUTE_API
 const KITCHEN_STORE_BASE_URL = process.env.AI_ROUTE_API_FIFTH;
 const EXTERNAL_API_AUTH_TOKEN = process.env.EXTERNAL_API_AUTH_TOKEN || 'mysecretkey123';
 
@@ -14,6 +15,14 @@ const apiClient = axios.create({
   }
 });
 
+const apiClientAI = axios.create({
+  baseURL: AI_ROUTE_API,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${EXTERNAL_API_AUTH_TOKEN}`
+  }
+});
 const withCompanyId = (companyId, config = {}) => {
   const headers = { ...(config.headers || {}) };
   if (companyId) headers['X-Company-ID'] = companyId;
@@ -296,6 +305,30 @@ export const listFinancialForecastsService = async (query = {}, companyId) => {
     return response.data;
   } catch (error) {
     logKitchenError('listFinancialForecasts', error, { endpoint: '/v2/forecasts/financial', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getMealReportService = async (query = {}, companyId) => {
+  try {
+    // Some deployments expose this endpoint as /api/meal-report, others as /meal-report.
+    // Try the API-prefixed path first to match current API documentation.
+    let response;
+    try {
+      response = await apiClientAI.get('/api/meal-report', withCompanyId(companyId, { params: query }));
+    } catch (firstError) {
+      if (firstError?.response?.status === 404) {
+        response = await apiClientAI.get('/meal-report', withCompanyId(companyId, { params: query }));
+      } else {
+        throw firstError;
+      }
+    }
+
+    const payload = response.data?.data || response.data || {};
+    logKitchenSuccess('getMealReport', { endpoint: '/api/meal-report', companyId: companyId || null, date: query?.date || null });
+    return payload;
+  } catch (error) {
+    logKitchenError('getMealReport', error, { endpoint: '/api/meal-report', companyId: companyId || null, date: query?.date || null });
     throw mapAxiosError(error);
   }
 };

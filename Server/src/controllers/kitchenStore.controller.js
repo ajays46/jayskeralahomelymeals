@@ -19,8 +19,10 @@ import {
   listPurchaseReceiptLinesService,
   listPurchaseRecommendationsService,
   listInventoryForecastsService,
-  listFinancialForecastsService
+  listFinancialForecastsService,
+  getMealReportService
 } from '../services/kitchenStore.service.js';
+import AppError from '../utils/AppError.js';
 
 export const healthCheck = async (req, res, next) => {
   try {
@@ -205,6 +207,21 @@ export const listInventoryForecasts = async (req, res, next) => {
 export const listFinancialForecasts = async (req, res, next) => {
   try {
     const result = await listFinancialForecastsService(req.query, req.companyId);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMealReport = async (req, res, next) => {
+  try {
+    const { date } = req.query || {};
+    const isValidDate = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date);
+    if (!isValidDate) {
+      throw new AppError('Invalid or missing date query. Expected format: YYYY-MM-DD', 400);
+    }
+
+    const result = await getMealReportService({ date }, req.companyId);
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);

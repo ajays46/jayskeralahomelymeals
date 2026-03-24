@@ -24,7 +24,8 @@ import {
   listPurchaseReceiptLines,
   listPurchaseRecommendations,
   listInventoryForecasts,
-  listFinancialForecasts
+  listFinancialForecasts,
+  getMealReport
 } from '../controllers/kitchenStore.controller.js';
 
 const router = express.Router();
@@ -69,6 +70,9 @@ router.get('/v2/purchases/receipts/:receipt_id/lines', checkRole('STORE_MANAGER'
 router.get('/v2/purchases/recommendations', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseRecommendations);
 router.get('/v2/forecasts/inventory', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listInventoryForecasts);
 router.get('/v2/forecasts/financial', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listFinancialForecasts);
+
+// Meal report
+router.get('/meal-report', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getMealReport);
 
 export default router;
 
