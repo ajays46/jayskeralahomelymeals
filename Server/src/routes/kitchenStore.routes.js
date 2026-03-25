@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';
 import { resolveCompanyId } from '../middleware/resolveCompanyId.js';
@@ -8,6 +9,8 @@ import {
   createItem,
   listItems,
   getItem,
+  listItemImages,
+  uploadItemImage,
   listItemMovements,
   createItemMovement,
   getLowStockAlerts,
@@ -22,6 +25,19 @@ import {
   addPurchaseReceiptLine,
   listPurchaseReceipts,
   listPurchaseReceiptLines,
+  createPurchaseRequest,
+  addPurchaseRequestLine,
+  submitPurchaseRequest,
+  listPurchaseRequests,
+  getPurchaseRequest,
+  resolvePurchaseRequestLineItem,
+  approvePurchaseRequest,
+  rejectPurchaseRequest,
+  listApprovedPurchaseRequestLines,
+  downloadApprovedPurchaseRequestLinesTxt,
+  getPurchaseRequestComparison,
+  listOffListPurchaseReview,
+  reviewPurchaseReceiptLine,
   listPurchaseRecommendations,
   listInventoryForecasts,
   listFinancialForecasts,
@@ -29,6 +45,11 @@ import {
 } from '../controllers/kitchenStore.controller.js';
 
 const router = express.Router();
+
+const itemImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 // Auth + tenant scope for all kitchen store calls
 router.use(authenticateToken);
@@ -40,6 +61,16 @@ router.get('/v1/health', healthCheck);
 // v1: Items
 router.post('/v1/items', checkRole('STORE_MANAGER'), createItem);
 router.get('/v1/items', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listItems);
+router.get('/v1/items/:item_id/images', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listItemImages);
+router.post(
+  '/v1/items/:item_id/images',
+  checkRole('STORE_MANAGER'),
+  itemImageUpload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'file', maxCount: 1 }
+  ]),
+  uploadItemImage
+);
 router.get('/v1/items/:item_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getItem);
 
 // v1: Stock movements
@@ -65,6 +96,41 @@ router.post('/v2/purchases/receipts', checkRole('STORE_OPERATOR'), createPurchas
 router.post('/v2/purchases/receipts/:receipt_id/lines', checkRole('STORE_OPERATOR'), addPurchaseReceiptLine);
 router.get('/v2/purchases/receipts', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseReceipts);
 router.get('/v2/purchases/receipts/:receipt_id/lines', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseReceiptLines);
+
+// v2: Purchase requests
+router.post('/v2/purchase-requests', checkRole('STORE_OPERATOR'), createPurchaseRequest);
+router.post('/v2/purchase-requests/:request_id/lines', checkRole('STORE_OPERATOR'), addPurchaseRequestLine);
+router.post('/v2/purchase-requests/:request_id/submit', checkRole('STORE_OPERATOR'), submitPurchaseRequest);
+router.get('/v2/purchase-requests', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseRequests);
+router.get('/v2/purchase-requests/:request_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getPurchaseRequest);
+router.post(
+  '/v2/purchase-requests/:request_id/lines/:line_id/resolve-item',
+  checkRole('STORE_MANAGER'),
+  resolvePurchaseRequestLineItem
+);
+router.post('/v2/purchase-requests/:request_id/approve', checkRole('STORE_MANAGER'), approvePurchaseRequest);
+router.post('/v2/purchase-requests/:request_id/reject', checkRole('STORE_MANAGER'), rejectPurchaseRequest);
+router.get(
+  '/v2/purchase-requests/:request_id/approved-lines',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  listApprovedPurchaseRequestLines
+);
+router.get(
+  '/v2/purchase-requests/:request_id/approved-lines.txt',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  downloadApprovedPurchaseRequestLinesTxt
+);
+router.get(
+  '/v2/purchase-requests/:request_id/purchase-comparison',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  getPurchaseRequestComparison
+);
+router.get('/v2/purchases/off-list-review', checkRole('STORE_MANAGER'), listOffListPurchaseReview);
+router.post(
+  '/v2/purchases/receipts/:receipt_id/lines/:line_id/manager-review',
+  checkRole('STORE_MANAGER'),
+  reviewPurchaseReceiptLine
+);
 
 // v2: Forecasts + recommendations
 router.get('/v2/purchases/recommendations', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseRecommendations);

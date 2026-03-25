@@ -1,77 +1,80 @@
 import React from 'react';
 import { useKitchenForecastMock } from '../../hooks/adminHook/kitchenStoreHook';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { StorePageHeader, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 
 const StoreManagerForecastDashboardPage = () => {
   const { pipelineRuns, demandForecasts, financialForecasts } = useKitchenForecastMock();
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900">Forecast Dashboard</h1>
-        <p className="text-gray-600 mt-2">
-          Sources: `inventory_demand_forecasts`, `financial_forecasts`, `kitchen_pipeline_runs`
-        </p>
-
-        <div className="bg-white border rounded-lg p-5 mt-4">
-          <h2 className="font-semibold text-gray-900">Pipeline Runs</h2>
-          <ul className="mt-2 text-sm text-gray-700 space-y-1">
-            {pipelineRuns.map((run) => (
-              <li key={run.id}>
+    <StorePageShell>
+      <StorePageHeader
+        title="Forecast Dashboard"
+        description="Inventory demand and financial forecasts from the kitchen planning pipeline."
+      />
+      <StoreStatGrid>
+        <StoreStatCard label="Pipeline Runs" value={pipelineRuns.length} />
+        <StoreStatCard label="Demand Rows" value={demandForecasts.length} />
+        <StoreStatCard label="Financial Rows" value={financialForecasts.length} />
+      </StoreStatGrid>
+      <StoreSection title="Pipeline Runs">
+        <div className="space-y-2 text-sm text-slate-700">
+          {pipelineRuns.length === 0 ? (
+            <p className="text-muted-foreground">No pipeline runs available.</p>
+          ) : (
+            pipelineRuns.map((run) => (
+              <div key={run.id} className="rounded-md border px-3 py-2">
                 {run.pipeline_name} - {run.status} ({run.processed_rows} rows)
-              </li>
+              </div>
+            ))
+          )}
+        </div>
+      </StoreSection>
+      <StoreSection title="Demand Forecast">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Meal Slot</TableHead>
+              <TableHead>Item</TableHead>
+              <TableHead>Forecast Qty</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {demandForecasts.map((row, idx) => (
+              <TableRow key={`${row.item}-${idx}`}>
+                <TableCell>{row.forecast_date}</TableCell>
+                <TableCell>{row.meal_slot}</TableCell>
+                <TableCell className="font-medium">{row.item}</TableCell>
+                <TableCell>{row.forecast_quantity} {row.unit}</TableCell>
+              </TableRow>
             ))}
-          </ul>
-        </div>
-
-        <div className="bg-white border rounded-lg p-5 mt-4">
-          <h2 className="font-semibold text-gray-900">Demand Forecast</h2>
-          <table className="w-full mt-3 text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="py-2">Date</th>
-                <th className="py-2">Meal Slot</th>
-                <th className="py-2">Item</th>
-                <th className="py-2">Forecast Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {demandForecasts.map((row, idx) => (
-                <tr key={`${row.item}-${idx}`} className="border-b last:border-0">
-                  <td className="py-2">{row.forecast_date}</td>
-                  <td className="py-2">{row.meal_slot}</td>
-                  <td className="py-2">{row.item}</td>
-                  <td className="py-2">{row.forecast_quantity} {row.unit}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="bg-white border rounded-lg p-5 mt-4">
-          <h2 className="font-semibold text-gray-900">Financial Forecast</h2>
-          <table className="w-full mt-3 text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="py-2">Date</th>
-                <th className="py-2">Revenue</th>
-                <th className="py-2">Ingredient Cost</th>
-                <th className="py-2">Gross Margin</th>
-              </tr>
-            </thead>
-            <tbody>
-              {financialForecasts.map((row) => (
-                <tr key={row.forecast_date} className="border-b last:border-0">
-                  <td className="py-2">{row.forecast_date}</td>
-                  <td className="py-2">INR {row.forecast_revenue}</td>
-                  <td className="py-2">INR {row.forecast_ingredient_cost}</td>
-                  <td className="py-2">INR {row.forecast_gross_margin}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+          </TableBody>
+        </Table>
+      </StoreSection>
+      <StoreSection title="Financial Forecast">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Revenue</TableHead>
+              <TableHead>Ingredient Cost</TableHead>
+              <TableHead>Gross Margin</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {financialForecasts.map((row) => (
+              <TableRow key={row.forecast_date}>
+                <TableCell>{row.forecast_date}</TableCell>
+                <TableCell>INR {row.forecast_revenue}</TableCell>
+                <TableCell>INR {row.forecast_ingredient_cost}</TableCell>
+                <TableCell>INR {row.forecast_gross_margin}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </StoreSection>
+    </StorePageShell>
   );
 };
 

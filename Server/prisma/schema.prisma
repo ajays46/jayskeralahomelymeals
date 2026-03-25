@@ -1112,3 +1112,25 @@ enum DeliveryImageFileType {
   image
   video
 }
+
+/// Kitchen inventory item photos; `inventory_items` rows are managed by the kitchen-store API.
+/// Files are stored on disk under `/uploads/inventory-item-images/...`; s3_* columns are optional legacy/metadata.
+model InventoryItemImage {
+  id              String    @id @db.Char(36)
+  companyId       String    @map("company_id") @db.VarChar(36)
+  inventoryItemId String    @map("inventory_item_id") @db.VarChar(36)
+  s3Key           String?   @map("s3_key") @db.VarChar(500)
+  s3Url           String?   @map("s3_url") @db.VarChar(500)
+  presignedUrl    String?   @map("presigned_url") @db.VarChar(500)
+  filename        String?   @map("filename") @db.VarChar(255)
+  contentType     String?   @map("content_type") @db.VarChar(100)
+  fileSize        BigInt?   @map("file_size")
+  sortOrder       Int?      @map("sort_order")
+  isPrimary       Boolean?  @map("is_primary")
+  uploadedBy      String?   @map("uploaded_by") @db.VarChar(100)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.DateTime(6)
+
+  @@index([companyId, inventoryItemId], map: "idx_inventory_item_images_company_item")
+  @@map("inventory_item_images")
+}

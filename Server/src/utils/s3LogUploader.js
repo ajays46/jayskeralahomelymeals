@@ -174,4 +174,51 @@ export const uploadLogsToS3 = async () => {
   return result;
 };
 
+/**
+ * Upload a binary object to S3 (e.g. inventory item images).
+ * @returns {Promise<{ key: string, url: string }>}
+ */
+export const uploadBinaryToS3 = async ({ key, body, contentType }) => {
+  if (!isS3Configured()) {
+    throw new Error('S3 is not configured (set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET)');
+  }
+  const { bucket, region } = getS3Config();
+  const client = createS3Client();
+  const ct = contentType || 'application/octet-stream';
+
+  const put = async () => {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: body,
+        ContentType: ct
+      })
+    );
+  };
+
+  try {
+    await put();
+  } catch (err) {
+    if (err.name === 'NoSuchBucket') {
+      await ensureS3BucketExists();
+      await put();
+    } else {
+      throw err;
+    }
+  }
+
+  const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+  const url = `https://${bucket}.s3.${region}.amazonaws.com/${encodedKey}`;
+  return { key, url };
+};
+
+/** Virtual-hosted–style URL for an existing object key (same pattern as uploadBinaryToS3). */
+export const publicObjectUrlForKey = (key) => {
+  if (!key || !isS3Configured()) return null;
+  const { bucket, region } = getS3Config();
+  const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+  return `https://${bucket}.s3.${region}.amazonaws.com/${encodedKey}`;
+};
+
 export { isS3Configured, getS3Config };

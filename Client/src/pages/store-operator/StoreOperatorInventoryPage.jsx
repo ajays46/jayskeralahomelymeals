@@ -1,112 +1,168 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { StoreNotice, StorePageHeader, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 
 const StoreOperatorInventoryPage = () => {
   const basePath = useCompanyBasePath();
   const { items, lowStockItems, addStock, movements } = useKitchenInventoryMock();
+  const [stockInputs, setStockInputs] = useState({});
+  const [status, setStatus] = useState('');
+
+  const updateStockInput = (itemId, patch) => {
+    setStockInputs((prev) => ({
+      ...prev,
+      [itemId]: {
+        quantity: prev[itemId]?.quantity || '',
+        ...patch
+      }
+    }));
+  };
+
+  const onAddStock = async (item) => {
+    const rowState = stockInputs[item.id] || {};
+    const convertedQuantity = Number(rowState.quantity);
+
+    if (!Number.isFinite(convertedQuantity) || convertedQuantity <= 0) {
+      setStatus('Enter a valid quantity before adding stock.');
+      return;
+    }
+
+    const note = `Manual stock add: ${rowState.quantity}`;
+    await addStock(item.id, convertedQuantity, note);
+    setStatus(`Added ${rowState.quantity} to ${item.name}.`);
+    setStockInputs((prev) => ({
+      ...prev,
+      [item.id]: {
+        quantity: ''
+      }
+    }));
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900">Store Operator Inventory</h1>
-        <p className="text-gray-600 mt-2">View stock and perform movement actions.</p>
-
-        <div className="mt-6 bg-white rounded-lg border p-5">
-          <h2 className="text-lg font-semibold text-gray-900">Current Stock</h2>
-          <table className="w-full mt-3 text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="py-2">Item</th>
-                <th className="py-2">Unit</th>
-                <th className="py-2">Current Qty</th>
-                <th className="py-2">Min Qty</th>
-                <th className="py-2">Quick Add +10</th>
-                <th className="py-2">Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="border-b last:border-0">
-                  <td className="py-2">{item.name}</td>
-                  <td className="py-2">{item.unit}</td>
-                  <td className="py-2">{item.current_quantity}</td>
-                  <td className="py-2">{item.min_quantity}</td>
-                  <td className="py-2">
-                    <button
-                      type="button"
-                      onClick={() => addStock(item.id, 10)}
-                      className="px-3 py-1 rounded-md bg-blue-600 text-white text-xs"
-                    >
-                      Add Stock
-                    </button>
-                  </td>
-                  <td className="py-2">
-                    <Link className="text-blue-600 underline" to={`${basePath}/store-operator/item/${item.id}`}>
-                      Open
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mt-4 bg-white rounded-lg border p-5">
-          <h2 className="text-lg font-semibold text-gray-900">Low Stock Alerts</h2>
-          {lowStockItems.length === 0 ? (
-            <p className="text-sm text-gray-500 mt-2">No low stock alerts.</p>
-          ) : (
-            <ul className="mt-2 text-sm text-gray-700 space-y-1">
+    <StorePageShell>
+      <StorePageHeader
+        title="Store Operator Inventory"
+        description="View stock, perform quick stock additions, and navigate to store actions."
+        actions={[
+          <Button key="request" asChild><Link to={`${basePath}/store-operator/purchase-requests`}>Create Purchase Request</Link></Button>,
+          <Button key="approved" asChild variant="secondary"><Link to={`${basePath}/store-operator/approved-requests`}>Approved Requests</Link></Button>,
+          <Button key="receipts" asChild variant="outline"><Link to={`${basePath}/store-operator/purchases`}>Purchase Receipts</Link></Button>,
+          <Button key="issue" asChild variant="outline"><Link to={`${basePath}/store-operator/issue`}>Issue Items</Link></Button>,
+          <Button key="adjustments" asChild variant="outline"><Link to={`${basePath}/store-operator/adjustments`}>Stock Adjustments</Link></Button>,
+        ]}
+      />
+      <StoreStatGrid>
+        <StoreStatCard label="Items" value={items.length} />
+        <StoreStatCard label="Low Stock Alerts" value={lowStockItems.length} />
+        <StoreStatCard label="Recent Movements" value={movements.slice(0, 8).length} />
+      </StoreStatGrid>
+      {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
+      <StoreSection title="Current Stock">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Item</TableHead>
+              <TableHead>Unit</TableHead>
+              <TableHead className="text-center">Current Qty</TableHead>
+              <TableHead className="text-center">Min Qty</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="w-[220px]">Add Stock</TableHead>
+              <TableHead className="text-right">Detail</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => {
+              const isLow = Number(item.current_quantity) <= Number(item.min_quantity);
+              return (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell>{item.unit}</TableCell>
+                  <TableCell className="text-center font-medium">{item.current_quantity}</TableCell>
+                  <TableCell className="text-center">{item.min_quantity}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant={isLow ? 'warning' : 'secondary'}>{isLow ? 'Low' : 'OK'}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 shadow-sm">
+                      <input
+                        className="h-9 w-24 rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={stockInputs[item.id]?.quantity || ''}
+                        onChange={(e) => updateStockInput(item.id, { quantity: e.target.value })}
+                        placeholder="Qty"
+                      />
+                      <Button type="button" size="sm" variant="success" className="min-w-16" onClick={() => onAddStock(item)}>
+                        Add
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button asChild variant="outline" size="sm">
+                      <Link to={`${basePath}/store-operator/item/${item.id}`}>Open</Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </StoreSection>
+      <StoreSection title="Low Stock Alerts">
+        {lowStockItems.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No low stock alerts.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead>Current</TableHead>
+                <TableHead>Min</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {lowStockItems.map((item) => (
-                <li key={item.id}>
-                  {item.name}: {item.current_quantity} {item.unit} (min {item.min_quantity})
-                </li>
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell>{item.current_quantity} {item.unit}</TableCell>
+                  <TableCell>{item.min_quantity} {item.unit}</TableCell>
+                </TableRow>
               ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="mt-4 bg-white rounded-lg border p-5">
-          <h2 className="text-lg font-semibold text-gray-900">Stock Movement Log</h2>
-          <table className="w-full mt-3 text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="py-2">Type</th>
-                <th className="py-2">Item</th>
-                <th className="py-2">Qty</th>
-                <th className="py-2">Delta</th>
-                <th className="py-2">Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              {movements.slice(0, 8).map((row) => (
-                <tr key={row.id} className="border-b last:border-0">
-                  <td className="py-2">{row.movement_type}</td>
-                  <td className="py-2">{row.item_name}</td>
-                  <td className="py-2">{row.quantity}</td>
-                  <td className={`py-2 ${row.delta >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{row.delta}</td>
-                  <td className="py-2">{row.note || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex flex-wrap gap-3 mt-6">
-          <Link to={`${basePath}/store-operator/purchases`} className="px-4 py-2 bg-emerald-700 text-white rounded-md">
-            Purchase Receipts
-          </Link>
-          <Link to={`${basePath}/store-operator/issue`} className="px-4 py-2 bg-blue-600 text-white rounded-md">
-            Issue Items
-          </Link>
-          <Link to={`${basePath}/store-operator/adjustments`} className="px-4 py-2 bg-gray-900 text-white rounded-md">
-            Stock Adjustments
-          </Link>
-        </div>
-      </div>
-    </div>
+            </TableBody>
+          </Table>
+        )}
+      </StoreSection>
+      <StoreSection title="Recent Stock Movement Log">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Type</TableHead>
+              <TableHead>Item</TableHead>
+              <TableHead>Qty</TableHead>
+              <TableHead>Delta</TableHead>
+              <TableHead>Note</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {movements.slice(0, 8).map((row) => (
+              <TableRow key={row.id}>
+                <TableCell><Badge variant="outline">{row.movement_type}</Badge></TableCell>
+                <TableCell className="font-medium">{row.item_name}</TableCell>
+                <TableCell>{row.quantity}</TableCell>
+                <TableCell className={row.delta >= 0 ? 'text-emerald-600' : 'text-red-600'}>{row.delta}</TableCell>
+                <TableCell>{row.note || '-'}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </StoreSection>
+    </StorePageShell>
   );
 };
 

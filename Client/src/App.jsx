@@ -43,12 +43,18 @@ import StoreManagerPlanListPage from './pages/store-manager/StoreManagerPlanList
 import StoreManagerForecastDashboardPage from './pages/store-manager/StoreManagerForecastDashboardPage';
 import StoreManagerPurchaseSuggestionsPage from './pages/store-manager/StoreManagerPurchaseSuggestionsPage';
 import StoreManagerItemMasterPage from './pages/store-manager/StoreManagerItemMasterPage';
+import StoreManagerPurchaseRequestInboxPage from './pages/store-manager/StoreManagerPurchaseRequestInboxPage';
+import StoreManagerPurchaseRequestDetailPage from './pages/store-manager/StoreManagerPurchaseRequestDetailPage';
+import StoreManagerOffListPurchaseReviewPage from './pages/store-manager/StoreManagerOffListPurchaseReviewPage';
 import StoreOperatorInventoryPage from './pages/store-operator/StoreOperatorInventoryPage';
 import StoreOperatorIssuePage from './pages/store-operator/StoreOperatorIssuePage';
 import StoreOperatorAdjustmentsPage from './pages/store-operator/StoreOperatorAdjustmentsPage';
 import StoreOperatorItemDetailPage from './pages/store-operator/StoreOperatorItemDetailPage';
 import StoreOperatorPurchaseReceiptsPage from './pages/store-operator/StoreOperatorPurchaseReceiptsPage';
 import StoreOperatorMealReportPage from './pages/store-operator/StoreOperatorMealReportPage';
+import StoreOperatorPurchaseRequestPage from './pages/store-operator/StoreOperatorPurchaseRequestPage';
+import StoreOperatorApprovedRequestsPage from './pages/store-operator/StoreOperatorApprovedRequestsPage';
+import StoreOperatorPurchaseComparisonPage from './pages/store-operator/StoreOperatorPurchaseComparisonPage';
 import StoreModuleLayout from './pages/store-common/StoreModuleLayout';
 import ManagementDashboardPage from './pages/ManagementDashboardPage';
 import FinancialDashboardPage from './pages/FinancialDashboardPage';
@@ -265,7 +271,13 @@ const App = () => {
                 <Route path="store-manager/forecast" element={<StoreManagerForecastDashboardPage />} />
                 <Route path="store-manager/purchase-suggestions" element={<StoreManagerPurchaseSuggestionsPage />} />
                 <Route path="store-manager/item-master" element={<StoreManagerItemMasterPage />} />
+                <Route path="store-manager/purchase-requests" element={<StoreManagerPurchaseRequestInboxPage />} />
+                <Route path="store-manager/purchase-requests/:requestId" element={<StoreManagerPurchaseRequestDetailPage />} />
+                <Route path="store-manager/off-list-review" element={<StoreManagerOffListPurchaseReviewPage />} />
                 <Route path="store-operator/inventory" element={<StoreOperatorInventoryPage />} />
+                <Route path="store-operator/purchase-requests" element={<StoreOperatorPurchaseRequestPage />} />
+                <Route path="store-operator/approved-requests" element={<StoreOperatorApprovedRequestsPage />} />
+                <Route path="store-operator/purchase-comparison" element={<StoreOperatorPurchaseComparisonPage />} />
                 <Route path="store-operator/issue" element={<StoreOperatorIssuePage />} />
                 <Route path="store-operator/adjustments" element={<StoreOperatorAdjustmentsPage />} />
                 <Route path="store-operator/item/:itemId" element={<StoreOperatorItemDetailPage />} />

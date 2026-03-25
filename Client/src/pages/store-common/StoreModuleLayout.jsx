@@ -2,9 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import useAuthStore from '../../stores/Zustand.store';
+import { useLogout } from '../../hooks/userHooks/useLogin';
 
 const managerLinks = [
   { to: 'store-manager/kitchen-dashboard', label: 'Manager Dashboard' },
+  { to: 'store-manager/purchase-requests', label: 'Purchase Request Inbox' },
+  { to: 'store-manager/off-list-review', label: 'Purchase Exception Review' },
   { to: 'store-manager/item-master', label: 'Item Master' },
   { to: 'store-manager/inventory', label: 'Inventory View' },
   { to: 'store-manager/stock-logs', label: 'Stock Logs' },
@@ -18,7 +21,10 @@ const managerLinks = [
 
 const operatorLinks = [
   { to: 'store-operator/inventory', label: 'Operator Inventory' },
+  { to: 'store-operator/purchase-requests', label: 'Create Purchase Request' },
+  { to: 'store-operator/approved-requests', label: 'Approved Requests' },
   { to: 'store-operator/purchases', label: 'Purchase Receipts' },
+  { to: 'store-operator/purchase-comparison', label: 'Purchase Comparison' },
   { to: 'store-operator/issue', label: 'Issue to Kitchen' },
   { to: 'store-operator/adjustments', label: 'Adjustments' },
   { to: 'store-operator/meal-report', label: 'Meal Report' }
@@ -33,6 +39,7 @@ const StoreModuleLayout = () => {
   const basePath = useCompanyBasePath();
   const { user } = useAuthStore();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const logoutMutation = useLogout();
 
   const roleString = String(user?.role || '').toUpperCase();
   const roles = (Array.isArray(user?.roles) ? user.roles : roleString ? [roleString] : []).map((r) =>
@@ -53,6 +60,11 @@ const StoreModuleLayout = () => {
     }
     return sections;
   }, [showManager, showOperator]);
+
+  const handleLogout = () => {
+    if (logoutMutation.isPending) return;
+    logoutMutation.mutate();
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -79,7 +91,6 @@ const StoreModuleLayout = () => {
           <aside className="relative h-full w-80 max-w-[85vw] bg-white border-r p-4 overflow-y-auto">
             <div className="mb-4">
               <h1 className="text-xl font-semibold text-gray-900">Kitchen Inventory</h1>
-              <p className="text-xs text-gray-500 mt-1">Company scope: {basePath}</p>
             </div>
             {navSections.map((section) => (
               <div key={`mobile-${section.title}`} className="mb-6">
@@ -100,6 +111,15 @@ const StoreModuleLayout = () => {
                 </div>
               </div>
             ))}
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={logoutMutation.isPending}
+              className="mt-4 w-full rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+            >
+              {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+            </button>
           </aside>
         </div>
       ) : null}
@@ -108,7 +128,6 @@ const StoreModuleLayout = () => {
       <aside className="hidden lg:block fixed left-0 top-0 h-screen w-72 bg-white border-r p-4 overflow-y-auto">
         <div className="mb-4">
           <h1 className="text-xl font-semibold text-gray-900">Kitchen Inventory</h1>
-          <p className="text-xs text-gray-500 mt-1">Company scope: {basePath}</p>
         </div>
 
         {navSections.map((section) => (
@@ -129,6 +148,15 @@ const StoreModuleLayout = () => {
             </div>
           </div>
         ))}
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={logoutMutation.isPending}
+          className="mt-4 w-full rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+        >
+          {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+        </button>
       </aside>
 
       <div className="lg:ml-72">

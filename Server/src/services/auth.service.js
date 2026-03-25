@@ -106,11 +106,16 @@ export const registerUser = async ({ email, password, phone, companyPath }) => {
     }
 };
 
-export const loginUser = async ({ identifier, password, companyPath }) => {
+export const loginUser = async ({ identifier, username, password, companyPath, userId }) => {
     try {
+        const loginIdentifier = String(identifier ?? username ?? '').trim();
+        const requestedUserId = String(userId ?? '').trim();
+        if (!loginIdentifier) {
+            throw new AppError('Username is required', 400);
+        }
         let auth = null;
-        if (validator.isEmail(identifier)) {
-            auth = await prisma.auth.findUnique({ where: { email: identifier } });
+        if (validator.isEmail(loginIdentifier)) {
+            auth = await prisma.auth.findUnique({ where: { email: loginIdentifier } });
         } else {
             // Phone login: scope by company when companyPath provided (same phone can exist in multiple companies)
             if (companyPath && String(companyPath).trim()) {
@@ -118,16 +123,16 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
                 if (company) {
                     auth = await prisma.auth.findFirst({
                         where: {
-                            phoneNumber: identifier,
+                            phoneNumber: loginIdentifier,
                             user: { companyId: company.id }
                         }
                     });
                 }
                 if (!auth) {
-                    auth = await prisma.auth.findFirst({ where: { phoneNumber: identifier } });
+                    auth = await prisma.auth.findFirst({ where: { phoneNumber: loginIdentifier } });
                 }
             } else {
-                auth = await prisma.auth.findFirst({ where: { phoneNumber: identifier } });
+                auth = await prisma.auth.findFirst({ where: { phoneNumber: loginIdentifier } });
             }
         }
 
@@ -165,6 +170,10 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
             throw new AppError('Your account is inactive. Please contact your administrator.', 403);
         }
 
+        if (requestedUserId && requestedUserId !== user.id) {
+            throw new AppError('Provided user_id does not match the authenticated user', 403);
+        }
+
         // Get all roles as comma-separated string for JWT token
         const allRoles = user.userRoles.map(role => role.name).join(',');
         // Get the primary role (first role or highest priority role)
@@ -180,6 +189,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         return {
             user: {
                 id: user.id,
+                user_id: user.id,
                 email: auth.email,
                 phone: auth.phoneNumber,
                 api_key: auth.apiKey,

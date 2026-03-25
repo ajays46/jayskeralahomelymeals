@@ -33,8 +33,14 @@ export const register = async (req, res, next) => {
 // Login user (companyPath from frontend for phone login when same phone in multiple companies)
 export const login = async (req, res, next) => {
   try {
-    const { identifier, password, companyPath } = req.body;
-    const userData = await loginUser({ identifier, password, companyPath });
+    const { identifier, username, password, companyPath, user_id: userId, userId: camelUserId } = req.body;
+    const userData = await loginUser({
+      identifier,
+      username,
+      password,
+      companyPath,
+      userId: userId ?? camelUserId
+    });
 
     const { accessToken, refreshToken } = userData.token;
 
@@ -50,7 +56,7 @@ export const login = async (req, res, next) => {
 
   } catch (error) {
     logSecurityEvent('login_failure', null, req.ip || req.connection?.remoteAddress, {
-      identifier: req.body?.identifier,
+      identifier: req.body?.identifier ?? req.body?.username,
       reason: error.message
     });
     next(error);

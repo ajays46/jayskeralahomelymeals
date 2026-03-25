@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useKitchenMealReportApi } from '../../hooks/adminHook/kitchenStoreHook';
+import { Button } from '@/components/ui/button';
+import { StorePageHeader, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 
 const defaultDate = new Date().toISOString().slice(0, 10);
 
@@ -70,15 +72,13 @@ const StoreOperatorMealReportPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto space-y-4">
-        <div className="bg-white rounded-lg border p-6">
-          <h1 className="text-2xl font-bold text-gray-900">Meal Report</h1>
-          <p className="text-gray-600 mt-2">
-            Loads operator meal report from <code>GET /api/kitchen-store/meal-report?date=YYYY-MM-DD</code>.
-          </p>
-
-          <form onSubmit={onLoadReport} className="mt-5 flex flex-wrap items-end gap-3">
+    <StorePageShell>
+      <StorePageHeader
+        title="Meal Report"
+        description="Loads operator meal report from GET /api/kitchen-store/meal-report?date=YYYY-MM-DD."
+      />
+      <StoreSection title="Load Report">
+        <form onSubmit={onLoadReport} className="flex flex-wrap items-end gap-3">
             <div>
               <label className="text-sm text-gray-600">Report date</label>
               <input
@@ -89,13 +89,9 @@ const StoreOperatorMealReportPage = () => {
                 required
               />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 rounded-md text-white bg-blue-600 disabled:opacity-60"
-            >
+            <Button type="submit" disabled={loading}>
               {loading ? 'Loading...' : 'Load Report'}
-            </button>
+            </Button>
           </form>
 
           {error ? (
@@ -103,12 +99,16 @@ const StoreOperatorMealReportPage = () => {
               {error}
             </div>
           ) : null}
-        </div>
+        </StoreSection>
 
         {report ? (
-          <div className="bg-white rounded-lg border p-6 space-y-5">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Formatted Report</h2>
+          <>
+            <StoreStatGrid>
+              <StoreStatCard label="Sessions" value={sessions.length} />
+              <StoreStatCard label="Totals Keys" value={report.totals ? Object.keys(report.totals).length : 0} />
+              <StoreStatCard label="Report Date" value={date} />
+            </StoreStatGrid>
+            <StoreSection title="Formatted Report">
               <div className="mt-2 border rounded-md bg-gray-50 p-4">
                 {report.text_report ? (
                   <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">
@@ -118,10 +118,9 @@ const StoreOperatorMealReportPage = () => {
                   <p className="text-sm text-gray-500">No text_report received. Showing structured data below.</p>
                 )}
               </div>
-            </div>
+            </StoreSection>
 
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Session Breakdown</h2>
+            <StoreSection title="Session Breakdown">
               {sessions.length === 0 ? (
                 <p className="mt-2 text-sm text-gray-500">No session data available for this date.</p>
               ) : (
@@ -141,10 +140,9 @@ const StoreOperatorMealReportPage = () => {
                   ))}
                 </div>
               )}
-            </div>
+            </StoreSection>
 
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Totals</h2>
+            <StoreSection title="Totals">
               {report.totals && Object.keys(report.totals).length > 0 ? (
                 <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
                   {Object.entries(report.totals).map(([key, value]) => (
@@ -157,11 +155,10 @@ const StoreOperatorMealReportPage = () => {
               ) : (
                 <p className="mt-2 text-sm text-gray-500">No totals returned.</p>
               )}
-            </div>
-          </div>
+            </StoreSection>
+          </>
         ) : null}
-      </div>
-    </div>
+    </StorePageShell>
   );
 };
 

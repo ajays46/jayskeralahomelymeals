@@ -1,6 +1,8 @@
 import React from 'react';
 import { useState } from 'react';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
+import { Button } from '@/components/ui/button';
+import { StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 
 const StoreOperatorAdjustmentsPage = () => {
   const { items, removeStock, expireStock } = useKitchenInventoryMock();
@@ -19,14 +21,13 @@ const StoreOperatorAdjustmentsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto bg-white border rounded-lg p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Stock Adjustments</h1>
-        <p className="text-gray-600 mt-2">
-          Record wastage, damage, and manual corrections as adjustments.
-        </p>
-
-        <form onSubmit={onSubmit} className="mt-6 border rounded-md p-4 bg-gray-50 space-y-3">
+    <StorePageShell>
+      <StorePageHeader
+        title="Stock Adjustments"
+        description="Record wastage, damage, and manual corrections as stock adjustments."
+      />
+      <StoreSection title="Adjustment Form">
+        <form onSubmit={onSubmit} className="rounded-md border bg-gray-50 p-4 space-y-3">
           <div>
             <label className="text-sm text-gray-600">Item</label>
             <select
@@ -70,9 +71,9 @@ const StoreOperatorAdjustmentsPage = () => {
               placeholder="Wastage / damage reason"
             />
           </div>
-          <button type="submit" className="px-4 py-2 rounded-md text-white bg-blue-600">
+          <Button type="submit">
             Save Adjustment
-          </button>
+          </Button>
         </form>
 
         {done && (
@@ -80,8 +81,8 @@ const StoreOperatorAdjustmentsPage = () => {
             {movementType} movement recorded successfully in `inventory_stock_movements`.
           </div>
         )}
-      </div>
-    </div>
+      </StoreSection>
+    </StorePageShell>
   );
 };
 

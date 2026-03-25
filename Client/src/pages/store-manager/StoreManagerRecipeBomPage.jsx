@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useKitchenInventoryMock, useKitchenRecipeMock } from '../../hooks/adminHook/kitchenStoreHook';
 import api from '../../api/axios';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 
 const StoreManagerRecipeBomPage = () => {
   const { items } = useKitchenInventoryMock();
@@ -54,12 +57,13 @@ const StoreManagerRecipeBomPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto bg-white rounded-lg border p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Recipe / BOM</h1>
-        <p className="text-gray-600 mt-2">Table source: `kitchen_recipe_lines`</p>
-
-        <form onSubmit={onAdd} className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-4">
+    <StorePageShell>
+      <StorePageHeader
+        title="Recipe / BOM"
+        description="Map menu items to inventory ingredients and quantity-per-unit rules."
+      />
+      <StoreSection title="Add Recipe Line">
+        <form onSubmit={onAdd} className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <select
             className="border rounded px-3 py-2"
             value={menuItemId}
@@ -78,35 +82,36 @@ const StoreManagerRecipeBomPage = () => {
           </select>
           <input className="border rounded px-3 py-2" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Qty per unit" />
           <input className="border rounded px-3 py-2" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="Unit" />
-          <button className="bg-blue-600 text-white rounded px-3 py-2" type="submit">Add Line</button>
+          <Button className="md:self-end" type="submit">Add Line</Button>
         </form>
-
-        <table className="w-full mt-4 text-sm">
-          <thead>
-            <tr className="text-left text-gray-500 border-b">
-              <th className="py-2">Menu</th>
-              <th className="py-2">Item</th>
-              <th className="py-2">Qty / Unit</th>
-              <th className="py-2">Action</th>
-            </tr>
-          </thead>
-          <tbody>
+      </StoreSection>
+      <StoreSection title="Recipe Lines">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Menu</TableHead>
+              <TableHead>Item</TableHead>
+              <TableHead>Qty / Unit</TableHead>
+              <TableHead className="text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {recipeLines.map((row) => (
-              <tr key={row.id} className="border-b last:border-0">
-                <td className="py-2">{row.menu_item_name}</td>
-                <td className="py-2">{row.inventory_item_name}</td>
-                <td className="py-2">{row.quantity_per_unit} {row.unit}</td>
-                <td className="py-2">
-                  <button className="text-red-600 underline" type="button" onClick={() => deleteRecipeLine(row.id)}>
+              <TableRow key={row.id}>
+                <TableCell className="font-medium">{row.menu_item_name}</TableCell>
+                <TableCell>{row.inventory_item_name}</TableCell>
+                <TableCell>{row.quantity_per_unit} {row.unit}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="link" type="button" onClick={() => deleteRecipeLine(row.id)}>
                     Delete
-                  </button>
-                </td>
-              </tr>
+                  </Button>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          </TableBody>
+        </Table>
+      </StoreSection>
+    </StorePageShell>
   );
 };
 

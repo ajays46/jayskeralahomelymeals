@@ -1,41 +1,44 @@
 import React from 'react';
 import { useKitchenPurchaseSuggestionsMock } from '../../hooks/adminHook/kitchenStoreHook';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 
 const StoreManagerPurchaseSuggestionsPage = () => {
   const { suggestions } = useKitchenPurchaseSuggestionsMock();
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto bg-white rounded-lg border p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Purchase Suggestions</h1>
-        <p className="text-gray-600 mt-2">Table source: `inventory_purchase_recommendations`</p>
-
-        <table className="w-full mt-4 text-sm">
-          <thead>
-            <tr className="text-left text-gray-500 border-b">
-              <th className="py-2">Date</th>
-              <th className="py-2">Item</th>
-              <th className="py-2">Forecast Qty</th>
-              <th className="py-2">Current Qty</th>
-              <th className="py-2">Safety Buffer</th>
-              <th className="py-2">Recommended Buy</th>
-            </tr>
-          </thead>
-          <tbody>
+    <StorePageShell>
+      <StorePageHeader
+        title="Purchase Suggestions"
+        description="Forecast-based buying recommendations for kitchen inventory."
+      />
+      <StoreSection title="Recommendations">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Item</TableHead>
+              <TableHead>Forecast Qty</TableHead>
+              <TableHead>Current Qty</TableHead>
+              <TableHead>Safety Buffer</TableHead>
+              <TableHead>Recommended Buy</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {suggestions.map((row, idx) => (
-              <tr key={`${row.item}-${idx}`} className="border-b last:border-0">
-                <td className="py-2">{row.forecast_date}</td>
-                <td className="py-2">{row.item}</td>
-                <td className="py-2">{row.forecast_quantity}</td>
-                <td className="py-2">{row.current_quantity}</td>
-                <td className="py-2">{row.safety_buffer}</td>
-                <td className="py-2 font-semibold">{row.recommended_purchase_quantity}</td>
-              </tr>
+              <TableRow key={`${row.item}-${idx}`}>
+                <TableCell>{row.forecast_date || '-'}</TableCell>
+                <TableCell className="font-medium">{row.item}</TableCell>
+                <TableCell>{row.forecast_quantity}</TableCell>
+                <TableCell>{row.current_quantity}</TableCell>
+                <TableCell>{row.safety_buffer}</TableCell>
+                <TableCell className="font-semibold">{row.recommended_purchase_quantity}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          </TableBody>
+        </Table>
+      </StoreSection>
+    </StorePageShell>
   );
 };
 

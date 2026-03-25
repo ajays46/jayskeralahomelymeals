@@ -17,6 +17,12 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   config => {
+    // multipart/form-data must set its own boundary; the default JSON Content-Type breaks file uploads (multer sees no file).
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+      delete config.headers['content-type'];
+    }
+
     const store = useAuthStore.getState();
     const accessToken = store.accessToken;
 

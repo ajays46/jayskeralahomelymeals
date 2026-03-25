@@ -275,6 +275,283 @@ export const listPurchaseReceiptLinesService = async (receiptId, query = {}, com
   }
 };
 
+// v2 purchase requests
+export const createPurchaseRequestService = async (body, companyId) => {
+  try {
+    console.log('createPurchaseRequestService', body);
+    const response = await apiClient.post('/v2/purchase-requests', body || {}, withCompanyId(companyId));
+    logKitchenSuccess('createPurchaseRequest', { endpoint: '/v2/purchase-requests', companyId: companyId || null });
+    return response.data;
+  } catch (error) {
+    logKitchenError('createPurchaseRequest', error, { endpoint: '/v2/purchase-requests', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const addPurchaseRequestLineService = async (requestId, body, companyId) => {
+  try {
+    const response = await apiClient.post(
+      `/v2/purchase-requests/${requestId}/lines`,
+      body || {},
+      withCompanyId(companyId)
+    );
+    logKitchenSuccess('addPurchaseRequestLine', {
+      endpoint: '/v2/purchase-requests/:request_id/lines',
+      companyId: companyId || null,
+      requestId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('addPurchaseRequestLine', error, {
+      endpoint: '/v2/purchase-requests/:request_id/lines',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const submitPurchaseRequestService = async (requestId, body, companyId) => {
+  try {
+    const response = await apiClient.post(
+      `/v2/purchase-requests/${requestId}/submit`,
+      body || {},
+      withCompanyId(companyId)
+    );
+    logKitchenSuccess('submitPurchaseRequest', {
+      endpoint: '/v2/purchase-requests/:request_id/submit',
+      companyId: companyId || null,
+      requestId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('submitPurchaseRequest', error, {
+      endpoint: '/v2/purchase-requests/:request_id/submit',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listPurchaseRequestsService = async (query = {}, companyId) => {
+  try {
+    const response = await apiClient.get('/v2/purchase-requests', withCompanyId(companyId, { params: query }));
+    logKitchenSuccess('listPurchaseRequests', { endpoint: '/v2/purchase-requests', companyId: companyId || null });
+    return response.data;
+  } catch (error) {
+    logKitchenError('listPurchaseRequests', error, { endpoint: '/v2/purchase-requests', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getPurchaseRequestService = async (requestId, companyId) => {
+  try {
+    const response = await apiClient.get(`/v2/purchase-requests/${requestId}`, withCompanyId(companyId));
+    logKitchenSuccess('getPurchaseRequest', {
+      endpoint: '/v2/purchase-requests/:request_id',
+      companyId: companyId || null,
+      requestId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('getPurchaseRequest', error, {
+      endpoint: '/v2/purchase-requests/:request_id',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const resolvePurchaseRequestLineItemService = async (requestId, lineId, body, companyId) => {
+  try {
+    const response = await apiClient.post(
+      `/v2/purchase-requests/${requestId}/lines/${lineId}/resolve-item`,
+      body || {},
+      withCompanyId(companyId)
+    );
+    logKitchenSuccess('resolvePurchaseRequestLineItem', {
+      endpoint: '/v2/purchase-requests/:request_id/lines/:line_id/resolve-item',
+      companyId: companyId || null,
+      requestId,
+      lineId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('resolvePurchaseRequestLineItem', error, {
+      endpoint: '/v2/purchase-requests/:request_id/lines/:line_id/resolve-item',
+      companyId: companyId || null,
+      requestId,
+      lineId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const approvePurchaseRequestService = async (requestId, body, companyId) => {
+  try {
+    const response = await apiClient.post(
+      `/v2/purchase-requests/${requestId}/approve`,
+      body || {},
+      withCompanyId(companyId)
+    );
+    logKitchenSuccess('approvePurchaseRequest', {
+      endpoint: '/v2/purchase-requests/:request_id/approve',
+      companyId: companyId || null,
+      requestId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('approvePurchaseRequest', error, {
+      endpoint: '/v2/purchase-requests/:request_id/approve',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const rejectPurchaseRequestService = async (requestId, body, companyId) => {
+  try {
+    const response = await apiClient.post(
+      `/v2/purchase-requests/${requestId}/reject`,
+      body || {},
+      withCompanyId(companyId)
+    );
+    logKitchenSuccess('rejectPurchaseRequest', {
+      endpoint: '/v2/purchase-requests/:request_id/reject',
+      companyId: companyId || null,
+      requestId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('rejectPurchaseRequest', error, {
+      endpoint: '/v2/purchase-requests/:request_id/reject',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listApprovedPurchaseRequestLinesService = async (requestId, companyId) => {
+  try {
+    const response = await apiClient.get(
+      `/v2/purchase-requests/${requestId}/approved-lines`,
+      withCompanyId(companyId)
+    );
+    logKitchenSuccess('listApprovedPurchaseRequestLines', {
+      endpoint: '/v2/purchase-requests/:request_id/approved-lines',
+      companyId: companyId || null,
+      requestId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('listApprovedPurchaseRequestLines', error, {
+      endpoint: '/v2/purchase-requests/:request_id/approved-lines',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const downloadApprovedPurchaseRequestLinesTxtService = async (requestId, companyId) => {
+  try {
+    const response = await apiClient.get(
+      `/v2/purchase-requests/${requestId}/approved-lines.txt`,
+      withCompanyId(companyId, { responseType: 'arraybuffer' })
+    );
+    logKitchenSuccess('downloadApprovedPurchaseRequestLinesTxt', {
+      endpoint: '/v2/purchase-requests/:request_id/approved-lines.txt',
+      companyId: companyId || null,
+      requestId
+    });
+    return {
+      data: response.data,
+      headers: {
+        contentType: response.headers['content-type'],
+        contentDisposition: response.headers['content-disposition']
+      }
+    };
+  } catch (error) {
+    logKitchenError('downloadApprovedPurchaseRequestLinesTxt', error, {
+      endpoint: '/v2/purchase-requests/:request_id/approved-lines.txt',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getPurchaseRequestComparisonService = async (requestId, companyId) => {
+  try {
+    const response = await apiClient.get(
+      `/v2/purchase-requests/${requestId}/purchase-comparison`,
+      withCompanyId(companyId)
+    );
+    logKitchenSuccess('getPurchaseRequestComparison', {
+      endpoint: '/v2/purchase-requests/:request_id/purchase-comparison',
+      companyId: companyId || null,
+      requestId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('getPurchaseRequestComparison', error, {
+      endpoint: '/v2/purchase-requests/:request_id/purchase-comparison',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listOffListPurchaseReviewService = async (query = {}, companyId) => {
+  try {
+    const response = await apiClient.get(
+      '/v2/purchases/off-list-review',
+      withCompanyId(companyId, { params: query })
+    );
+    logKitchenSuccess('listOffListPurchaseReview', {
+      endpoint: '/v2/purchases/off-list-review',
+      companyId: companyId || null
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('listOffListPurchaseReview', error, {
+      endpoint: '/v2/purchases/off-list-review',
+      companyId: companyId || null
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const reviewPurchaseReceiptLineService = async (receiptId, lineId, body, companyId) => {
+  try {
+    const response = await apiClient.post(
+      `/v2/purchases/receipts/${receiptId}/lines/${lineId}/manager-review`,
+      body || {},
+      withCompanyId(companyId)
+    );
+    logKitchenSuccess('reviewPurchaseReceiptLine', {
+      endpoint: '/v2/purchases/receipts/:receipt_id/lines/:line_id/manager-review',
+      companyId: companyId || null,
+      receiptId,
+      lineId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('reviewPurchaseReceiptLine', error, {
+      endpoint: '/v2/purchases/receipts/:receipt_id/lines/:line_id/manager-review',
+      companyId: companyId || null,
+      receiptId,
+      lineId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
 // v2 forecasts + recommendations
 export const listPurchaseRecommendationsService = async (query = {}, companyId) => {
   try {
