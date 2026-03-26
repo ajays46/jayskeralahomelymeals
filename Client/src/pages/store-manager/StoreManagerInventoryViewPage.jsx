@@ -23,43 +23,45 @@ const StoreManagerInventoryViewPage = () => {
         <StoreStatCard label="Units Tracked" value={new Set(items.map((item) => item.unit)).size} />
       </StoreStatGrid>
       <StoreSection title="Inventory Table" description="Live inventory item list.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Current</TableHead>
-              <TableHead>Min</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Detail</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((item) => {
-              const isLow = Number(item.current_quantity) <= Number(item.min_quantity);
-              return (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell>{item.category || '-'}</TableCell>
-                  <TableCell>{item.unit}</TableCell>
-                  <TableCell>{item.current_quantity}</TableCell>
-                  <TableCell>{item.min_quantity}</TableCell>
-                  <TableCell>
-                    <Badge variant={isLow ? 'warning' : 'secondary'}>
-                      {isLow ? 'Low stock' : 'Healthy'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="outline" size="sm">
-                      <Link to={`${basePath}/store-operator/item/${item.id}`}>View Timeline</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <div className="max-h-[22rem] overflow-y-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Unit</TableHead>
+                <TableHead>Current</TableHead>
+                <TableHead>Min</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Detail</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => {
+                const isLow = Number(item.current_quantity) <= Number(item.min_quantity);
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>{item.category || '-'}</TableCell>
+                    <TableCell>{item.unit}</TableCell>
+                    <TableCell>{item.current_quantity}</TableCell>
+                    <TableCell>{item.min_quantity}</TableCell>
+                    <TableCell>
+                      <Badge variant={isLow ? 'warning' : 'secondary'}>
+                        {isLow ? 'Low stock' : 'Healthy'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`${basePath}/store-operator/item/${item.id}`}>View Timeline</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </StoreSection>
     </StorePageShell>
   );

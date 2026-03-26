@@ -46,6 +46,7 @@ import StoreManagerItemMasterPage from './pages/store-manager/StoreManagerItemMa
 import StoreManagerPurchaseRequestInboxPage from './pages/store-manager/StoreManagerPurchaseRequestInboxPage';
 import StoreManagerPurchaseRequestDetailPage from './pages/store-manager/StoreManagerPurchaseRequestDetailPage';
 import StoreManagerOffListPurchaseReviewPage from './pages/store-manager/StoreManagerOffListPurchaseReviewPage';
+import StoreManagerPurchaseReceiptsPage from './pages/store-manager/StoreManagerPurchaseReceiptsPage';
 import StoreOperatorInventoryPage from './pages/store-operator/StoreOperatorInventoryPage';
 import StoreOperatorIssuePage from './pages/store-operator/StoreOperatorIssuePage';
 import StoreOperatorAdjustmentsPage from './pages/store-operator/StoreOperatorAdjustmentsPage';
@@ -273,6 +274,7 @@ const App = () => {
                 <Route path="store-manager/item-master" element={<StoreManagerItemMasterPage />} />
                 <Route path="store-manager/purchase-requests" element={<StoreManagerPurchaseRequestInboxPage />} />
                 <Route path="store-manager/purchase-requests/:requestId" element={<StoreManagerPurchaseRequestDetailPage />} />
+                <Route path="store-manager/purchase-receipts" element={<StoreManagerPurchaseReceiptsPage />} />
                 <Route path="store-manager/off-list-review" element={<StoreManagerOffListPurchaseReviewPage />} />
                 <Route path="store-operator/inventory" element={<StoreOperatorInventoryPage />} />
                 <Route path="store-operator/purchase-requests" element={<StoreOperatorPurchaseRequestPage />} />

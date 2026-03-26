@@ -63,9 +63,12 @@ const StoreOperatorInventoryPage = () => {
       </StoreStatGrid>
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
       <StoreSection title="Current Stock">
-        <Table>
-          <TableHeader>
-            <TableRow>
+        <Table
+          className="border-separate border-spacing-0"
+          wrapperClassName="relative w-full max-h-[min(70vh,calc(2.5rem_+_6_*_3.75rem))] overflow-auto rounded-lg border border-slate-200"
+        >
+          <TableHeader className="[&_tr]:border-b [&_tr]:hover:bg-transparent [&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:border-b [&_th]:border-slate-200 [&_th]:bg-white [&_th]:shadow-[0_1px_0_0_rgb(226,232,240)]">
+            <TableRow className="hover:bg-transparent">
               <TableHead>Item</TableHead>
               <TableHead>Unit</TableHead>
               <TableHead className="text-center">Current Qty</TableHead>
@@ -118,49 +121,53 @@ const StoreOperatorInventoryPage = () => {
         {lowStockItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">No low stock alerts.</p>
         ) : (
+          <div className="max-h-[22rem] overflow-y-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Current</TableHead>
+                  <TableHead>Min</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lowStockItems.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>{item.current_quantity} {item.unit}</TableCell>
+                    <TableCell>{item.min_quantity} {item.unit}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </StoreSection>
+      <StoreSection title="Recent Stock Movement Log">
+        <div className="max-h-[22rem] overflow-y-auto rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Type</TableHead>
                 <TableHead>Item</TableHead>
-                <TableHead>Current</TableHead>
-                <TableHead>Min</TableHead>
+                <TableHead>Qty</TableHead>
+                <TableHead>Delta</TableHead>
+                <TableHead>Note</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {lowStockItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell>{item.current_quantity} {item.unit}</TableCell>
-                  <TableCell>{item.min_quantity} {item.unit}</TableCell>
+              {movements.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell><Badge variant="outline">{row.movement_type}</Badge></TableCell>
+                  <TableCell className="font-medium">{row.item_name}</TableCell>
+                  <TableCell>{row.quantity}</TableCell>
+                  <TableCell className={row.delta >= 0 ? 'text-emerald-600' : 'text-red-600'}>{row.delta}</TableCell>
+                  <TableCell>{row.note || '-'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        )}
-      </StoreSection>
-      <StoreSection title="Recent Stock Movement Log">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Type</TableHead>
-              <TableHead>Item</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Delta</TableHead>
-              <TableHead>Note</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {movements.slice(0, 8).map((row) => (
-              <TableRow key={row.id}>
-                <TableCell><Badge variant="outline">{row.movement_type}</Badge></TableCell>
-                <TableCell className="font-medium">{row.item_name}</TableCell>
-                <TableCell>{row.quantity}</TableCell>
-                <TableCell className={row.delta >= 0 ? 'text-emerald-600' : 'text-red-600'}>{row.delta}</TableCell>
-                <TableCell>{row.note || '-'}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        </div>
       </StoreSection>
     </StorePageShell>
   );

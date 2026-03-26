@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCompanyBasePath } from '../../context/TenantContext';
-import { useKitchenPurchaseRequestOperatorApi } from '../../hooks/adminHook/kitchenStoreHook';
+import { formatKitchenDateTime, useKitchenPurchaseRequestOperatorApi } from '../../hooks/adminHook/kitchenStoreHook';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,7 +18,7 @@ const StoreOperatorApprovedRequestsPage = () => {
     listApprovedRequests,
     fetchApprovedLines,
     fetchRequestDetail,
-    downloadApprovedLinesTxt
+    downloadApprovedLinesPdf
   } = useKitchenPurchaseRequestOperatorApi();
   const [selectedRequestId, setSelectedRequestId] = useState('');
   const [status, setStatus] = useState('');
@@ -52,7 +52,7 @@ const StoreOperatorApprovedRequestsPage = () => {
   const onDownload = async () => {
     if (!selectedRequestId) return;
     setStatus('');
-    const result = await downloadApprovedLinesTxt(selectedRequestId);
+    const result = await downloadApprovedLinesPdf(selectedRequestId);
     if (!result.ok) {
       setStatus(result.message || 'Download failed.');
     }
@@ -62,7 +62,7 @@ const StoreOperatorApprovedRequestsPage = () => {
     <StorePageShell>
       <StorePageHeader
         title="Approved Purchase Requests"
-        description="Review approved lines and download the TXT file for purchase action."
+        description="Review approved lines and download the PDF file for purchase action."
         actions={[
           <Button key="create" asChild><Link to={`${basePath}/store-operator/purchase-requests`}>Create Request</Link></Button>,
           <Button key="refresh" type="button" variant="outline" onClick={listApprovedRequests} disabled={bootstrapLoading}>
@@ -77,52 +77,56 @@ const StoreOperatorApprovedRequestsPage = () => {
         {approvedRequests.length === 0 ? (
           <StoreNotice tone="amber">No approved requests found for this operator.</StoreNotice>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Approval Note</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Select</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {approvedRequests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell className="font-medium">{request.approval_note || '-'}</TableCell>
-                  <TableCell><Badge variant="success">{request.status}</Badge></TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={selectedRequestId === request.id ? 'default' : 'outline'}
-                      onClick={() => setSelectedRequestId(request.id)}
-                    >
-                      {selectedRequestId === request.id ? 'Selected' : 'View'}
-                    </Button>
-                  </TableCell>
+          <div className="max-h-[22rem] overflow-y-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Submitted at</TableHead>
+                  <TableHead>Approved at</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Select</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {approvedRequests.map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell className="font-medium">
+                      {request.submitted_at ? formatKitchenDateTime(request.submitted_at) : '-'}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {request.approved_at ? formatKitchenDateTime(request.approved_at) : '-'}
+                    </TableCell>
+                    <TableCell><Badge variant="success">{request.status}</Badge></TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={selectedRequestId === request.id ? 'default' : 'outline'}
+                        onClick={() => setSelectedRequestId(request.id)}
+                      >
+                        {selectedRequestId === request.id ? 'Selected' : 'View'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </StoreSection>
       <StoreSection
-        title="Approved Lines"
-        description={selectedRequest ? 'Approved request selected for purchase action' : 'Select an approved request'}
+        title="Approved"
+        description={selectedRequest ? '' : 'Select an approved request'}
         tone="sky"
         headerActions={
           <Button type="button" onClick={onDownload} disabled={!selectedRequestId || downloadLoading}>
-            {downloadLoading ? 'Downloading...' : 'Download Approved Items TXT'}
+            {downloadLoading ? 'Downloading...' : 'Download Approved Items PDF'}
           </Button>
         }
       >
-        {selectedRequest ? (
-          <div className="flex flex-wrap gap-2 text-sm">
-            <Badge variant="success">{selectedRequest.status}</Badge>
-            {selectedRequest.submitted_at ? <Badge variant="secondary">Submitted: {selectedRequest.submitted_at}</Badge> : null}
-            {selectedRequest.approved_at ? <Badge variant="secondary">Approved: {selectedRequest.approved_at}</Badge> : null}
-            {selectedRequest.requested_note ? <Badge variant="secondary">Operator note: {selectedRequest.requested_note}</Badge> : null}
-            {selectedRequest.approval_note ? <Badge variant="info">Approval note: {selectedRequest.approval_note}</Badge> : null}
+        {selectedRequest?.requested_note ? (
+          <div className="mb-3 flex flex-wrap gap-2 text-sm">
+            <Badge variant="secondary">Operator note: {selectedRequest.requested_note}</Badge>
           </div>
         ) : null}
         {!selectedRequestId ? (
@@ -159,7 +163,7 @@ const StoreOperatorApprovedRequestsPage = () => {
         )}
       </StoreSection>
       {selectedRequest ? (
-        <StoreSection title="Rejected Request Lines" tone="amber">
+        <StoreSection title="Rejected Request Items" tone="amber">
           {rejectedLines.length === 0 ? (
             <StoreNotice tone="sky">No rejected lines for this request.</StoreNotice>
           ) : (

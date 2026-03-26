@@ -640,6 +640,14 @@ export const useKitchenShoppingListMock = () => {
 const getApiErrorMessage = (error, fallback) =>
   error?.response?.data?.detail || error?.response?.data?.message || error?.message || fallback;
 
+/** ISO or date string → locale date + time for store purchase flows */
+export const formatKitchenDateTime = (value) => {
+  if (value == null || value === '') return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+};
+
 const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
   const inventoryItemId =
     raw?.inventory_item_id ?? raw?.item_id ?? raw?.id ?? raw?.inventoryItemId ?? raw?.inventoryId ?? '';
@@ -700,6 +708,7 @@ const normalizePurchaseRequestLine = (raw, index = 0) => ({
 
 const normalizePurchaseRequestHeader = (raw, index = 0) => {
   const lines = Array.isArray(raw?.lines) ? raw.lines.map((line, lineIndex) => normalizePurchaseRequestLine(line, lineIndex)) : [];
+  const requestedById = raw?.requested_by ? String(raw.requested_by) : '';
   return {
     id: String(raw?.id ?? raw?.request_id ?? raw?.purchase_request_id ?? `request-${index}`),
     status: raw?.status || 'DRAFT',
@@ -709,8 +718,9 @@ const normalizePurchaseRequestHeader = (raw, index = 0) => {
     submitted_at: raw?.submitted_at || raw?.updated_at || '',
     approved_at: raw?.approved_at || '',
     updated_at: raw?.updated_at || '',
+    requested_by_id: requestedById,
     operator_name:
-      raw?.operator_name || raw?.requested_by || raw?.requested_by_name || raw?.created_by_name || '',
+      raw?.operator_name || raw?.requested_by_name || raw?.created_by_name || '',
     manager_name: raw?.manager_name || raw?.approved_by_name || raw?.approved_by || '',
     total_lines: Number(raw?.total_lines ?? raw?.lines_count ?? lines.length ?? 0),
     approved_lines: Number(raw?.approved_lines ?? lines.filter((line) => line.status === 'APPROVED').length),
@@ -753,6 +763,7 @@ const normalizePurchaseComparisonRow = (raw, index = 0) => ({
   ),
   fulfillment_status: raw?.fulfillment_status || '',
   comparison_status: raw?.comparison_status || '',
+  manager_review_status: raw?.manager_review_status || '',
   manager_note: raw?.manager_note || '',
   operator_note: raw?.operator_note || ''
 });
@@ -956,7 +967,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     }
   }, []);
 
-  const downloadApprovedLinesTxt = useCallback(async (requestId) => {
+  const downloadApprovedLinesPdf = useCallback(async (requestId) => {
     setDownloadLoading(true);
     setError('');
     try {
@@ -965,9 +976,9 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
       });
       const filename = parseFilenameFromDisposition(
         res.headers?.['content-disposition'],
-        `approved-items-${requestId}.txt`
+        `approved-items-${requestId}.pdf`
       );
-      const blob = new Blob([res.data], { type: 'text/plain;charset=utf-8' });
+      const blob = new Blob([res.data], { type: res.headers?.['content-type'] || 'application/pdf' });
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -979,7 +990,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
       setDownloadLoading(false);
       return { ok: true };
     } catch (err) {
-      const message = getApiErrorMessage(err, 'Failed to download approved items TXT.');
+      const message = getApiErrorMessage(err, 'Failed to download approved items PDF.');
       setError(message);
       setDownloadLoading(false);
       return { ok: false, message };
@@ -1001,7 +1012,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     listApprovedRequests,
     fetchApprovedLines,
     fetchRequestDetail,
-    downloadApprovedLinesTxt
+    downloadApprovedLinesPdf
   };
 };
 
@@ -1088,6 +1099,24 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     }
   }, []);
 
+  const updateRequestLineManager = useCallback(async (requestId, lineId, payload) => {
+    setActionLoading(true);
+    setError('');
+    try {
+      const res = await api.post(
+        `/kitchen-store/v2/purchase-requests/${requestId}/lines/${lineId}/manager-update`,
+        payload
+      );
+      setActionLoading(false);
+      return { ok: true, data: res.data?.data || {} };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to update purchase request line.');
+      setError(message);
+      setActionLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
   const approveRequest = useCallback(async (requestId, payload) => {
     setActionLoading(true);
     setError('');
@@ -1129,6 +1158,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     getPurchaseRequestDetail,
     createInventoryItem,
     resolveRequestLineItem,
+    updateRequestLineManager,
     approveRequest,
     rejectRequest
   };
@@ -1136,41 +1166,53 @@ export const useKitchenPurchaseRequestManagerApi = () => {
 
 // v2: Purchase receipts (action-only hook; UI can be added later)
 export const useKitchenReceiptsApi = () => {
-  const createReceipt = async (payload) => {
+  const createReceipt = useCallback(async (payload) => {
     const body =
       payload && typeof payload === 'object'
         ? payload
         : { reference_invoice: payload };
     const res = await api.post('/kitchen-store/v2/purchases/receipts', body);
     return res.data?.data;
-  };
+  }, []);
 
-  const addReceiptLine = async (receipt_id, line) => {
+  const addReceiptLine = useCallback(async (receipt_id, line) => {
     // `line` should match the backend schema (purchased_qty, purchase_unit, conversion_to_base, line_total, purchase_date, note...)
     const res = await api.post(`/kitchen-store/v2/purchases/receipts/${receipt_id}/lines`, line);
     return res.data?.data;
-  };
+  }, []);
 
-  const listReceipts = async (from_date, to_date) => {
+  const listReceipts = useCallback(async (from_date, to_date) => {
     const res = await api.get('/kitchen-store/v2/purchases/receipts', {
       params: { from_date, to_date }
     });
     return res.data?.data;
-  };
+  }, []);
 
-  const listReceiptLines = async (receipt_id) => {
+  const listReceiptLines = useCallback(async (receipt_id) => {
     const res = await api.get(`/kitchen-store/v2/purchases/receipts/${receipt_id}/lines`);
     const raw = res.data?.data;
     const rows = Array.isArray(raw) ? raw : raw?.lines || raw?.items || [];
     return rows.map((row, index) => normalizePurchaseReceiptLine(row, index));
-  };
+  }, []);
 
-  const getPurchaseComparison = async (requestId) => {
+  const getPurchaseComparison = useCallback(async (requestId) => {
     const res = await api.get(`/kitchen-store/v2/purchase-requests/${requestId}/purchase-comparison`);
     const raw = res.data?.data;
-    const rows = Array.isArray(raw) ? raw : raw?.lines || raw?.items || [];
-    return rows.map((row, index) => normalizePurchaseComparisonRow(row, index));
-  };
+    const rows = Array.isArray(raw)
+      ? raw
+      : raw?.lines || raw?.items || raw?.comparison_lines || [];
+    const summary =
+      raw && typeof raw === 'object' && !Array.isArray(raw)
+        ? {
+            submitted_at: raw.submitted_at,
+            approved_at: raw.approved_at
+          }
+        : {};
+    return {
+      lines: rows.map((row, index) => normalizePurchaseComparisonRow(row, index)),
+      summary
+    };
+  }, []);
 
   return { createReceipt, addReceiptLine, listReceipts, listReceiptLines, getPurchaseComparison };
 };

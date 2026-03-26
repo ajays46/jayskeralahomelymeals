@@ -31,6 +31,7 @@ import {
   listPurchaseRequests,
   getPurchaseRequest,
   resolvePurchaseRequestLineItem,
+  updatePurchaseRequestLineManager,
   approvePurchaseRequest,
   rejectPurchaseRequest,
   listApprovedPurchaseRequestLines,
@@ -107,6 +108,11 @@ router.post(
   '/v2/purchase-requests/:request_id/lines/:line_id/resolve-item',
   checkRole('STORE_MANAGER'),
   resolvePurchaseRequestLineItem
+);
+router.post(
+  '/v2/purchase-requests/:request_id/lines/:line_id/manager-update',
+  checkRole('STORE_MANAGER'),
+  updatePurchaseRequestLineManager
 );
 router.post('/v2/purchase-requests/:request_id/approve', checkRole('STORE_MANAGER'), approvePurchaseRequest);
 router.post('/v2/purchase-requests/:request_id/reject', checkRole('STORE_MANAGER'), rejectPurchaseRequest);

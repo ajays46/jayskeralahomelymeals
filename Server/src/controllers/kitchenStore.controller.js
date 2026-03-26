@@ -23,6 +23,7 @@ import {
   listPurchaseRequestsService,
   getPurchaseRequestService,
   resolvePurchaseRequestLineItemService,
+  updatePurchaseRequestLineManagerService,
   approvePurchaseRequestService,
   rejectPurchaseRequestService,
   listApprovedPurchaseRequestLinesService,
@@ -40,6 +41,10 @@ import {
   createInventoryItemImageService
 } from '../services/inventoryItemImage.service.js';
 import AppError from '../utils/AppError.js';
+import {
+  enrichPurchaseRequestListPayload,
+  enrichSinglePurchaseRequestPayload
+} from '../utils/purchaseRequestEnrichment.js';
 
 const requireIdParam = (value, name) => {
   if (!value || typeof value !== 'string' || !value.trim()) {
@@ -56,9 +61,18 @@ const requirePositiveNumber = (value, name) => {
   return numeric;
 };
 
+/** users.id forwarded to kitchen inventory upstream (ACCESS_TOKEN mode). */
+const kitchenActorUserId = (req) =>
+  req.user?.userId ??
+  req.user?.id ??
+  req.user?.user_id ??
+  req.user?.sub ??
+  req.headers?.['x-user-id'] ??
+  null;
+
 export const healthCheck = async (req, res, next) => {
   try {
-    const result = await healthCheckService(req.companyId);
+    const result = await healthCheckService(req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, ...result });
   } catch (error) {
     next(error);
@@ -67,7 +81,7 @@ export const healthCheck = async (req, res, next) => {
 
 export const createItem = async (req, res, next) => {
   try {
-    const result = await createItemService(req.body, req.companyId);
+    const result = await createItemService(req.body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -76,7 +90,7 @@ export const createItem = async (req, res, next) => {
 
 export const listItems = async (req, res, next) => {
   try {
-    const result = await listItemsService(req.query, req.companyId);
+    const result = await listItemsService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -85,7 +99,7 @@ export const listItems = async (req, res, next) => {
 
 export const getItem = async (req, res, next) => {
   try {
-    const result = await getItemService(req.params.item_id, req.companyId);
+    const result = await getItemService(req.params.item_id, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -125,7 +139,7 @@ export const uploadItemImage = async (req, res, next) => {
       }
       sortOrderParsed = Math.trunc(n);
     }
-    const uploadedBy = req.user?.userId || req.user?.id || null;
+    const uploadedBy = kitchenActorUserId(req);
     const data = await createInventoryItemImageService({
       inventoryItemId: req.params.item_id,
       companyId: req.companyId,
@@ -142,7 +156,7 @@ export const uploadItemImage = async (req, res, next) => {
 
 export const listItemMovements = async (req, res, next) => {
   try {
-    const result = await listItemMovementsService(req.params.item_id, req.query, req.companyId);
+    const result = await listItemMovementsService(req.params.item_id, req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -151,7 +165,7 @@ export const listItemMovements = async (req, res, next) => {
 
 export const createItemMovement = async (req, res, next) => {
   try {
-    const result = await createItemMovementService(req.params.item_id, req.body, req.companyId);
+    const result = await createItemMovementService(req.params.item_id, req.body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -160,7 +174,7 @@ export const createItemMovement = async (req, res, next) => {
 
 export const getLowStockAlerts = async (req, res, next) => {
   try {
-    const result = await getLowStockAlertsService(req.query, req.companyId);
+    const result = await getLowStockAlertsService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -169,7 +183,7 @@ export const getLowStockAlerts = async (req, res, next) => {
 
 export const getShoppingList = async (req, res, next) => {
   try {
-    const result = await getShoppingListService(req.query, req.companyId);
+    const result = await getShoppingListService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -178,7 +192,7 @@ export const getShoppingList = async (req, res, next) => {
 
 export const upsertRecipeLine = async (req, res, next) => {
   try {
-    const result = await upsertRecipeLineService(req.body, req.companyId);
+    const result = await upsertRecipeLineService(req.body, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -187,7 +201,7 @@ export const upsertRecipeLine = async (req, res, next) => {
 
 export const listRecipeLines = async (req, res, next) => {
   try {
-    const result = await listRecipeLinesService(req.query, req.companyId);
+    const result = await listRecipeLinesService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -196,7 +210,7 @@ export const listRecipeLines = async (req, res, next) => {
 
 export const generatePlan = async (req, res, next) => {
   try {
-    const result = await generatePlanService(req.body, req.companyId);
+    const result = await generatePlanService(req.body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -205,7 +219,7 @@ export const generatePlan = async (req, res, next) => {
 
 export const getPlan = async (req, res, next) => {
   try {
-    const result = await getPlanService(req.params.plan_id, req.companyId);
+    const result = await getPlanService(req.params.plan_id, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -214,7 +228,7 @@ export const getPlan = async (req, res, next) => {
 
 export const approvePlan = async (req, res, next) => {
   try {
-    const result = await approvePlanService(req.params.plan_id, req.body, req.companyId);
+    const result = await approvePlanService(req.params.plan_id, req.body, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -223,7 +237,7 @@ export const approvePlan = async (req, res, next) => {
 
 export const issuePlan = async (req, res, next) => {
   try {
-    const result = await issuePlanService(req.params.plan_id, req.body, req.companyId);
+    const result = await issuePlanService(req.params.plan_id, req.body, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -232,7 +246,7 @@ export const issuePlan = async (req, res, next) => {
 
 export const createPurchaseReceipt = async (req, res, next) => {
   try {
-    const result = await createPurchaseReceiptService(req.body, req.companyId);
+    const result = await createPurchaseReceiptService(req.body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -241,7 +255,7 @@ export const createPurchaseReceipt = async (req, res, next) => {
 
 export const addPurchaseReceiptLine = async (req, res, next) => {
   try {
-    const result = await addPurchaseReceiptLineService(req.params.receipt_id, req.body, req.companyId);
+    const result = await addPurchaseReceiptLineService(req.params.receipt_id, req.body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -250,7 +264,7 @@ export const addPurchaseReceiptLine = async (req, res, next) => {
 
 export const listPurchaseReceipts = async (req, res, next) => {
   try {
-    const result = await listPurchaseReceiptsService(req.query, req.companyId);
+    const result = await listPurchaseReceiptsService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -259,7 +273,7 @@ export const listPurchaseReceipts = async (req, res, next) => {
 
 export const listPurchaseReceiptLines = async (req, res, next) => {
   try {
-    const result = await listPurchaseReceiptLinesService(req.params.receipt_id, req.query, req.companyId);
+    const result = await listPurchaseReceiptLinesService(req.params.receipt_id, req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -273,7 +287,7 @@ export const createPurchaseRequest = async (req, res, next) => {
     if (requestedNote != null && typeof requestedNote !== 'string') {
       throw new AppError('requested_note must be a string', 400);
     }
-    const result = await createPurchaseRequestService(req.body, req.companyId);
+    const result = await createPurchaseRequestService(req.body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -283,7 +297,6 @@ export const createPurchaseRequest = async (req, res, next) => {
 export const addPurchaseRequestLine = async (req, res, next) => {
   try {
     const requestId = requireIdParam(req.params.request_id, 'request_id');
-    console.log('addPurchaseRequestLine', req.body,req.params.request_id);
     const body = req.body || {};
     if (!body.requested_item_name || typeof body.requested_item_name !== 'string') {
       throw new AppError('requested_item_name is required', 400);
@@ -298,7 +311,7 @@ export const addPurchaseRequestLine = async (req, res, next) => {
     if (!body.is_new_item && (!body.inventory_item_id || typeof body.inventory_item_id !== 'string')) {
       throw new AppError('inventory_item_id is required for existing inventory lines', 400);
     }
-    const result = await addPurchaseRequestLineService(requestId, body, req.companyId);
+    const result = await addPurchaseRequestLineService(requestId, body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -308,7 +321,7 @@ export const addPurchaseRequestLine = async (req, res, next) => {
 export const submitPurchaseRequest = async (req, res, next) => {
   try {
     const requestId = requireIdParam(req.params.request_id, 'request_id');
-    const result = await submitPurchaseRequestService(requestId, req.body, req.companyId);
+    const result = await submitPurchaseRequestService(requestId, req.body, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -317,8 +330,9 @@ export const submitPurchaseRequest = async (req, res, next) => {
 
 export const listPurchaseRequests = async (req, res, next) => {
   try {
-    const result = await listPurchaseRequestsService(req.query, req.companyId);
-    res.status(200).json({ success: true, data: result });
+    const result = await listPurchaseRequestsService(req.query, req.companyId, kitchenActorUserId(req));
+    const enriched = await enrichPurchaseRequestListPayload(result, req.companyId);
+    res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     next(error);
   }
@@ -327,8 +341,9 @@ export const listPurchaseRequests = async (req, res, next) => {
 export const getPurchaseRequest = async (req, res, next) => {
   try {
     const requestId = requireIdParam(req.params.request_id, 'request_id');
-    const result = await getPurchaseRequestService(requestId, req.companyId);
-    res.status(200).json({ success: true, data: result });
+    const result = await getPurchaseRequestService(requestId, req.companyId, kitchenActorUserId(req));
+    const enriched = await enrichSinglePurchaseRequestPayload(result, req.companyId);
+    res.status(200).json({ success: true, data: enriched });
   } catch (error) {
     next(error);
   }
@@ -344,7 +359,24 @@ export const resolvePurchaseRequestLineItem = async (req, res, next) => {
     if (req.body?.manager_note != null && typeof req.body.manager_note !== 'string') {
       throw new AppError('manager_note must be a string', 400);
     }
-    const result = await resolvePurchaseRequestLineItemService(requestId, lineId, req.body, req.companyId);
+    const result = await resolvePurchaseRequestLineItemService(requestId, lineId, req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePurchaseRequestLineManager = async (req, res, next) => {
+  try {
+    const requestId = requireIdParam(req.params.request_id, 'request_id');
+    const lineId = requireIdParam(req.params.line_id, 'line_id');
+    if (req.body?.approved_quantity != null) {
+      requirePositiveNumber(req.body.approved_quantity, 'approved_quantity');
+    }
+    if (req.body?.manager_note != null && typeof req.body.manager_note !== 'string') {
+      throw new AppError('manager_note must be a string', 400);
+    }
+    const result = await updatePurchaseRequestLineManagerService(requestId, lineId, req.body, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -367,7 +399,7 @@ export const approvePurchaseRequest = async (req, res, next) => {
     ) {
       throw new AppError('line_manager_notes must be an object', 400);
     }
-    const result = await approvePurchaseRequestService(requestId, req.body, req.companyId);
+    const result = await approvePurchaseRequestService(requestId, req.body, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -380,7 +412,7 @@ export const rejectPurchaseRequest = async (req, res, next) => {
     if (req.body?.approval_note != null && typeof req.body.approval_note !== 'string') {
       throw new AppError('approval_note must be a string', 400);
     }
-    const result = await rejectPurchaseRequestService(requestId, req.body, req.companyId);
+    const result = await rejectPurchaseRequestService(requestId, req.body, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -390,7 +422,7 @@ export const rejectPurchaseRequest = async (req, res, next) => {
 export const listApprovedPurchaseRequestLines = async (req, res, next) => {
   try {
     const requestId = requireIdParam(req.params.request_id, 'request_id');
-    const result = await listApprovedPurchaseRequestLinesService(requestId, req.companyId);
+    const result = await listApprovedPurchaseRequestLinesService(requestId, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -400,7 +432,8 @@ export const listApprovedPurchaseRequestLines = async (req, res, next) => {
 export const downloadApprovedPurchaseRequestLinesTxt = async (req, res, next) => {
   try {
     const requestId = requireIdParam(req.params.request_id, 'request_id');
-    const result = await downloadApprovedPurchaseRequestLinesTxtService(requestId, req.companyId);
+    const result = await downloadApprovedPurchaseRequestLinesTxtService(requestId, req.companyId, kitchenActorUserId(req));
+    console.log('result', result);
     if (result?.headers?.contentType) {
       res.setHeader('Content-Type', result.headers.contentType);
     } else {
@@ -418,7 +451,7 @@ export const downloadApprovedPurchaseRequestLinesTxt = async (req, res, next) =>
 export const getPurchaseRequestComparison = async (req, res, next) => {
   try {
     const requestId = requireIdParam(req.params.request_id, 'request_id');
-    const result = await getPurchaseRequestComparisonService(requestId, req.companyId);
+    const result = await getPurchaseRequestComparisonService(requestId, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -427,7 +460,7 @@ export const getPurchaseRequestComparison = async (req, res, next) => {
 
 export const listOffListPurchaseReview = async (req, res, next) => {
   try {
-    const result = await listOffListPurchaseReviewService(req.query, req.companyId);
+    const result = await listOffListPurchaseReviewService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -444,7 +477,7 @@ export const reviewPurchaseReceiptLine = async (req, res, next) => {
     if (req.body?.manager_action_note != null && typeof req.body.manager_action_note !== 'string') {
       throw new AppError('manager_action_note must be a string', 400);
     }
-    const result = await reviewPurchaseReceiptLineService(receiptId, lineId, req.body, req.companyId);
+    const result = await reviewPurchaseReceiptLineService(receiptId, lineId, req.body, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -453,7 +486,7 @@ export const reviewPurchaseReceiptLine = async (req, res, next) => {
 
 export const listPurchaseRecommendations = async (req, res, next) => {
   try {
-    const result = await listPurchaseRecommendationsService(req.query, req.companyId);
+    const result = await listPurchaseRecommendationsService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -462,7 +495,7 @@ export const listPurchaseRecommendations = async (req, res, next) => {
 
 export const listInventoryForecasts = async (req, res, next) => {
   try {
-    const result = await listInventoryForecastsService(req.query, req.companyId);
+    const result = await listInventoryForecastsService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -471,7 +504,7 @@ export const listInventoryForecasts = async (req, res, next) => {
 
 export const listFinancialForecasts = async (req, res, next) => {
   try {
-    const result = await listFinancialForecastsService(req.query, req.companyId);
+    const result = await listFinancialForecastsService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -487,10 +520,13 @@ export const getMealReport = async (req, res, next) => {
       throw new AppError('Invalid or missing date query. Expected format: YYYY-MM-DD', 400);
     }
 
-    const result = await getMealReportService(query, req.companyId);
+    const result = await getMealReportService(query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
 };
+
+
+
 

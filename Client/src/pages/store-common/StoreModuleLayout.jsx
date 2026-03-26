@@ -7,8 +7,9 @@ import { useLogout } from '../../hooks/userHooks/useLogin';
 const managerLinks = [
   { to: 'store-manager/kitchen-dashboard', label: 'Manager Dashboard' },
   { to: 'store-manager/purchase-requests', label: 'Purchase Request Inbox' },
+  { to: 'store-manager/purchase-receipts', label: 'Purchase Receipts' },
   { to: 'store-manager/off-list-review', label: 'Purchase Exception Review' },
-  { to: 'store-manager/item-master', label: 'Item Master' },
+  { to: 'store-manager/item-master', label: 'Create inventory ' },
   { to: 'store-manager/inventory', label: 'Inventory View' },
   { to: 'store-manager/stock-logs', label: 'Stock Logs' },
   { to: 'store-manager/recipe-bom', label: 'Recipe / BOM' },

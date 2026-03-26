@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 import { useCompanyBasePath } from '../../context/TenantContext';
-import { useKitchenPurchaseRequestOperatorApi, useKitchenReceiptsApi } from '../../hooks/adminHook/kitchenStoreHook';
+import {
+  formatKitchenDateTime,
+  useKitchenPurchaseRequestOperatorApi,
+  useKitchenReceiptsApi
+} from '../../hooks/adminHook/kitchenStoreHook';
 
 const StoreOperatorPurchaseComparisonPage = () => {
   const basePath = useCompanyBasePath();
@@ -13,6 +17,7 @@ const StoreOperatorPurchaseComparisonPage = () => {
   const { getPurchaseComparison } = useKitchenReceiptsApi();
   const [selectedRequestId, setSelectedRequestId] = useState('');
   const [comparisonRows, setComparisonRows] = useState([]);
+  const [comparisonSummary, setComparisonSummary] = useState({});
   const [status, setStatus] = useState('');
 
   useEffect(() => {
@@ -29,9 +34,13 @@ const StoreOperatorPurchaseComparisonPage = () => {
     if (!selectedRequestId) return;
     setStatus('');
     getPurchaseComparison(selectedRequestId)
-      .then((rows) => setComparisonRows(rows))
+      .then((data) => {
+        setComparisonRows(data?.lines || []);
+        setComparisonSummary(data?.summary || {});
+      })
       .catch((err) => {
         setComparisonRows([]);
+        setComparisonSummary({});
         setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load purchase comparison.');
       });
   }, [getPurchaseComparison, selectedRequestId]);
@@ -40,6 +49,16 @@ const StoreOperatorPurchaseComparisonPage = () => {
     () => approvedRequests.find((request) => request.id === selectedRequestId) || null,
     [approvedRequests, selectedRequestId]
   );
+
+  const submittedLabel = useMemo(() => {
+    const raw = comparisonSummary.submitted_at || selectedRequest?.submitted_at;
+    return raw ? formatKitchenDateTime(raw) : '';
+  }, [comparisonSummary.submitted_at, selectedRequest?.submitted_at]);
+
+  const approvedLabel = useMemo(() => {
+    const raw = comparisonSummary.approved_at || selectedRequest?.approved_at;
+    return raw ? formatKitchenDateTime(raw) : '';
+  }, [comparisonSummary.approved_at, selectedRequest?.approved_at]);
 
   return (
     <StorePageShell>
@@ -71,7 +90,12 @@ const StoreOperatorPurchaseComparisonPage = () => {
               {approvedRequests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell className="font-medium">{request.approval_note || '-'}</TableCell>
-                  <TableCell>{request.approved_at || request.created_at || '-'}</TableCell>
+                  <TableCell>
+                    {formatKitchenDateTime(request.approved_at || request.created_at) ||
+                      request.approved_at ||
+                      request.created_at ||
+                      '-'}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       type="button"
@@ -98,8 +122,8 @@ const StoreOperatorPurchaseComparisonPage = () => {
         {selectedRequest ? (
           <div className="mb-4 flex flex-wrap gap-2">
             <Badge variant="success">{selectedRequest.status}</Badge>
-            {selectedRequest.submitted_at ? <Badge variant="secondary">Submitted: {selectedRequest.submitted_at}</Badge> : null}
-            {selectedRequest.approved_at ? <Badge variant="secondary">Approved: {selectedRequest.approved_at}</Badge> : null}
+            {submittedLabel ? <Badge variant="secondary">Submitted: {submittedLabel}</Badge> : null}
+            {approvedLabel ? <Badge variant="secondary">Approved: {approvedLabel}</Badge> : null}
           </div>
         ) : null}
         {!selectedRequestId ? (
@@ -116,19 +140,31 @@ const StoreOperatorPurchaseComparisonPage = () => {
                 <TableHead>Purchased</TableHead>
                 <TableHead>Remaining</TableHead>
                 <TableHead>Fulfillment</TableHead>
-                <TableHead>Comparison</TableHead>
+                <TableHead>Exception</TableHead>
+                <TableHead>Manager review</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {comparisonRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.inventory_item_name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="space-y-1">
+                      <div>{row.inventory_item_name}</div>
+                      {row.operator_note ? (
+                        <div className="text-xs text-muted-foreground">Op: {row.operator_note}</div>
+                      ) : null}
+                      {row.manager_note ? (
+                        <div className="text-xs text-muted-foreground">Mgr: {row.manager_note}</div>
+                      ) : null}
+                    </div>
+                  </TableCell>
                   <TableCell>{row.requested_quantity} {row.requested_unit}</TableCell>
                   <TableCell>{row.approved_quantity} {row.requested_unit}</TableCell>
                   <TableCell>{row.purchased_quantity} {row.requested_unit}</TableCell>
                   <TableCell>{row.remaining_quantity} {row.requested_unit}</TableCell>
                   <TableCell>{row.fulfillment_status || '-'}</TableCell>
                   <TableCell>{row.comparison_status || '-'}</TableCell>
+                  <TableCell>{row.manager_review_status || '-'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

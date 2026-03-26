@@ -43,7 +43,8 @@ axiosInstance.interceptors.request.use(
     const isMlAssistantApi = url.includes('ml-assistant');
     const isKitchenStoreApi = url.includes('kitchen-store');
     const isCompanyScoped = url.includes('sellers-with-orders') || url.includes('delivery-managers') || url.includes('active-executives') || isAiApi || isCxoApi || isDeliveryExecutiveApi || isDriverMapsApi || isMlTripsApi || isShiftApi || isMlAssistantApi || isKitchenStoreApi;
-    const needsUserId = isAiApi || isCxoApi || isDriverMapsApi || isMlAssistantApi;
+    const needsUserId =
+      isAiApi || isCxoApi || isDriverMapsApi || isMlAssistantApi || isKitchenStoreApi;
     if (isCompanyScoped) {
       const companyId = store.user?.companyId || store.user?.company_id || localStorage.getItem('company_id');
       if (companyId) {

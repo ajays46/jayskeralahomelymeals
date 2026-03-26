@@ -51,9 +51,9 @@ const derivedPublicPathForRow = (r) => {
 /**
  * Ensures the kitchen-store item exists for this tenant (proxied GET).
  */
-const assertItemExists = async (itemId, companyId) => {
+const assertItemExists = async (itemId, companyId, actorUserId = null) => {
   try {
-    await getItemService(itemId, companyId);
+    await getItemService(itemId, companyId, actorUserId);
   } catch (e) {
     if (e instanceof AppError && e.statusCode === 404) {
       throw new AppError('Inventory item not found', 404);
@@ -126,7 +126,7 @@ export const createInventoryItemImageService = async ({
     throw new AppError('Image must be 5 MB or smaller', 400);
   }
 
-  await assertItemExists(inventoryItemId, companyId);
+  await assertItemExists(inventoryItemId, companyId, uploadedBy);
 
   const cid = companyId.trim();
   const iid = String(inventoryItemId);

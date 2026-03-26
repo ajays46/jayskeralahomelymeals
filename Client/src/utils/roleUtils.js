@@ -130,6 +130,16 @@ export const isCEO = (roles) => hasRole(roles, 'CEO');
 export const isCFO = (roles) => hasRole(roles, 'CFO');
 
 /**
+ * Check if user is store manager (kitchen / inventory approvals)
+ */
+export const isStoreManager = (roles) => hasRole(roles, 'STORE_MANAGER');
+
+/**
+ * Check if user is store operator (inventory ops, purchase requests)
+ */
+export const isStoreOperator = (roles) => hasRole(roles, 'STORE_OPERATOR');
+
+/**
  * Get role display name
  * @param {string} role - Role name
  * @returns {string} - Display name for the role

@@ -3,7 +3,7 @@ import {
   MdRestaurant, MdRestaurantMenu, MdHelp,
   MdPerson, MdShoppingCart, MdSearch,
   MdAdminPanelSettings, MdDashboard, MdLogout, MdStore, MdCalendarToday,
-  MdClose, MdMenu, MdLocalShipping, MdEmail, MdPhone
+  MdClose, MdMenu, MdLocalShipping, MdEmail, MdPhone, MdBarChart, MdShoppingBag
 } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
 import useAuthStore from '../stores/Zustand.store';
@@ -13,7 +13,16 @@ import { getThemeForCompany } from '../config/tenantThemes';
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLogout } from '../hooks/userHooks/useLogin';
 import { Modal } from 'antd';
-import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO } from '../utils/roleUtils';
+import {
+  isAdmin,
+  isSeller,
+  isDeliveryManager,
+  isDeliveryExecutive,
+  isCEO,
+  isCFO,
+  isStoreManager,
+  isStoreOperator
+} from '../utils/roleUtils';
 
 /**
  * Navbar - Main navigation component with role-based menu and authentication
@@ -39,6 +48,11 @@ const Navbar = ({ onSignInClick }) => {
   const userIsDeliveryExecutive = isDeliveryExecutive(roles);
   const userIsCEO = isCEO(roles);
   const userIsCFO = isCFO(roles);
+  const activeRoleUpper = String(user?.role || '').toUpperCase();
+  const userIsStoreManager =
+    isStoreManager(roles) || activeRoleUpper === 'STORE_MANAGER';
+  const userIsStoreOperator =
+    isStoreOperator(roles) || activeRoleUpper === 'STORE_OPERATOR';
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(null, null);
@@ -228,6 +242,31 @@ const Navbar = ({ onSignInClick }) => {
                           <Link to={`${base}/delivery-executive`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
                             <MdLocalShipping className="text-xl" /> Delivery Executive Dashboard
                           </Link>
+                        </>
+                      )}
+
+                      {(userIsStoreManager || userIsStoreOperator) && (
+                        <>
+                          <div className="border-t border-gray-200 my-1"></div>
+                          <div className="px-4 py-1 text-xs text-gray-500 font-medium">Store</div>
+                          {userIsStoreManager && (
+                            <Link
+                              to={`${base}/store-manager/kitchen-dashboard`}
+                              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200"
+                              onClick={() => setUserDropdownOpen(false)}
+                            >
+                              <MdBarChart className="text-xl" /> Store Manager Dashboard
+                            </Link>
+                          )}
+                          {userIsStoreOperator && (
+                            <Link
+                              to={`${base}/store-operator/inventory`}
+                              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200"
+                              onClick={() => setUserDropdownOpen(false)}
+                            >
+                              <MdShoppingBag className="text-xl" /> Store Operator
+                            </Link>
+                          )}
                         </>
                       )}
 
@@ -424,7 +463,14 @@ const Navbar = ({ onSignInClick }) => {
                   </div>
 
                   {/* Admin/Seller/Delivery Manager/CEO/CFO Options */}
-                  {(userIsAdmin || userIsSeller || userIsDeliveryManager || userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
+                  {(userIsAdmin ||
+                    userIsSeller ||
+                    userIsDeliveryManager ||
+                    userIsDeliveryExecutive ||
+                    userIsCEO ||
+                    userIsCFO ||
+                    userIsStoreManager ||
+                    userIsStoreOperator) && (
                     <div className="mb-3">
                       <div className="space-y-1">
                         {/* Management Dashboard - commented out */}
@@ -462,6 +508,26 @@ const Navbar = ({ onSignInClick }) => {
                           <Link to={`${base}/delivery-executive`} className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                             <MdLocalShipping className="text-base group-hover:scale-110 transition-transform duration-300" />
                             <span className="font-medium text-xs">Delivery Executive</span>
+                          </Link>
+                        )}
+                        {userIsStoreManager && (
+                          <Link
+                            to={`${base}/store-manager/kitchen-dashboard`}
+                            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]"
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <MdBarChart className="text-base group-hover:scale-110 transition-transform duration-300" />
+                            <span className="font-medium text-xs">Store Manager</span>
+                          </Link>
+                        )}
+                        {userIsStoreOperator && (
+                          <Link
+                            to={`${base}/store-operator/inventory`}
+                            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]"
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <MdShoppingBag className="text-base group-hover:scale-110 transition-transform duration-300" />
+                            <span className="font-medium text-xs">Store Operator</span>
                           </Link>
                         )}
                       </div>

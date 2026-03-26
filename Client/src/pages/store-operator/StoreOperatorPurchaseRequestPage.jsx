@@ -22,6 +22,11 @@ const SOURCE_SECTIONS = [
   { key: 'recommendations', title: 'Suggested Reorders', empty: 'No reorder suggestions were returned.' }
 ];
 
+/** Low stock + shopping list: show ~4 rows in view, scroll for the rest */
+const SOURCE_TABLE_SCROLLABLE_KEYS = new Set(['lowStockItems', 'shoppingList']);
+const SOURCE_TABLE_VISIBLE_BODY_ROWS = 4;
+const SOURCE_TABLE_SCROLL_MAX_HEIGHT = `calc(2.5rem + ${SOURCE_TABLE_VISIBLE_BODY_ROWS} * 3.25rem)`;
+
 const StoreOperatorPurchaseRequestPage = () => {
   const basePath = useCompanyBasePath();
   const {
@@ -250,6 +255,44 @@ const StoreOperatorPurchaseRequestPage = () => {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
           {SOURCE_SECTIONS.map((section) => {
             const rows = sectionData[section.key];
+            const scrollableTable = SOURCE_TABLE_SCROLLABLE_KEYS.has(section.key);
+            const tableEl = (
+              <Table
+                wrapperClassName={
+                  scrollableTable
+                    ? 'relative w-full overflow-x-auto overflow-y-visible'
+                    : undefined
+                }
+              >
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item</TableHead>
+                    <TableHead>Suggested</TableHead>
+                    <TableHead>Current / Min</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((item) => (
+                    <TableRow key={`${section.key}-${item.id}`}>
+                      <TableCell className="font-medium">{item.name || 'Unnamed item'}</TableCell>
+                      <TableCell>{item.suggested_quantity || 0} {item.unit || '-'}</TableCell>
+                      <TableCell>{item.current_quantity || 0} / {item.min_quantity || 0}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => addExistingItem(item)}
+                          disabled={!item.inventory_item_id}
+                        >
+                          Add
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            );
             return (
               <StoreSection
                 key={section.key}
@@ -269,36 +312,15 @@ const StoreOperatorPurchaseRequestPage = () => {
               >
                 {rows.length === 0 ? (
                   <StoreNotice tone="amber">{section.empty}</StoreNotice>
+                ) : scrollableTable ? (
+                  <div
+                    className="overflow-y-auto overscroll-y-contain rounded-md border border-slate-200"
+                    style={{ maxHeight: SOURCE_TABLE_SCROLL_MAX_HEIGHT }}
+                  >
+                    {tableEl}
+                  </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Suggested</TableHead>
-                        <TableHead>Current / Min</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((item) => (
-                        <TableRow key={`${section.key}-${item.id}`}>
-                          <TableCell className="font-medium">{item.name || 'Unnamed item'}</TableCell>
-                          <TableCell>{item.suggested_quantity || 0} {item.unit || '-'}</TableCell>
-                          <TableCell>{item.current_quantity || 0} / {item.min_quantity || 0}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => addExistingItem(item)}
-                              disabled={!item.inventory_item_id}
-                            >
-                              Add
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  tableEl
                 )}
               </StoreSection>
             );

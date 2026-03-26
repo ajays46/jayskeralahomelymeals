@@ -15,10 +15,11 @@ import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook'
 
 /** API host (same as axios) so `/uploads/...` loads from the Node server, not the Vite dev port. */
 const apiOrigin = () => {
-  const fromAxios = api.defaults?.baseURL ? String(api.defaults.baseURL).replace(/\/$/, '') : '';
+  const stripApiSuffix = (value) => String(value || '').replace(/\/$/, '').replace(/\/api$/, '');
+  const fromAxios = api.defaults?.baseURL ? stripApiSuffix(api.defaults.baseURL) : '';
   if (fromAxios) return fromAxios;
   const base = import.meta.env.VITE_DEV_API_URL || import.meta.env.VITE_PROD_API_URL || '';
-  return String(base).replace(/\/$/, '');
+  return stripApiSuffix(base);
 };
 
 const extFromContentType = (ct) => {
@@ -65,15 +66,6 @@ const DETAIL_LABELS = [
   ['image_url', 'Resolved preview URL']
 ];
 
-const formatDateTime = (value) => {
-  if (!value) return '-';
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return String(value);
-  }
-};
-
 const StoreManagerItemMasterPage = () => {
   const { items, createItem, getItemDetail, listItemImages, uploadItemImage } = useKitchenInventoryMock();
   const [name, setName] = useState('');
@@ -89,7 +81,6 @@ const StoreManagerItemMasterPage = () => {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [modalImageFile, setModalImageFile] = useState(null);
   const [imageSubmitting, setImageSubmitting] = useState(false);
-  const [detailImage, setDetailImage] = useState(null);
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -159,7 +150,6 @@ const StoreManagerItemMasterPage = () => {
     setSelectedId(itemId);
     setItemDetail(null);
     setItemImages([]);
-    setDetailImage(null);
     const [detail, imgs] = await Promise.all([getItemDetail(itemId), listItemImages(itemId)]);
     setItemDetail(detail);
     setItemImages(imgs);
@@ -182,11 +172,6 @@ const StoreManagerItemMasterPage = () => {
     } else {
       setStatus(up.message || 'Upload failed.');
     }
-  };
-
-  const openImageDetail = (img) => {
-    const resolved = resolveImageSrc(img);
-    setDetailImage({ ...img, image_url: resolved || img.image_url });
   };
 
   return (
@@ -267,45 +252,47 @@ const StoreManagerItemMasterPage = () => {
         {filteredItems.length === 0 ? (
           <StoreNotice tone="amber">No items match the current search.</StoreNotice>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Current</TableHead>
-                <TableHead>Min</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.id} className={selectedId === item.id ? 'bg-muted/40' : ''}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span>{item.name}</span>
-                      {selectedId === item.id ? <Badge variant="secondary">Selected</Badge> : null}
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.category || '-'}</TableCell>
-                  <TableCell>{item.unit}</TableCell>
-                  <TableCell>{item.current_quantity}</TableCell>
-                  <TableCell>{item.min_quantity ?? '-'}</TableCell>
-                  <TableCell className="text-right">
-                    <Button type="button" variant="outline" size="sm" onClick={() => onLoadDetail(item.id)}>
-                      Open Detail
-                    </Button>
-                  </TableCell>
+          <div className="max-h-[22rem] overflow-y-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Current</TableHead>
+                  <TableHead>Min</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.map((item) => (
+                  <TableRow key={item.id} className={selectedId === item.id ? 'bg-muted/40' : ''}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{item.name}</span>
+                        {selectedId === item.id ? <Badge variant="secondary">Selected</Badge> : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>{item.category || '-'}</TableCell>
+                    <TableCell>{item.unit}</TableCell>
+                    <TableCell>{item.current_quantity}</TableCell>
+                    <TableCell>{item.min_quantity ?? '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button type="button" variant="outline" size="sm" onClick={() => onLoadDetail(item.id)}>
+                        Open Detail
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </StoreSection>
 
       <StoreSection
         title="Item Detail"
-        description={selectedId ? 'Review the selected item and manage its images.' : 'Select an item to load its detail.'}
+        description={selectedId ? 'Selected item details and image.' : 'Select an item to load details.'}
         tone="violet"
         headerActions={
           selectedId ? (
@@ -318,11 +305,11 @@ const StoreManagerItemMasterPage = () => {
         {!selectedId ? (
           <StoreNotice tone="amber">Select an item from the table above to load details.</StoreNotice>
         ) : itemDetail ? (
-          <div className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
-              <div className="space-y-3">
-                <p className="text-sm font-medium">Featured Image</p>
-                <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg border bg-muted">
+          <div className="space-y-3">
+            <div className="grid gap-3 lg:grid-cols-[220px,1fr]">
+              <div className="space-y-1">
+                <p className="text-xs font-medium">Featured Image</p>
+                <div className="flex h-44 items-center justify-center overflow-hidden rounded-md border bg-muted">
                   {featuredImageSrc ? (
                     <img
                       src={featuredImageSrc}
@@ -330,89 +317,37 @@ const StoreManagerItemMasterPage = () => {
                       className="h-full w-full object-contain"
                     />
                   ) : (
-                    <p className="p-6 text-center text-sm text-muted-foreground">
+                    <p className="p-3 text-center text-xs text-muted-foreground">
                       No image uploaded yet. Use the upload image action to add one.
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-md border p-3 text-sm">
-                  <p className="text-xs text-muted-foreground">ID</p>
-                  <p className="mt-1 break-all font-medium">{itemDetail.id}</p>
-                </div>
-                <div className="rounded-md border p-3 text-sm">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-md border p-2 text-xs">
                   <p className="text-xs text-muted-foreground">Item Name</p>
-                  <p className="mt-1 font-medium">{itemDetail.name}</p>
+                  <p className="mt-0.5 font-medium">{itemDetail.name}</p>
                 </div>
-                <div className="rounded-md border p-3 text-sm">
+                <div className="rounded-md border p-2 text-xs">
                   <p className="text-xs text-muted-foreground">Category</p>
-                  <p className="mt-1 font-medium">{itemDetail.category || '-'}</p>
+                  <p className="mt-0.5 font-medium">{itemDetail.category || '-'}</p>
                 </div>
-                <div className="rounded-md border p-3 text-sm">
+                <div className="rounded-md border p-2 text-xs">
                   <p className="text-xs text-muted-foreground">Unit</p>
-                  <p className="mt-1 font-medium">{itemDetail.unit}</p>
+                  <p className="mt-0.5 font-medium">{itemDetail.unit}</p>
                 </div>
-                <div className="rounded-md border p-3 text-sm">
+                <div className="rounded-md border p-2 text-xs">
                   <p className="text-xs text-muted-foreground">On Hand</p>
-                  <p className="mt-1 font-medium">{itemDetail.current_quantity}</p>
+                  <p className="mt-0.5 font-medium">{itemDetail.current_quantity}</p>
                 </div>
-                <div className="rounded-md border p-3 text-sm">
+                <div className="rounded-md border p-2 text-xs">
                   <p className="text-xs text-muted-foreground">Minimum Quantity</p>
-                  <p className="mt-1 font-medium">{itemDetail.min_quantity ?? '-'}</p>
+                  <p className="mt-0.5 font-medium">{itemDetail.min_quantity ?? '-'}</p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">All Images</p>
-                  <p className="text-xs text-muted-foreground">Click a thumbnail to open full image details.</p>
-                </div>
-              </div>
-
-              {itemImages.length === 0 ? (
-                <StoreNotice tone="amber">No images uploaded for this item.</StoreNotice>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                  {itemImages.map((img) => {
-                    const src = resolveImageSrc(img);
-                    return (
-                      <button
-                        key={img.id}
-                        type="button"
-                        className="relative overflow-hidden rounded-lg border bg-muted text-left transition hover:border-slate-400"
-                        onClick={() => openImageDetail(img)}
-                      >
-                        <div className="flex h-32 items-center justify-center overflow-hidden">
-                          {src ? (
-                            <img
-                              src={src}
-                              alt={img.filename || `Item image ${img.id}`}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="px-2 text-center text-xs text-muted-foreground">No preview</div>
-                          )}
-                        </div>
-                        <div className="space-y-1 p-3">
-                          <p className="truncate text-sm font-medium">{img.filename || 'Untitled image'}</p>
-                          <p className="text-xs text-muted-foreground">{formatDateTime(img.created_at)}</p>
-                        </div>
-                        {img.is_primary ? (
-                          <Badge className="absolute left-2 top-2" variant="default">
-                            Primary
-                          </Badge>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           </div>
         ) : (
           <StoreNotice tone="sky">Loading detail...</StoreNotice>
@@ -458,57 +393,6 @@ const StoreManagerItemMasterPage = () => {
         </div>
       ) : null}
 
-      {detailImage ? (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="image-detail-modal-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setDetailImage(null);
-          }}
-        >
-          <div className="my-8 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-start gap-4">
-              <h2 id="image-detail-modal-title" className="text-lg font-semibold text-gray-900">
-                Image details
-              </h2>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setDetailImage(null)}>
-                Close
-              </Button>
-            </div>
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="border rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center min-h-[200px]">
-                {resolveImageSrc(detailImage) ? (
-                  <img src={resolveImageSrc(detailImage)} alt="" className="max-w-full max-h-80 object-contain" />
-                ) : (
-                  <p className="text-sm text-gray-500 p-4">No image URL available for preview.</p>
-                )}
-              </div>
-              <dl className="text-sm space-y-2">
-                {DETAIL_LABELS.map(([key, label]) => {
-                  let val = detailImage[key];
-                  if (val === undefined || val === null || val === '') val = '—';
-                  else if (typeof val === 'boolean') val = val ? 'Yes' : 'No';
-                  else if (key === 'created_at' || key === 'updated_at') {
-                    try {
-                      val = new Date(val).toLocaleString();
-                    } catch {
-                      /* keep raw */
-                    }
-                  }
-                  return (
-                    <div key={key} className="grid grid-cols-[1fr,1.2fr] gap-2 border-b border-gray-100 pb-2 last:border-0">
-                      <dt className="text-gray-500">{label}</dt>
-                      <dd className="text-gray-900 break-all">{String(val)}</dd>
-                    </div>
-                  );
-                })}
-              </dl>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </StorePageShell>
   );
 };

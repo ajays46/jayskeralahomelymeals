@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
-import { useCompanyBasePath } from '../../context/TenantContext';
 import {
   useKitchenInventoryMock,
   useKitchenPurchaseRequestOperatorApi,
@@ -13,8 +12,17 @@ import {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+const previewBaseQtyAndUnitPrice = (purchasedQty, conversionToBase, lineTotal) => {
+  const qty = Number(purchasedQty);
+  const conv = Number(conversionToBase);
+  const total = Number(lineTotal);
+  if (!Number.isFinite(qty) || !Number.isFinite(conv) || conv <= 0 || qty <= 0) return null;
+  const received = qty * conv;
+  if (!Number.isFinite(total) || total <= 0) return { received_qty_in_base_unit: received, unit_price_in_base: null };
+  return { received_qty_in_base_unit: received, unit_price_in_base: total / received };
+};
+
 const StoreOperatorPurchaseReceiptsPage = () => {
-  const basePath = useCompanyBasePath();
   const [searchParams] = useSearchParams();
   const { items } = useKitchenInventoryMock();
   const {
@@ -102,6 +110,26 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     [approvedLines, approvedPurchaseForm.purchase_request_line_id]
   );
 
+  const approvedLinePreview = useMemo(
+    () =>
+      previewBaseQtyAndUnitPrice(
+        approvedPurchaseForm.purchased_qty,
+        approvedPurchaseForm.conversion_to_base,
+        approvedPurchaseForm.line_total
+      ),
+    [approvedPurchaseForm.purchased_qty, approvedPurchaseForm.conversion_to_base, approvedPurchaseForm.line_total]
+  );
+
+  const offListPreview = useMemo(
+    () =>
+      previewBaseQtyAndUnitPrice(
+        offListForm.purchased_qty,
+        offListForm.conversion_to_base,
+        offListForm.line_total
+      ),
+    [offListForm.purchased_qty, offListForm.conversion_to_base, offListForm.line_total]
+  );
+
   const loadReceiptHistory = async () => {
     setStatus('');
     try {
@@ -124,7 +152,32 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     }
   };
 
-  const createLinkedReceipt = async () => {
+  const addApprovedLineToReceipt = async (receiptId) => {
+    if (!selectedApprovedLine) {
+      throw new Error('Choose an approved line to add.');
+    }
+    const pq = Number(approvedPurchaseForm.purchased_qty);
+    const conv = Number(approvedPurchaseForm.conversion_to_base);
+    const lt = Number(approvedPurchaseForm.line_total);
+    if (!pq || pq <= 0 || !conv || conv <= 0 || !lt || lt <= 0) {
+      throw new Error('Enter purchased qty, conversion to base, and line total (all must be greater than zero).');
+    }
+    if (!approvedPurchaseForm.purchase_unit.trim()) {
+      throw new Error('Enter the purchase unit (e.g. bag, kg).');
+    }
+    await addReceiptLine(receiptId, {
+      inventory_item_id: selectedApprovedLine.inventory_item_id,
+      purchase_request_line_id: selectedApprovedLine.id,
+      purchased_qty: pq,
+      purchase_unit: approvedPurchaseForm.purchase_unit.trim(),
+      conversion_to_base: conv,
+      line_total: lt,
+      purchase_date: approvedPurchaseForm.purchase_date,
+      note: approvedPurchaseForm.note.trim() || 'Bought from approved list'
+    });
+  };
+
+  const onCreateReceipt = async () => {
     if (!selectedRequestId) {
       setStatus('Choose an approved request before creating a receipt.');
       return;
@@ -142,38 +195,12 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       }
       setActiveReceiptId(receiptId);
       setSelectedLines([]);
-      setStatus(`Linked receipt created for the approved request.`);
+      await addApprovedLineToReceipt(receiptId);
+      setStatus('Linked receipt created and approved line added.');
       await loadReceiptHistory();
+      await openReceiptLines(receiptId);
     } catch (err) {
-      setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to create linked receipt.');
-    }
-  };
-
-  const onAddApprovedLine = async () => {
-    if (!activeReceiptId) {
-      setStatus('Create a receipt first before adding approved items.');
-      return;
-    }
-    if (!selectedApprovedLine) {
-      setStatus('Choose an approved line to add.');
-      return;
-    }
-    setStatus('');
-    try {
-      await addReceiptLine(activeReceiptId, {
-        inventory_item_id: selectedApprovedLine.inventory_item_id,
-        purchase_request_line_id: selectedApprovedLine.id,
-        purchased_qty: Number(approvedPurchaseForm.purchased_qty),
-        purchase_unit: approvedPurchaseForm.purchase_unit,
-        conversion_to_base: Number(approvedPurchaseForm.conversion_to_base),
-        line_total: Number(approvedPurchaseForm.line_total),
-        purchase_date: approvedPurchaseForm.purchase_date,
-        note: approvedPurchaseForm.note.trim() || 'Bought from approved list'
-      });
-      setStatus('Approved purchase line added to receipt.');
-      await openReceiptLines(activeReceiptId);
-    } catch (err) {
-      setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to add approved line.');
+      setStatus(err?.response?.data?.message || err?.response?.data?.detail || err?.message || 'Failed to create receipt.');
     }
   };
 
@@ -186,14 +213,25 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       setStatus('Off-list purchase reason is required.');
       return;
     }
+    if (!offListForm.inventory_item_id) {
+      setStatus('Select an inventory item for the off-list line.');
+      return;
+    }
+    const pq = Number(offListForm.purchased_qty);
+    const conv = Number(offListForm.conversion_to_base);
+    const lt = Number(offListForm.line_total);
+    if (!pq || pq <= 0 || !conv || conv <= 0 || !lt || lt <= 0) {
+      setStatus('Enter purchased qty, conversion to base, and line total (all must be greater than zero).');
+      return;
+    }
     setStatus('');
     try {
       await addReceiptLine(activeReceiptId, {
         inventory_item_id: offListForm.inventory_item_id,
-        purchased_qty: Number(offListForm.purchased_qty),
-        purchase_unit: offListForm.purchase_unit,
-        conversion_to_base: Number(offListForm.conversion_to_base),
-        line_total: Number(offListForm.line_total),
+        purchased_qty: pq,
+        purchase_unit: offListForm.purchase_unit.trim() || 'kg',
+        conversion_to_base: conv,
+        line_total: lt,
         purchase_date: offListForm.purchase_date,
         off_list_purchase_reason: offListForm.off_list_purchase_reason.trim(),
         note: offListForm.note.trim() || 'Bought outside approved list'
@@ -220,10 +258,6 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       <StorePageHeader
         title="Purchase Receipts"
         description="Create a receipt linked to an approved request, add approved items, and record off-list purchases when needed."
-        actions={[
-          <Button key="approved" asChild><Link to={`${basePath}/store-operator/approved-requests`}>Approved Requests</Link></Button>,
-          <Button key="comparison" asChild variant="outline"><Link to={`${basePath}/store-operator/purchase-comparison`}>Purchase Comparison</Link></Button>
-        ]}
         tone="emerald"
       />
       {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
@@ -247,31 +281,25 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             {bootstrapLoading ? 'Refreshing...' : 'Refresh'}
           </Button>
         </div>
-        {selectedRequest ? (
-          <div className="mt-3 flex flex-wrap gap-2 text-sm">
-            <Badge variant="success">{selectedRequest.status}</Badge>
-            {selectedRequest.approval_note ? <Badge variant="info">Approval note: {selectedRequest.approval_note}</Badge> : null}
-            {selectedRequest.approved_at ? <Badge variant="secondary">Approved: {selectedRequest.approved_at}</Badge> : null}
-          </div>
-        ) : null}
+        {selectedRequest?.approval_note ? <div className="mt-3 text-sm text-slate-600">Note: {selectedRequest.approval_note}</div> : null}
       </StoreSection>
 
       <StoreSection title="Receipt Header" tone="sky">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="grid gap-3 md:grid-cols-2">
+          <input
+            className="rounded border px-3 py-2"
+            type="date"
+            value={approvedPurchaseForm.purchase_date}
+            onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, purchase_date: e.target.value }))}
+          />
           <input
             className="rounded border px-3 py-2"
             value={referenceInvoice}
             onChange={(e) => setReferenceInvoice(e.target.value)}
             placeholder="Reference invoice"
           />
-          <Button type="button" onClick={createLinkedReceipt}>
-            Create Linked Receipt
-          </Button>
         </div>
-        {activeReceiptId ? <Badge variant="info">Active receipt: {activeReceiptId}</Badge> : null}
-      </StoreSection>
-
-      <StoreSection title="Add Approved Purchase Line" tone="emerald">
+        <div className="mt-4 text-sm font-medium text-slate-700">Add Approved Purchase Line</div>
         {approvedLines.length === 0 ? (
           <StoreNotice tone="amber">No approved lines are available for the selected request.</StoreNotice>
         ) : (
@@ -341,88 +369,106 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, note: e.target.value }))}
               placeholder="Optional note"
             />
-            <Button type="button" onClick={onAddApprovedLine}>
-              Add Approved Line
-            </Button>
           </div>
         )}
-        {selectedApprovedLine ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Badge variant="secondary">Requested: {selectedApprovedLine.requested_quantity} {selectedApprovedLine.requested_unit}</Badge>
-            <Badge variant="success">Approved: {selectedApprovedLine.approved_quantity} {selectedApprovedLine.requested_unit}</Badge>
-          </div>
-        ) : null}
+        <div className="mt-4 flex justify-end">
+          <Button type="button" onClick={onCreateReceipt}>
+            Create Recipt
+          </Button>
+        </div>
+        {/* {approvedLinePreview ? (
+          <StoreNotice tone="sky">
+            Preview (backend uses the same math): received in base unit ≈{' '}
+            {approvedLinePreview.received_qty_in_base_unit.toFixed(4)}
+            {approvedLinePreview.unit_price_in_base != null
+              ? ` · unit price in base ≈ ${approvedLinePreview.unit_price_in_base.toFixed(4)}`
+              : null}
+          </StoreNotice>
+        ) : null} */}
       </StoreSection>
 
       <StoreSection title="Add Off-List Purchase" tone="amber">
-        <div className="grid gap-3 md:grid-cols-3">
-          <select
-            className="rounded border px-3 py-2"
-            value={offListForm.inventory_item_id}
-            onChange={(e) => setOffListForm((prev) => ({ ...prev, inventory_item_id: e.target.value }))}
-          >
-            <option value="">Select item</option>
-            {items.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} ({item.unit})
-              </option>
-            ))}
-          </select>
-          <input
-            className="rounded border px-3 py-2"
-            value={offListForm.purchased_qty}
-            onChange={(e) => setOffListForm((prev) => ({ ...prev, purchased_qty: e.target.value }))}
-            placeholder="Purchased qty"
-            type="number"
-            min="0"
-            step="0.01"
-          />
-          <input
-            className="rounded border px-3 py-2"
-            value={offListForm.purchase_unit}
-            onChange={(e) => setOffListForm((prev) => ({ ...prev, purchase_unit: e.target.value }))}
-            placeholder="Purchase unit"
-          />
-          <input
-            className="rounded border px-3 py-2"
-            value={offListForm.conversion_to_base}
-            onChange={(e) => setOffListForm((prev) => ({ ...prev, conversion_to_base: e.target.value }))}
-            placeholder="Conversion to base"
-            type="number"
-            min="0"
-            step="0.01"
-          />
-          <input
-            className="rounded border px-3 py-2"
-            value={offListForm.line_total}
-            onChange={(e) => setOffListForm((prev) => ({ ...prev, line_total: e.target.value }))}
-            placeholder="Line total"
-            type="number"
-            min="0"
-            step="0.01"
-          />
-          <input
-            className="rounded border px-3 py-2"
-            type="date"
-            value={offListForm.purchase_date}
-            onChange={(e) => setOffListForm((prev) => ({ ...prev, purchase_date: e.target.value }))}
-          />
-          <input
-            className="rounded border px-3 py-2 md:col-span-2"
-            value={offListForm.off_list_purchase_reason}
-            onChange={(e) => setOffListForm((prev) => ({ ...prev, off_list_purchase_reason: e.target.value }))}
-            placeholder="Off-list purchase reason"
-          />
-          <Button type="button" variant="warning" onClick={onAddOffListLine}>
-            Add Off-List Line
-          </Button>
-          <textarea
-            className="rounded border px-3 py-2 text-sm md:col-span-3"
-            value={offListForm.note}
-            onChange={(e) => setOffListForm((prev) => ({ ...prev, note: e.target.value }))}
-            placeholder="Optional note"
-          />
-        </div>
+        <details className="rounded border bg-white px-2 py-1.5">
+          <summary className="cursor-pointer select-none text-xs font-medium text-slate-700">
+            Expand to add off-list purchase
+          </summary>
+          <div className="mt-2 grid gap-2 md:grid-cols-3">
+            <select
+              className="rounded border px-2 py-1.5 text-sm"
+              value={offListForm.inventory_item_id}
+              onChange={(e) => setOffListForm((prev) => ({ ...prev, inventory_item_id: e.target.value }))}
+            >
+              <option value="">Select item</option>
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} ({item.unit})
+                </option>
+              ))}
+            </select>
+            <input
+              className="rounded border px-2 py-1.5 text-sm"
+              value={offListForm.purchased_qty}
+              onChange={(e) => setOffListForm((prev) => ({ ...prev, purchased_qty: e.target.value }))}
+              placeholder="Purchased qty"
+              type="number"
+              min="0"
+              step="0.01"
+            />
+            <input
+              className="rounded border px-2 py-1.5 text-sm"
+              value={offListForm.purchase_unit}
+              onChange={(e) => setOffListForm((prev) => ({ ...prev, purchase_unit: e.target.value }))}
+              placeholder="Purchase unit"
+            />
+            <input
+              className="rounded border px-2 py-1.5 text-sm"
+              value={offListForm.conversion_to_base}
+              onChange={(e) => setOffListForm((prev) => ({ ...prev, conversion_to_base: e.target.value }))}
+              placeholder="Conversion to base"
+              type="number"
+              min="0"
+              step="0.01"
+            />
+            <input
+              className="rounded border px-2 py-1.5 text-sm"
+              value={offListForm.line_total}
+              onChange={(e) => setOffListForm((prev) => ({ ...prev, line_total: e.target.value }))}
+              placeholder="Line total"
+              type="number"
+              min="0"
+              step="0.01"
+            />
+            <input
+              className="rounded border px-2 py-1.5 text-sm"
+              type="date"
+              value={offListForm.purchase_date}
+              onChange={(e) => setOffListForm((prev) => ({ ...prev, purchase_date: e.target.value }))}
+            />
+            <input
+              className="rounded border px-2 py-1.5 text-sm md:col-span-2"
+              value={offListForm.off_list_purchase_reason}
+              onChange={(e) => setOffListForm((prev) => ({ ...prev, off_list_purchase_reason: e.target.value }))}
+              placeholder="Off-list purchase reason"
+            />
+            <Button type="button" variant="warning" onClick={onAddOffListLine}>
+              Add Off-List Line
+            </Button>
+            <textarea
+              className="rounded border px-2 py-1.5 text-xs md:col-span-3"
+              value={offListForm.note}
+              onChange={(e) => setOffListForm((prev) => ({ ...prev, note: e.target.value }))}
+              placeholder="Optional note"
+            />
+          </div>
+          {offListPreview ? (
+            <StoreNotice tone="sky">
+              Preview: received in base unit ≈ {offListPreview.received_qty_in_base_unit.toFixed(4)}
+              {offListPreview.unit_price_in_base != null
+                ? ` · unit price in base ≈ ${offListPreview.unit_price_in_base.toFixed(4)}`
+                : null}
+            </StoreNotice>
+          ) : null}
+        </details>
       </StoreSection>
 
       <StoreSection
@@ -468,8 +514,10 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                 <TableHead>Item</TableHead>
                 <TableHead>Purchased Qty</TableHead>
                 <TableHead>Base Qty</TableHead>
+                <TableHead>Unit price (base)</TableHead>
                 <TableHead>Line Total</TableHead>
                 <TableHead>Comparison</TableHead>
+                <TableHead>Off-list reason</TableHead>
                 <TableHead>Manager Review</TableHead>
               </TableRow>
             </TableHeader>
@@ -479,8 +527,10 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                   <TableCell className="font-medium">{row.inventory_item_name || row.inventory_item_id}</TableCell>
                   <TableCell>{row.purchased_qty} {row.purchase_unit}</TableCell>
                   <TableCell>{row.received_qty_in_base_unit}</TableCell>
+                  <TableCell>{row.unit_price_in_base ? row.unit_price_in_base.toFixed(4) : '-'}</TableCell>
                   <TableCell>{row.line_total}</TableCell>
                   <TableCell>{row.comparison_status || '-'}</TableCell>
+                  <TableCell className="max-w-48 text-sm">{row.off_list_purchase_reason || '-'}</TableCell>
                   <TableCell>{row.manager_review_status || '-'}</TableCell>
                 </TableRow>
               ))}
