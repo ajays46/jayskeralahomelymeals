@@ -9,7 +9,6 @@ const managerLinks = [
   { to: 'store-manager/purchase-requests', label: 'Purchase Request Inbox' },
   { to: 'store-manager/purchase-receipts', label: 'Purchase Receipts' },
   { to: 'store-manager/off-list-review', label: 'Purchase Exception Review' },
-  { to: 'store-manager/item-master', label: 'Create inventory ' },
   { to: 'store-manager/inventory', label: 'Inventory View' },
   { to: 'store-manager/stock-logs', label: 'Stock Logs' },
   { to: 'store-manager/recipe-bom', label: 'Recipe / BOM' },
@@ -22,6 +21,7 @@ const managerLinks = [
 
 const operatorLinks = [
   { to: 'store-operator/inventory', label: 'Operator Inventory' },
+  { to: 'store-operator/item-master', label: 'Create inventory' },
   { to: 'store-operator/purchase-requests', label: 'Create Purchase Request' },
   { to: 'store-operator/approved-requests', label: 'Approved Requests' },
   { to: 'store-operator/purchases', label: 'Purchase Receipts' },
@@ -32,9 +32,26 @@ const operatorLinks = [
 ];
 
 const linkClassName = ({ isActive }) =>
-  `block rounded-md px-3 py-2 text-sm transition-colors ${
-    isActive ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+  `block rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+    isActive
+      ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+      : 'text-slate-600 hover:bg-slate-100'
   }`;
+
+/** Scrollable when needed, but no visible scrollbar (Firefox / WebKit / legacy Edge). */
+const sidebarOverflowClass =
+  'overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
+
+const storeLogoSrc = `${import.meta.env.BASE_URL}logo.png`;
+
+/** Circular brand mark from `public/logo.png` (decorative; title is adjacent). */
+const StoreBrandMark = ({ className }) => (
+  <div
+    className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-md ring-1 ring-slate-200/50 ${className ?? ''}`}
+  >
+    <img src={storeLogoSrc} alt="" className="h-full w-full object-contain object-center" />
+  </div>
+);
 
 const StoreModuleLayout = () => {
   const basePath = useCompanyBasePath();
@@ -68,13 +85,18 @@ const StoreModuleLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="lg:hidden sticky top-0 z-30 bg-white border-b px-4 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Kitchen Inventory</h1>
+    <div className="min-h-screen bg-[#eef2f5]">
+      <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-sm">
+        <div className="flex items-center gap-2.5">
+          <StoreBrandMark className="h-9 w-9" />
+          <h1 className="m-0 flex h-9 items-center text-base font-bold leading-none text-slate-900">
+            Kitchen Inventory
+          </h1>
+        </div>
         <button
           type="button"
           onClick={() => setMobileOpen((s) => !s)}
-          className="px-3 py-1.5 rounded-md border text-sm text-gray-700"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
         >
           {mobileOpen ? 'Close Menu' : 'Menu'}
         </button>
@@ -89,15 +111,18 @@ const StoreModuleLayout = () => {
             className="absolute inset-0 bg-black/30"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative h-full w-80 max-w-[85vw] bg-white border-r p-4 overflow-y-auto">
-            <div className="mb-4">
-              <h1 className="text-xl font-semibold text-gray-900">Kitchen Inventory</h1>
+          <aside
+            className={`relative h-full w-80 max-w-[85vw] border-r border-slate-200/80 bg-white p-5 shadow-xl ${sidebarOverflowClass}`}
+          >
+            <div className="mb-6 flex items-center gap-3">
+              <StoreBrandMark className="h-11 w-11" />
+              <h1 className="m-0 flex h-11 items-center text-lg font-bold leading-none text-slate-900">
+                Kitchen Inventory
+              </h1>
             </div>
             {navSections.map((section) => (
               <div key={`mobile-${section.title}`} className="mb-6">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  {section.title}
-                </p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{section.title}</p>
                 <div className="space-y-1">
                   {section.links.map((link) => (
                     <NavLink
@@ -117,7 +142,7 @@ const StoreModuleLayout = () => {
               type="button"
               onClick={handleLogout}
               disabled={logoutMutation.isPending}
-              className="mt-4 w-full rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+              className="mt-6 w-full rounded-xl border border-red-200/90 bg-white px-3 py-2.5 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50 disabled:opacity-50"
             >
               {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
             </button>
@@ -126,16 +151,19 @@ const StoreModuleLayout = () => {
       ) : null}
 
       {/* Desktop fixed sidebar + scrollable right content */}
-      <aside className="hidden lg:block fixed left-0 top-0 h-screen w-72 bg-white border-r p-4 overflow-y-auto">
-        <div className="mb-4">
-          <h1 className="text-xl font-semibold text-gray-900">Kitchen Inventory</h1>
+      <aside
+        className={`fixed left-0 top-0 hidden h-screen w-72 border-r border-slate-200/80 bg-white p-5 lg:block ${sidebarOverflowClass}`}
+      >
+        <div className="mb-6 flex items-center gap-3">
+          <StoreBrandMark className="h-11 w-11" />
+          <h1 className="m-0 flex h-11 items-center text-lg font-bold leading-none text-slate-900">
+            Kitchen Inventory
+          </h1>
         </div>
 
         {navSections.map((section) => (
           <div key={section.title} className="mb-6">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              {section.title}
-            </p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{section.title}</p>
             <div className="space-y-1">
               {section.links.map((link) => (
                 <NavLink
@@ -154,7 +182,7 @@ const StoreModuleLayout = () => {
           type="button"
           onClick={handleLogout}
           disabled={logoutMutation.isPending}
-          className="mt-4 w-full rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+          className="mt-6 w-full rounded-xl border border-red-200/90 bg-white px-3 py-2.5 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50 disabled:opacity-50"
         >
           {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
         </button>

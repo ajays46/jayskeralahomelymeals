@@ -60,12 +60,12 @@ router.use(resolveCompanyId);
 router.get('/v1/health', healthCheck);
 
 // v1: Items
-router.post('/v1/items', checkRole('STORE_MANAGER'), createItem);
+router.post('/v1/items', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), createItem);
 router.get('/v1/items', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listItems);
 router.get('/v1/items/:item_id/images', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listItemImages);
 router.post(
   '/v1/items/:item_id/images',
-  checkRole('STORE_MANAGER'),
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
   itemImageUpload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'file', maxCount: 1 }

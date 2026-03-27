@@ -2,14 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  StoreNotice,
-  StorePageHeader,
-  StorePageShell,
-  StoreSection,
-  StoreStatCard,
-  StoreStatGrid
-} from '@/components/store/StorePageShell';
+import { StoreNotice, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 import api from '../../api/axios';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
 
@@ -48,25 +41,7 @@ const resolveImageSrc = (img) => {
   return `${origin}${raw.startsWith('/') ? raw : `/${raw}`}`;
 };
 
-const DETAIL_LABELS = [
-  ['id', 'ID'],
-  ['company_id', 'Company ID'],
-  ['inventory_item_id', 'Inventory item ID'],
-  ['s3_key', 'Storage key (optional)'],
-  ['s3_url', 'Public path / URL (optional)'],
-  ['presigned_url', 'Presigned URL (optional)'],
-  ['filename', 'Filename (optional)'],
-  ['content_type', 'Content type'],
-  ['file_size', 'File size (bytes)'],
-  ['sort_order', 'Sort order (optional)'],
-  ['is_primary', 'Primary (optional)'],
-  ['uploaded_by', 'Uploaded by'],
-  ['created_at', 'Created at'],
-  ['updated_at', 'Updated at'],
-  ['image_url', 'Resolved preview URL']
-];
-
-const StoreManagerItemMasterPage = () => {
+const StoreOperatorItemMasterPage = () => {
   const { items, createItem, getItemDetail, listItemImages, uploadItemImage } = useKitchenInventoryMock();
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('kg');
@@ -176,12 +151,6 @@ const StoreManagerItemMasterPage = () => {
 
   return (
     <StorePageShell>
-      <StorePageHeader
-        title="Item Master"
-        description="Create inventory items, browse the catalog, and manage uploaded item images."
-        tone="violet"
-      />
-
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
 
       <StoreStatGrid>
@@ -397,4 +366,4 @@ const StoreManagerItemMasterPage = () => {
   );
 };
 
-export default StoreManagerItemMasterPage;
+export default StoreOperatorItemMasterPage;

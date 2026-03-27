@@ -4,119 +4,235 @@ import { cn } from '@/lib/utils';
 
 const toneStyles = {
   sky: {
-    card: 'border-sky-200/80 bg-gradient-to-r from-sky-50 via-white to-cyan-50',
-    title: 'text-sky-950',
-    description: 'text-sky-700',
-    sectionHeader: 'border-b border-sky-100 bg-sky-50/60',
-    sectionAccent: 'bg-sky-500',
-    stat: 'border-sky-200/80 bg-gradient-to-br from-sky-50 to-white',
-    notice: 'border-sky-200 bg-sky-50 text-sky-800'
+    card: 'border-slate-200/80 bg-white',
+    title: 'text-slate-900',
+    description: 'text-slate-600',
+    sectionHeader: 'border-b border-slate-100 bg-slate-50/90',
+    sectionAccent: 'bg-teal-600',
+    stat: 'border-slate-200/80 bg-white',
+    statIconWrap: 'bg-teal-100 text-teal-700',
+    notice: 'border-teal-200/80 bg-teal-50 text-teal-900'
   },
   emerald: {
-    card: 'border-emerald-200/80 bg-gradient-to-r from-emerald-50 via-white to-teal-50',
-    title: 'text-emerald-950',
-    description: 'text-emerald-700',
-    sectionHeader: 'border-b border-emerald-100 bg-emerald-50/60',
-    sectionAccent: 'bg-emerald-500',
-    stat: 'border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white',
-    notice: 'border-emerald-200 bg-emerald-50 text-emerald-800'
+    card: 'border-slate-200/80 bg-white',
+    title: 'text-slate-900',
+    description: 'text-slate-600',
+    sectionHeader: 'border-b border-slate-100 bg-slate-50/90',
+    sectionAccent: 'bg-emerald-600',
+    stat: 'border-slate-200/80 bg-white',
+    statIconWrap: 'bg-emerald-100 text-emerald-700',
+    notice: 'border-emerald-200/80 bg-emerald-50 text-emerald-900'
   },
   amber: {
-    card: 'border-amber-200/80 bg-gradient-to-r from-amber-50 via-white to-orange-50',
-    title: 'text-amber-950',
-    description: 'text-amber-700',
-    sectionHeader: 'border-b border-amber-100 bg-amber-50/60',
+    card: 'border-slate-200/80 bg-white',
+    title: 'text-slate-900',
+    description: 'text-slate-600',
+    sectionHeader: 'border-b border-slate-100 bg-slate-50/90',
     sectionAccent: 'bg-amber-500',
-    stat: 'border-amber-200/80 bg-gradient-to-br from-amber-50 to-white',
-    notice: 'border-amber-200 bg-amber-50 text-amber-800'
+    stat: 'border-slate-200/80 bg-white',
+    statIconWrap: 'bg-amber-100 text-amber-800',
+    notice: 'border-amber-200/80 bg-amber-50 text-amber-950'
   },
   rose: {
-    card: 'border-rose-200/80 bg-gradient-to-r from-rose-50 via-white to-pink-50',
-    title: 'text-rose-950',
-    description: 'text-rose-700',
-    sectionHeader: 'border-b border-rose-100 bg-rose-50/60',
-    sectionAccent: 'bg-rose-500',
-    stat: 'border-rose-200/80 bg-gradient-to-br from-rose-50 to-white',
-    notice: 'border-rose-200 bg-rose-50 text-rose-800'
+    card: 'border-slate-200/80 bg-white',
+    title: 'text-slate-900',
+    description: 'text-slate-600',
+    sectionHeader: 'border-b border-slate-100 bg-slate-50/90',
+    sectionAccent: 'bg-rose-600',
+    stat: 'border-slate-200/80 bg-white',
+    statIconWrap: 'bg-rose-100 text-rose-700',
+    notice: 'border-rose-200/80 bg-rose-50 text-rose-900'
   },
   violet: {
-    card: 'border-violet-200/80 bg-gradient-to-r from-violet-50 via-white to-indigo-50',
-    title: 'text-violet-950',
-    description: 'text-violet-700',
-    sectionHeader: 'border-b border-violet-100 bg-violet-50/60',
-    sectionAccent: 'bg-violet-500',
-    stat: 'border-violet-200/80 bg-gradient-to-br from-violet-50 to-white',
-    notice: 'border-violet-200 bg-violet-50 text-violet-800'
+    card: 'border-slate-200/80 bg-white',
+    title: 'text-slate-900',
+    description: 'text-slate-600',
+    sectionHeader: 'border-b border-slate-100 bg-slate-50/90',
+    sectionAccent: 'bg-violet-600',
+    stat: 'border-slate-200/80 bg-white',
+    statIconWrap: 'bg-violet-100 text-violet-700',
+    notice: 'border-violet-200/80 bg-violet-50 text-violet-900'
   },
   slate: {
-    card: 'border-slate-200 bg-white',
-    title: 'text-slate-950',
+    card: 'border-slate-200/80 bg-white',
+    title: 'text-slate-900',
     description: 'text-slate-600',
-    sectionHeader: 'border-b border-slate-100 bg-slate-50/70',
-    sectionAccent: 'bg-slate-500',
-    stat: 'border-slate-200 bg-white',
-    notice: 'border-slate-200 bg-slate-50 text-slate-700'
+    sectionHeader: 'border-b border-slate-100 bg-slate-50/90',
+    sectionAccent: 'bg-slate-600',
+    stat: 'border-slate-200/80 bg-white',
+    statIconWrap: 'bg-slate-100 text-slate-700',
+    notice: 'border-slate-200 bg-slate-50 text-slate-800'
   }
 };
 
+const StatIcon = ({ tone }) => {
+  const wrap = toneStyles[tone]?.statIconWrap ?? toneStyles.sky.statIconWrap;
+  if (tone === 'amber') {
+    return (
+      <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-full', wrap)} aria-hidden>
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+      </span>
+    );
+  }
+  if (tone === 'rose') {
+    return (
+      <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-full', wrap)} aria-hidden>
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5a2.25 2.25 0 002.25-2.25m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5a2.25 2.25 0 012.25 2.25v7.5" />
+        </svg>
+      </span>
+    );
+  }
+  if (tone === 'emerald') {
+    return (
+      <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-full', wrap)} aria-hidden>
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 14.25v5.25m4.5-9v9m4.5-13.5v13.5" />
+        </svg>
+      </span>
+    );
+  }
+  if (tone === 'slate' || tone === 'violet') {
+    return (
+      <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-full', wrap)} aria-hidden>
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-full', wrap)} aria-hidden>
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+      </svg>
+    </span>
+  );
+};
+
+/** Table + list-friendly wrapper for rounded panels and zebra rows (design only). */
+export const StoreTableFrame = ({ children, className }) => (
+  <div
+    className={cn(
+      'overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm',
+      '[&_tbody_tr:nth-child(even)]:bg-slate-50/80 [&_thead_tr]:bg-slate-100/90 [&_th]:text-slate-600 [&_th]:font-semibold',
+      className
+    )}
+  >
+    {children}
+  </div>
+);
+
+/** Teal primary/outline inside store pages only (matches inventory reference). */
+const storeShellButtonScope =
+  '[&_button.bg-sky-600]:!bg-teal-600 [&_button.bg-sky-600]:hover:!bg-teal-700 [&_button.border-sky-200]:!border-teal-200/80 [&_button.bg-sky-50]:!bg-teal-50/85 [&_button.text-sky-800]:!text-teal-900 [&_button.border-sky-200]:hover:!bg-teal-100/90 [&_button.border-sky-200]:hover:!text-teal-950';
+
 export const StorePageShell = ({ children, className }) => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/40 to-violet-50/40 p-6">
-    <div className={cn("mx-auto max-w-6xl space-y-4", className)}>{children}</div>
+  <div className={cn('min-h-screen bg-[#eef2f5] p-4 sm:p-6 lg:p-8', storeShellButtonScope)}>
+    <div className={cn('mx-auto max-w-7xl space-y-6', className)}>{children}</div>
   </div>
 );
 
 export const StorePageHeader = ({ title, description, actions = null, tone = 'sky' }) => (
-  <Card className={cn('overflow-hidden shadow-sm', toneStyles[tone]?.card)}>
-    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="space-y-1">
-        <div className={cn('mb-2 h-1.5 w-16 rounded-full', toneStyles[tone]?.sectionAccent)} />
-        <CardTitle className={cn('text-2xl', toneStyles[tone]?.title)}>{title}</CardTitle>
-        {description ? <CardDescription className={toneStyles[tone]?.description}>{description}</CardDescription> : null}
+  <Card
+    className={cn(
+      'overflow-hidden rounded-2xl border-slate-200/80 bg-white shadow-sm ring-1 ring-slate-200/40',
+      toneStyles[tone]?.card
+    )}
+  >
+    <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:pb-6">
+      <div className="space-y-2">
+        <CardTitle className={cn('text-3xl font-bold tracking-tight', toneStyles[tone]?.title)}>{title}</CardTitle>
+        {description ? (
+          <CardDescription className={cn('text-base text-slate-600', toneStyles[tone]?.description)}>
+            {description}
+          </CardDescription>
+        ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex flex-wrap items-center gap-2 [&_button]:rounded-xl [&_a]:rounded-xl">{actions}</div>
+      ) : null}
     </CardHeader>
   </Card>
 );
 
+const sectionTableStyles =
+  '[&_table]:w-full [&_tbody_tr:nth-child(even)]:bg-slate-50/75 [&_thead_tr]:bg-slate-100/85 [&_th]:font-semibold [&_th]:text-slate-600 [&_tr]:border-slate-100';
+
 export const StoreSection = ({ title, description, children, className, headerActions = null, tone = 'slate' }) => (
-  <Card className={cn('overflow-hidden shadow-sm', className)}>
-    {(title || description || headerActions) ? (
-      <CardHeader className={cn('flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between', toneStyles[tone]?.sectionHeader)}>
+  <Card
+    className={cn(
+      'overflow-hidden rounded-2xl border-slate-200/80 bg-white shadow-sm ring-1 ring-slate-200/30',
+      className
+    )}
+  >
+    {title || description || headerActions ? (
+      <CardHeader
+        className={cn(
+          'flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between',
+          toneStyles[tone]?.sectionHeader
+        )}
+      >
         <div className="space-y-1">
           {title ? (
-            <CardTitle className={cn('flex items-center gap-2 text-lg', toneStyles[tone]?.title)}>
-              <span className={cn('inline-block h-2.5 w-2.5 rounded-full', toneStyles[tone]?.sectionAccent)} />
+            <CardTitle className={cn('flex items-center gap-2 text-xl font-semibold', toneStyles[tone]?.title)}>
+              <span className={cn('inline-block h-2 w-2 shrink-0 rounded-full', toneStyles[tone]?.sectionAccent)} />
               {title}
             </CardTitle>
           ) : null}
-          {description ? <CardDescription className={toneStyles[tone]?.description}>{description}</CardDescription> : null}
+          {description ? (
+            <CardDescription className={cn('text-slate-600', toneStyles[tone]?.description)}>{description}</CardDescription>
+          ) : null}
         </div>
-        {headerActions ? <div className="flex flex-wrap gap-2">{headerActions}</div> : null}
+        {headerActions ? (
+          <div className="flex flex-wrap gap-2 [&_button]:rounded-xl [&_a]:rounded-xl">{headerActions}</div>
+        ) : null}
       </CardHeader>
     ) : null}
-    <CardContent className={cn(title || description || headerActions ? "" : "p-4", "space-y-4")}>
+    <CardContent
+      className={cn(
+        title || description || headerActions ? '' : 'p-6',
+        'space-y-4 pb-6',
+        sectionTableStyles
+      )}
+    >
       {children}
     </CardContent>
   </Card>
 );
 
-export const StoreStatGrid = ({ children }) => (
-  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">{children}</div>
+export const StoreStatGrid = ({ children, className }) => (
+  <div className={cn('grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4', className)}>{children}</div>
 );
 
 export const StoreStatCard = ({ label, value, helper = null, tone = 'sky' }) => (
-  <Card className={cn('overflow-hidden shadow-sm', toneStyles[tone]?.stat)}>
-    <CardContent className="p-4">
-      <div className={cn('mb-3 h-1.5 w-12 rounded-full', toneStyles[tone]?.sectionAccent)} />
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className={cn('mt-1 text-2xl font-semibold', toneStyles[tone]?.title)}>{value}</p>
-      {helper ? <p className={cn('mt-1 text-xs', toneStyles[tone]?.description)}>{helper}</p> : null}
+  <Card
+    className={cn(
+      'overflow-hidden rounded-2xl border-slate-200/80 bg-white shadow-sm ring-1 ring-slate-200/25',
+      toneStyles[tone]?.stat
+    )}
+  >
+    <CardContent className="flex items-start gap-4 p-5">
+      <StatIcon tone={tone} />
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="text-sm font-medium text-slate-500">{label}</p>
+        <p className={cn('text-3xl font-bold tracking-tight text-slate-900')}>{value}</p>
+        {helper ? <p className={cn('text-xs text-slate-500', toneStyles[tone]?.description)}>{helper}</p> : null}
+      </div>
     </CardContent>
   </Card>
 );
 
 export const StoreNotice = ({ children, tone = 'sky', className }) => (
-  <div className={cn('rounded-md border px-3 py-2 text-sm shadow-sm', toneStyles[tone]?.notice, className)}>
+  <div
+    className={cn(
+      'rounded-xl border px-4 py-3 text-sm shadow-sm',
+      toneStyles[tone]?.notice,
+      className
+    )}
+  >
     {children}
   </div>
 );

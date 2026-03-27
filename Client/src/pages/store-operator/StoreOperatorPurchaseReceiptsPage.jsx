@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
+import { StoreNotice, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 import {
   useKitchenInventoryMock,
   useKitchenPurchaseRequestOperatorApi,
@@ -60,6 +60,29 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     off_list_purchase_reason: '',
     note: ''
   });
+  /** Local-only UI for purchase proof image (no upload wired). */
+  const [purchaseProofFile, setPurchaseProofFile] = useState(null);
+  const purchaseProofInputRef = useRef(null);
+  const purchaseProofPreviewUrl = useMemo(
+    () => (purchaseProofFile ? URL.createObjectURL(purchaseProofFile) : null),
+    [purchaseProofFile]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (purchaseProofPreviewUrl) URL.revokeObjectURL(purchaseProofPreviewUrl);
+    };
+  }, [purchaseProofPreviewUrl]);
+
+  const onPurchaseProofFileChange = (e) => {
+    const f = e.target.files?.[0] ?? null;
+    setPurchaseProofFile(f);
+  };
+
+  const clearPurchaseProof = () => {
+    setPurchaseProofFile(null);
+    if (purchaseProofInputRef.current) purchaseProofInputRef.current.value = '';
+  };
 
   useEffect(() => {
     listApprovedRequests();
@@ -134,7 +157,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     setStatus('');
     try {
       const out = await listReceipts();
-      const rows = Array.isArray(out) ? out : out?.receipts || out?.items || [];
+      const rows = Array.isArray(out) ? out : Array.isArray(out?.receipts) ? out.receipts : [];
       setHistory(rows);
     } catch (err) {
       setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt history.');
@@ -195,12 +218,36 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       }
       setActiveReceiptId(receiptId);
       setSelectedLines([]);
-      await addApprovedLineToReceipt(receiptId);
-      setStatus('Linked receipt created and approved line added.');
+      setStatus('Receipt created. Use Add item to record approved lines on this receipt.');
       await loadReceiptHistory();
       await openReceiptLines(receiptId);
     } catch (err) {
       setStatus(err?.response?.data?.message || err?.response?.data?.detail || err?.message || 'Failed to create receipt.');
+    }
+  };
+
+  const onAddApprovedPurchaseLine = async () => {
+    if (!activeReceiptId) {
+      setStatus('Create a receipt first using Create receipt, then add items.');
+      return;
+    }
+    if (!approvedLines.length) {
+      setStatus('No approved lines are available for the selected request.');
+      return;
+    }
+    setStatus('');
+    try {
+      await addApprovedLineToReceipt(activeReceiptId);
+      setStatus('Approved line added to the receipt.');
+      await loadReceiptHistory();
+      await openReceiptLines(activeReceiptId);
+    } catch (err) {
+      setStatus(
+        err?.message ||
+          err?.response?.data?.message ||
+          err?.response?.data?.detail ||
+          'Failed to add line to receipt.'
+      );
     }
   };
 
@@ -255,11 +302,6 @@ const StoreOperatorPurchaseReceiptsPage = () => {
 
   return (
     <StorePageShell>
-      <StorePageHeader
-        title="Purchase Receipts"
-        description="Create a receipt linked to an approved request, add approved items, and record off-list purchases when needed."
-        tone="emerald"
-      />
       {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
 
@@ -299,11 +341,18 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             placeholder="Reference invoice"
           />
         </div>
+        <div className="mt-4 flex justify-end">
+          <Button type="button" onClick={onCreateReceipt} disabled={!selectedRequestId}>
+            Create receipt
+          </Button>
+        </div>
+
         <div className="mt-4 text-sm font-medium text-slate-700">Add Approved Purchase Line</div>
         {approvedLines.length === 0 ? (
           <StoreNotice tone="amber">No approved lines are available for the selected request.</StoreNotice>
         ) : (
-          <div className="grid gap-3 md:grid-cols-3">
+          <>
+            <div className="grid gap-3 md:grid-cols-3">
             <select
               className="rounded border px-3 py-2"
               value={approvedPurchaseForm.purchase_request_line_id}
@@ -352,7 +401,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               className="rounded border px-3 py-2"
               value={approvedPurchaseForm.line_total}
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, line_total: e.target.value }))}
-              placeholder="Line total"
+              placeholder="Total"
               type="number"
               min="0"
               step="0.01"
@@ -367,15 +416,57 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               className="rounded border px-3 py-2 text-sm md:col-span-2"
               value={approvedPurchaseForm.note}
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, note: e.target.value }))}
-              placeholder="Optional note"
+              placeholder="Operator note"
             />
-          </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200/90 bg-slate-50/70 p-4">
+              <div className="text-sm font-medium text-slate-800">Purchase receipt image</div>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
+                <input
+                  ref={purchaseProofInputRef}
+                  id="purchase-proof-image"
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  aria-label="Choose purchase receipt image"
+                  onChange={onPurchaseProofFileChange}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => purchaseProofInputRef.current?.click()}>
+                    Choose image
+                  </Button>
+                  {purchaseProofFile ? (
+                    <Button type="button" variant="ghost" size="sm" className="text-slate-600" onClick={clearPurchaseProof}>
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+                {purchaseProofPreviewUrl ? (
+                  <div className="flex min-w-0 flex-1 flex-col gap-1 rounded-lg border border-dashed border-slate-200 bg-white p-2 sm:max-w-md">
+                    <img
+                      src={purchaseProofPreviewUrl}
+                      alt="Selected purchase receipt preview"
+                      className="max-h-48 w-full rounded-md object-contain"
+                    />
+                    <span className="truncate text-xs text-slate-500" title={purchaseProofFile?.name || ''}>
+                      {purchaseProofFile?.name}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex min-h-[5rem] flex-1 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white/80 px-4 text-center text-xs text-slate-400 sm:max-w-md">
+                    No image selected
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button type="button" onClick={onAddApprovedPurchaseLine} disabled={!activeReceiptId || !approvedLines.length}>
+                Add item
+              </Button>
+            </div>
+          </>
         )}
-        <div className="mt-4 flex justify-end">
-          <Button type="button" onClick={onCreateReceipt}>
-            Create Recipt
-          </Button>
-        </div>
         {/* {approvedLinePreview ? (
           <StoreNotice tone="sky">
             Preview (backend uses the same math): received in base unit ≈{' '}
@@ -433,7 +524,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               className="rounded border px-2 py-1.5 text-sm"
               value={offListForm.line_total}
               onChange={(e) => setOffListForm((prev) => ({ ...prev, line_total: e.target.value }))}
-              placeholder="Line total"
+              placeholder="Total"
               type="number"
               min="0"
               step="0.01"
@@ -478,33 +569,35 @@ const StoreOperatorPurchaseReceiptsPage = () => {
           <Button type="button" variant="outline" onClick={loadReceiptHistory}>Refresh Register</Button>
         }
       >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Receipt ID</TableHead>
-              <TableHead>Invoice</TableHead>
-              <TableHead>Received At</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {history.map((row) => (
-              <TableRow key={row.id || row.receipt_id}>
-                <TableCell className="font-medium">{row.id || row.receipt_id}</TableCell>
-                <TableCell>{row.reference_invoice || '-'}</TableCell>
-                <TableCell>{row.received_at || row.created_at || '-'}</TableCell>
-                <TableCell className="text-right">
-                  <Button type="button" variant="outline" size="sm" onClick={() => openReceiptLines(row.id || row.receipt_id)}>
-                    Open
-                  </Button>
-                </TableCell>
+        <div className="max-h-[330px] overflow-y-auto rounded border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Receipt ID</TableHead>
+                <TableHead>Invoice</TableHead>
+                <TableHead>Received At</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {history.map((row) => (
+                <TableRow key={row.id || row.receipt_id}>
+                  <TableCell className="font-medium">{row.id || row.receipt_id}</TableCell>
+                  <TableCell>{row.reference_invoice || '-'}</TableCell>
+                  <TableCell>{row.received_at || row.created_at || '-'}</TableCell>
+                  <TableCell className="text-right">
+                    <Button type="button" variant="outline" size="sm" onClick={() => openReceiptLines(row.id || row.receipt_id)}>
+                      Open
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </StoreSection>
 
-      <StoreSection title="Received Item Lines" tone="amber">
+      <StoreSection title="Received Item " tone="amber">
         {selectedLines.length === 0 ? (
           <StoreNotice tone="amber">Open a receipt to view received item lines.</StoreNotice>
         ) : (

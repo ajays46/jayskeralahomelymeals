@@ -3,7 +3,7 @@ import { useCompanyBasePath } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { useKitchenInventoryMock, useKitchenPlansMock, useKitchenReportsMock } from '../../hooks/adminHook/kitchenStoreHook';
 import { Button } from '@/components/ui/button';
-import { StorePageHeader, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
+import { StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 
 const StoreManagerKitchenDashboard = () => {
   const basePath = useCompanyBasePath();
@@ -15,14 +15,10 @@ const StoreManagerKitchenDashboard = () => {
 
   return (
     <StorePageShell>
-      <StorePageHeader
-        title="Store Manager Dashboard"
-        description="Kitchen planning overview for approvals, alerts, and daily summaries."
-      />
       <StoreStatGrid>
-        <StoreStatCard label="Pending Plans" value={pendingPlans} />
-        <StoreStatCard label="Low Stock Alerts" value={lowStockItems.length} />
-        <StoreStatCard label="Daily Revenue" value={`INR ${totalRevenue}`} />
+        <StoreStatCard label="Pending Plans" value={pendingPlans} tone="sky" />
+        <StoreStatCard label="Low Stock Alerts" value={lowStockItems.length} tone="amber" />
+        <StoreStatCard label="Daily Revenue" value={`INR ${totalRevenue}`} tone="emerald" />
       </StoreStatGrid>
       <StoreSection title="Order Snapshot">
         <p className="text-sm text-slate-600">Total orders for day: {totalOrders}</p>
@@ -47,7 +43,6 @@ const StoreManagerKitchenDashboard = () => {
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/plan-list`}>Plan List</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-operator/inventory`}>View Inventory</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/inventory`}>Inventory Table</Link></Button>
-            <Button asChild variant="outline"><Link to={`${basePath}/store-manager/item-master`}>Item Master</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/stock-logs`}>Stock Logs</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/recipe-bom`}>Recipe/BOM</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/reports`}>Reports</Link></Button>
