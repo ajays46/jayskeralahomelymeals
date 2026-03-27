@@ -13,6 +13,8 @@ import {
   getPlanService,
   approvePlanService,
   issuePlanService,
+  createPurchaseInvoiceUploadUrlService,
+  uploadPurchaseReceiptInvoiceService,
   createPurchaseReceiptService,
   addPurchaseReceiptLineService,
   listPurchaseReceiptsService,
@@ -59,6 +61,22 @@ const requirePositiveNumber = (value, name) => {
     throw new AppError(`${name} must be a positive number`, 400);
   }
   return numeric;
+};
+
+const requireNonEmptyString = (value, name) => {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new AppError(`${name} is required`, 400);
+  }
+  return value.trim();
+};
+
+const optionalTrimmedString = (value, name) => {
+  if (value == null) return undefined;
+  if (typeof value !== 'string') {
+    throw new AppError(`${name} must be a string`, 400);
+  }
+  const trimmed = value.trim();
+  return trimmed === '' ? undefined : trimmed;
 };
 
 /** users.id forwarded to kitchen inventory upstream (ACCESS_TOKEN mode). */
@@ -246,8 +264,71 @@ export const issuePlan = async (req, res, next) => {
 
 export const createPurchaseReceipt = async (req, res, next) => {
   try {
-    const result = await createPurchaseReceiptService(req.body, req.companyId, kitchenActorUserId(req));
+    const body = req.body || {};
+    const purchaseRequestId = requireNonEmptyString(body.purchase_request_id, 'purchase_request_id');
+    const payload = {
+      ...body,
+      purchase_request_id: purchaseRequestId
+    };
+    const referenceInvoice = optionalTrimmedString(body.reference_invoice, 'reference_invoice');
+    const invoiceS3Key = optionalTrimmedString(body.invoice_s3_key, 'invoice_s3_key');
+    const invoiceS3Url = optionalTrimmedString(body.invoice_s3_url, 'invoice_s3_url');
+    if (referenceInvoice !== undefined) payload.reference_invoice = referenceInvoice;
+    if (invoiceS3Key !== undefined) payload.invoice_s3_key = invoiceS3Key;
+    if (invoiceS3Url !== undefined) payload.invoice_s3_url = invoiceS3Url;
+    if (body.received_at != null && typeof body.received_at !== 'string') {
+      throw new AppError('received_at must be a datetime string', 400);
+    }
+    const result = await createPurchaseReceiptService(payload, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createPurchaseInvoiceUploadUrl = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const filename = requireNonEmptyString(body.filename, 'filename');
+    const contentType = requireNonEmptyString(body.content_type, 'content_type');
+    const purchaseRequestId = requireNonEmptyString(body.purchase_request_id, 'purchase_request_id');
+    const allowedContentTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!allowedContentTypes.includes(contentType)) {
+      throw new AppError('content_type must be one of application/pdf, image/jpeg, image/png', 400);
+    }
+    const result = await createPurchaseInvoiceUploadUrlService(
+      {
+        filename,
+        content_type: contentType,
+        purchase_request_id: purchaseRequestId
+      },
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadPurchaseReceiptInvoice = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const file = req.file;
+    if (!file) {
+      throw new AppError('Invoice file is required (multipart field: file)', 400);
+    }
+    const allowedMime = new Set(['application/pdf', 'image/jpeg', 'image/png']);
+    if (!allowedMime.has(file.mimetype)) {
+      throw new AppError('Invoice file must be PDF, JPG, or PNG', 400);
+    }
+    const result = await uploadPurchaseReceiptInvoiceService(
+      receiptId,
+      file,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
@@ -255,7 +336,33 @@ export const createPurchaseReceipt = async (req, res, next) => {
 
 export const addPurchaseReceiptLine = async (req, res, next) => {
   try {
-    const result = await addPurchaseReceiptLineService(req.params.receipt_id, req.body, req.companyId, kitchenActorUserId(req));
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const body = req.body || {};
+
+    if (body.purchase_request_line_id != null && typeof body.purchase_request_line_id !== 'string') {
+      throw new AppError('purchase_request_line_id must be a string', 400);
+    }
+    if (body.inventory_item_id != null && typeof body.inventory_item_id !== 'string') {
+      throw new AppError('inventory_item_id must be a string', 400);
+    }
+    requirePositiveNumber(body.purchased_qty, 'purchased_qty');
+    requireNonEmptyString(body.purchase_unit, 'purchase_unit');
+    requirePositiveNumber(body.conversion_to_base, 'conversion_to_base');
+    requirePositiveNumber(body.line_total, 'line_total');
+    requireNonEmptyString(body.purchase_date, 'purchase_date');
+    if (body.note != null && typeof body.note !== 'string') {
+      throw new AppError('note must be a string', 400);
+    }
+    if (body.off_list_purchase_reason != null && typeof body.off_list_purchase_reason !== 'string') {
+      throw new AppError('off_list_purchase_reason must be a string', 400);
+    }
+    const isOffListByReason = typeof body.off_list_purchase_reason === 'string' && body.off_list_purchase_reason.trim() !== '';
+    const hasRequestLine = typeof body.purchase_request_line_id === 'string' && body.purchase_request_line_id.trim() !== '';
+    if (!hasRequestLine && !isOffListByReason) {
+      throw new AppError('off_list_purchase_reason is required when purchase_request_line_id is not provided', 400);
+    }
+
+    const result = await addPurchaseReceiptLineService(receiptId, body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -264,6 +371,13 @@ export const addPurchaseReceiptLine = async (req, res, next) => {
 
 export const listPurchaseReceipts = async (req, res, next) => {
   try {
+    const query = req.query || {};
+    if (query.from_date != null && typeof query.from_date !== 'string') {
+      throw new AppError('from_date must be a string', 400);
+    }
+    if (query.to_date != null && typeof query.to_date !== 'string') {
+      throw new AppError('to_date must be a string', 400);
+    }
     const result = await listPurchaseReceiptsService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
@@ -474,10 +588,20 @@ export const reviewPurchaseReceiptLine = async (req, res, next) => {
     if (!req.body?.manager_action || typeof req.body.manager_action !== 'string') {
       throw new AppError('manager_action is required', 400);
     }
+    const managerAction = req.body.manager_action.trim().toUpperCase();
+    if (!['KEEP', 'REJECT', 'RETURN', 'INVESTIGATE'].includes(managerAction)) {
+      throw new AppError('manager_action must be one of KEEP, REJECT, RETURN, INVESTIGATE', 400);
+    }
     if (req.body?.manager_action_note != null && typeof req.body.manager_action_note !== 'string') {
       throw new AppError('manager_action_note must be a string', 400);
     }
-    const result = await reviewPurchaseReceiptLineService(receiptId, lineId, req.body, req.companyId, kitchenActorUserId(req));
+    const result = await reviewPurchaseReceiptLineService(
+      receiptId,
+      lineId,
+      { ...req.body, manager_action: managerAction },
+      req.companyId,
+      kitchenActorUserId(req)
+    );
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);

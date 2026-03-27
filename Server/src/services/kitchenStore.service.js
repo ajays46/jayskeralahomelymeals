@@ -1,4 +1,5 @@
 import axios from 'axios';
+import FormData from 'form-data';
 import AppError from '../utils/AppError.js';
 import { logError, LOG_CATEGORIES, logInfo } from '../utils/criticalLogger.js';
 
@@ -234,6 +235,62 @@ export const issuePlanService = async (planId, body, companyId, userId = null) =
 };
 
 // v2 purchases / receipts
+export const createPurchaseInvoiceUploadUrlService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      '/v2/purchases/invoice-upload-url',
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('createPurchaseInvoiceUploadUrl', {
+      endpoint: '/v2/purchases/invoice-upload-url',
+      companyId: companyId || null
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('createPurchaseInvoiceUploadUrl', error, {
+      endpoint: '/v2/purchases/invoice-upload-url',
+      companyId: companyId || null
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const uploadPurchaseReceiptInvoiceService = async (receiptId, file, companyId, userId = null) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file.buffer, {
+      filename: file.originalname || 'invoice',
+      contentType: file.mimetype || 'application/octet-stream',
+      knownLength: file.size
+    });
+    const contextConfig = withKitchenContext(companyId, userId, {
+      headers: {
+        ...formData.getHeaders()
+      },
+      maxBodyLength: Infinity
+    });
+    const response = await apiClient.post(
+      `/v2/purchases/receipts/${receiptId}/invoice/upload`,
+      formData,
+      contextConfig
+    );
+    logKitchenSuccess('uploadPurchaseReceiptInvoice', {
+      endpoint: '/v2/purchases/receipts/:receipt_id/invoice/upload',
+      companyId: companyId || null,
+      receiptId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('uploadPurchaseReceiptInvoice', error, {
+      endpoint: '/v2/purchases/receipts/:receipt_id/invoice/upload',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
 export const createPurchaseReceiptService = async (body, companyId, userId = null) => {
   try {
     const response = await apiClient.post('/v2/purchases/receipts', body || {}, withKitchenContext(companyId, userId));

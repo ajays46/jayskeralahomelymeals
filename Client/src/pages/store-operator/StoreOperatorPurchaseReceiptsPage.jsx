@@ -33,10 +33,13 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     listApprovedRequests,
     fetchApprovedLines
   } = useKitchenPurchaseRequestOperatorApi();
-  const { createReceipt, addReceiptLine, listReceipts, listReceiptLines } = useKitchenReceiptsApi();
+  const { uploadReceiptInvoice, createReceipt, addReceiptLine, listReceipts, listReceiptLines } =
+    useKitchenReceiptsApi();
 
   const [selectedRequestId, setSelectedRequestId] = useState(searchParams.get('requestId') || '');
   const [referenceInvoice, setReferenceInvoice] = useState('');
+  const [invoiceS3Key, setInvoiceS3Key] = useState('');
+  const [invoiceS3Url, setInvoiceS3Url] = useState('');
   const [activeReceiptId, setActiveReceiptId] = useState('');
   const [history, setHistory] = useState([]);
   const [selectedLines, setSelectedLines] = useState([]);
@@ -60,8 +63,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     off_list_purchase_reason: '',
     note: ''
   });
-  /** Local-only UI for purchase proof image (no upload wired). */
   const [purchaseProofFile, setPurchaseProofFile] = useState(null);
+  const [invoiceUploadLoading, setInvoiceUploadLoading] = useState(false);
   const purchaseProofInputRef = useRef(null);
   const purchaseProofPreviewUrl = useMemo(
     () => (purchaseProofFile ? URL.createObjectURL(purchaseProofFile) : null),
@@ -157,8 +160,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     setStatus('');
     try {
       const out = await listReceipts();
-      const rows = Array.isArray(out) ? out : Array.isArray(out?.receipts) ? out.receipts : [];
-      setHistory(rows);
+      setHistory(Array.isArray(out) ? out : []);
     } catch (err) {
       setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt history.');
     }
@@ -207,22 +209,44 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     }
     setStatus('');
     try {
+      if (purchaseProofFile) {
+        const contentType = purchaseProofFile.type || 'application/octet-stream';
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+        if (!allowedTypes.includes(contentType)) {
+          setStatus('Invoice file must be PDF, JPG, or PNG.');
+          return;
+        }
+      }
+      const manualInvoiceS3Key = invoiceS3Key.trim() || undefined;
+      const manualInvoiceS3Url = invoiceS3Url.trim() || undefined;
+
       const out = await createReceipt({
         purchase_request_id: selectedRequestId,
-        reference_invoice: referenceInvoice.trim() || undefined
+        reference_invoice: referenceInvoice.trim() || undefined,
+        invoice_s3_key: manualInvoiceS3Key,
+        invoice_s3_url: manualInvoiceS3Url
       });
       const receiptId = String(out?.receipt_id ?? out?.id ?? '');
       if (!receiptId) {
         setStatus('Receipt created, but the receipt id was not returned.');
         return;
       }
+      if (purchaseProofFile) {
+        setInvoiceUploadLoading(true);
+        const uploaded = await uploadReceiptInvoice(receiptId, purchaseProofFile);
+        setInvoiceS3Key(uploaded?.invoice_s3_key || '');
+        setInvoiceS3Url(uploaded?.invoice_s3_url || '');
+      }
       setActiveReceiptId(receiptId);
       setSelectedLines([]);
       setStatus('Receipt created. Use Add item to record approved lines on this receipt.');
+      clearPurchaseProof();
       await loadReceiptHistory();
       await openReceiptLines(receiptId);
     } catch (err) {
       setStatus(err?.response?.data?.message || err?.response?.data?.detail || err?.message || 'Failed to create receipt.');
+    } finally {
+      setInvoiceUploadLoading(false);
     }
   };
 
@@ -340,10 +364,22 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             onChange={(e) => setReferenceInvoice(e.target.value)}
             placeholder="Reference invoice"
           />
+          <input
+            className="rounded border px-3 py-2"
+            value={invoiceS3Key}
+            onChange={(e) => setInvoiceS3Key(e.target.value)}
+            placeholder="Invoice S3 key (optional)"
+          />
+          <input
+            className="rounded border px-3 py-2 md:col-span-2"
+            value={invoiceS3Url}
+            onChange={(e) => setInvoiceS3Url(e.target.value)}
+            placeholder="Invoice S3 URL (optional)"
+          />
         </div>
         <div className="mt-4 flex justify-end">
-          <Button type="button" onClick={onCreateReceipt} disabled={!selectedRequestId}>
-            Create receipt
+          <Button type="button" onClick={onCreateReceipt} disabled={!selectedRequestId || invoiceUploadLoading}>
+            {invoiceUploadLoading ? 'Uploading invoice...' : 'Create receipt'}
           </Button>
         </div>
 
@@ -427,7 +463,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                   ref={purchaseProofInputRef}
                   id="purchase-proof-image"
                   type="file"
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   className="sr-only"
                   aria-label="Choose purchase receipt image"
                   onChange={onPurchaseProofFileChange}
@@ -574,7 +610,10 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Receipt ID</TableHead>
+                <TableHead>Request ID</TableHead>
                 <TableHead>Invoice</TableHead>
+                <TableHead>Invoice URL</TableHead>
+                <TableHead>Uploaded At</TableHead>
                 <TableHead>Received At</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -583,7 +622,23 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               {history.map((row) => (
                 <TableRow key={row.id || row.receipt_id}>
                   <TableCell className="font-medium">{row.id || row.receipt_id}</TableCell>
+                  <TableCell>{row.purchase_request_id || '-'}</TableCell>
                   <TableCell>{row.reference_invoice || '-'}</TableCell>
+                  <TableCell className="max-w-44 truncate">
+                    {row.invoice_s3_url ? (
+                      <a
+                        href={row.invoice_s3_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sky-700 underline"
+                      >
+                        Open
+                      </a>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell>{row.invoice_uploaded_at || '-'}</TableCell>
                   <TableCell>{row.received_at || row.created_at || '-'}</TableCell>
                   <TableCell className="text-right">
                     <Button type="button" variant="outline" size="sm" onClick={() => openReceiptLines(row.id || row.receipt_id)}>

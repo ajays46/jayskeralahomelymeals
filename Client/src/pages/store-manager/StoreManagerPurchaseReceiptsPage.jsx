@@ -45,7 +45,7 @@ const StoreManagerPurchaseReceiptsPage = () => {
     setLoadingHistory(true);
     try {
       const out = await listReceipts();
-      const rows = Array.isArray(out) ? out : out?.receipts || out?.items || [];
+      const rows = Array.isArray(out) ? out : [];
       setHistory(rows);
       if (rows.length === 0) {
         setStatus('No purchase receipts returned for this register.');
@@ -169,7 +169,10 @@ const StoreManagerPurchaseReceiptsPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Receipt date</TableHead>
+                <TableHead>Request ID</TableHead>
                 <TableHead>Invoice</TableHead>
+                <TableHead>Invoice URL</TableHead>
+                <TableHead>Uploaded At</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -189,7 +192,18 @@ const StoreManagerPurchaseReceiptsPage = () => {
                   return (
                     <TableRow key={receiptId}>
                       <TableCell className="font-medium">{formatReceiptDateOnly(receiptDateRaw)}</TableCell>
+                      <TableCell>{row.purchase_request_id || '-'}</TableCell>
                       <TableCell>{row.reference_invoice || '-'}</TableCell>
+                      <TableCell className="max-w-40 truncate">
+                        {row.invoice_s3_url ? (
+                          <a href={row.invoice_s3_url} target="_blank" rel="noreferrer" className="text-sky-700 underline">
+                            Open
+                          </a>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>{row.invoice_uploaded_at || '-'}</TableCell>
                       <TableCell className="text-right">
                         <Button type="button" variant="outline" size="sm" onClick={() => openReceiptLines(receiptId)}>
                           Open

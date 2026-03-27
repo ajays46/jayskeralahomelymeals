@@ -21,6 +21,8 @@ import {
   getPlan,
   approvePlan,
   issuePlan,
+  createPurchaseInvoiceUploadUrl,
+  uploadPurchaseReceiptInvoice,
   createPurchaseReceipt,
   addPurchaseReceiptLine,
   listPurchaseReceipts,
@@ -93,6 +95,13 @@ router.post('/v2/plans/:plan_id/approve', checkRole('STORE_MANAGER'), approvePla
 router.post('/v2/plans/:plan_id/issue', checkRole('STORE_OPERATOR'), issuePlan);
 
 // v2: Purchase receipts
+router.post('/v2/purchases/invoice-upload-url', checkRole('STORE_OPERATOR'), createPurchaseInvoiceUploadUrl);
+router.post(
+  '/v2/purchases/receipts/:receipt_id/invoice/upload',
+  checkRole('STORE_OPERATOR'),
+  itemImageUpload.single('file'),
+  uploadPurchaseReceiptInvoice
+);
 router.post('/v2/purchases/receipts', checkRole('STORE_OPERATOR'), createPurchaseReceipt);
 router.post('/v2/purchases/receipts/:receipt_id/lines', checkRole('STORE_OPERATOR'), addPurchaseReceiptLine);
 router.get('/v2/purchases/receipts', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseReceipts);

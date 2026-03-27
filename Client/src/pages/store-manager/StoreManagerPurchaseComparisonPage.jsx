@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
+import { StoreNotice, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import {
   formatKitchenDateTime,
@@ -11,7 +11,7 @@ import {
   useKitchenReceiptsApi
 } from '../../hooks/adminHook/kitchenStoreHook';
 
-const StoreOperatorPurchaseComparisonPage = () => {
+const StoreManagerPurchaseComparisonPage = () => {
   const basePath = useCompanyBasePath();
   const { approvedRequests, bootstrapLoading, error, listApprovedRequests } = useKitchenPurchaseRequestOperatorApi();
   const { getPurchaseComparison } = useKitchenReceiptsApi();
@@ -21,7 +21,7 @@ const StoreOperatorPurchaseComparisonPage = () => {
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    listApprovedRequests();
+    listApprovedRequests({ mine: false });
   }, [listApprovedRequests]);
 
   useEffect(() => {
@@ -62,19 +62,18 @@ const StoreOperatorPurchaseComparisonPage = () => {
 
   return (
     <StorePageShell>
-      <StorePageHeader
-        title="Purchase Comparison"
-        description="Compare approved request quantities with the actual purchased quantities."
-        actions={[
-          <Button key="approved" asChild><Link to={`${basePath}/store-operator/approved-requests`}>Approved Requests</Link></Button>,
-          <Button key="receipts" asChild variant="outline"><Link to={`${basePath}/store-operator/purchases`}>Purchase Receipts</Link></Button>
-        ]}
-        tone="emerald"
-      />
       {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
 
-      <StoreSection title="Approved Requests" tone="emerald">
+      <StoreSection
+        title="Purchase Comparison"
+        description="Compare approved request quantities with actual purchased quantities."
+        tone="emerald"
+        headerActions={[
+          <Button key="inbox" asChild><Link to={`${basePath}/store-manager/purchase-requests`}>Purchase Request Inbox</Link></Button>,
+          <Button key="receipts" asChild variant="outline"><Link to={`${basePath}/store-manager/purchase-receipts`}>Purchase Receipts</Link></Button>
+        ]}
+      >
         {approvedRequests.length === 0 ? (
           <StoreNotice tone="amber">No approved requests available for comparison.</StoreNotice>
         ) : (
@@ -150,12 +149,8 @@ const StoreOperatorPurchaseComparisonPage = () => {
                   <TableCell className="font-medium">
                     <div className="space-y-1">
                       <div>{row.inventory_item_name}</div>
-                      {row.operator_note ? (
-                        <div className="text-xs text-muted-foreground">Op: {row.operator_note}</div>
-                      ) : null}
-                      {row.manager_note ? (
-                        <div className="text-xs text-muted-foreground">Mgr: {row.manager_note}</div>
-                      ) : null}
+                      {row.operator_note ? <div className="text-xs text-muted-foreground">Op: {row.operator_note}</div> : null}
+                      {row.manager_note ? <div className="text-xs text-muted-foreground">Mgr: {row.manager_note}</div> : null}
                     </div>
                   </TableCell>
                   <TableCell>{row.requested_quantity} {row.requested_unit}</TableCell>
@@ -175,4 +170,4 @@ const StoreOperatorPurchaseComparisonPage = () => {
   );
 };
 
-export default StoreOperatorPurchaseComparisonPage;
+export default StoreManagerPurchaseComparisonPage;

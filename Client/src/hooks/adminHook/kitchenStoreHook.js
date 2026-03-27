@@ -746,7 +746,21 @@ const normalizePurchaseReceiptLine = (raw, index = 0) => ({
   manager_review_status: raw?.manager_review_status || '',
   manager_action: raw?.manager_action || '',
   manager_action_note: raw?.manager_action_note || '',
+  stock_applied: Boolean(raw?.stock_applied),
   purchase_date: raw?.purchase_date || ''
+});
+
+const normalizePurchaseReceiptHeader = (raw, index = 0) => ({
+  id: String(raw?.id ?? raw?.receipt_id ?? `receipt-${index}`),
+  receipt_id: String(raw?.receipt_id ?? raw?.id ?? `receipt-${index}`),
+  purchase_request_id: raw?.purchase_request_id ? String(raw.purchase_request_id) : '',
+  reference_invoice: raw?.reference_invoice || '',
+  invoice_s3_key: raw?.invoice_s3_key || '',
+  invoice_s3_url: raw?.invoice_s3_url || '',
+  invoice_uploaded_at: raw?.invoice_uploaded_at || '',
+  received_at: raw?.received_at || '',
+  created_by: raw?.created_by || '',
+  created_at: raw?.created_at || ''
 });
 
 const normalizePurchaseComparisonRow = (raw, index = 0) => ({
@@ -781,6 +795,7 @@ const normalizePurchaseExceptionRow = (raw, index = 0) => ({
   manager_review_status: raw?.manager_review_status || '',
   manager_action: raw?.manager_action || '',
   manager_action_note: raw?.manager_action_note || '',
+  stock_applied: Boolean(raw?.stock_applied),
   note: raw?.note || '',
   purchase_date: raw?.purchase_date || ''
 });
@@ -909,12 +924,13 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     }
   }, [addPurchaseRequestLine, createPurchaseRequest, submitPurchaseRequest]);
 
-  const listApprovedRequests = useCallback(async () => {
+  const listApprovedRequests = useCallback(async (options = {}) => {
+    const mine = options?.mine ?? true;
     setBootstrapLoading(true);
     setError('');
     try {
       const res = await api.get('/kitchen-store/v2/purchase-requests', {
-        params: { status: 'APPROVED', mine: true }
+        params: { status: 'APPROVED', mine }
       });
       const raw = res.data?.data;
       const list = Array.isArray(raw) ? raw : raw?.requests || raw?.items || [];
@@ -1166,11 +1182,46 @@ export const useKitchenPurchaseRequestManagerApi = () => {
 
 // v2: Purchase receipts (action-only hook; UI can be added later)
 export const useKitchenReceiptsApi = () => {
+  const getInvoiceUploadUrl = useCallback(async ({ filename, content_type, purchase_request_id }) => {
+    const res = await api.post('/kitchen-store/v2/purchases/invoice-upload-url', {
+      filename,
+      content_type,
+      purchase_request_id
+    });
+    return res.data?.data || {};
+  }, []);
+
+  const uploadInvoiceToS3 = useCallback(async (uploadPayload, file) => {
+    const uploadUrl = uploadPayload?.upload_url;
+    const method = uploadPayload?.method || 'PUT';
+    const headers = uploadPayload?.headers || {};
+    if (!uploadUrl) throw new Error('upload_url is missing from invoice upload response.');
+    const response = await fetch(uploadUrl, {
+      method,
+      headers,
+      body: file
+    });
+    if (!response.ok) {
+      throw new Error(`Invoice upload failed with status ${response.status}.`);
+    }
+    return true;
+  }, []);
+
+  const uploadReceiptInvoice = useCallback(async (receiptId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post(
+      `/kitchen-store/v2/purchases/receipts/${receiptId}/invoice/upload`,
+      formData
+    );
+    return res.data?.data || {};
+  }, []);
+
   const createReceipt = useCallback(async (payload) => {
-    const body =
-      payload && typeof payload === 'object'
-        ? payload
-        : { reference_invoice: payload };
+    const body = payload && typeof payload === 'object' ? payload : { reference_invoice: payload };
+    if (!body?.purchase_request_id) {
+      throw new Error('purchase_request_id is required to create a receipt.');
+    }
     const res = await api.post('/kitchen-store/v2/purchases/receipts', body);
     return res.data?.data;
   }, []);
@@ -1185,7 +1236,9 @@ export const useKitchenReceiptsApi = () => {
     const res = await api.get('/kitchen-store/v2/purchases/receipts', {
       params: { from_date, to_date }
     });
-    return res.data?.data;
+    const raw = res.data?.data;
+    const rows = Array.isArray(raw) ? raw : raw?.receipts || raw?.items || [];
+    return rows.map((row, index) => normalizePurchaseReceiptHeader(row, index));
   }, []);
 
   const listReceiptLines = useCallback(async (receipt_id) => {
@@ -1214,7 +1267,16 @@ export const useKitchenReceiptsApi = () => {
     };
   }, []);
 
-  return { createReceipt, addReceiptLine, listReceipts, listReceiptLines, getPurchaseComparison };
+  return {
+    getInvoiceUploadUrl,
+    uploadInvoiceToS3,
+    uploadReceiptInvoice,
+    createReceipt,
+    addReceiptLine,
+    listReceipts,
+    listReceiptLines,
+    getPurchaseComparison
+  };
 };
 
 export const useKitchenPurchaseExceptionManagerApi = () => {

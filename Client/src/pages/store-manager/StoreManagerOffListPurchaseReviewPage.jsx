@@ -50,7 +50,7 @@ const StoreManagerOffListPurchaseReviewPage = () => {
       setStatus(result.message || 'Failed to submit manager review.');
       return;
     }
-    setStatus('Purchase exception review saved.');
+    setStatus('Purchase manager review saved.');
     setManagerAction('RETURN');
     setManagerActionNote('');
     await listPendingExceptions();
@@ -59,8 +59,8 @@ const StoreManagerOffListPurchaseReviewPage = () => {
   return (
     <StorePageShell>
       <StorePageHeader
-        title="Purchase Exception Review"
-        description="Review off-list or over-approved purchases and record the manager decision."
+        title="Purchase Manager Review"
+        description="Review all purchase lines that need manager action and record the decision."
         actions={[
           <Button key="inbox" asChild><Link to={`${basePath}/store-manager/purchase-requests`}>Purchase Request Inbox</Link></Button>,
           <Button key="refresh" type="button" variant="outline" onClick={() => listPendingExceptions()} disabled={listLoading}>
@@ -73,16 +73,17 @@ const StoreManagerOffListPurchaseReviewPage = () => {
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
 
       <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        <StoreSection title="Pending Exception Items" tone="amber">
+        <StoreSection title="Pending Review Items" tone="amber">
           {pendingExceptions.length === 0 ? (
-            <StoreNotice tone="sky">No pending purchase exceptions found.</StoreNotice>
+            <StoreNotice tone="sky">No pending manager-review lines found.</StoreNotice>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Item</TableHead>
                   <TableHead>Qty</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Review</TableHead>
+                  <TableHead>Stock</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -93,6 +94,11 @@ const StoreManagerOffListPurchaseReviewPage = () => {
                     <TableCell>{row.purchased_qty} {row.purchase_unit}</TableCell>
                     <TableCell>
                       <Badge variant="warning">{row.comparison_status || row.manager_review_status || 'PENDING'}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={row.stock_applied ? 'success' : 'secondary'}>
+                        {row.stock_applied ? 'APPLIED' : 'NOT_APPLIED'}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -113,7 +119,7 @@ const StoreManagerOffListPurchaseReviewPage = () => {
 
         <StoreSection title="Review Item" tone="violet">
           {!selectedException ? (
-            <StoreNotice tone="amber">Select an exception row to review it.</StoreNotice>
+            <StoreNotice tone="amber">Select a pending row to review it.</StoreNotice>
           ) : (
             <div className="space-y-4">
               <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
@@ -121,6 +127,9 @@ const StoreManagerOffListPurchaseReviewPage = () => {
                 <p><span className="font-medium">Purchased:</span> {selectedException.purchased_qty} {selectedException.purchase_unit}</p>
                 <p><span className="font-medium">Reason:</span> {selectedException.off_list_purchase_reason || '-'}</p>
                 <p><span className="font-medium">Receipt ID:</span> {selectedException.receipt_id || '-'}</p>
+                <p><span className="font-medium">Manager Review:</span> {selectedException.manager_review_status || 'PENDING'}</p>
+                <p><span className="font-medium">Manager Action:</span> {selectedException.manager_action || '-'}</p>
+                <p><span className="font-medium">Stock Applied:</span> {selectedException.stock_applied ? 'Yes' : 'No'}</p>
                 <p><span className="font-medium">Note:</span> {selectedException.note || '-'}</p>
               </div>
 
