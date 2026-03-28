@@ -14,6 +14,7 @@ import {
   StoreStatGrid,
   StoreTableFrame
 } from '@/components/store/StorePageShell';
+import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 const UNCATEGORIZED = '__uncategorized__';
 
@@ -93,13 +94,17 @@ const StoreOperatorInventoryPage = () => {
     const convertedQuantity = Number(rowState.quantity);
 
     if (!Number.isFinite(convertedQuantity) || convertedQuantity <= 0) {
-      setStatus('Enter a valid quantity before adding stock.');
+      const msg = 'Enter a valid quantity before adding stock.';
+      setStatus(msg);
+      showStoreError(msg, 'Invalid quantity');
       return;
     }
 
     const note = `Manual stock add: ${rowState.quantity}`;
     await addStock(item.id, convertedQuantity, note);
-    setStatus(`Added ${rowState.quantity} to ${item.name}.`);
+    const okMsg = `Added ${rowState.quantity} to ${item.name}.`;
+    setStatus(okMsg);
+    showStoreSuccess(okMsg, 'Stock updated');
     setStockInputs((prev) => ({
       ...prev,
       [item.id]: {

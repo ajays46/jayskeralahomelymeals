@@ -161,29 +161,58 @@ export const StorePageHeader = ({ title, description, actions = null, tone = 'sk
 const sectionTableStyles =
   '[&_table]:w-full [&_tbody_tr:nth-child(even)]:bg-slate-50/75 [&_thead_tr]:bg-slate-100/85 [&_th]:font-semibold [&_th]:text-slate-600 [&_tr]:border-slate-100';
 
-export const StoreSection = ({ title, description, children, className, headerActions = null, tone = 'slate' }) => (
+export const StoreSection = ({
+  title,
+  description,
+  children,
+  className,
+  headerActions = null,
+  tone = 'slate',
+  compact = false
+}) => (
   <Card
     className={cn(
-      'overflow-hidden rounded-2xl border-slate-200/80 bg-white shadow-sm ring-1 ring-slate-200/30',
+      'overflow-hidden border-slate-200/80 bg-white shadow-sm ring-1 ring-slate-200/30',
+      compact ? 'rounded-xl' : 'rounded-2xl',
       className
     )}
   >
     {title || description || headerActions ? (
       <CardHeader
         className={cn(
-          'flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between',
+          'flex flex-col sm:flex-row sm:items-start sm:justify-between',
+          compact ? 'gap-2 !p-3 sm:!p-3' : 'gap-3',
           toneStyles[tone]?.sectionHeader
         )}
       >
-        <div className="space-y-1">
+        <div className={cn(compact ? 'space-y-0.5' : 'space-y-1')}>
           {title ? (
-            <CardTitle className={cn('flex items-center gap-2 text-xl font-semibold', toneStyles[tone]?.title)}>
-              <span className={cn('inline-block h-2 w-2 shrink-0 rounded-full', toneStyles[tone]?.sectionAccent)} />
+            <CardTitle
+              className={cn(
+                'flex items-center font-semibold',
+                toneStyles[tone]?.title,
+                compact ? 'gap-1.5 text-sm' : 'gap-2 text-xl'
+              )}
+            >
+              <span
+                className={cn(
+                  'inline-block shrink-0 rounded-full',
+                  toneStyles[tone]?.sectionAccent,
+                  compact ? 'h-1.5 w-1.5' : 'h-2 w-2'
+                )}
+              />
               {title}
             </CardTitle>
           ) : null}
           {description ? (
-            <CardDescription className={cn('text-slate-600', toneStyles[tone]?.description)}>{description}</CardDescription>
+            <CardDescription
+              className={cn(
+                compact ? 'text-xs leading-snug' : 'text-slate-600',
+                toneStyles[tone]?.description
+              )}
+            >
+              {description}
+            </CardDescription>
           ) : null}
         </div>
         {headerActions ? (
@@ -193,9 +222,17 @@ export const StoreSection = ({ title, description, children, className, headerAc
     ) : null}
     <CardContent
       className={cn(
-        title || description || headerActions ? '' : 'p-6',
-        'space-y-4 pb-6',
-        sectionTableStyles
+        compact
+          ? cn(
+              sectionTableStyles,
+              'space-y-2 !px-3 !pb-3',
+              title || description || headerActions ? '!pt-2' : '!p-3 !py-3'
+            )
+          : cn(
+              title || description || headerActions ? '' : 'p-6',
+              'space-y-4 pb-6',
+              sectionTableStyles
+            )
       )}
     >
       {children}

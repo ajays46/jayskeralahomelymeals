@@ -19,6 +19,8 @@ import {
   addPurchaseReceiptLineService,
   listPurchaseReceiptsService,
   listPurchaseReceiptLinesService,
+  getPurchaseReceiptInvoiceUrlService,
+  streamPurchaseReceiptInvoiceService,
   createPurchaseRequestService,
   addPurchaseRequestLineService,
   submitPurchaseRequestService,
@@ -33,6 +35,7 @@ import {
   getPurchaseRequestComparisonService,
   listOffListPurchaseReviewService,
   reviewPurchaseReceiptLineService,
+  reviewPurchaseReceiptLinesBulkService,
   listPurchaseRecommendationsService,
   listInventoryForecastsService,
   listFinancialForecastsService,
@@ -43,6 +46,7 @@ import {
   createInventoryItemImageService
 } from '../services/inventoryItemImage.service.js';
 import AppError from '../utils/AppError.js';
+import { logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
 import {
   enrichPurchaseRequestListPayload,
   enrichSinglePurchaseRequestPayload
@@ -394,6 +398,38 @@ export const listPurchaseReceiptLines = async (req, res, next) => {
   }
 };
 
+export const getPurchaseReceiptInvoiceUrl = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const result = await getPurchaseReceiptInvoiceUrlService(receiptId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const streamPurchaseReceiptInvoice = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const { stream, contentType } = await streamPurchaseReceiptInvoiceService(
+      receiptId,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', 'inline; filename="invoice"');
+    res.setHeader('Cache-Control', 'private, max-age=0');
+    stream.on('error', (err) => {
+      logError(LOG_CATEGORIES.INVENTORY, 'Kitchen Store invoice stream error', { err: err?.message, receiptId });
+      if (!res.headersSent) next(err);
+      else res.destroy(err);
+    });
+    stream.pipe(res);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createPurchaseRequest = async (req, res, next) => {
   try {
     console.log('createPurchaseRequest', req.body);
@@ -599,6 +635,49 @@ export const reviewPurchaseReceiptLine = async (req, res, next) => {
       receiptId,
       lineId,
       { ...req.body, manager_action: managerAction },
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const reviewPurchaseReceiptLinesBulk = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    if (!req.body?.manager_action || typeof req.body.manager_action !== 'string') {
+      throw new AppError('manager_action is required', 400);
+    }
+    const managerAction = req.body.manager_action.trim().toUpperCase();
+    if (!['KEEP', 'REJECT', 'RETURN', 'INVESTIGATE'].includes(managerAction)) {
+      throw new AppError('manager_action must be one of KEEP, REJECT, RETURN, INVESTIGATE', 400);
+    }
+    if (req.body?.manager_action_note != null && typeof req.body.manager_action_note !== 'string') {
+      throw new AppError('manager_action_note must be a string', 400);
+    }
+    const rawLineIds = req.body?.line_ids;
+    if (rawLineIds != null && !Array.isArray(rawLineIds)) {
+      throw new AppError('line_ids must be an array when provided', 400);
+    }
+    if (Array.isArray(rawLineIds)) {
+      for (const id of rawLineIds) {
+        if (typeof id !== 'string' || !id.trim()) {
+          throw new AppError('line_ids must contain non-empty strings', 400);
+        }
+      }
+    }
+    const payload = { manager_action: managerAction };
+    if (typeof req.body.manager_action_note === 'string' && req.body.manager_action_note.trim() !== '') {
+      payload.manager_action_note = req.body.manager_action_note.trim();
+    }
+    if (Array.isArray(rawLineIds) && rawLineIds.length > 0) {
+      payload.line_ids = rawLineIds.map((id) => String(id).trim()).filter(Boolean);
+    }
+    const result = await reviewPurchaseReceiptLinesBulkService(
+      receiptId,
+      payload,
       req.companyId,
       kitchenActorUserId(req)
     );

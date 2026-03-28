@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StoreNotice, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 import api from '../../api/axios';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
+import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 /** API host (same as axios) so `/uploads/...` loads from the Node server, not the Vite dev port. */
 const apiOrigin = () => {
@@ -103,13 +104,18 @@ const StoreOperatorItemMasterPage = () => {
           if (up.ok) {
             msg = 'Item and image saved.';
             if (selectedId === out.itemId) await reloadDetailImages(out.itemId);
+            showStoreSuccess(msg, 'Saved');
           } else {
             msg = `Item created, but image upload failed: ${up.message}`;
+            showStoreError(up.message || 'Image upload failed.', 'Image upload failed');
           }
         } else {
           msg =
             'Item created. Could not read the new item id from the API response; add the image from item detail.';
+          showStoreSuccess(msg, 'Item created');
         }
+      } else {
+        showStoreSuccess(msg, 'Item created');
       }
       setStatus(msg);
       setName('');
@@ -117,7 +123,9 @@ const StoreOperatorItemMasterPage = () => {
       setMinQuantity('');
       setCreateImageFile(null);
     } else {
-      setStatus(out?.message || 'Failed to create item.');
+      const failMsg = out?.message || 'Failed to create item.';
+      setStatus(failMsg);
+      showStoreError(failMsg, 'Could not create item');
     }
   };
 
@@ -133,7 +141,9 @@ const StoreOperatorItemMasterPage = () => {
   const onSubmitModalImage = async (e) => {
     e.preventDefault();
     if (!selectedId || !modalImageFile) {
-      setStatus('Choose an image file.');
+      const msg = 'Choose an image file.';
+      setStatus(msg);
+      showStoreError(msg, 'No file selected');
       return;
     }
     setStatus('');
@@ -142,10 +152,13 @@ const StoreOperatorItemMasterPage = () => {
     setImageSubmitting(false);
     if (up.ok) {
       setStatus('Image uploaded.');
+      showStoreSuccess('Image uploaded.', 'Upload complete');
       setImageModalOpen(false);
       await reloadDetailImages(selectedId);
     } else {
-      setStatus(up.message || 'Upload failed.');
+      const msg = up.message || 'Upload failed.';
+      setStatus(msg);
+      showStoreError(msg, 'Upload failed');
     }
   };
 

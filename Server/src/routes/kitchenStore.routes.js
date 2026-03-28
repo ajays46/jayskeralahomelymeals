@@ -27,6 +27,8 @@ import {
   addPurchaseReceiptLine,
   listPurchaseReceipts,
   listPurchaseReceiptLines,
+  getPurchaseReceiptInvoiceUrl,
+  streamPurchaseReceiptInvoice,
   createPurchaseRequest,
   addPurchaseRequestLine,
   submitPurchaseRequest,
@@ -41,6 +43,7 @@ import {
   getPurchaseRequestComparison,
   listOffListPurchaseReview,
   reviewPurchaseReceiptLine,
+  reviewPurchaseReceiptLinesBulk,
   listPurchaseRecommendations,
   listInventoryForecasts,
   listFinancialForecasts,
@@ -105,6 +108,16 @@ router.post(
 router.post('/v2/purchases/receipts', checkRole('STORE_OPERATOR'), createPurchaseReceipt);
 router.post('/v2/purchases/receipts/:receipt_id/lines', checkRole('STORE_OPERATOR'), addPurchaseReceiptLine);
 router.get('/v2/purchases/receipts', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseReceipts);
+router.get(
+  '/v2/purchases/receipts/:receipt_id/invoice/url',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  getPurchaseReceiptInvoiceUrl
+);
+router.get(
+  '/v2/purchases/receipts/:receipt_id/invoice/view',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  streamPurchaseReceiptInvoice
+);
 router.get('/v2/purchases/receipts/:receipt_id/lines', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseReceiptLines);
 
 // v2: Purchase requests
@@ -141,6 +154,11 @@ router.get(
   getPurchaseRequestComparison
 );
 router.get('/v2/purchases/off-list-review', checkRole('STORE_MANAGER'), listOffListPurchaseReview);
+router.post(
+  '/v2/purchases/receipts/:receipt_id/lines/manager-review-bulk',
+  checkRole('STORE_MANAGER'),
+  reviewPurchaseReceiptLinesBulk
+);
 router.post(
   '/v2/purchases/receipts/:receipt_id/lines/:line_id/manager-review',
   checkRole('STORE_MANAGER'),

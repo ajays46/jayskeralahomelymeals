@@ -335,6 +335,81 @@ export const listPurchaseReceiptLinesService = async (receiptId, query = {}, com
   }
 };
 
+export const getPurchaseReceiptInvoiceUrlService = async (receiptId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `/v2/purchases/receipts/${receiptId}/invoice/url`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('getPurchaseReceiptInvoiceUrl', {
+      endpoint: '/v2/purchases/receipts/:receipt_id/invoice/url',
+      companyId: companyId || null,
+      receiptId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('getPurchaseReceiptInvoiceUrl', error, {
+      endpoint: '/v2/purchases/receipts/:receipt_id/invoice/url',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+const inferInvoiceContentTypeFromUrl = (urlString) => {
+  try {
+    const path = new URL(urlString).pathname.toLowerCase();
+    if (path.endsWith('.pdf')) return 'application/pdf';
+    if (path.endsWith('.png')) return 'image/png';
+    if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg';
+  } catch (_) {
+    /* ignore */
+  }
+  return null;
+};
+
+/** Fetch invoice from S3 with Content-Type header required by presigned URL signature. */
+export const streamPurchaseReceiptInvoiceService = async (receiptId, companyId, userId = null) => {
+  const payload = await getPurchaseReceiptInvoiceUrlService(receiptId, companyId, userId);
+  const nested = payload?.data && typeof payload.data === 'object' ? payload.data : null;
+  const url =
+    (typeof payload?.url === 'string' && payload.url) ||
+    (nested && typeof nested.url === 'string' && nested.url) ||
+    null;
+  if (!url) {
+    throw new AppError('No invoice view URL available for this receipt.', 404);
+  }
+  const signedContentType =
+    payload?.content_type ||
+    payload?.contentType ||
+    nested?.content_type ||
+    nested?.contentType ||
+    inferInvoiceContentTypeFromUrl(url);
+  if (!signedContentType) {
+    throw new AppError('Could not determine invoice content type for storage request.', 422);
+  }
+
+  const s3Res = await axios.get(url, {
+    headers: { 'Content-Type': signedContentType },
+    responseType: 'stream',
+    timeout: 120000,
+    validateStatus: () => true
+  });
+
+  if (s3Res.status !== 200) {
+    logKitchenError(
+      'streamPurchaseReceiptInvoiceS3',
+      new Error(`S3 invoice fetch status ${s3Res.status}`),
+      { receiptId, companyId: companyId || null, signedContentType }
+    );
+    throw new AppError('Could not load invoice file from storage.', 502);
+  }
+
+  const contentType = s3Res.headers['content-type'] || signedContentType;
+  return { stream: s3Res.data, contentType };
+};
+
 // v2 purchase requests
 export const createPurchaseRequestService = async (body, companyId, userId = null) => {
   try {
@@ -631,6 +706,29 @@ export const reviewPurchaseReceiptLineService = async (receiptId, lineId, body, 
       companyId: companyId || null,
       receiptId,
       lineId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const reviewPurchaseReceiptLinesBulkService = async (receiptId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `/v2/purchases/receipts/${receiptId}/lines/manager-review-bulk`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('reviewPurchaseReceiptLinesBulk', {
+      endpoint: '/v2/purchases/receipts/:receipt_id/lines/manager-review-bulk',
+      companyId: companyId || null,
+      receiptId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('reviewPurchaseReceiptLinesBulk', error, {
+      endpoint: '/v2/purchases/receipts/:receipt_id/lines/manager-review-bulk',
+      companyId: companyId || null,
+      receiptId
     });
     throw mapAxiosError(error);
   }

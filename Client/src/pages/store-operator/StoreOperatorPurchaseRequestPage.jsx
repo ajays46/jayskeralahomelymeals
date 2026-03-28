@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
+import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 const createLocalLineId = () => `pr-line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -18,8 +19,9 @@ const formatRequestReference = (requestId) => {
 
 const SOURCE_SECTIONS = [
   { key: 'lowStockItems', title: 'Low Stock Alerts', empty: 'No low-stock items returned.' },
-  { key: 'shoppingList', title: 'Shopping List Items', empty: 'No shopping list items were returned.' },
-  { key: 'recommendations', title: 'Suggested Reorders', empty: 'No reorder suggestions were returned.' }
+  { key: 'shoppingList', title: 'Shopping List Items', empty: 'No shopping list items were returned.' }
+  // Suggested Reorders — disabled; uncomment to restore:
+  // { key: 'recommendations', title: 'Suggested Reorders', empty: 'No reorder suggestions were returned.' },
 ];
 
 /** Low stock + shopping list: show ~4 rows in view, scroll for the rest */
@@ -35,7 +37,6 @@ const StoreOperatorPurchaseRequestPage = () => {
     error,
     lowStockItems,
     shoppingList,
-    recommendations,
     loadRequestSources,
     createAndSubmitPurchaseRequest
   } = useKitchenPurchaseRequestOperatorApi();
@@ -70,15 +71,17 @@ const StoreOperatorPurchaseRequestPage = () => {
   const sectionData = useMemo(
     () => ({
       lowStockItems,
-      shoppingList,
-      recommendations
+      shoppingList
     }),
-    [lowStockItems, shoppingList, recommendations]
+    [lowStockItems, shoppingList]
   );
 
   const addExistingItem = (item) => {
     if (!item.inventory_item_id) {
-      setStatus('This row cannot be added because the API did not return an inventory item id.');
+      const msg =
+        'Could not match this row to a catalog item (name lookup failed). Refresh sources, or add it as a new item line.';
+      setStatus(msg);
+      showStoreError(msg, 'Cannot add this row');
       return;
     }
 
@@ -112,7 +115,9 @@ const StoreOperatorPurchaseRequestPage = () => {
 
   const addNewItemLine = () => {
     if (!newItem.requested_item_name.trim() || !newItem.requested_unit.trim() || Number(newItem.requested_quantity) <= 0) {
-      setStatus('Enter a valid new item name, unit, and quantity.');
+      const msg = 'Enter a valid new item name, unit, and quantity.';
+      setStatus(msg);
+      showStoreError(msg, 'Check new item');
       return;
     }
 
@@ -166,7 +171,9 @@ const StoreOperatorPurchaseRequestPage = () => {
     setSubmitPopup(null);
 
     if (!selectedLines.length) {
-      setStatus('Add at least one request line before submitting.');
+      const msg = 'Add at least one request line before submitting.';
+      setStatus(msg);
+      showStoreError(msg, 'Nothing to submit');
       return;
     }
 
@@ -179,7 +186,10 @@ const StoreOperatorPurchaseRequestPage = () => {
     );
 
     if (invalidLine) {
-      setStatus('Every request line needs item name, unit, quantity, and an inventory id for existing items.');
+      const msg =
+        'Every request line needs item name, unit, quantity, and an inventory id for existing items.';
+      setStatus(msg);
+      showStoreError(msg, 'Fix your lines');
       return;
     }
 
@@ -202,6 +212,10 @@ const StoreOperatorPurchaseRequestPage = () => {
         requestId: submittedRequestId,
         requestedNote: submittedNote
       });
+      showStoreSuccess(
+        `Reference ${formatRequestReference(submittedRequestId)} submitted for manager review.`,
+        'Request submitted'
+      );
       setRequestedNote('');
       setSelectedLines([]);
       setExpandedLineNotes({});
@@ -209,7 +223,9 @@ const StoreOperatorPurchaseRequestPage = () => {
       return;
     }
 
-    setStatus(result.message || 'Failed to submit stock request.');
+    const failMsg = result.message || 'Failed to submit stock request.';
+    setStatus(failMsg);
+    showStoreError(failMsg, 'Submit failed');
   };
 
   return (
@@ -242,7 +258,7 @@ const StoreOperatorPurchaseRequestPage = () => {
       ) : null}
       <StorePageHeader
         title="Create Purchase Request"
-        description="Build the operator request from low-stock alerts, shopping list items, recommendations, and new items."
+        description="Build the operator request from low-stock alerts, shopping list items, and new items."
         actions={[
           <Button key="approved" asChild><Link to={`${basePath}/store-operator/approved-requests`}>Approved Requests</Link></Button>,
           <Button key="receipts" asChild variant="outline"><Link to={`${basePath}/store-operator/purchases`}>Purchase Receipts</Link></Button>
@@ -252,7 +268,7 @@ const StoreOperatorPurchaseRequestPage = () => {
       {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {SOURCE_SECTIONS.map((section) => {
             const rows = sectionData[section.key];
             const scrollableTable = SOURCE_TABLE_SCROLLABLE_KEYS.has(section.key);
@@ -297,7 +313,7 @@ const StoreOperatorPurchaseRequestPage = () => {
               <StoreSection
                 key={section.key}
                 title={section.title}
-                tone={section.key === 'recommendations' ? 'violet' : section.key === 'shoppingList' ? 'amber' : 'emerald'}
+                tone={section.key === 'shoppingList' ? 'amber' : 'emerald'}
                 headerActions={
                   <Button
                     type="button"

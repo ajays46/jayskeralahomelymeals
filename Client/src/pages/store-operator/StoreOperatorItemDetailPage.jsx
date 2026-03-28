@@ -9,7 +9,10 @@ const StoreOperatorItemDetailPage = () => {
   const { itemId } = useParams();
   const { items, movements } = useKitchenInventoryMock();
   const item = items.find((it) => it.id === itemId);
-  const itemMovements = movements.filter((m) => m.item_id === itemId);
+  const itemMovements = movements.filter(
+    (m) =>
+      m.item_id === itemId || (!m.item_id && m.item_name && item?.name && m.item_name === item.name)
+  );
 
   if (!item) {
     return (

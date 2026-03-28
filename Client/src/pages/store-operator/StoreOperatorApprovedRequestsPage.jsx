@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
+import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 function requestDayKey(value) {
   if (value == null || value === '') return '';
@@ -19,6 +20,9 @@ function requestDayKey(value) {
 
 const approvedTableFilterClass =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
+
+/** Status values shown in the table filter (data is loaded for both). */
+const TABLE_STATUS_FILTERS = ['APPROVED', 'REJECTED'];
 
 const StoreOperatorApprovedRequestsPage = () => {
   const basePath = useCompanyBasePath();
@@ -47,15 +51,11 @@ const StoreOperatorApprovedRequestsPage = () => {
     listApprovedRequests();
   }, [listApprovedRequests]);
 
-  const statusOptions = useMemo(() => {
-    const set = new Set(approvedRequests.map((r) => (r.status || '').trim()).filter(Boolean));
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [approvedRequests]);
-
   const filteredApprovedRequestsForTable = useMemo(() => {
     const q = tableSearch.trim().toLowerCase();
     return approvedRequests.filter((request) => {
-      if (statusFilter !== 'all' && (request.status || '') !== statusFilter) return false;
+      const st = String(request.status || '').toUpperCase();
+      if (statusFilter !== 'all' && st !== statusFilter) return false;
       const subDay = requestDayKey(request.submitted_at);
       if (submittedFrom && (!subDay || subDay < submittedFrom)) return false;
       if (submittedTo && (!subDay || subDay > submittedTo)) return false;
@@ -126,8 +126,12 @@ const StoreOperatorApprovedRequestsPage = () => {
     () => requestDetail || approvedRequests.find((request) => request.id === selectedRequestId) || null,
     [approvedRequests, requestDetail, selectedRequestId]
   );
+  const selectedIsApproved = String(selectedRequest?.status || '').toUpperCase() === 'APPROVED';
   const rejectedLines = useMemo(
-    () => (selectedRequest?.lines || []).filter((line) => line.status === 'REJECTED'),
+    () =>
+      (selectedRequest?.lines || []).filter(
+        (line) => String(line.status || '').toUpperCase() === 'REJECTED'
+      ),
     [selectedRequest]
   );
 
@@ -136,15 +140,19 @@ const StoreOperatorApprovedRequestsPage = () => {
     setStatus('');
     const result = await downloadApprovedLinesPdf(selectedRequestId);
     if (!result.ok) {
-      setStatus(result.message || 'Download failed.');
+      const msg = result.message || 'Download failed.';
+      setStatus(msg);
+      showStoreError(msg, 'Download failed');
+      return;
     }
+    showStoreSuccess('Download started. Check your downloads folder.', 'Download ready');
   };
 
   return (
     <StorePageShell>
       <StorePageHeader
-        title="Approved Purchase Requests"
-        description="Review approved lines and download the PDF file for purchase action."
+        title="Purchase requests"
+        description="Approved and rejected requests for your account. Filter by status, then open a request to see lines or download the approved-items PDF."
         actions={[
           <Button key="create" asChild><Link to={`${basePath}/store-operator/purchase-requests`}>Create Request</Link></Button>,
           <Button key="refresh" type="button" variant="outline" onClick={listApprovedRequests} disabled={bootstrapLoading}>
@@ -156,7 +164,7 @@ const StoreOperatorApprovedRequestsPage = () => {
       {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
       <StoreSection
-        title="Approved Request"
+        title="Request list"
         description={
           approvedTableFiltersActive && approvedRequests.length > 0
             ? `Showing ${filteredApprovedRequestsForTable.length} of ${approvedRequests.length} requests.`
@@ -165,7 +173,7 @@ const StoreOperatorApprovedRequestsPage = () => {
         tone="emerald"
       >
         {approvedRequests.length === 0 ? (
-          <StoreNotice tone="amber">No approved requests found for this operator.</StoreNotice>
+          <StoreNotice tone="amber">No approved or rejected requests found for this operator.</StoreNotice>
         ) : (
           <>
             <div className="mb-3 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -194,7 +202,7 @@ const StoreOperatorApprovedRequestsPage = () => {
                   className={`${approvedTableFilterClass} w-full sm:w-auto`}
                 >
                   <option value="all">All statuses</option>
-                  {statusOptions.map((s) => (
+                  {TABLE_STATUS_FILTERS.map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
@@ -282,7 +290,16 @@ const StoreOperatorApprovedRequestsPage = () => {
                           {request.approved_at ? formatKitchenDateTime(request.approved_at) : '-'}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="success">{request.status}</Badge>
+                          <Badge
+                            variant={
+                              String(request.status || '').toUpperCase() === 'REJECTED'
+                                ? 'destructive'
+                                : 'success'
+                            }
+                            className="font-normal"
+                          >
+                            {request.status || '—'}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -305,10 +322,20 @@ const StoreOperatorApprovedRequestsPage = () => {
       </StoreSection>
       <StoreSection
         title="Approved"
-        description={selectedRequest ? '' : 'Select an approved request'}
+        description={
+          selectedRequest
+            ? selectedIsApproved
+              ? ''
+              : 'This request is rejected. PDF download is only available for approved requests.'
+            : 'Select a request from the list'
+        }
         tone="sky"
         headerActions={
-          <Button type="button" onClick={onDownload} disabled={!selectedRequestId || downloadLoading}>
+          <Button
+            type="button"
+            onClick={onDownload}
+            disabled={!selectedRequestId || !selectedIsApproved || downloadLoading}
+          >
             {downloadLoading ? 'Downloading...' : 'Download Approved Items PDF'}
           </Button>
         }
@@ -321,7 +348,11 @@ const StoreOperatorApprovedRequestsPage = () => {
         {!selectedRequestId ? (
           <StoreNotice tone="amber">Choose a request to see approved lines.</StoreNotice>
         ) : approvedLines.length === 0 ? (
-          <StoreNotice tone="amber">No approved lines returned for this request.</StoreNotice>
+          <StoreNotice tone="amber">
+            {selectedIsApproved
+              ? 'No approved lines returned for this request.'
+              : 'This request is rejected, so there are no approved lines to fulfill. See rejected line items below if any.'}
+          </StoreNotice>
         ) : (
           <Table>
             <TableHeader>

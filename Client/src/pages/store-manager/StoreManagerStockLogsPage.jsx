@@ -79,7 +79,7 @@ const StoreManagerStockLogsPage = () => {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Item, note, or item id…"
+              placeholder="Item name, note, or id…"
               className={`${movementFilterControlClass} w-full min-w-0`}
               autoComplete="off"
             />

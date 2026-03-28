@@ -1,24 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 import { useCompanyBasePath } from '../../context/TenantContext';
-import {
-  formatKitchenDateTime,
-  useKitchenInventoryMock,
-  useKitchenPurchaseRequestManagerApi
-} from '../../hooks/adminHook/kitchenStoreHook';
-
-const emptyResolveForm = {
-  inventory_item_id: '',
-  manager_note: '',
-  category: '',
-  min_quantity: ''
-};
-
-const decisionBadgeVariant = (decision) => (decision === 'REJECT' ? 'destructive' : 'success');
+import { cn } from '@/lib/utils';
+import { formatKitchenDateTime, useKitchenPurchaseRequestManagerApi } from '../../hooks/adminHook/kitchenStoreHook';
+import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 const StoreManagerPurchaseRequestDetailPage = () => {
   const { requestId } = useParams();
@@ -29,21 +18,17 @@ const StoreManagerPurchaseRequestDetailPage = () => {
     error,
     activeRequest,
     getPurchaseRequestDetail,
-    createInventoryItem,
-    resolveRequestLineItem,
     updateRequestLineManager,
     approveRequest,
     rejectRequest
   } = useKitchenPurchaseRequestManagerApi();
-  const { items, refreshItems } = useKitchenInventoryMock();
 
   const [approvalNote, setApprovalNote] = useState('');
   const [status, setStatus] = useState('');
-  const [selectedLineId, setSelectedLineId] = useState('');
-  const [resolveForms, setResolveForms] = useState({});
   const [lineDecisions, setLineDecisions] = useState({});
   const [lineManagerNotes, setLineManagerNotes] = useState({});
   const [lineApprovedQuantities, setLineApprovedQuantities] = useState({});
+  const [managerNoteModalLineId, setManagerNoteModalLineId] = useState(null);
 
   useEffect(() => {
     if (!requestId) return;
@@ -51,14 +36,17 @@ const StoreManagerPurchaseRequestDetailPage = () => {
   }, [getPurchaseRequestDetail, requestId]);
 
   useEffect(() => {
-    setSelectedLineId('');
+    setManagerNoteModalLineId(null);
   }, [requestId]);
 
   useEffect(() => {
-    if (!selectedLineId || !activeRequest?.lines?.length) return;
-    const stillThere = activeRequest.lines.some((line) => line.id === selectedLineId);
-    if (!stillThere) setSelectedLineId('');
-  }, [activeRequest, selectedLineId]);
+    if (!managerNoteModalLineId) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setManagerNoteModalLineId(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [managerNoteModalLineId]);
 
   useEffect(() => {
     if (!activeRequest) return;
@@ -81,39 +69,7 @@ const StoreManagerPurchaseRequestDetailPage = () => {
         return acc;
       }, {})
     );
-    setResolveForms((prev) => {
-      const next = { ...prev };
-      activeRequest.lines.forEach((line) => {
-        next[line.id] = next[line.id] || {
-          ...emptyResolveForm,
-          inventory_item_id: line.resolved_inventory_item_id || line.inventory_item_id || ''
-        };
-      });
-      return next;
-    });
   }, [activeRequest]);
-
-  const unresolvedNewLines = useMemo(() => {
-    if (!activeRequest) return [];
-    return activeRequest.lines.filter(
-      (line) => line.is_new_item && !line.resolved_inventory_item_id && lineDecisions[line.id] !== 'REJECT'
-    );
-  }, [activeRequest, lineDecisions]);
-
-  const selectedLine = useMemo(
-    () => activeRequest?.lines.find((line) => line.id === selectedLineId) || activeRequest?.lines[0] || null,
-    [activeRequest, selectedLineId]
-  );
-
-  const updateResolveForm = (lineId, patch) => {
-    setResolveForms((prev) => ({
-      ...prev,
-      [lineId]: {
-        ...(prev[lineId] || emptyResolveForm),
-        ...patch
-      }
-    }));
-  };
 
   const setLineDecision = (lineId, decision) => {
     setLineDecisions((prev) => ({ ...prev, [lineId]: decision }));
@@ -123,6 +79,14 @@ const StoreManagerPurchaseRequestDetailPage = () => {
     setLineManagerNotes((prev) => ({ ...prev, [lineId]: value }));
   };
 
+  const openManagerNoteModal = (lineId) => {
+    setManagerNoteModalLineId(lineId);
+  };
+
+  const closeManagerNoteModal = () => {
+    setManagerNoteModalLineId(null);
+  };
+
   const updateLineApprovedQuantity = (lineId, value) => {
     setLineApprovedQuantities((prev) => ({ ...prev, [lineId]: value }));
   };
@@ -130,64 +94,6 @@ const StoreManagerPurchaseRequestDetailPage = () => {
   const reloadDetail = async () => {
     if (!requestId) return;
     await getPurchaseRequestDetail(requestId);
-  };
-
-  const onResolveExisting = async (lineId) => {
-    const form = resolveForms[lineId] || emptyResolveForm;
-    if (!form.inventory_item_id) {
-      setStatus('Choose an inventory item before resolving the line.');
-      return;
-    }
-
-    setStatus('');
-    const mappingNote = String(form.manager_note || '').trim();
-    const lineNote = String(lineManagerNotes[lineId] || '').trim();
-    const result = await resolveRequestLineItem(requestId, lineId, {
-      inventory_item_id: form.inventory_item_id,
-      manager_note: mappingNote || lineNote || 'Mapped to inventory item'
-    });
-
-    if (!result.ok) {
-      setStatus(result.message || 'Failed to resolve line.');
-      return;
-    }
-
-    setStatus('Line resolved successfully.');
-    await reloadDetail();
-  };
-
-  const onCreateAndResolve = async (line) => {
-    const form = resolveForms[line.id] || emptyResolveForm;
-    setStatus('');
-
-    const createResult = await createInventoryItem({
-      name: line.requested_item_name,
-      unit: line.requested_unit,
-      category: form.category.trim() || 'Uncategorized',
-      min_quantity: form.min_quantity === '' ? null : Number(form.min_quantity)
-    });
-
-    if (!createResult.ok || !createResult.itemId) {
-      setStatus(createResult.message || 'Inventory item creation failed.');
-      return;
-    }
-
-    const mappingNote = String(form.manager_note || '').trim();
-    const lineNote = String(lineManagerNotes[line.id] || '').trim();
-    const resolveNote = mappingNote || lineNote || 'Created new inventory item';
-    const resolveResult = await resolveRequestLineItem(requestId, line.id, {
-      inventory_item_id: createResult.itemId,
-      manager_note: resolveNote
-    });
-
-    if (!resolveResult.ok) {
-      setStatus(resolveResult.message || 'The line could not be mapped to the new inventory item.');
-      return;
-    }
-
-    await refreshItems();
-    setStatus('Created a new inventory item and resolved the request line.');
-    await reloadDetail();
   };
 
   const onApprove = async () => {
@@ -205,7 +111,9 @@ const StoreManagerPurchaseRequestDetailPage = () => {
         manager_note: String(lineManagerNotes[line.id] || '').trim() || undefined
       });
       if (!updateResult.ok) {
-        setStatus(updateResult.message || 'Failed to update approved quantity before approval.');
+        const msg = updateResult.message || 'Failed to update approved quantity before approval.';
+        setStatus(msg);
+        showStoreError(msg, 'Could not update line');
         return;
       }
     }
@@ -224,10 +132,13 @@ const StoreManagerPurchaseRequestDetailPage = () => {
       line_manager_notes: filteredLineManagerNotes
     });
     if (!result.ok) {
-      setStatus(result.message || 'Approval failed.');
+      const msg = result.message || 'Approval failed.';
+      setStatus(msg);
+      showStoreError(msg, 'Approval failed');
       return;
     }
     setStatus('Purchase request approved.');
+    showStoreSuccess('Purchase request approved.', 'Approved');
     await reloadDetail();
   };
 
@@ -238,18 +149,26 @@ const StoreManagerPurchaseRequestDetailPage = () => {
       approval_note: approvalNote.trim()
     });
     if (!result.ok) {
-      setStatus(result.message || 'Rejection failed.');
+      const msg = result.message || 'Rejection failed.';
+      setStatus(msg);
+      showStoreError(msg, 'Rejection failed');
       return;
     }
     setStatus('Purchase request rejected.');
+    showStoreSuccess('Purchase request rejected.', 'Rejected');
     await reloadDetail();
   };
+
+  const managerNoteModalLine =
+    managerNoteModalLineId && activeRequest
+      ? activeRequest.lines.find((l) => l.id === managerNoteModalLineId) ?? null
+      : null;
 
   return (
     <StorePageShell>
       <StorePageHeader
         title="Purchase Request Detail"
-        description="Review lines, select approve or reject, and resolve new items only when needed."
+        description="Review each line, set approved quantity, and approve or reject before final approval."
         actions={
           <Button asChild variant="outline">
             <Link to={`${basePath}/store-manager/purchase-requests`}>Back to Inbox</Link>
@@ -261,287 +180,221 @@ const StoreManagerPurchaseRequestDetailPage = () => {
       {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
 
-      {activeRequest ? (
-        <StoreSection title="Request timeline" description="" tone="sky">
-          <div className="flex flex-wrap gap-2 text-sm">
-            {activeRequest.submitted_at ? (
-              <Badge variant="secondary">Submitted: {formatKitchenDateTime(activeRequest.submitted_at)}</Badge>
-            ) : null}
-            {activeRequest.approved_at ? (
-              <Badge variant="secondary">Approved: {formatKitchenDateTime(activeRequest.approved_at)}</Badge>
-            ) : null}
-            {!activeRequest.submitted_at && !activeRequest.approved_at ? (
-              <span className="text-muted-foreground">No submit/approval timestamps on this record yet.</span>
-            ) : null}
-          </div>
-        </StoreSection>
-      ) : null}
-
       {detailLoading && !activeRequest ? (
         <StoreSection title="Purchase Request" tone="violet">
           <StoreNotice tone="sky">Loading request detail...</StoreNotice>
         </StoreSection>
       ) : activeRequest ? (
         <>
-          <StoreSection
-            title="Approval Note"
-            description={activeRequest.requested_note ? `Operator note: ${activeRequest.requested_note}` : 'No operator note'}
-            tone="amber"
-          >
-            <textarea
-              className="min-h-20 w-full rounded border px-3 py-2 text-sm"
-              value={approvalNote}
-              onChange={(e) => setApprovalNote(e.target.value)}
-              placeholder="Approval or rejection note"
-            />
-            {/* {unresolvedNewLines.length > 0 ? ( */}
-              {/* // <StoreNotice tone="amber">
-              //   Resolve or reject all new-item lines before approving.
-              // </StoreNotice>
-            // ) : null} */}
+          <StoreSection title="Request timeline" tone="sky" compact>
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              {activeRequest.submitted_at ? (
+                <Badge variant="secondary" className="h-6 px-2 py-0 text-xs font-normal">
+                  Submitted: {formatKitchenDateTime(activeRequest.submitted_at)}
+                </Badge>
+              ) : null}
+              {activeRequest.approved_at ? (
+                <Badge variant="secondary" className="h-6 px-2 py-0 text-xs font-normal">
+                  Approved: {formatKitchenDateTime(activeRequest.approved_at)}
+                </Badge>
+              ) : null}
+              {!activeRequest.submitted_at && !activeRequest.approved_at ? (
+                <span className="text-muted-foreground">No submit/approval timestamps on this record yet.</span>
+              ) : null}
+            </div>
           </StoreSection>
 
           <StoreSection
             title="Request Items"
-            description={
-              selectedLineId
-                ? 'Use Select on another row to switch the detail panel below.'
-                : 'Use Select on a row to open the Selected Item panel: qty, decisions, notes, and mapping.'
-            }
+            description="Set approved quantity, Approve or Reject per row. Add note / Open for manager notes."
             tone="sky"
           >
-            <Table>
-              <TableHeader>
+            <Table
+              wrapperClassName={cn(
+                'relative w-full overflow-auto',
+                activeRequest.lines.length > 6 &&
+                  'max-h-[min(28rem,calc(100vh-14rem))] rounded-md border border-slate-200/80'
+              )}
+            >
+              <TableHeader
+                className={cn(
+                  '[&_tr]:border-b',
+                  activeRequest.lines.length > 6 &&
+                    'sticky top-0 z-10 bg-slate-100/95 shadow-sm backdrop-blur-sm [&_th]:bg-slate-100/95'
+                )}
+              >
                 <TableRow>
                   <TableHead>Item</TableHead>
                   <TableHead>Requested Qty</TableHead>
                   <TableHead>Approved Qty</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Decision</TableHead>
-                  <TableHead>Manager Note</TableHead>
-                  <TableHead className="text-right w-[1%] whitespace-nowrap">Action</TableHead>
+                  <TableHead className="min-w-[200px]">Manager Note</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activeRequest.lines.map((line) => {
-                  const isSelected = selectedLineId === line.id;
                   const decision = lineDecisions[line.id] || 'APPROVE';
                   const notePreview = (lineManagerNotes[line.id] || '').trim();
                   return (
-                    <TableRow key={line.id} className={isSelected ? 'bg-muted/40' : ''}>
-                      <TableCell className="font-medium">
-                        <div className="space-y-1">
-                          <div>{line.requested_item_name || line.inventory_item_name || 'Unnamed line'}</div>
-                          {line.operator_note ? (
-                            <div className="text-xs text-muted-foreground">{line.operator_note}</div>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>{line.requested_quantity} {line.requested_unit}</TableCell>
-                      <TableCell>{lineApprovedQuantities[line.id] || line.approved_quantity} {line.requested_unit}</TableCell>
-                      <TableCell>
-                        <Badge variant={line.is_new_item ? 'warning' : 'secondary'}>
-                          {line.is_new_item ? 'New item' : 'Existing item'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={decisionBadgeVariant(decision)}>{decision}</Badge>
-                      </TableCell>
-                      {/* <TableCell>{line.resolved_inventory_item_id || line.inventory_item_id || '-'}</TableCell> */}
-                      <TableCell className="max-w-52 truncate">{notePreview || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={isSelected ? 'default' : 'outline'}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedLineId(line.id);
-                          }}
-                        >
-                          {isSelected ? 'Selected' : 'Select'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                    <TableRow key={line.id}>
+                        <TableCell className="font-medium">
+                          <div className="space-y-1">
+                            <div>{line.requested_item_name || line.inventory_item_name || 'Unnamed line'}</div>
+                            {line.operator_note ? (
+                              <div className="text-xs text-muted-foreground">{line.operator_note}</div>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {line.requested_quantity} {line.requested_unit}
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <div className="flex items-center gap-1 py-1">
+                            <input
+                              className="w-24 rounded border px-2 py-1.5 text-sm"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={lineApprovedQuantities[line.id] ?? ''}
+                              onChange={(e) => updateLineApprovedQuantity(line.id, e.target.value)}
+                              aria-label={`Approved quantity for ${line.requested_item_name || line.inventory_item_name || 'line'}`}
+                            />
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">{line.requested_unit}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={line.is_new_item ? 'warning' : 'secondary'}>
+                            {line.is_new_item ? 'New item' : 'Existing item'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <div className="flex flex-col gap-2 py-1">
+                            {notePreview ? (
+                              <span className="text-sm text-muted-foreground line-clamp-2 max-w-xs">
+                                {notePreview}
+                              </span>
+                            ) : null}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openManagerNoteModal(line.id);
+                              }}
+                            >
+                              {notePreview ? 'Open' : 'Add note'}
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="align-top text-right">
+                          <div className="flex flex-wrap justify-end gap-2 py-1">
+                            <Button
+                              type="button"
+                              variant={decision === 'APPROVE' ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLineDecision(line.id, 'APPROVE');
+                              }}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={decision === 'REJECT' ? 'destructive' : 'outline'}
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLineDecision(line.id, 'REJECT');
+                              }}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
           </StoreSection>
 
-          {selectedLineId && selectedLine ? (
-            <StoreSection
-              title={`Selected Item: ${selectedLine.requested_item_name || selectedLine.inventory_item_name || 'Unnamed line'}`}
-              tone="emerald"
-            >
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {/* <TableHead className="w-[200px] align-middle">Field</TableHead> */}
-                    {/* <TableHead>Value</TableHead> */}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="align-middle font-medium text-muted-foreground">Requested quantity</TableCell>
-                    <TableCell className="align-middle">
-                      {selectedLine.requested_quantity} {selectedLine.requested_unit}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="align-middle font-medium text-muted-foreground">Approved quantity</TableCell>
-                    <TableCell className="align-middle">
-                      <input
-                        className="w-full max-w-xs rounded border px-3 py-2 text-sm"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={lineApprovedQuantities[selectedLine.id] || ''}
-                        onChange={(e) => updateLineApprovedQuantity(selectedLine.id, e.target.value)}
-                        aria-label="Approved quantity"
-                      />
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="align-middle font-medium text-muted-foreground">Decision</TableCell>
-                    <TableCell className="align-middle">
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant={lineDecisions[selectedLine.id] === 'APPROVE' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setLineDecision(selectedLine.id, 'APPROVE')}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={lineDecisions[selectedLine.id] === 'REJECT' ? 'destructive' : 'outline'}
-                          size="sm"
-                          onClick={() => setLineDecision(selectedLine.id, 'REJECT')}
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="align-top font-medium text-muted-foreground pt-4">Manager comment</TableCell>
-                    <TableCell className="align-top pt-4">
-                      <textarea
-                        className="min-h-20 w-full max-w-2xl rounded border px-3 py-2 text-sm"
-                        value={lineManagerNotes[selectedLine.id] || ''}
-                        onChange={(e) => updateLineManagerNote(selectedLine.id, e.target.value)}
-                        placeholder="Optional manager comment for this line"
-                        aria-label="Optional manager comment for this line"
-                      />
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-
-              <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                <div className="space-y-3 rounded-md border p-4">
-                      <p className="text-sm font-medium">Map to Existing Inventory Item</p>
-                  <select
-                    className="w-full rounded border px-3 py-2 text-sm"
-                    value={resolveForms[selectedLine.id]?.inventory_item_id || ''}
-                    onChange={(e) => updateResolveForm(selectedLine.id, { inventory_item_id: e.target.value })}
-                  >
-                        <option value="">Select inventory item</option>
-                    {items.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name} ({item.unit})
-                      </option>
-                    ))}
-                  </select>
-                  <textarea
-                    className="min-h-20 w-full rounded border px-3 py-2 text-sm"
-                    value={resolveForms[selectedLine.id]?.manager_note || ''}
-                    onChange={(e) => updateResolveForm(selectedLine.id, { manager_note: e.target.value })}
-                        placeholder="Manager note for mapping"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => onResolveExisting(selectedLine.id)}
-                    disabled={actionLoading}
-                  >
-                        Map Existing Item
-                  </Button>
-                </div>
-
-                <div className="space-y-3 rounded-md border p-4">
-                  {selectedLine.is_new_item ? (
-                    <>
-                      <p className="text-sm font-medium">Create Inventory Item </p>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <input className="rounded border bg-muted px-3 py-2 text-sm" value={selectedLine.requested_item_name} readOnly />
-                        <input className="rounded border bg-muted px-3 py-2 text-sm" value={selectedLine.requested_unit} readOnly />
-                        <input
-                          className="rounded border px-3 py-2 text-sm"
-                          value={resolveForms[selectedLine.id]?.category || ''}
-                          onChange={(e) => updateResolveForm(selectedLine.id, { category: e.target.value })}
-                          placeholder="Category"
-                        />
-                        <input
-                          className="rounded border px-3 py-2 text-sm"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={resolveForms[selectedLine.id]?.min_quantity || ''}
-                          onChange={(e) => updateResolveForm(selectedLine.id, { min_quantity: e.target.value })}
-                          placeholder="Min quantity"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => onCreateAndResolve(selectedLine)}
-                        disabled={actionLoading}
-                      >
-                        Create Item 
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-medium">Existing Inventory Line</p>
-                      <p className="text-sm text-muted-foreground">
-                        This line already references inventory. You can remap it if needed or include it as-is.
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
-            </StoreSection>
-          ) : (
-            <StoreSection
-              title="Selected Item"
-              description="Choose a row in Request Items and click Select to edit quantities, decisions, and inventory mapping."
-              tone="emerald"
-            >
-              <StoreNotice tone="sky">No line selected.</StoreNotice>
-            </StoreSection>
-          )}
-
-          <StoreSection title="Final Action" tone="rose">
-            <div className="flex flex-wrap justify-end gap-3">
-              <Button type="button" variant="destructive" onClick={onReject} disabled={actionLoading}>
-                {actionLoading ? 'Saving...' : 'Reject Full Request'}
-              </Button>
-              <Button type="button" onClick={onApprove} disabled={actionLoading || unresolvedNewLines.length > 0}>
-                {Object.values(lineDecisions).some((decision) => decision === 'REJECT')
-                  ? 'Approve Remaining Lines'
-                  : 'Approve Full Request'}
-              </Button>
-            </div>
+          <StoreSection
+            title="Approval Note"
+            description={
+              activeRequest.requested_note ? `Operator note: ${activeRequest.requested_note}` : 'No operator note'
+            }
+            tone="amber"
+            compact
+          >
+            <textarea
+              className="min-h-[3rem] w-full rounded-md border px-2 py-1.5 text-xs"
+              value={approvalNote}
+              onChange={(e) => setApprovalNote(e.target.value)}
+              placeholder="Approval or rejection note"
+            />
           </StoreSection>
+
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            <Button type="button" variant="destructive" size="sm" onClick={onReject} disabled={actionLoading}>
+              {actionLoading ? 'Saving...' : 'Reject Full Request'}
+            </Button>
+            <Button type="button" size="sm" onClick={onApprove} disabled={actionLoading}>
+              {Object.values(lineDecisions).some((decision) => decision === 'REJECT')
+                ? 'Approve Remaining Lines'
+                : 'Approve Full Request'}
+            </Button>
+          </div>
         </>
       ) : (
         <StoreSection title="Purchase Request" tone="violet">
           <StoreNotice tone="amber">No purchase request detail was returned.</StoreNotice>
         </StoreSection>
       )}
+
+      {managerNoteModalLine ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            aria-label="Close dialog"
+            onClick={closeManagerNoteModal}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manager-note-dialog-title"
+            className="relative z-10 w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg"
+          >
+            <h2 id="manager-note-dialog-title" className="text-lg font-semibold">
+              Manager note
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {managerNoteModalLine.requested_item_name ||
+                managerNoteModalLine.inventory_item_name ||
+                'Line item'}
+            </p>
+            <textarea
+              className="mt-4 min-h-[120px] w-full rounded-md border px-3 py-2 text-sm"
+              value={lineManagerNotes[managerNoteModalLineId] || ''}
+              onChange={(e) => updateLineManagerNote(managerNoteModalLineId, e.target.value)}
+              placeholder="Write a note for this line…"
+              aria-label="Manager note"
+              autoFocus
+            />
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" onClick={closeManagerNoteModal}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={closeManagerNoteModal}>
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </StorePageShell>
   );
 };

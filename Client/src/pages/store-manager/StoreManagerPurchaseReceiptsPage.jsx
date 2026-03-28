@@ -3,7 +3,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageShell, StoreSection, StoreTableFrame } from '@/components/store/StorePageShell';
-import { useKitchenReceiptsApi } from '../../hooks/adminHook/kitchenStoreHook';
+import {
+  purchaseReceiptHasInvoice,
+  useKitchenReceiptsApi,
+  useKitchenPurchaseExceptionManagerApi
+} from '../../hooks/adminHook/kitchenStoreHook';
+
+const MANAGER_REVIEW_ACTIONS = ['KEEP', 'RETURN', 'INVESTIGATE', 'REJECT'];
+
+function receiptLineNeedsManagerReview(row) {
+  if (row.stock_applied) return false;
+  const s = String(row.manager_review_status || '').toUpperCase();
+  if (s === 'REVIEWED' || s === 'NOT_REQUIRED') return false;
+  return true;
+}
 
 function formatReceiptDateOnly(value) {
   if (value == null || value === '') return '-';
@@ -29,7 +42,9 @@ const receiptControlClass =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
 
 const StoreManagerPurchaseReceiptsPage = () => {
-  const { listReceipts, listReceiptLines } = useKitchenReceiptsApi();
+  const { listReceipts, listReceiptLines, viewReceiptInvoiceInNewTab } = useKitchenReceiptsApi();
+  const { submitManagerReview, actionLoading: reviewLoading, error: reviewError } =
+    useKitchenPurchaseExceptionManagerApi();
   const [history, setHistory] = useState([]);
   const [selectedLines, setSelectedLines] = useState([]);
   const [activeReceiptId, setActiveReceiptId] = useState('');
@@ -39,6 +54,10 @@ const StoreManagerPurchaseReceiptsPage = () => {
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selectedReviewLineId, setSelectedReviewLineId] = useState('');
+  const [reviewAction, setReviewAction] = useState('KEEP');
+  const [reviewNote, setReviewNote] = useState('');
+  const [invoiceUrlLoadingId, setInvoiceUrlLoadingId] = useState('');
 
   const loadReceiptHistory = async () => {
     setStatus('');
@@ -51,7 +70,8 @@ const StoreManagerPurchaseReceiptsPage = () => {
         setStatus('No purchase receipts returned for this register.');
       }
     } catch (err) {
-      setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt register.');
+      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt register.';
+      setStatus(msg);
     } finally {
       setLoadingHistory(false);
     }
@@ -86,6 +106,8 @@ const StoreManagerPurchaseReceiptsPage = () => {
   const openReceiptLines = async (receiptId) => {
     if (!receiptId) return;
     setActiveReceiptId(receiptId);
+    setSelectedReviewLineId('');
+    setReviewNote('');
     setStatus('');
     setLoadingLines(true);
     try {
@@ -95,14 +117,55 @@ const StoreManagerPurchaseReceiptsPage = () => {
         setStatus('No lines found for this receipt.');
       }
     } catch (err) {
-      setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt lines.');
+      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt lines.';
+      setStatus(msg);
     } finally {
       setLoadingLines(false);
     }
   };
 
+  const selectedReviewLine = useMemo(
+    () => selectedLines.find((r) => r.id === selectedReviewLineId) || null,
+    [selectedLines, selectedReviewLineId]
+  );
+
+  const openReceiptInvoice = async (receiptId) => {
+    if (!receiptId) return;
+    setInvoiceUrlLoadingId(receiptId);
+    try {
+      await viewReceiptInvoiceInNewTab(receiptId);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Could not open invoice.';
+      setStatus(msg);
+    } finally {
+      setInvoiceUrlLoadingId('');
+    }
+  };
+
+  const onSubmitLineReview = async () => {
+    if (!activeReceiptId || !selectedReviewLine) return;
+    setStatus('');
+    const result = await submitManagerReview(activeReceiptId, selectedReviewLine.id, {
+      manager_action: reviewAction,
+      manager_action_note: reviewNote.trim() || undefined
+    });
+    if (!result.ok) {
+      const msg = result.message || 'Manager review failed.';
+      setStatus(msg);
+      return;
+    }
+    setStatus('Line review saved.');
+    setReviewNote('');
+    await openReceiptLines(activeReceiptId);
+  };
+
   return (
     <StorePageShell>
+      {reviewError ? <StoreNotice tone="rose">{reviewError}</StoreNotice> : null}
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
 
       <StoreSection
@@ -171,7 +234,7 @@ const StoreManagerPurchaseReceiptsPage = () => {
                 <TableHead>Receipt date</TableHead>
                 <TableHead>Request ID</TableHead>
                 <TableHead>Invoice</TableHead>
-                <TableHead>Invoice URL</TableHead>
+                <TableHead>Image</TableHead>
                 <TableHead>Uploaded At</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -179,7 +242,7 @@ const StoreManagerPurchaseReceiptsPage = () => {
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-10 text-center text-sm text-slate-500">
+                  <TableCell colSpan={6} className="py-10 text-center text-sm text-slate-500">
                     {history.length === 0
                       ? 'No receipts loaded. Refresh the register.'
                       : 'No receipts match the current filters.'}
@@ -194,11 +257,17 @@ const StoreManagerPurchaseReceiptsPage = () => {
                       <TableCell className="font-medium">{formatReceiptDateOnly(receiptDateRaw)}</TableCell>
                       <TableCell>{row.purchase_request_id || '-'}</TableCell>
                       <TableCell>{row.reference_invoice || '-'}</TableCell>
-                      <TableCell className="max-w-40 truncate">
-                        {row.invoice_s3_url ? (
-                          <a href={row.invoice_s3_url} target="_blank" rel="noreferrer" className="text-sky-700 underline">
-                            Open
-                          </a>
+                      <TableCell className="max-w-44">
+                        {purchaseReceiptHasInvoice(row) ? (
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="h-auto px-0 text-sky-700"
+                            disabled={invoiceUrlLoadingId === receiptId}
+                            onClick={() => openReceiptInvoice(receiptId)}
+                          >
+                            {invoiceUrlLoadingId === receiptId ? 'Opening…' : 'View image'}
+                          </Button>
                         ) : (
                           '-'
                         )}
@@ -218,7 +287,7 @@ const StoreManagerPurchaseReceiptsPage = () => {
         </StoreTableFrame>
       </StoreSection>
 
-      <StoreSection title="Receipt Detials" tone="amber">
+      <StoreSection title="Receipt details" tone="amber">
         {!activeReceiptId ? <StoreNotice tone="amber">Open a receipt to view receipt details.</StoreNotice> : null}
         {activeReceiptId ? (
           <div className="mb-3 flex items-center gap-2 text-sm text-slate-700">
@@ -228,38 +297,94 @@ const StoreManagerPurchaseReceiptsPage = () => {
           </div>
         ) : null}
         {selectedLines.length > 0 ? (
-          <StoreTableFrame className="overflow-x-auto">
-            <Table wrapperClassName="relative w-full overflow-visible">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Purchased Qty</TableHead>
-                  <TableHead>Base Qty</TableHead>
-                  <TableHead>Unit price (base)</TableHead>
-                  <TableHead>Line Total</TableHead>
-                  <TableHead>Comparison</TableHead>
-                  <TableHead>Off-list reason</TableHead>
-                  <TableHead>Manager Review</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {selectedLines.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-medium">{row.inventory_item_name || row.inventory_item_id}</TableCell>
-                    <TableCell>
-                      {row.purchased_qty} {row.purchase_unit}
-                    </TableCell>
-                    <TableCell>{row.received_qty_in_base_unit}</TableCell>
-                    <TableCell>{row.unit_price_in_base ? row.unit_price_in_base.toFixed(4) : '-'}</TableCell>
-                    <TableCell>{row.line_total}</TableCell>
-                    <TableCell>{row.comparison_status || '-'}</TableCell>
-                    <TableCell className="max-w-48 text-sm">{row.off_list_purchase_reason || '-'}</TableCell>
-                    <TableCell>{row.manager_review_status || '-'}</TableCell>
+          <>
+            <StoreTableFrame className="overflow-x-auto">
+              <Table wrapperClassName="relative w-full overflow-visible">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item</TableHead>
+                    <TableHead>Purchased Qty</TableHead>
+                    <TableHead>Base Qty</TableHead>
+                    <TableHead>Unit price (base)</TableHead>
+                    <TableHead>Line Total</TableHead>
+                    <TableHead>Comparison</TableHead>
+                    <TableHead>Off-list reason</TableHead>
+                    <TableHead>Manager Review</TableHead>
+                    <TableHead>Manager action</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead className="text-right">Review</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </StoreTableFrame>
+                </TableHeader>
+                <TableBody>
+                  {selectedLines.map((row) => {
+                    const needs = receiptLineNeedsManagerReview(row);
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">{row.inventory_item_name || '—'}</TableCell>
+                        <TableCell>
+                          {row.purchased_qty} {row.purchase_unit}
+                        </TableCell>
+                        <TableCell>{row.received_qty_in_base_unit}</TableCell>
+                        <TableCell>{row.unit_price_in_base ? row.unit_price_in_base.toFixed(4) : '-'}</TableCell>
+                        <TableCell>{row.line_total}</TableCell>
+                        <TableCell>{row.comparison_status || '-'}</TableCell>
+                        <TableCell className="max-w-48 text-sm">{row.off_list_purchase_reason || '-'}</TableCell>
+                        <TableCell>{row.manager_review_status || '-'}</TableCell>
+                        <TableCell>{row.manager_action || '—'}</TableCell>
+                        <TableCell>
+                          <Badge variant={row.stock_applied ? 'success' : 'secondary'}>
+                            {row.stock_applied ? 'Applied' : 'Pending'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {needs ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={selectedReviewLineId === row.id ? 'default' : 'outline'}
+                              onClick={() => setSelectedReviewLineId(row.id)}
+                            >
+                              {selectedReviewLineId === row.id ? 'Selected' : 'Select'}
+                            </Button>
+                          ) : (
+                            '—'
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </StoreTableFrame>
+            {selectedReviewLine && receiptLineNeedsManagerReview(selectedReviewLine) ? (
+              <div className="mt-4 space-y-3 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+                <p className="text-sm font-medium text-slate-800">Review selected line</p>
+                <p className="text-sm text-slate-600">
+                  <span className="font-medium">Item:</span> {selectedReviewLine.inventory_item_name || '—'}
+                </p>
+                <select
+                  className="w-full max-w-md rounded border px-3 py-2 text-sm"
+                  value={reviewAction}
+                  onChange={(e) => setReviewAction(e.target.value)}
+                >
+                  {MANAGER_REVIEW_ACTIONS.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+                <textarea
+                  className="min-h-20 w-full max-w-md rounded border px-3 py-2 text-sm"
+                  value={reviewNote}
+                  onChange={(e) => setReviewNote(e.target.value)}
+                  placeholder="Manager action note (optional)"
+                />
+                <Button type="button" onClick={onSubmitLineReview} disabled={reviewLoading}>
+                  {reviewLoading ? 'Saving…' : 'Submit line review'}
+                </Button>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </StoreSection>
     </StorePageShell>

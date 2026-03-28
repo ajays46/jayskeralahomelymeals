@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useKitchenMealReportApi } from '../../hooks/adminHook/kitchenStoreHook';
 import { Button } from '@/components/ui/button';
 import { StorePageHeader, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
+import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 const defaultDate = new Date().toISOString().slice(0, 10);
 
@@ -63,9 +64,12 @@ const StoreOperatorMealReportPage = () => {
     try {
       const data = await getMealReport(date);
       setReport(data);
+      showStoreSuccess(`Meal report loaded for ${date}.`, 'Report loaded');
     } catch (err) {
       setReport(null);
-      setError(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load meal report');
+      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load meal report';
+      setError(msg);
+      showStoreError(msg, 'Could not load report');
     } finally {
       setLoading(false);
     }

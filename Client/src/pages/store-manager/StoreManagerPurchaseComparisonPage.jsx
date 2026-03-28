@@ -10,6 +10,7 @@ import {
   useKitchenPurchaseRequestOperatorApi,
   useKitchenReceiptsApi
 } from '../../hooks/adminHook/kitchenStoreHook';
+import { showStoreError } from '../../utils/toastConfig.jsx';
 
 const StoreManagerPurchaseComparisonPage = () => {
   const basePath = useCompanyBasePath();
@@ -41,7 +42,10 @@ const StoreManagerPurchaseComparisonPage = () => {
       .catch((err) => {
         setComparisonRows([]);
         setComparisonSummary({});
-        setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load purchase comparison.');
+        const msg =
+          err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load purchase comparison.';
+        setStatus(msg);
+        showStoreError(msg, 'Could not load comparison');
       });
   }, [getPurchaseComparison, selectedRequestId]);
 
@@ -77,39 +81,44 @@ const StoreManagerPurchaseComparisonPage = () => {
         {approvedRequests.length === 0 ? (
           <StoreNotice tone="amber">No approved requests available for comparison.</StoreNotice>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Approval Note</TableHead>
-                <TableHead>Approved At</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {approvedRequests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell className="font-medium">{request.approval_note || '-'}</TableCell>
-                  <TableCell>
-                    {formatKitchenDateTime(request.approved_at || request.created_at) ||
-                      request.approved_at ||
-                      request.created_at ||
-                      '-'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={selectedRequestId === request.id ? 'default' : 'outline'}
-                      onClick={() => setSelectedRequestId(request.id)}
-                      disabled={bootstrapLoading}
-                    >
-                      {selectedRequestId === request.id ? 'Selected' : 'View'}
-                    </Button>
-                  </TableCell>
+          <div className="max-h-[calc(2.75rem+6*3.25rem)] overflow-y-auto rounded-md border">
+            <Table wrapperClassName="relative w-full">
+              <TableHeader className="sticky top-0 z-10 bg-background">
+                <TableRow>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Submitted</TableHead>
+                  <TableHead>Operator</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {approvedRequests.map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell>
+                      <Badge variant={request.status === 'APPROVED' ? 'success' : 'secondary'}>
+                        {request.status || '-'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {formatKitchenDateTime(request.submitted_at) || request.submitted_at || '-'}
+                    </TableCell>
+                    <TableCell className="font-medium">{request.operator_name || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={selectedRequestId === request.id ? 'default' : 'outline'}
+                        onClick={() => setSelectedRequestId(request.id)}
+                        disabled={bootstrapLoading}
+                      >
+                        {selectedRequestId === request.id ? 'Selected' : 'View'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </StoreSection>
 
@@ -144,8 +153,8 @@ const StoreManagerPurchaseComparisonPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {comparisonRows.map((row) => (
-                <TableRow key={row.id}>
+              {comparisonRows.map((row, idx) => (
+                <TableRow key={`${row.id}-${idx}`}>
                   <TableCell className="font-medium">
                     <div className="space-y-1">
                       <div>{row.inventory_item_name}</div>

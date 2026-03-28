@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 import {
+  formatKitchenStoreApiError,
+  purchaseReceiptHasInvoice,
   useKitchenInventoryMock,
   useKitchenPurchaseRequestOperatorApi,
   useKitchenReceiptsApi
 } from '../../hooks/adminHook/kitchenStoreHook';
+import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -33,13 +36,17 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     listApprovedRequests,
     fetchApprovedLines
   } = useKitchenPurchaseRequestOperatorApi();
-  const { uploadReceiptInvoice, createReceipt, addReceiptLine, listReceipts, listReceiptLines } =
-    useKitchenReceiptsApi();
+  const {
+    createReceipt,
+    uploadReceiptInvoice,
+    addReceiptLine,
+    listReceipts,
+    listReceiptLines,
+    viewReceiptInvoiceInNewTab
+  } = useKitchenReceiptsApi();
 
   const [selectedRequestId, setSelectedRequestId] = useState(searchParams.get('requestId') || '');
   const [referenceInvoice, setReferenceInvoice] = useState('');
-  const [invoiceS3Key, setInvoiceS3Key] = useState('');
-  const [invoiceS3Url, setInvoiceS3Url] = useState('');
   const [activeReceiptId, setActiveReceiptId] = useState('');
   const [history, setHistory] = useState([]);
   const [selectedLines, setSelectedLines] = useState([]);
@@ -65,6 +72,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
   });
   const [purchaseProofFile, setPurchaseProofFile] = useState(null);
   const [invoiceUploadLoading, setInvoiceUploadLoading] = useState(false);
+  const [invoiceUrlLoadingId, setInvoiceUrlLoadingId] = useState('');
   const purchaseProofInputRef = useRef(null);
   const purchaseProofPreviewUrl = useMemo(
     () => (purchaseProofFile ? URL.createObjectURL(purchaseProofFile) : null),
@@ -136,6 +144,15 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     [approvedLines, approvedPurchaseForm.purchase_request_line_id]
   );
 
+  const catalogItemIdForApprovedLine = useMemo(() => {
+    if (!selectedApprovedLine) return '';
+    return String(
+      selectedApprovedLine.resolved_inventory_item_id ||
+        selectedApprovedLine.inventory_item_id ||
+        ''
+    );
+  }, [selectedApprovedLine]);
+
   const approvedLinePreview = useMemo(
     () =>
       previewBaseQtyAndUnitPrice(
@@ -162,7 +179,9 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       const out = await listReceipts();
       setHistory(Array.isArray(out) ? out : []);
     } catch (err) {
-      setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt history.');
+      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt history.';
+      setStatus(msg);
+      showStoreError(msg, 'Could not load receipts');
     }
   };
 
@@ -173,13 +192,23 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       const rows = await listReceiptLines(receiptId);
       setSelectedLines(rows);
     } catch (err) {
-      setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt lines.');
+      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt lines.';
+      setStatus(msg);
+      showStoreError(msg, 'Could not load receipt lines');
     }
   };
 
   const addApprovedLineToReceipt = async (receiptId) => {
     if (!selectedApprovedLine) {
       throw new Error('Choose an approved line to add.');
+    }
+    const catalogItemId = String(
+      selectedApprovedLine.resolved_inventory_item_id || selectedApprovedLine.inventory_item_id || ''
+    );
+    if (!catalogItemId) {
+      throw new Error(
+        'This approved line has no linked catalog item id. The name must match an item in Item master, or a manager must resolve the line on the purchase request.'
+      );
     }
     const pq = Number(approvedPurchaseForm.purchased_qty);
     const conv = Number(approvedPurchaseForm.conversion_to_base);
@@ -191,8 +220,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       throw new Error('Enter the purchase unit (e.g. bag, kg).');
     }
     await addReceiptLine(receiptId, {
-      inventory_item_id: selectedApprovedLine.inventory_item_id,
-      purchase_request_line_id: selectedApprovedLine.id,
+      inventory_item_id: catalogItemId,
+      purchase_request_line_id: String(selectedApprovedLine.id),
       purchased_qty: pq,
       purchase_unit: approvedPurchaseForm.purchase_unit.trim(),
       conversion_to_base: conv,
@@ -204,95 +233,131 @@ const StoreOperatorPurchaseReceiptsPage = () => {
 
   const onCreateReceipt = async () => {
     if (!selectedRequestId) {
-      setStatus('Choose an approved request before creating a receipt.');
+      const msg = 'Choose an approved request before creating a receipt.';
+      setStatus(msg);
+      showStoreError(msg, 'Missing request');
       return;
     }
     setStatus('');
+    setInvoiceUploadLoading(true);
+    let createdReceiptId = '';
     try {
       if (purchaseProofFile) {
         const contentType = purchaseProofFile.type || 'application/octet-stream';
         const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
         if (!allowedTypes.includes(contentType)) {
-          setStatus('Invoice file must be PDF, JPG, or PNG.');
+          const msg = 'Invoice file must be PDF, JPG, or PNG.';
+          setStatus(msg);
+          showStoreError(msg, 'Invalid file type');
           return;
         }
       }
-      const manualInvoiceS3Key = invoiceS3Key.trim() || undefined;
-      const manualInvoiceS3Url = invoiceS3Url.trim() || undefined;
-
+      // Create receipt first, then upload invoice via our API (kitchen → S3). Avoids browser → presigned S3 PUT and S3 CORS.
       const out = await createReceipt({
         purchase_request_id: selectedRequestId,
         reference_invoice: referenceInvoice.trim() || undefined,
-        invoice_s3_key: manualInvoiceS3Key,
-        invoice_s3_url: manualInvoiceS3Url
+        ...(purchaseProofFile ? { received_at: new Date().toISOString() } : {})
       });
       const receiptId = String(out?.receipt_id ?? out?.id ?? '');
       if (!receiptId) {
-        setStatus('Receipt created, but the receipt id was not returned.');
+        const msg = 'Receipt created, but the receipt id was not returned.';
+        setStatus(msg);
+        showStoreError(msg, 'Receipt incomplete');
         return;
       }
+      createdReceiptId = receiptId;
       if (purchaseProofFile) {
-        setInvoiceUploadLoading(true);
-        const uploaded = await uploadReceiptInvoice(receiptId, purchaseProofFile);
-        setInvoiceS3Key(uploaded?.invoice_s3_key || '');
-        setInvoiceS3Url(uploaded?.invoice_s3_url || '');
+        await uploadReceiptInvoice(receiptId, purchaseProofFile);
       }
       setActiveReceiptId(receiptId);
       setSelectedLines([]);
       setStatus('Receipt created. Use Add item to record approved lines on this receipt.');
+      showStoreSuccess('Receipt created. Add items to record purchased lines.', 'Receipt created');
       clearPurchaseProof();
       await loadReceiptHistory();
       await openReceiptLines(receiptId);
     } catch (err) {
-      setStatus(err?.response?.data?.message || err?.response?.data?.detail || err?.message || 'Failed to create receipt.');
+      const msg = formatKitchenStoreApiError(
+        err,
+        createdReceiptId
+          ? 'Receipt was created but the invoice file could not be uploaded.'
+          : 'Failed to create receipt.'
+      );
+      setStatus(msg);
+      showStoreError(msg, createdReceiptId ? 'Invoice upload failed' : 'Could not create receipt');
     } finally {
       setInvoiceUploadLoading(false);
     }
   };
 
+  const openReceiptInvoice = async (receiptId) => {
+    if (!receiptId) return;
+    setInvoiceUrlLoadingId(receiptId);
+    try {
+      await viewReceiptInvoiceInNewTab(receiptId);
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg = formatKitchenStoreApiError(err, 'Could not open invoice.');
+      setStatus(msg);
+      showStoreError(msg, status === 404 ? 'No invoice attached' : 'View invoice failed');
+    } finally {
+      setInvoiceUrlLoadingId('');
+    }
+  };
+
   const onAddApprovedPurchaseLine = async () => {
     if (!activeReceiptId) {
-      setStatus('Create a receipt first using Create receipt, then add items.');
+      const msg = 'Create a receipt first using Create receipt, then add items.';
+      setStatus(msg);
+      showStoreError(msg, 'No receipt');
       return;
     }
     if (!approvedLines.length) {
-      setStatus('No approved lines are available for the selected request.');
+      const msg = 'No approved lines are available for the selected request.';
+      setStatus(msg);
+      showStoreError(msg, 'Nothing to add');
       return;
     }
     setStatus('');
     try {
       await addApprovedLineToReceipt(activeReceiptId);
       setStatus('Approved line added to the receipt.');
+      showStoreSuccess('Approved line added to the receipt.', 'Line added');
       await loadReceiptHistory();
       await openReceiptLines(activeReceiptId);
     } catch (err) {
-      setStatus(
-        err?.message ||
-          err?.response?.data?.message ||
-          err?.response?.data?.detail ||
-          'Failed to add line to receipt.'
-      );
+      const msg = err?.message || formatKitchenStoreApiError(err, 'Failed to add line to receipt.');
+      setStatus(msg);
+      showStoreError(msg, 'Could not add line');
     }
   };
 
   const onAddOffListLine = async () => {
     if (!activeReceiptId) {
-      setStatus('Create a receipt first before adding off-list items.');
+      const msg = 'Create a receipt first before adding off-list items.';
+      setStatus(msg);
+      showStoreError(msg, 'No receipt');
       return;
     }
     if (!offListForm.off_list_purchase_reason.trim()) {
-      setStatus('Off-list purchase reason is required.');
+      const msg = 'Off-list purchase reason is required.';
+      setStatus(msg);
+      showStoreError(msg, 'Missing reason');
       return;
     }
     if (!offListForm.inventory_item_id) {
-      setStatus('Select an inventory item for the off-list line.');
+      const msg = 'Select an inventory item for the off-list line.';
+      setStatus(msg);
+      showStoreError(msg, 'Select an item');
       return;
     }
     const pq = Number(offListForm.purchased_qty);
     const conv = Number(offListForm.conversion_to_base);
     const lt = Number(offListForm.line_total);
     if (!pq || pq <= 0 || !conv || conv <= 0 || !lt || lt <= 0) {
-      setStatus('Enter purchased qty, conversion to base, and line total (all must be greater than zero).');
+      const msg = 'Enter purchased qty, conversion to base, and line total (all must be greater than zero).';
+      setStatus(msg);
+      showStoreError(msg, 'Check quantities');
       return;
     }
     setStatus('');
@@ -308,6 +373,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         note: offListForm.note.trim() || 'Bought outside approved list'
       });
       setStatus('Off-list purchase line added to receipt.');
+      showStoreSuccess('Off-list line added to the receipt.', 'Line added');
       setOffListForm({
         inventory_item_id: '',
         purchased_qty: '',
@@ -320,7 +386,9 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       });
       await openReceiptLines(activeReceiptId);
     } catch (err) {
-      setStatus(err?.response?.data?.message || err?.response?.data?.detail || 'Failed to add off-list line.');
+      const msg = formatKitchenStoreApiError(err, 'Failed to add off-list line.');
+      setStatus(msg);
+      showStoreError(msg, 'Could not add line');
     }
   };
 
@@ -328,6 +396,11 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     <StorePageShell>
       {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
+
+      <StoreNotice tone="amber">
+        Inventory quantities do not increase until a store manager reviews each receipt line with KEEP (including
+        items that match the approved list).
+      </StoreNotice>
 
       <StoreSection title="Approved Request for Purchase" tone="emerald">
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
@@ -364,18 +437,6 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             onChange={(e) => setReferenceInvoice(e.target.value)}
             placeholder="Reference invoice"
           />
-          <input
-            className="rounded border px-3 py-2"
-            value={invoiceS3Key}
-            onChange={(e) => setInvoiceS3Key(e.target.value)}
-            placeholder="Invoice S3 key (optional)"
-          />
-          <input
-            className="rounded border px-3 py-2 md:col-span-2"
-            value={invoiceS3Url}
-            onChange={(e) => setInvoiceS3Url(e.target.value)}
-            placeholder="Invoice S3 URL (optional)"
-          />
         </div>
         <div className="mt-4 flex justify-end">
           <Button type="button" onClick={onCreateReceipt} disabled={!selectedRequestId || invoiceUploadLoading}>
@@ -388,6 +449,13 @@ const StoreOperatorPurchaseReceiptsPage = () => {
           <StoreNotice tone="amber">No approved lines are available for the selected request.</StoreNotice>
         ) : (
           <>
+            {selectedApprovedLine && !catalogItemIdForApprovedLine ? (
+              <StoreNotice tone="rose">
+                This approved line has no catalog item id (and no exact name match in Item master). A manager must
+                resolve it on the purchase request, or create the item with the same name in Item master and refresh
+                approved lines.
+              </StoreNotice>
+            ) : null}
             <div className="grid gap-3 md:grid-cols-3">
             <select
               className="rounded border px-3 py-2"
@@ -437,10 +505,11 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               className="rounded border px-3 py-2"
               value={approvedPurchaseForm.line_total}
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, line_total: e.target.value }))}
-              placeholder="Total"
+              placeholder="Line total paid (required)"
               type="number"
               min="0"
               step="0.01"
+              aria-label="Line total amount paid for this purchase"
             />
             <input
               className="rounded border px-3 py-2"
@@ -480,11 +549,15 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                 </div>
                 {purchaseProofPreviewUrl ? (
                   <div className="flex min-w-0 flex-1 flex-col gap-1 rounded-lg border border-dashed border-slate-200 bg-white p-2 sm:max-w-md">
-                    <img
-                      src={purchaseProofPreviewUrl}
-                      alt="Selected purchase receipt preview"
-                      className="max-h-48 w-full rounded-md object-contain"
-                    />
+                    {purchaseProofFile?.type === 'application/pdf' ? (
+                      <p className="py-4 text-center text-sm text-slate-600">PDF selected (preview not shown)</p>
+                    ) : (
+                      <img
+                        src={purchaseProofPreviewUrl}
+                        alt="Selected purchase receipt preview"
+                        className="max-h-48 w-full rounded-md object-contain"
+                      />
+                    )}
                     <span className="truncate text-xs text-slate-500" title={purchaseProofFile?.name || ''}>
                       {purchaseProofFile?.name}
                     </span>
@@ -497,7 +570,16 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               </div>
             </div>
             <div className="mt-4 flex justify-end">
-              <Button type="button" onClick={onAddApprovedPurchaseLine} disabled={!activeReceiptId || !approvedLines.length}>
+              <Button
+                type="button"
+                onClick={onAddApprovedPurchaseLine}
+                disabled={
+                  !activeReceiptId ||
+                  !approvedLines.length ||
+                  !approvedPurchaseForm.purchase_request_line_id ||
+                  !catalogItemIdForApprovedLine
+                }
+              >
                 Add item
               </Button>
             </div>
@@ -612,7 +694,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                 <TableHead>Receipt ID</TableHead>
                 <TableHead>Request ID</TableHead>
                 <TableHead>Invoice</TableHead>
-                <TableHead>Invoice URL</TableHead>
+                <TableHead>Invoice file</TableHead>
                 <TableHead>Uploaded At</TableHead>
                 <TableHead>Received At</TableHead>
                 <TableHead className="text-right">Action</TableHead>
@@ -624,16 +706,17 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                   <TableCell className="font-medium">{row.id || row.receipt_id}</TableCell>
                   <TableCell>{row.purchase_request_id || '-'}</TableCell>
                   <TableCell>{row.reference_invoice || '-'}</TableCell>
-                  <TableCell className="max-w-44 truncate">
-                    {row.invoice_s3_url ? (
-                      <a
-                        href={row.invoice_s3_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sky-700 underline"
+                  <TableCell className="max-w-44">
+                    {purchaseReceiptHasInvoice(row) ? (
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto px-0 text-sky-700"
+                        disabled={invoiceUrlLoadingId === (row.id || row.receipt_id)}
+                        onClick={() => openReceiptInvoice(row.id || row.receipt_id)}
                       >
-                        Open
-                      </a>
+                        {invoiceUrlLoadingId === (row.id || row.receipt_id) ? 'Opening…' : 'View invoice'}
+                      </Button>
                     ) : (
                       '-'
                     )}
@@ -665,21 +748,27 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                 <TableHead>Unit price (base)</TableHead>
                 <TableHead>Line Total</TableHead>
                 <TableHead>Comparison</TableHead>
-                <TableHead>Off-list reason</TableHead>
                 <TableHead>Manager Review</TableHead>
+                <TableHead>Manager action</TableHead>
+                <TableHead>Stock</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {selectedLines.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.inventory_item_name || row.inventory_item_id}</TableCell>
+                  <TableCell className="font-medium">{row.inventory_item_name || '—'}</TableCell>
                   <TableCell>{row.purchased_qty} {row.purchase_unit}</TableCell>
                   <TableCell>{row.received_qty_in_base_unit}</TableCell>
                   <TableCell>{row.unit_price_in_base ? row.unit_price_in_base.toFixed(4) : '-'}</TableCell>
                   <TableCell>{row.line_total}</TableCell>
                   <TableCell>{row.comparison_status || '-'}</TableCell>
-                  <TableCell className="max-w-48 text-sm">{row.off_list_purchase_reason || '-'}</TableCell>
                   <TableCell>{row.manager_review_status || '-'}</TableCell>
+                  <TableCell>{row.manager_action || '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant={row.stock_applied ? 'success' : 'secondary'}>
+                      {row.stock_applied ? 'Applied' : 'Pending mgr'}
+                    </Badge>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

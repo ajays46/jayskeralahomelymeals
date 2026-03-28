@@ -4,10 +4,201 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
+import { cn } from '@/lib/utils';
 import { useCompanyBasePath } from '../../context/TenantContext';
-import { useKitchenPurchaseExceptionManagerApi } from '../../hooks/adminHook/kitchenStoreHook';
+import {
+  purchaseReceiptHasInvoice,
+  useKitchenPurchaseExceptionManagerApi,
+  useKitchenReceiptsApi
+} from '../../hooks/adminHook/kitchenStoreHook';
+import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
-const ACTION_OPTIONS = ['RETURN', 'KEEP', 'INVESTIGATE', 'REJECT'];
+const ACTION_OPTIONS = ['KEEP', 'RETURN', 'INVESTIGATE', 'REJECT'];
+const COL_COUNT = 8;
+
+function shortId(id) {
+  const s = String(id || '');
+  if (s.length <= 12) return s || '—';
+  return `${s.slice(0, 8)}…`;
+}
+
+function formatPrice(value) {
+  const n = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
+  if (!Number.isFinite(n)) return '—';
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Group lines by receipt; preserve receipt order as first seen in the list. */
+function groupPendingByReceipt(rows) {
+  const byReceipt = new Map();
+  const order = [];
+  for (const row of rows) {
+    const rid = row.receipt_id || '';
+    if (!byReceipt.has(rid)) {
+      byReceipt.set(rid, []);
+      order.push(rid);
+    }
+    byReceipt.get(rid).push(row);
+  }
+  return order.map((receiptId) => ({ receiptId, rows: byReceipt.get(receiptId) }));
+}
+
+/** One item row: action, note, Save line only. */
+function PendingReviewRow({
+  row,
+  actionLoading,
+  busyKey,
+  setBusyKey,
+  submitManagerReview,
+  onRefreshed
+}) {
+  const [action, setAction] = useState('KEEP');
+  const [note, setNote] = useState('');
+  const lineKey = `line:${row.id}`;
+
+  const saveLine = async (e) => {
+    e?.stopPropagation?.();
+    setBusyKey(lineKey);
+    const result = await submitManagerReview(row.receipt_id, row.id, {
+      manager_action: action,
+      manager_action_note: note.trim() || undefined
+    });
+    setBusyKey('');
+    if (!result.ok) {
+      const msg = result.message || 'Save failed.';
+      showStoreError(msg, 'Save failed');
+      await onRefreshed(msg);
+      return;
+    }
+    setNote('');
+    showStoreSuccess('Line review saved.', 'Saved');
+    await onRefreshed();
+  };
+
+  const lineBusy = actionLoading && busyKey === lineKey;
+
+  return (
+    <TableRow className="align-top">
+      <TableCell className="max-w-[14rem] font-medium">{row.inventory_item_name || '—'}</TableCell>
+      <TableCell className="whitespace-nowrap font-mono text-xs text-slate-600" title={row.receipt_id}>
+        {shortId(row.receipt_id)}
+      </TableCell>
+      <TableCell className="whitespace-nowrap text-sm">
+        {row.purchased_qty} {row.purchase_unit || ''}
+      </TableCell>
+      <TableCell className="whitespace-nowrap text-right text-sm tabular-nums">
+        {formatPrice(row.line_total)}
+      </TableCell>
+      <TableCell>
+        <Badge variant="secondary" className="font-normal">
+          {row.comparison_status || row.manager_review_status || 'PENDING'}
+        </Badge>
+      </TableCell>
+      <TableCell className="min-w-[7.5rem]">
+        <select
+          className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-sm"
+          value={action}
+          onChange={(e) => setAction(e.target.value)}
+          aria-label={`Action for ${row.inventory_item_name || 'line'}`}
+        >
+          {ACTION_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </TableCell>
+      <TableCell className="min-w-[8rem] max-w-[12rem]">
+        <input
+          type="text"
+          className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Note"
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        <Button type="button" size="sm" disabled={actionLoading} onClick={saveLine}>
+          {lineBusy ? '…' : 'Approve'}
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+/** Single bulk row after all lines for a receipt (only when 2+ lines). */
+function ReceiptBulkRow({
+  receiptId,
+  lineCount,
+  actionLoading,
+  busyKey,
+  setBusyKey,
+  submitManagerReviewBulk,
+  onRefreshed
+}) {
+  const [action, setAction] = useState('KEEP');
+  const [note, setNote] = useState('');
+  const receiptKey = `receipt:${receiptId}`;
+
+  const saveWholeReceipt = async () => {
+    if (!receiptId || lineCount <= 1) return;
+    setBusyKey(receiptKey);
+    const result = await submitManagerReviewBulk(receiptId, {
+      manager_action: action,
+      manager_action_note: note.trim() || undefined
+    });
+    setBusyKey('');
+    if (!result.ok) {
+      const msg = result.message || 'Bulk save failed.';
+      showStoreError(msg, 'Bulk save failed');
+      await onRefreshed(msg);
+      return;
+    }
+    setNote('');
+    showStoreSuccess('All lines on this receipt were updated.', 'Saved');
+    await onRefreshed();
+  };
+
+  const receiptBusy = actionLoading && busyKey === receiptKey;
+
+  return (
+    <TableRow className="border-t border-slate-200 bg-slate-50/80">
+      <TableCell colSpan={COL_COUNT} className="py-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <p className="min-w-0 flex-1 text-sm text-slate-700">
+            <span className="font-medium">Receipt</span>{' '}
+            <span className="font-mono text-xs text-slate-600" title={receiptId}>
+              {shortId(receiptId)}
+            </span>
+            <span className="text-slate-500"> — Approve all {lineCount} pending list</span>
+          </p>
+          <select
+            className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-sm sm:w-40"
+            value={action}
+            onChange={(e) => setAction(e.target.value)}
+            aria-label={`Bulk action for receipt ${receiptId}`}
+          >
+            {ACTION_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            className="min-w-[10rem] flex-1 rounded border border-slate-200 bg-white px-2 py-1.5 text-sm sm:max-w-xs"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Note (optional)"
+          />
+          <Button type="button" size="sm" variant="outline" disabled={actionLoading} onClick={saveWholeReceipt}>
+            {receiptBusy ? '…' : 'Approve all'}
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
 
 const StoreManagerOffListPurchaseReviewPage = () => {
   const basePath = useCompanyBasePath();
@@ -17,148 +208,172 @@ const StoreManagerOffListPurchaseReviewPage = () => {
     error,
     pendingExceptions,
     listPendingExceptions,
-    submitManagerReview
+    submitManagerReview,
+    submitManagerReviewBulk
   } = useKitchenPurchaseExceptionManagerApi();
-  const [selectedLineId, setSelectedLineId] = useState('');
-  const [managerAction, setManagerAction] = useState('RETURN');
-  const [managerActionNote, setManagerActionNote] = useState('');
+  const { viewReceiptInvoiceInNewTab } = useKitchenReceiptsApi();
   const [status, setStatus] = useState('');
+  const [pendingScope, setPendingScope] = useState('all');
+  const [busyKey, setBusyKey] = useState('');
+  const [invoiceUrlLoadingId, setInvoiceUrlLoadingId] = useState('');
 
   useEffect(() => {
-    listPendingExceptions();
-  }, [listPendingExceptions]);
+    listPendingExceptions({ pending_scope: pendingScope });
+  }, [listPendingExceptions, pendingScope]);
 
-  useEffect(() => {
-    if (!pendingExceptions.length) return;
-    if (selectedLineId) return;
-    setSelectedLineId(pendingExceptions[0].id);
-  }, [pendingExceptions, selectedLineId]);
+  const segments = useMemo(() => groupPendingByReceipt(pendingExceptions), [pendingExceptions]);
+  const scrollPendingTable = pendingExceptions.length > 6;
 
-  const selectedException = useMemo(
-    () => pendingExceptions.find((row) => row.id === selectedLineId) || null,
-    [pendingExceptions, selectedLineId]
-  );
-
-  const onSubmitReview = async () => {
-    if (!selectedException) return;
-    setStatus('');
-    const result = await submitManagerReview(selectedException.receipt_id, selectedException.id, {
-      manager_action: managerAction,
-      manager_action_note: managerActionNote.trim()
-    });
-    if (!result.ok) {
-      setStatus(result.message || 'Failed to submit manager review.');
+  const refresh = async (errorMessage) => {
+    if (errorMessage) {
+      setStatus(errorMessage);
       return;
     }
-    setStatus('Purchase manager review saved.');
-    setManagerAction('RETURN');
-    setManagerActionNote('');
-    await listPendingExceptions();
+    setStatus('');
+    await listPendingExceptions({ pending_scope: pendingScope });
+  };
+
+  const openReceiptInvoice = async (receiptId) => {
+    if (!receiptId) return;
+    setInvoiceUrlLoadingId(receiptId);
+    try {
+      await viewReceiptInvoiceInNewTab(receiptId);
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Could not open invoice.';
+      setStatus(msg);
+      showStoreError(msg, status === 404 ? 'No invoice attached' : 'View invoice failed');
+    } finally {
+      setInvoiceUrlLoadingId('');
+    }
   };
 
   return (
     <StorePageShell>
       <StorePageHeader
         title="Purchase Manager Review"
-        description="Review all purchase lines that need manager action and record the decision."
+        description="Each line has Save line. When a receipt has several pending lines, one Save receipt row appears below those lines to update them all at once."
         actions={[
-          <Button key="inbox" asChild><Link to={`${basePath}/store-manager/purchase-requests`}>Purchase Request Inbox</Link></Button>,
-          <Button key="refresh" type="button" variant="outline" onClick={() => listPendingExceptions()} disabled={listLoading}>
-            {listLoading ? 'Refreshing...' : 'Refresh'}
+          <Button key="inbox" asChild>
+            <Link to={`${basePath}/store-manager/purchase-requests`}>Purchase Request Inbox</Link>
+          </Button>,
+          <Button
+            key="refresh"
+            type="button"
+            variant="outline"
+            onClick={() => refresh()}
+            disabled={listLoading}
+          >
+            {listLoading ? 'Refreshing…' : 'Refresh'}
           </Button>
         ]}
         tone="violet"
       />
-      {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
-      {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        <StoreSection title="Pending Review Items" tone="amber">
-          {pendingExceptions.length === 0 ? (
-            <StoreNotice tone="sky">No pending manager-review lines found.</StoreNotice>
-          ) : (
-            <Table>
-              <TableHeader>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className="text-sm text-slate-600">Show:</span>
+        <select
+          className="rounded border border-slate-200 bg-white px-3 py-2 text-sm"
+          value={pendingScope}
+          onChange={(e) => setPendingScope(e.target.value)}
+          aria-label="Queue filter"
+        >
+          <option value="all">All pending</option>
+          <option value="exceptions">Exceptions only</option>
+        </select>
+      </div>
+
+      {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
+      {status ? <StoreNotice tone="rose">{status}</StoreNotice> : null}
+
+      <StoreSection title="Pending List" tone="amber">
+        {pendingExceptions.length === 0 ? (
+          <StoreNotice tone="sky">Nothing waiting for review.</StoreNotice>
+        ) : (
+          <div
+            className={cn(
+              'overflow-x-auto',
+              scrollPendingTable &&
+                'max-h-[min(72vh,26rem)] overflow-y-auto rounded-md border border-slate-200/90'
+            )}
+          >
+            <Table wrapperClassName={scrollPendingTable ? 'relative w-full' : undefined}>
+              <TableHeader
+                className={cn(
+                  scrollPendingTable &&
+                    'sticky top-0 z-[1] border-b bg-background/95 shadow-sm backdrop-blur-sm supports-[backdrop-filter]:bg-background/80'
+                )}
+              >
                 <TableRow>
                   <TableHead>Item</TableHead>
+                  <TableHead>Receipt</TableHead>
                   <TableHead>Qty</TableHead>
-                  <TableHead>Review</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Note</TableHead>
+                  <TableHead className="text-right">Approve individually</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingExceptions.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-medium">{row.inventory_item_name}</TableCell>
-                    <TableCell>{row.purchased_qty} {row.purchase_unit}</TableCell>
-                    <TableCell>
-                      <Badge variant="warning">{row.comparison_status || row.manager_review_status || 'PENDING'}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={row.stock_applied ? 'success' : 'secondary'}>
-                        {row.stock_applied ? 'APPLIED' : 'NOT_APPLIED'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={selectedLineId === row.id ? 'default' : 'outline'}
-                        onClick={() => setSelectedLineId(row.id)}
-                      >
-                        {selectedLineId === row.id ? 'Selected' : 'Review'}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                {segments.map(({ receiptId, rows }) => (
+                  <React.Fragment key={receiptId || 'no-receipt'}>
+                    {receiptId && rows.some((r) => purchaseReceiptHasInvoice(r)) ? (
+                      <TableRow className="bg-slate-50/90">
+                        <TableCell colSpan={COL_COUNT} className="py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm text-slate-600">
+                              Receipt{' '}
+                              <span className="font-mono text-xs text-slate-800" title={receiptId}>
+                                {shortId(receiptId)}
+                              </span>
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={invoiceUrlLoadingId === receiptId}
+                              onClick={() => openReceiptInvoice(receiptId)}
+                            >
+                              {invoiceUrlLoadingId === receiptId ? 'Opening…' : 'View invoice'}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                    {rows.map((row) => (
+                      <PendingReviewRow
+                        key={row.id}
+                        row={row}
+                        actionLoading={actionLoading}
+                        busyKey={busyKey}
+                        setBusyKey={setBusyKey}
+                        submitManagerReview={submitManagerReview}
+                        onRefreshed={refresh}
+                      />
+                    ))}
+                    {receiptId && rows.length > 1 ? (
+                      <ReceiptBulkRow
+                        receiptId={receiptId}
+                        lineCount={rows.length}
+                        actionLoading={actionLoading}
+                        busyKey={busyKey}
+                        setBusyKey={setBusyKey}
+                        submitManagerReviewBulk={submitManagerReviewBulk}
+                        onRefreshed={refresh}
+                      />
+                    ) : null}
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
-          )}
-        </StoreSection>
-
-        <StoreSection title="Review Item" tone="violet">
-          {!selectedException ? (
-            <StoreNotice tone="amber">Select a pending row to review it.</StoreNotice>
-          ) : (
-            <div className="space-y-4">
-              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
-                <p><span className="font-medium">Item:</span> {selectedException.inventory_item_name}</p>
-                <p><span className="font-medium">Purchased:</span> {selectedException.purchased_qty} {selectedException.purchase_unit}</p>
-                <p><span className="font-medium">Reason:</span> {selectedException.off_list_purchase_reason || '-'}</p>
-                <p><span className="font-medium">Receipt ID:</span> {selectedException.receipt_id || '-'}</p>
-                <p><span className="font-medium">Manager Review:</span> {selectedException.manager_review_status || 'PENDING'}</p>
-                <p><span className="font-medium">Manager Action:</span> {selectedException.manager_action || '-'}</p>
-                <p><span className="font-medium">Stock Applied:</span> {selectedException.stock_applied ? 'Yes' : 'No'}</p>
-                <p><span className="font-medium">Note:</span> {selectedException.note || '-'}</p>
-              </div>
-
-              <select
-                className="w-full rounded border px-3 py-2"
-                value={managerAction}
-                onChange={(e) => setManagerAction(e.target.value)}
-              >
-                {ACTION_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-
-              <textarea
-                className="min-h-24 w-full rounded border px-3 py-2 text-sm"
-                value={managerActionNote}
-                onChange={(e) => setManagerActionNote(e.target.value)}
-                placeholder="Manager action note"
-              />
-
-              <Button type="button" onClick={onSubmitReview} disabled={actionLoading}>
-                {actionLoading ? 'Saving...' : 'Submit Review'}
-              </Button>
-            </div>
-          )}
-        </StoreSection>
-      </div>
+          </div>
+        )}
+      </StoreSection>
     </StorePageShell>
   );
 };
