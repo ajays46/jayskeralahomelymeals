@@ -1,77 +1,77 @@
 ---
-description: Backend production standards for API validation, MySQL performance, security, and error handling
-alwaysApply: false
+description: Backend code review standards for API validation, Prisma, MySQL, security, and error handling
+alwaysApply: true
 globs:
   - Server/src/**/*.js
+  - Server/src/**/*.ts
   - Server/prisma/**/*.prisma
 ---
 
-# Backend production standards (project-aligned)
+# Backend Code Review Rule
 
-Apply for backend API and database work in this repo. Prefer predictable contracts over implicit behavior, and match existing project conventions.
+Review all backend changes like a senior production engineer.
 
-## 1) API quality and validation
+## API validation
+- Validate params, query, and body before service calls
+- Return 400 for invalid input
+- Use response format:
+  - success: `{ success: true, data?, message? }`
+  - error: `{ success: false, message }`
+- Use correct HTTP codes
+- Keep controllers thin
+- Move business logic to services
 
-- Validate all `params`, `query`, and `body` inputs before business logic.
-- Reject invalid/missing input with `400` and a clear message.
-- Use the project response envelope consistently:
-  - Success: `{ success: true, data?: any, message?: string }`
-  - Error: `{ success: false, message: string }` (or `{ success: false, error: { message, details } }` only where legacy handlers still use nested error objects)
-- For new or refactored endpoints, prefer the flat error form (`success` + `message`) unless route group already depends on nested `error.details`.
-- Use proper status codes:
-  - `200` read/update success, `201` create success, `204` delete success (no body)
-  - `400` bad request, `401` unauthenticated, `403` unauthorized, `404` not found
-  - `409` conflict, `422` validation failure, `500` internal server error
-- Controllers should stay thin: parse request, call service, map response, and call `next(error)` on failure.
+## Database review
+- Prevent N+1 queries
+- Use select only required columns
+- Check Prisma include/select usage
+- Ensure indexes for filtered fields
+- Use transactions for:
+  - order creation
+  - payment updates
+  - stock deduction
+- Check pagination for list APIs
 
-## 2) Database and MySQL practices
+## Security review
+- No secret leakage
+- No SQL details in response
+- Validate auth middleware
+- Validate role checks
+- Validate tenant/company scoping
+- Prevent IDOR issues
+- Validate file uploads
 
-- Use selective queries (`SELECT` only needed columns).
-- Avoid unnecessary joins and N+1 patterns.
-- Add indexes for frequently filtered/joined/sorted columns (validate via schema migration / Prisma model updates where applicable).
-- Use transactions for critical multi-step operations (orders, payments, stock updates).
-- Keep data normalized; avoid duplicate source-of-truth fields unless denormalization is intentional and documented.
-- Enforce pagination and sane limits for large reads.
+## Error handling
+- Use AppError
+- Ensure async errors call next(error)
+- Use centralized error handler
+- Add logger context:
+  - requestId
+  - route
+  - userId
+  - companyId
 
-## 3) Error handling and security
+## Refactor review
+- Detect duplicate business logic
+- Suggest helper extraction
+- Maintain router/controller/service boundaries
+- Preserve existing module style
+- Improve naming clarity
 
-- Wrap async controller/service logic with proper error handling.
-- Use `AppError` for operational/business errors with appropriate `statusCode`.
-- Return meaningful user-safe errors; never expose stack traces, SQL details, or secrets in API responses.
-- Log errors using project logger (`logError`, `LOG_CATEGORIES`) with context (`requestId`, route, userId/companyId when available).
-- Do not hardcode secrets or fallback credentials in code.
-- Always apply auth + authorization checks for protected routes.
-- For multi-tenant endpoints, ensure company scoping middleware is applied and enforced.
+## Testing checklist
+Ensure tests cover:
+- validation failure
+- unauthorized access
+- tenant scoping
+- transaction rollback
+- duplicate order prevention
+- response format consistency
 
-## 4) Refactoring and code quality
-
-- Keep functions focused and modular; avoid large mixed-responsibility blocks.
-- Remove duplication by extracting shared helpers/services.
-- Use clear naming for variables/functions and domain actions.
-- Preserve backward compatibility unless change is explicitly approved.
-- Keep router/controller/service boundaries clean:
-  - Router: route + middleware wiring
-  - Controller: request parsing + response mapping
-  - Service: business logic + data access
-- Keep module format consistent in touched files (avoid mixing CommonJS `require/module.exports` into ESM `import/export` areas unless intentionally isolated).
-
-## 5) Testing expectations for backend changes
-
-- Add or update tests for changed behavior and key failure paths.
-- At minimum, verify:
-  - Validation failures and status codes
-  - Authorization boundaries
-  - Tenant/company scoping behavior for protected multi-tenant APIs
-  - Transaction rollback on partial failures
-  - Response contract consistency
-
-## 6) Done criteria
-
-- Inputs validated
-- Correct status codes used
-- Response format consistent
-- Critical operations wrapped in transactions
-- No sensitive error leakage
-- Error paths call `next(error)` from controllers and use centralized handler
-- Logger includes actionable context for failures
-- Tests or verification evidence included
+## Final approval checklist
+Approve only if:
+- validation exists
+- correct status codes
+- transaction safety present
+- no sensitive data leaks
+- logging context added
+- tests updated

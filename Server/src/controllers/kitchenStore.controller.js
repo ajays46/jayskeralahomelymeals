@@ -103,7 +103,27 @@ export const healthCheck = async (req, res, next) => {
 
 export const createItem = async (req, res, next) => {
   try {
-    const result = await createItemService(req.body, req.companyId, kitchenActorUserId(req));
+    const body = req.body || {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      throw new AppError('Request body must be an object', 400);
+    }
+
+    const payload = {
+      ...body,
+      name: requireNonEmptyString(body.name, 'name'),
+      unit: requireNonEmptyString(body.unit, 'unit')
+    };
+
+    const brandId = optionalTrimmedString(body.brand_id, 'brand_id');
+    const brandName = optionalTrimmedString(body.brand_name, 'brand_name');
+
+    if (brandId !== undefined) payload.brand_id = brandId;
+    else delete payload.brand_id;
+
+    if (brandName !== undefined) payload.brand_name = brandName;
+    else delete payload.brand_name;
+
+    const result = await createItemService(payload, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -169,6 +189,32 @@ export const uploadItemImage = async (req, res, next) => {
       uploadedBy,
       isPrimary,
       sortOrder: sortOrderParsed
+    });
+    res.status(201).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadItemBrandLogo = async (req, res, next) => {
+  try {
+    const files = req.files;
+    const file =
+      (Array.isArray(files?.image) && files.image[0]) ||
+      (Array.isArray(files?.file) && files.file[0]) ||
+      req.file;
+    if (!file) {
+      throw new AppError('Brand image file is required (multipart field: image or file)', 400);
+    }
+    const uploadedBy = kitchenActorUserId(req);
+    const data = await createInventoryItemImageService({
+      inventoryItemId: req.params.item_id,
+      companyId: req.companyId,
+      file,
+      uploadedBy,
+      // Brand logo should become the representative image for a newly created item.
+      isPrimary: true,
+      sortOrder: 0
     });
     res.status(201).json({ success: true, data });
   } catch (error) {

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
+import { CreateInventoryItemSection } from '@/components/store/CreateInventoryItemSection';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 const createLocalLineId = () => `pr-line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -45,14 +46,7 @@ const StoreOperatorPurchaseRequestPage = () => {
   const [status, setStatus] = useState('');
   const [submitPopup, setSubmitPopup] = useState(null);
   const [selectedLines, setSelectedLines] = useState([]);
-  const [showNewItemNote, setShowNewItemNote] = useState(false);
   const [expandedLineNotes, setExpandedLineNotes] = useState({});
-  const [newItem, setNewItem] = useState({
-    requested_item_name: '',
-    requested_unit: 'pcs',
-    requested_quantity: '',
-    operator_note: ''
-  });
 
   useEffect(() => {
     loadRequestSources();
@@ -113,34 +107,46 @@ const StoreOperatorPurchaseRequestPage = () => {
     });
   };
 
-  const addNewItemLine = () => {
-    if (!newItem.requested_item_name.trim() || !newItem.requested_unit.trim() || Number(newItem.requested_quantity) <= 0) {
-      const msg = 'Enter a valid new item name, unit, and quantity.';
+  const onInventoryItemCreated = ({ itemId, name, unit }) => {
+    setStatus('');
+    if (!itemId) {
+      const msg =
+        'Item was created but the catalog id was not returned. Refresh sources and add the item from the list.';
       setStatus(msg);
-      showStoreError(msg, 'Check new item');
+      showStoreError(msg, 'Missing item id');
       return;
     }
 
-    setStatus('');
-    setSelectedLines((prev) => [
-      ...prev,
-      {
-        local_id: createLocalLineId(),
-        inventory_item_id: '',
-        requested_item_name: newItem.requested_item_name.trim(),
-        requested_unit: newItem.requested_unit.trim(),
-        requested_quantity: String(Number(newItem.requested_quantity)),
-        is_new_item: true,
-        operator_note: newItem.operator_note.trim()
+    setSelectedLines((prev) => {
+      const existingIndex = prev.findIndex((line) => line.inventory_item_id === itemId && !line.is_new_item);
+      if (existingIndex >= 0) {
+        const next = [...prev];
+        next[existingIndex] = {
+          ...next[existingIndex],
+          requested_item_name: name || next[existingIndex].requested_item_name,
+          requested_unit: unit || next[existingIndex].requested_unit,
+          requested_quantity: next[existingIndex].requested_quantity || '1',
+          operator_note: next[existingIndex].operator_note?.trim()
+            ? next[existingIndex].operator_note
+            : 'Added after creating catalog item'
+        };
+        return next;
       }
-    ]);
-    setNewItem({
-      requested_item_name: '',
-      requested_unit: 'pcs',
-      requested_quantity: '',
-      operator_note: ''
+      return [
+        ...prev,
+        {
+          local_id: createLocalLineId(),
+          inventory_item_id: itemId,
+          requested_item_name: name,
+          requested_unit: unit || 'pcs',
+          requested_quantity: '1',
+          is_new_item: false,
+          operator_note: 'Added after creating catalog item'
+        }
+      ];
     });
-    setShowNewItemNote(false);
+    showStoreSuccess('New catalog item added to this request (qty 1 — adjust if needed).', 'Added to request');
+    loadRequestSources();
   };
 
   const updateLine = (localId, field, value) => {
@@ -258,7 +264,7 @@ const StoreOperatorPurchaseRequestPage = () => {
       ) : null}
       <StorePageHeader
         title="Create Purchase Request"
-        description="Build the operator request from low-stock alerts, shopping list items, and new items."
+        description="Build the operator request from low-stock alerts and shopping list items."
         actions={[
           <Button key="approved" asChild><Link to={`${basePath}/store-operator/approved-requests`}>Approved Requests</Link></Button>,
           <Button key="receipts" asChild variant="outline"><Link to={`${basePath}/store-operator/purchases`}>Purchase Receipts</Link></Button>
@@ -343,60 +349,14 @@ const StoreOperatorPurchaseRequestPage = () => {
           })}
         </div>
 
+        <CreateInventoryItemSection
+          idPrefix="purchase-request"
+          description="Create the catalog item here first, then it is added to this purchase request with quantity 1 (edit qty in the table below)."
+          onItemCreated={onInventoryItemCreated}
+        />
+
         <StoreSection title="" tone="sky">
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-900">Add New Item</h2>
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-              <input
-                className="border rounded px-3 py-2"
-                value={newItem.requested_item_name}
-                onChange={(e) => setNewItem((prev) => ({ ...prev, requested_item_name: e.target.value }))}
-                placeholder="Item name"
-              />
-              <input
-                className="border rounded px-3 py-2"
-                value={newItem.requested_unit}
-                onChange={(e) => setNewItem((prev) => ({ ...prev, requested_unit: e.target.value }))}
-                placeholder="Unit"
-              />
-              <input
-                className="border rounded px-3 py-2"
-                type="number"
-                min="0"
-                step="0.01"
-                value={newItem.requested_quantity}
-                onChange={(e) => setNewItem((prev) => ({ ...prev, requested_quantity: e.target.value }))}
-                placeholder="Quantity"
-              />
-              <Button type="button" onClick={addNewItemLine}>
-                Add New Item
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-start">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNewItemNote((prev) => !prev)}
-                >
-                  {showNewItemNote ? 'Hide Note' : 'Add Note'}
-                </Button>
-              </div>
-              {showNewItemNote ? (
-                <textarea
-                  className="min-h-16 w-full rounded border px-3 py-2 text-sm"
-                  value={newItem.operator_note}
-                  onChange={(e) => setNewItem((prev) => ({ ...prev, operator_note: e.target.value }))}
-                  placeholder="Operator note for the new item"
-                />
-              ) : null}
-            </div>
-          </div>
-
           <div>
             <textarea
               className="min-h-12 w-full rounded border px-3 py-2 text-sm"
@@ -412,7 +372,9 @@ const StoreOperatorPurchaseRequestPage = () => {
               <span className="text-sm text-gray-500">{selectedLines.length} line(s)</span>
             </div>
             {selectedLines.length === 0 ? (
-              <p className="text-sm text-gray-500 mt-3">Add items from the source lists or the new-item form.</p>
+              <p className="text-sm text-gray-500 mt-3">
+                Add lines from the low-stock and shopping lists above, or create a catalog item and it will appear here.
+              </p>
             ) : (
               <Table>
                   <TableHeader>

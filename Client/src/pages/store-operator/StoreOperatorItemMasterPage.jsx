@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
+import { CreateInventoryItemSection } from '@/components/store/CreateInventoryItemSection';
 import api from '../../api/axios';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
@@ -43,17 +44,12 @@ const resolveImageSrc = (img) => {
 };
 
 const StoreOperatorItemMasterPage = () => {
-  const { items, createItem, getItemDetail, listItemImages, uploadItemImage } = useKitchenInventoryMock();
-  const [name, setName] = useState('');
-  const [unit, setUnit] = useState('kg');
-  const [category, setCategory] = useState('');
-  const [minQuantity, setMinQuantity] = useState('');
+  const { items, getItemDetail, listItemImages, uploadItemImage } = useKitchenInventoryMock();
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [itemDetail, setItemDetail] = useState(null);
   const [itemImages, setItemImages] = useState([]);
   const [status, setStatus] = useState('');
-  const [createImageFile, setCreateImageFile] = useState(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [modalImageFile, setModalImageFile] = useState(null);
   const [imageSubmitting, setImageSubmitting] = useState(false);
@@ -83,51 +79,6 @@ const StoreOperatorItemMasterPage = () => {
   useEffect(() => {
     if (!imageModalOpen) setModalImageFile(null);
   }, [imageModalOpen]);
-
-  const onCreate = async (e) => {
-    e.preventDefault();
-    setStatus('');
-    const payload = {
-      name: name.trim(),
-      unit: unit.trim(),
-      category: category.trim() || null,
-      min_quantity: minQuantity === '' ? null : Number(minQuantity)
-    };
-    const out = await createItem(payload);
-    if (out?.ok) {
-      let msg = 'Item created successfully.';
-      if (createImageFile) {
-        if (out.itemId) {
-          setImageSubmitting(true);
-          const up = await uploadItemImage(out.itemId, createImageFile);
-          setImageSubmitting(false);
-          if (up.ok) {
-            msg = 'Item and image saved.';
-            if (selectedId === out.itemId) await reloadDetailImages(out.itemId);
-            showStoreSuccess(msg, 'Saved');
-          } else {
-            msg = `Item created, but image upload failed: ${up.message}`;
-            showStoreError(up.message || 'Image upload failed.', 'Image upload failed');
-          }
-        } else {
-          msg =
-            'Item created. Could not read the new item id from the API response; add the image from item detail.';
-          showStoreSuccess(msg, 'Item created');
-        }
-      } else {
-        showStoreSuccess(msg, 'Item created');
-      }
-      setStatus(msg);
-      setName('');
-      setCategory('');
-      setMinQuantity('');
-      setCreateImageFile(null);
-    } else {
-      const failMsg = out?.message || 'Failed to create item.';
-      setStatus(failMsg);
-      showStoreError(failMsg, 'Could not create item');
-    }
-  };
 
   const onLoadDetail = async (itemId) => {
     setSelectedId(itemId);
@@ -172,51 +123,11 @@ const StoreOperatorItemMasterPage = () => {
         <StoreStatCard label="Selected Images" value={itemImages.length} helper={selectedId ? 'For the opened item' : 'Open an item to view images'} tone="amber" />
       </StoreStatGrid>
 
-      <StoreSection title="Create Inventory Item" description="You can optionally upload the first image together with the item." tone="emerald">
-        <form onSubmit={onCreate} className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <input
-              className="rounded-md border px-3 py-2 text-sm"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Item name"
-              required
-            />
-            <input
-              className="rounded-md border px-3 py-2 text-sm"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              placeholder="Unit"
-              required
-            />
-            <input
-              className="rounded-md border px-3 py-2 text-sm"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Category"
-            />
-            <input
-              className="rounded-md border px-3 py-2 text-sm"
-              value={minQuantity}
-              onChange={(e) => setMinQuantity(e.target.value)}
-              placeholder="Min quantity"
-            />
-            <Button type="submit" disabled={imageSubmitting}>
-              {imageSubmitting ? 'Saving...' : 'Create Item'}
-            </Button>
-          </div>
-
-          <div className="grid gap-2 rounded-md border p-4 md:max-w-md">
-            <p className="text-sm font-medium">Optional first image</p>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="text-sm"
-              onChange={(e) => setCreateImageFile(e.target.files?.[0] || null)}
-            />
-          </div>
-        </form>
-      </StoreSection>
+      <CreateInventoryItemSection
+        idPrefix="item-master"
+        selectedItemId={selectedId}
+        reloadItemImages={reloadDetailImages}
+      />
 
       <StoreSection
         title="Items"

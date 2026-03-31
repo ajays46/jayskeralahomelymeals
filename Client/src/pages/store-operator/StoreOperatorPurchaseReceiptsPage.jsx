@@ -55,6 +55,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     purchase_request_line_id: '',
     purchased_qty: '',
     purchase_unit: '',
+    brand: '',
     conversion_to_base: '1',
     line_total: '',
     purchase_date: today(),
@@ -114,6 +115,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       purchase_request_line_id: '',
       purchased_qty: '',
       purchase_unit: '',
+      brand: '',
       line_total: '',
       purchase_date: today(),
       note: ''
@@ -130,6 +132,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         purchase_request_line_id: firstLine.id,
         purchased_qty: String(firstLine.approved_quantity || ''),
         purchase_unit: firstLine.requested_unit || '',
+        brand: firstLine.brand || '',
         conversion_to_base: '1'
       };
     });
@@ -438,13 +441,57 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             placeholder="Reference invoice"
           />
         </div>
+        <div className="mt-3 rounded-lg border border-slate-200/90 bg-slate-50/70 p-2.5">
+          <div className="text-xs font-medium text-slate-800">Purchase image</div>
+          <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <input
+              ref={purchaseProofInputRef}
+              id="purchase-proof-image"
+              type="file"
+              accept="image/*,application/pdf"
+              className="sr-only"
+              aria-label="Choose purchase receipt image"
+              onChange={onPurchaseProofFileChange}
+            />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => purchaseProofInputRef.current?.click()}>
+                Choose image
+              </Button>
+              {purchaseProofFile ? (
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-slate-600" onClick={clearPurchaseProof}>
+                  Remove
+                </Button>
+              ) : null}
+            </div>
+            {purchaseProofPreviewUrl ? (
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-md border border-dashed border-slate-200 bg-white p-1.5 sm:max-w-[11rem]">
+                {purchaseProofFile?.type === 'application/pdf' ? (
+                  <p className="py-2 text-center text-[11px] text-slate-600">PDF selected</p>
+                ) : (
+                  <img
+                    src={purchaseProofPreviewUrl}
+                    alt="Selected purchase receipt preview"
+                    className="max-h-24 w-full rounded object-contain"
+                  />
+                )}
+                <span className="truncate text-[10px] text-slate-500" title={purchaseProofFile?.name || ''}>
+                  {purchaseProofFile?.name}
+                </span>
+              </div>
+            ) : (
+              <div className="flex h-16 min-w-0 flex-1 items-center justify-center rounded-md border border-dashed border-slate-200 bg-white/80 px-2 text-center text-[11px] text-slate-400 sm:max-w-[11rem]">
+                No image
+              </div>
+            )}
+          </div>
+        </div>
         <div className="mt-4 flex justify-end">
           <Button type="button" onClick={onCreateReceipt} disabled={!selectedRequestId || invoiceUploadLoading}>
             {invoiceUploadLoading ? 'Uploading invoice...' : 'Create receipt'}
           </Button>
         </div>
 
-        <div className="mt-4 text-sm font-medium text-slate-700">Add Approved Purchase Line</div>
+        <div className="mt-4 text-sm font-medium text-slate-700">Add Approved Purchase items</div>
         {approvedLines.length === 0 ? (
           <StoreNotice tone="amber">No approved lines are available for the selected request.</StoreNotice>
         ) : (
@@ -466,7 +513,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                   ...prev,
                   purchase_request_line_id: e.target.value,
                   purchased_qty: nextLine ? String(nextLine.approved_quantity || '') : '',
-                  purchase_unit: nextLine?.requested_unit || ''
+                  purchase_unit: nextLine?.requested_unit || '',
+                  brand: nextLine?.brand || ''
                 }));
               }}
             >
@@ -491,6 +539,12 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               value={approvedPurchaseForm.purchase_unit}
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, purchase_unit: e.target.value }))}
               placeholder="Purchase unit"
+            />
+            <input
+              className="rounded border px-3 py-2"
+              value={approvedPurchaseForm.brand}
+              onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, brand: e.target.value }))}
+              placeholder="Brand"
             />
             <input
               className="rounded border px-3 py-2"
@@ -523,51 +577,6 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, note: e.target.value }))}
               placeholder="Operator note"
             />
-            </div>
-
-            <div className="mt-4 rounded-xl border border-slate-200/90 bg-slate-50/70 p-4">
-              <div className="text-sm font-medium text-slate-800">Purchase receipt image</div>
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
-                <input
-                  ref={purchaseProofInputRef}
-                  id="purchase-proof-image"
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="sr-only"
-                  aria-label="Choose purchase receipt image"
-                  onChange={onPurchaseProofFileChange}
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => purchaseProofInputRef.current?.click()}>
-                    Choose image
-                  </Button>
-                  {purchaseProofFile ? (
-                    <Button type="button" variant="ghost" size="sm" className="text-slate-600" onClick={clearPurchaseProof}>
-                      Remove
-                    </Button>
-                  ) : null}
-                </div>
-                {purchaseProofPreviewUrl ? (
-                  <div className="flex min-w-0 flex-1 flex-col gap-1 rounded-lg border border-dashed border-slate-200 bg-white p-2 sm:max-w-md">
-                    {purchaseProofFile?.type === 'application/pdf' ? (
-                      <p className="py-4 text-center text-sm text-slate-600">PDF selected (preview not shown)</p>
-                    ) : (
-                      <img
-                        src={purchaseProofPreviewUrl}
-                        alt="Selected purchase receipt preview"
-                        className="max-h-48 w-full rounded-md object-contain"
-                      />
-                    )}
-                    <span className="truncate text-xs text-slate-500" title={purchaseProofFile?.name || ''}>
-                      {purchaseProofFile?.name}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex min-h-[5rem] flex-1 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white/80 px-4 text-center text-xs text-slate-400 sm:max-w-md">
-                    No image selected
-                  </div>
-                )}
-              </div>
             </div>
             <div className="mt-4 flex justify-end">
               <Button
@@ -660,7 +669,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               placeholder="Off-list purchase reason"
             />
             <Button type="button" variant="warning" onClick={onAddOffListLine}>
-              Add Off-List Line
+              Add Off-List item
             </Button>
             <textarea
               className="rounded border px-2 py-1.5 text-xs md:col-span-3"
