@@ -306,89 +306,13 @@ const MLMyTripsPage = () => {
   }, [tripsFromList, updatedTripsById]);
 
   const stopsWithCoordsForMap = useMemo(() => {
-    const tripsById = new Map(
-      tripsForMap
-        .filter((trip) => trip?.id)
-        .map((trip) => [trip.id, trip])
-    );
-    const mapStops = (Array.isArray(routeStopsForMap) ? routeStopsForMap : []).filter((stop) => {
-      if (stop?.stop_type !== 'pickup' || !stop?.trip_id) return true;
-      const trip = tripsById.get(stop.trip_id);
-      const persistedStatus = (tripStatusByTripId[stop.trip_id] || trip?.trip_status || '').toLowerCase();
-      return persistedStatus !== 'picked_up' && persistedStatus !== 'delivered';
-    });
-    const existingPickupTripIds = new Set(
-      mapStops
-        .filter((stop) => stop?.stop_type === 'pickup' && stop?.trip_id)
-        .map((stop) => stop.trip_id)
-    );
-    const existingDeliveryTripIds = new Set(
-      mapStops
-        .filter((stop) => stop?.stop_type === 'delivery' && stop?.trip_id)
-        .map((stop) => stop.trip_id)
-    );
-    const existingCoordinateKeys = new Set(
-      mapStops
-        .map((stop) => getStopCoordinateKey(stop?.latitude, stop?.longitude))
-        .filter(Boolean)
-    );
-    const fallbackPickupStops = [];
-    const fallbackDeliveryStops = [];
-
-    tripsForMap.forEach((trip) => {
-      const persistedStatus = (tripStatusByTripId[trip.id] || trip.trip_status || '').toLowerCase();
-      if (!trip?.id) return;
-
-      const shouldShowPickup = persistedStatus !== 'picked_up' && persistedStatus !== 'delivered';
-      if (shouldShowPickup && !existingPickupTripIds.has(trip.id)) {
-        const pickupCoords = getCoordsFromTripAddress(trip.pickup_address);
-        const pickupCoordKey = getStopCoordinateKey(pickupCoords?.latitude, pickupCoords?.longitude);
-        if (pickupCoords && (!pickupCoordKey || !existingCoordinateKeys.has(pickupCoordKey))) {
-          fallbackPickupStops.push({
-            latitude: pickupCoords.latitude,
-            longitude: pickupCoords.longitude,
-            order_id: trip.order_id ?? trip.orderId,
-            trip_id: trip.id,
-            stop_type: 'pickup',
-          });
-          existingPickupTripIds.add(trip.id);
-          if (pickupCoordKey) existingCoordinateKeys.add(pickupCoordKey);
-        }
-      }
-
-      if (existingDeliveryTripIds.has(trip.id)) return;
-
-      const shouldShowDelivery =
-        persistedStatus === 'picked_up' ||
-        persistedStatus === 'delivered' ||
-        deliveryAddressAddedForTripIds.has(trip.id);
-      if (!shouldShowDelivery) return;
-
-      const deliveryCoords = getCoordsFromTripAddress(trip.delivery_address);
-      if (!deliveryCoords) return;
-      const deliveryCoordKey = getStopCoordinateKey(deliveryCoords.latitude, deliveryCoords.longitude);
-      if (deliveryCoordKey && existingCoordinateKeys.has(deliveryCoordKey)) {
-        existingDeliveryTripIds.add(trip.id);
-        return;
-      }
-
-      fallbackDeliveryStops.push({
-        latitude: deliveryCoords.latitude,
-        longitude: deliveryCoords.longitude,
-        order_id: trip.order_id ?? trip.orderId,
-        trip_id: trip.id,
-        stop_type: 'delivery',
-      });
-      existingDeliveryTripIds.add(trip.id);
-      if (deliveryCoordKey) existingCoordinateKeys.add(deliveryCoordKey);
-    });
-
-    return [...fallbackPickupStops, ...mapStops, ...fallbackDeliveryStops].map((stop, index) => ({
+    // Map must reflect only the route planner response stops.
+    return (Array.isArray(routeStopsForMap) ? routeStopsForMap : []).map((stop, index) => ({
       ...stop,
-      stop: index + 1,
-      step: index + 1,
+      stop: stop?.stop ?? stop?.step ?? index + 1,
+      step: stop?.step ?? stop?.stop ?? index + 1,
     }));
-  }, [routeStopsForMap, tripsForMap, tripStatusByTripId, deliveryAddressAddedForTripIds]);
+  }, [routeStopsForMap]);
 
   const stopsListRaw = useMemo(() => {
     const fromResponse = routeResponse?.stops;
