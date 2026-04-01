@@ -30,6 +30,22 @@ const SOURCE_TABLE_SCROLLABLE_KEYS = new Set(['lowStockItems', 'shoppingList']);
 const SOURCE_TABLE_VISIBLE_BODY_ROWS = 4;
 const SOURCE_TABLE_SCROLL_MAX_HEIGHT = `calc(2.5rem + ${SOURCE_TABLE_VISIBLE_BODY_ROWS} * 3.25rem)`;
 
+const PurchaseSourceItemCell = ({ name, brandName, logoUrl }) => (
+  <div className="flex min-w-0 items-center gap-2">
+    {logoUrl ? (
+      <img
+        src={logoUrl}
+        alt=""
+        className="h-9 w-9 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
+      />
+    ) : null}
+    <div className="min-w-0">
+      <div className="truncate font-medium">{name || 'Unnamed item'}</div>
+      {brandName ? <div className="truncate text-xs text-slate-500">{brandName}</div> : null}
+    </div>
+  </div>
+);
+
 const StoreOperatorPurchaseRequestPage = () => {
   const basePath = useCompanyBasePath();
   const {
@@ -87,7 +103,9 @@ const StoreOperatorPurchaseRequestPage = () => {
         next[existingIndex] = {
           ...next[existingIndex],
           requested_quantity: toDisplayQuantity(item.suggested_quantity) || next[existingIndex].requested_quantity,
-          operator_note: next[existingIndex].operator_note || item.note || `${item.source} source`
+          operator_note: next[existingIndex].operator_note || item.note || `${item.source} source`,
+          brand_name: next[existingIndex].brand_name || item.brand_name || '',
+          brand_logo_s3_url: next[existingIndex].brand_logo_s3_url || item.brand_logo_s3_url || ''
         };
         return next;
       }
@@ -101,7 +119,9 @@ const StoreOperatorPurchaseRequestPage = () => {
           requested_unit: item.unit || 'pcs',
           requested_quantity: toDisplayQuantity(item.suggested_quantity),
           is_new_item: false,
-          operator_note: item.note || `${item.source} source`
+          operator_note: item.note || `${item.source} source`,
+          brand_name: item.brand_name || '',
+          brand_logo_s3_url: item.brand_logo_s3_url || ''
         }
       ];
     });
@@ -297,7 +317,13 @@ const StoreOperatorPurchaseRequestPage = () => {
                 <TableBody>
                   {rows.map((item) => (
                     <TableRow key={`${section.key}-${item.id}`}>
-                      <TableCell className="font-medium">{item.name || 'Unnamed item'}</TableCell>
+                      <TableCell>
+                        <PurchaseSourceItemCell
+                          name={item.name}
+                          brandName={item.brand_name}
+                          logoUrl={item.brand_logo_s3_url}
+                        />
+                      </TableCell>
                       <TableCell>{item.suggested_quantity || 0} {item.unit || '-'}</TableCell>
                       <TableCell>{item.current_quantity || 0} / {item.min_quantity || 0}</TableCell>
                       <TableCell className="text-right">
@@ -391,11 +417,25 @@ const StoreOperatorPurchaseRequestPage = () => {
                     {selectedLines.map((line) => (
                       <TableRow key={line.local_id} className="align-top">
                         <TableCell>
-                          <input
-                            className="border rounded px-2 py-1 w-full"
-                            value={line.requested_item_name}
-                            onChange={(e) => updateLine(line.local_id, 'requested_item_name', e.target.value)}
-                          />
+                          <div className="space-y-1">
+                            <div className="flex items-start gap-2">
+                              {line.brand_logo_s3_url ? (
+                                <img
+                                  src={line.brand_logo_s3_url}
+                                  alt=""
+                                  className="mt-0.5 h-8 w-8 shrink-0 rounded border border-slate-200 bg-white object-contain"
+                                />
+                              ) : null}
+                              <input
+                                className="min-w-0 flex-1 rounded border px-2 py-1"
+                                value={line.requested_item_name}
+                                onChange={(e) => updateLine(line.local_id, 'requested_item_name', e.target.value)}
+                              />
+                            </div>
+                            {line.brand_name ? (
+                              <div className="text-xs text-slate-500">{line.brand_name}</div>
+                            ) : null}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <input

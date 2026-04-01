@@ -132,7 +132,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         purchase_request_line_id: firstLine.id,
         purchased_qty: String(firstLine.approved_quantity || ''),
         purchase_unit: firstLine.requested_unit || '',
-        brand: firstLine.brand || '',
+        brand: firstLine.brand || firstLine.brand_name || '',
         conversion_to_base: '1'
       };
     });
@@ -514,16 +514,21 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                   purchase_request_line_id: e.target.value,
                   purchased_qty: nextLine ? String(nextLine.approved_quantity || '') : '',
                   purchase_unit: nextLine?.requested_unit || '',
-                  brand: nextLine?.brand || ''
+                  brand: nextLine?.brand || nextLine?.brand_name || ''
                 }));
               }}
             >
               <option value="">Select approved item</option>
-              {approvedLines.map((line) => (
-                <option key={line.id} value={line.id}>
-                  {(line.inventory_item_name || line.requested_item_name)} - approved {line.approved_quantity} {line.requested_unit}
-                </option>
-              ))}
+              {approvedLines.map((line) => {
+                const itemLabel = line.inventory_item_name || line.requested_item_name;
+                const brandBit = line.brand_name ? ` · ${line.brand_name}` : '';
+                return (
+                  <option key={line.id} value={line.id}>
+                    {itemLabel}
+                    {brandBit} — approved {line.approved_quantity} {line.requested_unit}
+                  </option>
+                );
+              })}
             </select>
             <input
               className="rounded border px-3 py-2"
@@ -577,6 +582,25 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, note: e.target.value }))}
               placeholder="Operator note"
             />
+            {selectedApprovedLine && (selectedApprovedLine.brand_name || selectedApprovedLine.brand_logo_s3_url) ? (
+              <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/90 px-3 py-2 md:col-span-3">
+                {selectedApprovedLine.brand_logo_s3_url ? (
+                  <img
+                    src={selectedApprovedLine.brand_logo_s3_url}
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
+                  />
+                ) : null}
+                <div className="min-w-0 text-sm">
+                  <span className="font-medium text-slate-800">Brand</span>
+                  {selectedApprovedLine.brand_name ? (
+                    <span className="ml-2 text-slate-700">{selectedApprovedLine.brand_name}</span>
+                  ) : (
+                    <span className="ml-2 text-slate-500">Logo only (no name)</span>
+                  )}
+                </div>
+              </div>
+            ) : null}
             </div>
             <div className="mt-4 flex justify-end">
               <Button

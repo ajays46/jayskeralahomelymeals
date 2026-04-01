@@ -748,6 +748,10 @@ const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
     raw?.target_quantity ??
     0;
 
+  const brandName = raw?.brand_name ?? raw?.brand?.name ?? '';
+  const brandLogo =
+    raw?.brand_logo_s3_url ?? raw?.brand_logo_url ?? raw?.brand?.logo_s3_url ?? raw?.brand?.brand_logo_s3_url ?? '';
+
   return {
     id: String(raw?.id ?? raw?.line_id ?? `${source}-${index}-${name || 'row'}`),
     inventory_item_id: inventoryItemId ? String(inventoryItemId) : '',
@@ -759,7 +763,10 @@ const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
     suggested_quantity: toNum(suggestedQuantity),
     safety_buffer: toNum(raw?.safety_buffer ?? 0),
     source,
-    note: raw?.operator_note || raw?.note || ''
+    note: raw?.operator_note || raw?.note || '',
+    brand_id: raw?.brand_id != null && raw.brand_id !== '' ? String(raw.brand_id) : '',
+    brand_name: brandName ? String(brandName) : '',
+    brand_logo_s3_url: brandLogo ? String(brandLogo) : ''
   };
 };
 
@@ -774,14 +781,28 @@ const normalizePurchaseRequestLine = (raw, index = 0) => {
     '';
   const invId = rawInv ? String(rawInv) : '';
   const resolvedExplicit = rawResolved ? String(rawResolved) : '';
+  const invNested = raw?.inventory_item && typeof raw.inventory_item === 'object' ? raw.inventory_item : null;
+  const brandName =
+    raw?.brand_name ??
+    raw?.inventory_item_brand_name ??
+    invNested?.brand_name ??
+    '';
+  const brandLogo =
+    raw?.brand_logo_s3_url ??
+    raw?.inventory_brand_logo_s3_url ??
+    invNested?.brand_logo_s3_url ??
+    '';
+  const brandField =
+    raw?.brand != null && String(raw.brand).trim() !== '' ? String(raw.brand).trim() : brandName || '';
+
   return {
   id: String(raw?.id ?? raw?.line_id ?? `line-${index}`),
   inventory_item_id: invId,
   inventory_item_name:
-    raw?.inventory_item_name || raw?.requested_item_name || raw?.item_name || '',
+    raw?.inventory_item_name || raw?.requested_item_name || raw?.item_name || invNested?.name || '',
   requested_item_name:
-    raw?.requested_item_name || raw?.inventory_item_name || raw?.item_name || '',
-  requested_unit: raw?.requested_unit || raw?.unit || raw?.inventory_unit || '',
+    raw?.requested_item_name || raw?.inventory_item_name || raw?.item_name || invNested?.name || '',
+  requested_unit: raw?.requested_unit || raw?.unit || raw?.inventory_unit || invNested?.unit || '',
   requested_quantity: toNum(raw?.requested_quantity ?? raw?.quantity ?? 0),
   approved_quantity: toNum(raw?.approved_quantity ?? raw?.requested_quantity ?? raw?.quantity ?? 0),
   purchased_quantity: toNum(raw?.purchased_quantity ?? raw?.purchased_qty ?? 0),
@@ -799,7 +820,10 @@ const normalizePurchaseRequestLine = (raw, index = 0) => {
   fulfillment_status: raw?.fulfillment_status || '',
   comparison_status: raw?.comparison_status || '',
   manager_review_status: raw?.manager_review_status || '',
-  resolved_inventory_item_id: resolvedExplicit || invId || ''
+  resolved_inventory_item_id: resolvedExplicit || invId || '',
+  brand_name: brandName ? String(brandName) : '',
+  brand_logo_s3_url: brandLogo ? String(brandLogo) : '',
+  brand: brandField
   };
 };
 

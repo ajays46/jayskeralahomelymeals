@@ -31,13 +31,12 @@ const extractCreatedItem = (responseData) => {
 
 export const CreateInventoryItemSection = ({
   idPrefix = 'create-item',
-  description = 'Create a new inventory item and optionally upload a brand image.',
+  description = 'Create a new inventory item.',
   onItemCreated,
   selectedItemId,
   reloadItemImages
 }) => {
   const [form, setForm] = useState(initialForm);
-  const [brandImageFile, setBrandImageFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState({ tone: 'sky', message: '' });
 
@@ -48,8 +47,7 @@ export const CreateInventoryItemSection = ({
       category: `${idPrefix}-category`,
       currentQuantity: `${idPrefix}-current-quantity`,
       minQuantity: `${idPrefix}-min-quantity`,
-      brandName: `${idPrefix}-brand-name`,
-      brandImage: `${idPrefix}-brand-image`
+      brandName: `${idPrefix}-brand-name`
     }),
     [idPrefix]
   );
@@ -60,7 +58,6 @@ export const CreateInventoryItemSection = ({
 
   const resetForm = () => {
     setForm(initialForm);
-    setBrandImageFile(null);
   };
 
   const onSubmit = async (event) => {
@@ -91,14 +88,6 @@ export const CreateInventoryItemSection = ({
       const createdItem = extractCreatedItem(createResponse?.data);
       const createdItemId = createdItem?.id;
 
-      if (brandImageFile && createdItemId) {
-        const formData = new FormData();
-        formData.append('image', brandImageFile);
-        await api.post(`/kitchen-store/v1/items/${createdItemId}/brand-logo`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-      }
-
       if (typeof onItemCreated === 'function') {
         onItemCreated(
           createdItem
@@ -110,10 +99,9 @@ export const CreateInventoryItemSection = ({
         );
       }
 
-      if (brandImageFile && createdItemId && typeof reloadItemImages === 'function') {
-        await reloadItemImages(createdItemId);
-      } else if (typeof reloadItemImages === 'function' && selectedItemId) {
-        await reloadItemImages(selectedItemId);
+      if (typeof reloadItemImages === 'function') {
+        if (createdItemId) await reloadItemImages(createdItemId);
+        else if (selectedItemId) await reloadItemImages(selectedItemId);
       }
 
       setNotice({ tone: 'emerald', message: 'Inventory item created successfully.' });
@@ -216,19 +204,6 @@ export const CreateInventoryItemSection = ({
             onChange={onChange('brand_name')}
             className="w-full rounded-md border px-3 py-2 text-sm"
             placeholder="Optional"
-          />
-        </div>
-
-        <div className="space-y-1 md:col-span-2">
-          <label htmlFor={inputId.brandImage} className="text-sm font-medium">
-            Brand Image (optional)
-          </label>
-          <input
-            id={inputId.brandImage}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="w-full text-sm"
-            onChange={(event) => setBrandImageFile(event.target.files?.[0] || null)}
           />
         </div>
 

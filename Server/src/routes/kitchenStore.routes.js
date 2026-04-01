@@ -11,7 +11,6 @@ import {
   getItem,
   listItemImages,
   uploadItemImage,
-  uploadItemBrandLogo,
   listItemMovements,
   createItemMovement,
   getLowStockAlerts,
@@ -77,15 +76,6 @@ router.post(
     { name: 'file', maxCount: 1 }
   ]),
   uploadItemImage
-);
-router.post(
-  '/v1/items/:item_id/brand-logo',
-  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
-  itemImageUpload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'file', maxCount: 1 }
-  ]),
-  uploadItemBrandLogo
 );
 router.get('/v1/items/:item_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getItem);
 

@@ -196,32 +196,6 @@ export const uploadItemImage = async (req, res, next) => {
   }
 };
 
-export const uploadItemBrandLogo = async (req, res, next) => {
-  try {
-    const files = req.files;
-    const file =
-      (Array.isArray(files?.image) && files.image[0]) ||
-      (Array.isArray(files?.file) && files.file[0]) ||
-      req.file;
-    if (!file) {
-      throw new AppError('Brand image file is required (multipart field: image or file)', 400);
-    }
-    const uploadedBy = kitchenActorUserId(req);
-    const data = await createInventoryItemImageService({
-      inventoryItemId: req.params.item_id,
-      companyId: req.companyId,
-      file,
-      uploadedBy,
-      // Brand logo should become the representative image for a newly created item.
-      isPrimary: true,
-      sortOrder: 0
-    });
-    res.status(201).json({ success: true, data });
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const listItemMovements = async (req, res, next) => {
   try {
     const result = await listItemMovementsService(req.params.item_id, req.query, req.companyId, kitchenActorUserId(req));
