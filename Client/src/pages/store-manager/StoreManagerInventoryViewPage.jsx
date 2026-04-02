@@ -14,6 +14,30 @@ const controlClass =
 
 const isLowStock = (item) => Number(item.current_quantity) <= Number(item.min_quantity);
 
+const InventoryBrandCell = ({ item }) => {
+  const logoSrc = (item.brand_logo_s3_url || '').trim();
+  const brandLabel = (item.brand_name || '').trim();
+  if (!brandLabel && !logoSrc) {
+    return <span className="text-sm text-slate-400">-</span>;
+  }
+  return (
+    <div className="flex min-w-0 max-w-[14rem] items-center gap-2">
+      {logoSrc ? (
+        <img
+          src={logoSrc}
+          alt={brandLabel ? `${brandLabel} logo` : ''}
+          className="h-8 w-8 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
+        />
+      ) : (
+        <div className="h-8 w-8 shrink-0 rounded-md border border-dashed border-slate-200 bg-slate-50" aria-hidden />
+      )}
+      <span className="truncate text-sm text-slate-800" title={brandLabel || undefined}>
+        {brandLabel || '-'}
+      </span>
+    </div>
+  );
+};
+
 const StoreManagerInventoryViewPage = () => {
   const basePath = useCompanyBasePath();
   const { items, lowStockItems } = useKitchenInventoryMock();
@@ -42,7 +66,11 @@ const StoreManagerInventoryViewPage = () => {
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((item) => {
-      if (q && !item.name.toLowerCase().includes(q)) return false;
+      if (q) {
+        const inName = item.name.toLowerCase().includes(q);
+        const inBrand = (item.brand_name || '').toLowerCase().includes(q);
+        if (!inName && !inBrand) return false;
+      }
       if (categoryFilter !== 'all') {
         if (categoryFilter === UNCATEGORIZED) {
           if ((item.category || '').trim()) return false;
@@ -90,7 +118,7 @@ const StoreManagerInventoryViewPage = () => {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter by name…"
+              placeholder="Filter by item or brand name…"
               className={`${controlClass} w-full min-w-0`}
               autoComplete="off"
             />
@@ -158,6 +186,7 @@ const StoreManagerInventoryViewPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Brand</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead>Current</TableHead>
@@ -169,7 +198,7 @@ const StoreManagerInventoryViewPage = () => {
             <TableBody>
               {filteredItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                  <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
                     No items match the current filters.
                   </TableCell>
                 </TableRow>
@@ -179,6 +208,9 @@ const StoreManagerInventoryViewPage = () => {
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>
+                        <InventoryBrandCell item={item} />
+                      </TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
                       <TableCell>{item.unit}</TableCell>
                       <TableCell>{item.current_quantity}</TableCell>

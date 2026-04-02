@@ -23,6 +23,7 @@ const managerLinks = [
 const operatorLinks = [
   { to: 'store-operator/inventory', label: 'Operator Inventory' },
   { to: 'store-operator/item-master', label: 'Create inventory' },
+  { to: 'store-operator/brand-master', label: 'Create brand' },
   { to: 'store-operator/purchase-requests', label: 'Create Purchase Request' },
   { to: 'store-operator/approved-requests', label: 'Approved Requests' },
   { to: 'store-operator/purchases', label: 'Purchase Receipts' },

@@ -23,6 +23,31 @@ const stockFilterControlClass =
 
 const isLowStock = (item) => Number(item.current_quantity) <= Number(item.min_quantity);
 
+/** Use `brand_logo_s3_url` from items API. */
+const InventoryBrandCell = ({ item }) => {
+  const logoSrc = (item.brand_logo_s3_url || '').trim();
+  const brandLabel = (item.brand_name || '').trim();
+  if (!brandLabel && !logoSrc) {
+    return <span className="text-sm text-slate-400">—</span>;
+  }
+  return (
+    <div className="flex min-w-0 max-w-[14rem] items-center gap-2">
+      {logoSrc ? (
+        <img
+          src={logoSrc}
+          alt={brandLabel ? `${brandLabel} logo` : ''}
+          className="h-8 w-8 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
+        />
+      ) : (
+        <div className="h-8 w-8 shrink-0 rounded-md border border-dashed border-slate-200 bg-slate-50" aria-hidden />
+      )}
+      <span className="truncate text-sm text-slate-800" title={brandLabel || undefined}>
+        {brandLabel || '—'}
+      </span>
+    </div>
+  );
+};
+
 const StoreOperatorInventoryPage = () => {
   const basePath = useCompanyBasePath();
   const { items, lowStockItems, addStock, movements } = useKitchenInventoryMock();
@@ -53,7 +78,11 @@ const StoreOperatorInventoryPage = () => {
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((item) => {
-      if (q && !item.name.toLowerCase().includes(q)) return false;
+      if (q) {
+        const inName = item.name.toLowerCase().includes(q);
+        const inBrand = (item.brand_name || '').toLowerCase().includes(q);
+        if (!inName && !inBrand) return false;
+      }
       if (categoryFilter !== 'all') {
         if (categoryFilter === UNCATEGORIZED) {
           if ((item.category || '').trim()) return false;
@@ -146,7 +175,7 @@ const StoreOperatorInventoryPage = () => {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter by name…"
+              placeholder="Filter by item or brand name…"
               className={`${stockFilterControlClass} w-full min-w-0`}
               autoComplete="off"
             />
@@ -214,6 +243,7 @@ const StoreOperatorInventoryPage = () => {
           <TableHeader className="[&_tr]:border-b [&_tr]:hover:bg-transparent [&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:border-b [&_th]:border-slate-200 [&_th]:bg-white [&_th]:shadow-[0_1px_0_0_rgb(226,232,240)]">
             <TableRow className="hover:bg-transparent">
               <TableHead>Item</TableHead>
+              <TableHead>Brand</TableHead>
               <TableHead>Unit</TableHead>
               <TableHead className="text-center">Current Qty</TableHead>
               <TableHead className="text-center">Min Qty</TableHead>
@@ -225,7 +255,7 @@ const StoreOperatorInventoryPage = () => {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
                   {items.length === 0 ? 'No inventory items loaded.' : 'No items match the current filters.'}
                 </TableCell>
               </TableRow>
@@ -235,6 +265,9 @@ const StoreOperatorInventoryPage = () => {
                 return (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>
+                      <InventoryBrandCell item={item} />
+                    </TableCell>
                     <TableCell>{item.unit}</TableCell>
                     <TableCell className="text-center font-medium">{item.current_quantity}</TableCell>
                     <TableCell className="text-center">{item.min_quantity}</TableCell>
@@ -279,6 +312,7 @@ const StoreOperatorInventoryPage = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Item</TableHead>
+                  <TableHead>Brand</TableHead>
                   <TableHead>Current</TableHead>
                   <TableHead>Min</TableHead>
                 </TableRow>
@@ -287,6 +321,9 @@ const StoreOperatorInventoryPage = () => {
                 {lowStockItems.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>
+                      <InventoryBrandCell item={item} />
+                    </TableCell>
                     <TableCell>{item.current_quantity} {item.unit}</TableCell>
                     <TableCell>{item.min_quantity} {item.unit}</TableCell>
                   </TableRow>

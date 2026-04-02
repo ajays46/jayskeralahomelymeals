@@ -3,6 +3,10 @@ import {
   createItemService,
   listItemsService,
   getItemService,
+  listBrandsService,
+  createBrandService,
+  uploadBrandLogoService,
+  getBrandLogoViewUrlService,
   listItemMovementsService,
   createItemMovementService,
   getLowStockAlertsService,
@@ -125,6 +129,66 @@ export const createItem = async (req, res, next) => {
 
     const result = await createItemService(payload, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listBrands = async (req, res, next) => {
+  try {
+    const result = await listBrandsService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createBrand = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      throw new AppError('Request body must be an object', 400);
+    }
+    const payload = { ...body, name: requireNonEmptyString(body.name, 'name') };
+    const logoS3Key = optionalTrimmedString(body.logo_s3_key, 'logo_s3_key');
+    const logoS3Url = optionalTrimmedString(body.logo_s3_url, 'logo_s3_url');
+    if (logoS3Key !== undefined) payload.logo_s3_key = logoS3Key;
+    if (logoS3Url !== undefined) payload.logo_s3_url = logoS3Url;
+    const result = await createBrandService(payload, req.companyId, kitchenActorUserId(req));
+    res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadBrandLogo = async (req, res, next) => {
+  try {
+    const brandId = requireIdParam(req.params.brand_id, 'brand_id');
+    const file = req.file;
+    if (!file) {
+      throw new AppError('Logo file is required (multipart field: file)', 400);
+    }
+    const allowedMime = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowedMime.has(file.mimetype)) {
+      throw new AppError('Logo file must be JPG, PNG, or WEBP', 400);
+    }
+    const result = await uploadBrandLogoService(
+      brandId,
+      file,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getBrandLogoViewUrl = async (req, res, next) => {
+  try {
+    const brandId = requireIdParam(req.params.brand_id, 'brand_id');
+    const result = await getBrandLogoViewUrlService(brandId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }

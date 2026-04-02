@@ -27,7 +27,7 @@ const previewBaseQtyAndUnitPrice = (purchasedQty, conversionToBase, lineTotal) =
 
 const StoreOperatorPurchaseReceiptsPage = () => {
   const [searchParams] = useSearchParams();
-  const { items } = useKitchenInventoryMock();
+  const { items, brands } = useKitchenInventoryMock();
   const {
     approvedRequests,
     approvedLines,
@@ -55,6 +55,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     purchase_request_line_id: '',
     purchased_qty: '',
     purchase_unit: '',
+    brand_id: '',
     brand: '',
     conversion_to_base: '1',
     line_total: '',
@@ -115,6 +116,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       purchase_request_line_id: '',
       purchased_qty: '',
       purchase_unit: '',
+      brand_id: '',
       brand: '',
       line_total: '',
       purchase_date: today(),
@@ -132,6 +134,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         purchase_request_line_id: firstLine.id,
         purchased_qty: String(firstLine.approved_quantity || ''),
         purchase_unit: firstLine.requested_unit || '',
+        brand_id: firstLine.brand_id || '',
         brand: firstLine.brand || firstLine.brand_name || '',
         conversion_to_base: '1'
       };
@@ -145,6 +148,10 @@ const StoreOperatorPurchaseReceiptsPage = () => {
   const selectedApprovedLine = useMemo(
     () => approvedLines.find((line) => line.id === approvedPurchaseForm.purchase_request_line_id) || null,
     [approvedLines, approvedPurchaseForm.purchase_request_line_id]
+  );
+  const selectedBrand = useMemo(
+    () => brands.find((b) => b.id === approvedPurchaseForm.brand_id) || null,
+    [brands, approvedPurchaseForm.brand_id]
   );
 
   const catalogItemIdForApprovedLine = useMemo(() => {
@@ -230,6 +237,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       conversion_to_base: conv,
       line_total: lt,
       purchase_date: approvedPurchaseForm.purchase_date,
+      brand_id: approvedPurchaseForm.brand_id || undefined,
+      brand_name: approvedPurchaseForm.brand.trim() || undefined,
       note: approvedPurchaseForm.note.trim() || 'Bought from approved list'
     });
   };
@@ -514,6 +523,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                   purchase_request_line_id: e.target.value,
                   purchased_qty: nextLine ? String(nextLine.approved_quantity || '') : '',
                   purchase_unit: nextLine?.requested_unit || '',
+                  brand_id: nextLine?.brand_id || '',
                   brand: nextLine?.brand || nextLine?.brand_name || ''
                 }));
               }}
@@ -545,12 +555,25 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, purchase_unit: e.target.value }))}
               placeholder="Purchase unit"
             />
-            <input
+            <select
               className="rounded border px-3 py-2"
-              value={approvedPurchaseForm.brand}
-              onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, brand: e.target.value }))}
-              placeholder="Brand"
-            />
+              value={approvedPurchaseForm.brand_id}
+              onChange={(e) => {
+                const selectedBrand = brands.find((b) => b.id === e.target.value);
+                setApprovedPurchaseForm((prev) => ({
+                  ...prev,
+                  brand_id: e.target.value,
+                  brand: selectedBrand?.name || ''
+                }));
+              }}
+            >
+              <option value="">Select brand (optional)</option>
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
             <input
               className="rounded border px-3 py-2"
               value={approvedPurchaseForm.conversion_to_base}
@@ -582,19 +605,19 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, note: e.target.value }))}
               placeholder="Operator note"
             />
-            {selectedApprovedLine && (selectedApprovedLine.brand_name || selectedApprovedLine.brand_logo_s3_url) ? (
+            {(selectedBrand?.name || selectedBrand?.logo_view_url || selectedApprovedLine?.brand_name) ? (
               <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/90 px-3 py-2 md:col-span-3">
-                {selectedApprovedLine.brand_logo_s3_url ? (
+                {selectedBrand?.logo_view_url ? (
                   <img
-                    src={selectedApprovedLine.brand_logo_s3_url}
+                    src={selectedBrand.logo_view_url}
                     alt=""
                     className="h-10 w-10 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
                   />
                 ) : null}
                 <div className="min-w-0 text-sm">
                   <span className="font-medium text-slate-800">Brand</span>
-                  {selectedApprovedLine.brand_name ? (
-                    <span className="ml-2 text-slate-700">{selectedApprovedLine.brand_name}</span>
+                  {selectedBrand?.name || selectedApprovedLine?.brand_name ? (
+                    <span className="ml-2 text-slate-700">{selectedBrand?.name || selectedApprovedLine?.brand_name}</span>
                   ) : (
                     <span className="ml-2 text-slate-500">Logo only (no name)</span>
                   )}

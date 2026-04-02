@@ -7,6 +7,10 @@ import { resolveCompanyId } from '../middleware/resolveCompanyId.js';
 import {
   healthCheck,
   createItem,
+  listBrands,
+  createBrand,
+  uploadBrandLogo,
+  getBrandLogoViewUrl,
   listItems,
   getItem,
   listItemImages,
@@ -67,6 +71,15 @@ router.get('/v1/health', healthCheck);
 // v1: Items
 router.post('/v1/items', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), createItem);
 router.get('/v1/items', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listItems);
+router.get('/v1/brands', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listBrands);
+router.post('/v1/brands', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), createBrand);
+router.post(
+  '/v1/brands/:brand_id/logo/upload',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  itemImageUpload.single('file'),
+  uploadBrandLogo
+);
+router.get('/v1/brands/:brand_id/logo/view-url', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getBrandLogoViewUrl);
 router.get('/v1/items/:item_id/images', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listItemImages);
 router.post(
   '/v1/items/:item_id/images',

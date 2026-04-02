@@ -43,6 +43,30 @@ const resolveImageSrc = (img) => {
   return `${origin}${raw.startsWith('/') ? raw : `/${raw}`}`;
 };
 
+const ItemBrandCell = ({ item }) => {
+  const logoSrc = (item.brand_logo_s3_url || '').trim();
+  const brandLabel = (item.brand_name || '').trim();
+  if (!brandLabel && !logoSrc) {
+    return <span className="text-sm text-slate-400">-</span>;
+  }
+  return (
+    <div className="flex min-w-0 max-w-[14rem] items-center gap-2">
+      {logoSrc ? (
+        <img
+          src={logoSrc}
+          alt={brandLabel ? `${brandLabel} logo` : ''}
+          className="h-8 w-8 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
+        />
+      ) : (
+        <div className="h-8 w-8 shrink-0 rounded-md border border-dashed border-slate-200 bg-slate-50" aria-hidden />
+      )}
+      <span className="truncate text-sm text-slate-800" title={brandLabel || undefined}>
+        {brandLabel || '-'}
+      </span>
+    </div>
+  );
+};
+
 const StoreOperatorItemMasterPage = () => {
   const { items, getItemDetail, listItemImages, uploadItemImage } = useKitchenInventoryMock();
   const [query, setQuery] = useState('');
@@ -58,7 +82,7 @@ const StoreOperatorItemMasterPage = () => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
     return items.filter((it) =>
-      `${it.name} ${it.category} ${it.unit}`.toLowerCase().includes(q)
+      `${it.name} ${it.brand_name || ''} ${it.category} ${it.unit}`.toLowerCase().includes(q)
     );
   }, [items, query]);
 
@@ -138,7 +162,7 @@ const StoreOperatorItemMasterPage = () => {
             className="w-full rounded-md border px-3 py-2 text-sm sm:w-72"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search item/category/unit"
+            placeholder="Search item/brand/category/unit"
           />
         }
       >
@@ -150,6 +174,7 @@ const StoreOperatorItemMasterPage = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Brand</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Current</TableHead>
@@ -165,6 +190,9 @@ const StoreOperatorItemMasterPage = () => {
                         <span>{item.name}</span>
                         {selectedId === item.id ? <Badge variant="secondary">Selected</Badge> : null}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <ItemBrandCell item={item} />
                     </TableCell>
                     <TableCell>{item.category || '-'}</TableCell>
                     <TableCell>{item.unit}</TableCell>

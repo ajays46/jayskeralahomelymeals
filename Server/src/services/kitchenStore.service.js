@@ -100,6 +100,86 @@ export const getItemService = async (itemId, companyId, userId = null) => {
   }
 };
 
+// v1 Brands
+export const listBrandsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get('/v1/brands', withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listBrands', { endpoint: '/v1/brands', companyId: companyId || null });
+    return response.data;
+  } catch (error) {
+    logKitchenError('listBrands', error, { endpoint: '/v1/brands', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const createBrandService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post('/v1/brands', body || {}, withKitchenContext(companyId, userId));
+    logKitchenSuccess('createBrand', { endpoint: '/v1/brands', companyId: companyId || null, brandName: body?.name || null });
+    return response.data;
+  } catch (error) {
+    logKitchenError('createBrand', error, { endpoint: '/v1/brands', companyId: companyId || null, brandName: body?.name || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const uploadBrandLogoService = async (brandId, file, companyId, userId = null) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file.buffer, {
+      filename: file.originalname || 'brand-logo',
+      contentType: file.mimetype || 'application/octet-stream',
+      knownLength: file.size
+    });
+    const contextConfig = withKitchenContext(companyId, userId, {
+      headers: {
+        ...formData.getHeaders()
+      },
+      maxBodyLength: Infinity
+    });
+    const response = await apiClient.post(
+      `/v1/brands/${brandId}/logo/upload`,
+      formData,
+      contextConfig
+    );
+    logKitchenSuccess('uploadBrandLogo', {
+      endpoint: '/v1/brands/:brand_id/logo/upload',
+      companyId: companyId || null,
+      brandId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('uploadBrandLogo', error, {
+      endpoint: '/v1/brands/:brand_id/logo/upload',
+      companyId: companyId || null,
+      brandId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getBrandLogoViewUrlService = async (brandId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `/v1/brands/${brandId}/logo/view-url`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('getBrandLogoViewUrl', {
+      endpoint: '/v1/brands/:brand_id/logo/view-url',
+      companyId: companyId || null,
+      brandId
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('getBrandLogoViewUrl', error, {
+      endpoint: '/v1/brands/:brand_id/logo/view-url',
+      companyId: companyId || null,
+      brandId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
 // v1 Stock movements
 export const listItemMovementsService = async (itemId, query = {}, companyId, userId = null) => {
   try {

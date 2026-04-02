@@ -54,6 +54,7 @@ import StoreOperatorItemDetailPage from './pages/store-operator/StoreOperatorIte
 import StoreOperatorPurchaseReceiptsPage from './pages/store-operator/StoreOperatorPurchaseReceiptsPage';
 import StoreOperatorMealReportPage from './pages/store-operator/StoreOperatorMealReportPage';
 import StoreOperatorItemMasterPage from './pages/store-operator/StoreOperatorItemMasterPage';
+import StoreOperatorBrandMasterPage from './pages/store-operator/StoreOperatorBrandMasterPage';
 import StoreOperatorPurchaseRequestPage from './pages/store-operator/StoreOperatorPurchaseRequestPage';
 import StoreOperatorApprovedRequestsPage from './pages/store-operator/StoreOperatorApprovedRequestsPage';
 import StoreModuleLayout from './pages/store-common/StoreModuleLayout';
@@ -278,6 +279,7 @@ const App = () => {
                 <Route path="store-manager/off-list-review" element={<StoreManagerOffListPurchaseReviewPage />} />
                 <Route path="store-operator/inventory" element={<StoreOperatorInventoryPage />} />
                 <Route path="store-operator/item-master" element={<StoreOperatorItemMasterPage />} />
+                <Route path="store-operator/brand-master" element={<StoreOperatorBrandMasterPage />} />
                 <Route path="store-operator/purchase-requests" element={<StoreOperatorPurchaseRequestPage />} />
                 <Route path="store-operator/approved-requests" element={<StoreOperatorApprovedRequestsPage />} />
                 <Route path="store-operator/issue" element={<StoreOperatorIssuePage />} />

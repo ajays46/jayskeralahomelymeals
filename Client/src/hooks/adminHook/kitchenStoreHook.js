@@ -11,7 +11,26 @@ const normalizeItems = (itemsRaw) => {
     unit: i.unit,
     category: i.category ?? '',
     min_quantity: toNum(i.min_quantity ?? 0),
-    current_quantity: toNum(i.current_quantity ?? 0)
+    current_quantity: toNum(i.current_quantity ?? 0),
+    brand_id: i.brand_id != null && i.brand_id !== '' ? String(i.brand_id) : '',
+    brand_name: i.brand_name != null ? String(i.brand_name) : '',
+    brand_logo_s3_url: i.brand_logo_s3_url ? String(i.brand_logo_s3_url) : '',
+    brand_logo_view_url: i.brand_logo_view_url ? String(i.brand_logo_view_url) : '',
+    brand_logo_view_expires_in_seconds:
+      i.brand_logo_view_expires_in_seconds != null && i.brand_logo_view_expires_in_seconds !== ''
+        ? Number(i.brand_logo_view_expires_in_seconds)
+        : null
+  }));
+};
+
+const normalizeBrands = (brandsRaw) => {
+  const arr = Array.isArray(brandsRaw) ? brandsRaw : [];
+  return arr.map((b) => ({
+    id: String(b.id),
+    name: String(b.name || ''),
+    logo_s3_url: b.logo_s3_url ? String(b.logo_s3_url) : '',
+    logo_view_url: b.logo_view_url ? String(b.logo_view_url) : '',
+    logo_view_expires_in_seconds: Number(b.logo_view_expires_in_seconds || 0) || 0
   }));
 };
 
@@ -31,7 +50,15 @@ const normalizeAlertListItems = (itemsRaw) => {
     unit: i.unit,
     category: i.category ?? '',
     min_quantity: toNum(i.min_quantity ?? 0),
-    current_quantity: toNum(i.current_quantity ?? 0)
+    current_quantity: toNum(i.current_quantity ?? 0),
+    brand_id: i.brand_id != null && i.brand_id !== '' ? String(i.brand_id) : '',
+    brand_name: i.brand_name != null ? String(i.brand_name) : '',
+    brand_logo_s3_url: i.brand_logo_s3_url ? String(i.brand_logo_s3_url) : '',
+    brand_logo_view_url: i.brand_logo_view_url ? String(i.brand_logo_view_url) : '',
+    brand_logo_view_expires_in_seconds:
+      i.brand_logo_view_expires_in_seconds != null && i.brand_logo_view_expires_in_seconds !== ''
+        ? Number(i.brand_logo_view_expires_in_seconds)
+        : null
   }));
 };
 
@@ -94,6 +121,7 @@ const normalizePlanDetail = (planRaw, itemNameMap) => {
 
 function useKitchenStoreData() {
   const [items, setItems] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [lowStockItems, setLowStockItems] = useState([]);
   const [movements, setMovements] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -124,6 +152,16 @@ function useKitchenStoreData() {
     return fetchedItems;
   };
 
+  const refreshBrands = async () => {
+    const brandsRes = await api.get('/kitchen-store/v1/brands', {
+      params: { page: 1, page_size: 200, include_logo_view_url: true }
+    });
+    const brandsData = brandsRes.data?.data || {};
+    const fetchedBrands = normalizeBrands(brandsData.brands || brandsData || []);
+    setBrands(fetchedBrands);
+    return fetchedBrands;
+  };
+
   // Bootstrap UI state from kitchen-store proxy APIs
   useEffect(() => {
     let cancelled = false;
@@ -132,6 +170,11 @@ function useKitchenStoreData() {
       try {
         // 1) Items
         const fetchedItems = await refreshItems();
+        try {
+          await refreshBrands();
+        } catch {
+          setBrands([]);
+        }
         if (fetchedItems.length > 0) {
           if (cancelled) return;
           setItems(fetchedItems);
@@ -344,6 +387,37 @@ function useKitchenStoreData() {
     }
   };
 
+  const createBrand = async ({ name }) => {
+    if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
+    try {
+      const res = await api.post('/kitchen-store/v1/brands', { name });
+      await refreshBrands();
+      return { ok: true, data: res.data?.data || res.data || {} };
+    } catch (e) {
+      return {
+        ok: false,
+        message: e?.response?.data?.detail || e?.response?.data?.message || e.message || 'Failed to create brand'
+      };
+    }
+  };
+
+  const uploadBrandLogo = async (brandId, file) => {
+    if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
+    if (!file) return { ok: false, message: 'No file selected' };
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await api.post(`/kitchen-store/v1/brands/${brandId}/logo/upload`, fd);
+      await refreshBrands();
+      return { ok: true };
+    } catch (e) {
+      return {
+        ok: false,
+        message: e?.response?.data?.message || e?.response?.data?.detail || e.message || 'Brand logo upload failed'
+      };
+    }
+  };
+
   const listItemImages = async (itemId) => {
     if (!apiAvailable) return [];
     try {
@@ -470,7 +544,9 @@ function useKitchenStoreData() {
       // refresh plan and items
       await refreshPlan(planId);
       try {
-        const itemsRes = await api.get('/kitchen-store/v1/items', { params: { page: 1, page_size: 50 } });
+        const itemsRes = await api.get('/kitchen-store/v1/items', {
+          params: { page: 1, page_size: 50, include_brand_logo_view_url: true }
+        });
         const itemsData = itemsRes.data?.data || {};
         const fetchedItems = normalizeItems(itemsData.items || itemsData || []);
         if (fetchedItems.length) setItems(fetchedItems);
@@ -545,6 +621,10 @@ function useKitchenStoreData() {
     addRecipeLine: upsertRecipeLine,
     deleteRecipeLine,
     createItem,
+    brands,
+    refreshBrands,
+    createBrand,
+    uploadBrandLogo,
     getItemDetail,
     listItemImages,
     uploadItemImage,
@@ -561,9 +641,13 @@ export const useKitchenInventoryMock = () => {
   const data = useKitchenStoreData();
   return {
     items: data.items,
+    brands: data.brands,
     lowStockItems: data.lowStockItems,
     movements: data.movements,
     createItem: data.createItem,
+    refreshBrands: data.refreshBrands,
+    createBrand: data.createBrand,
+    uploadBrandLogo: data.uploadBrandLogo,
     getItemDetail: data.getItemDetail,
     listItemImages: data.listItemImages,
     uploadItemImage: data.uploadItemImage,
@@ -694,7 +778,7 @@ async function buildKitchenCatalogNameToIdMap() {
   const nameToId = new Map();
   for (let page = 1; page <= MAX_CATALOG_PAGES; page += 1) {
     const itemsRes = await api.get('/kitchen-store/v1/items', {
-      params: { page, page_size: ITEMS_PAGE_SIZE_CATALOG }
+      params: { page, page_size: ITEMS_PAGE_SIZE_CATALOG, include_brand_logo_view_url: true }
     });
     const itemsData = itemsRes.data?.data || {};
     const batch = Array.isArray(itemsData.items)
