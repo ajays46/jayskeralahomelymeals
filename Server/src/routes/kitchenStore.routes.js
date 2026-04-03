@@ -1,3 +1,6 @@
+/**
+ * @feature kitchen-store — Express BFF routes under `/api/kitchen-store` (auth, tenant, upstream proxy).
+ */
 import express from 'express';
 import multer from 'multer';
 import { authenticateToken } from '../middleware/authHandler.js';
@@ -104,7 +107,7 @@ router.get('/v1/shopping-list', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), ge
 router.post('/v2/recipes/lines', checkRole('STORE_MANAGER'), upsertRecipeLine);
 router.get('/v2/recipes/lines', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listRecipeLines);
 
-// v2: Plans
+// v2: Plans (generate, detail, approve, issue)
 router.post('/v2/plans/generate', checkRole('STORE_MANAGER'), generatePlan);
 router.get('/v2/plans/:plan_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getPlan);
 router.post('/v2/plans/:plan_id/approve', checkRole('STORE_MANAGER'), approvePlan);

@@ -1,3 +1,6 @@
+/**
+ * @feature kitchen-store — Upstream kitchen inventory API client (axios proxy, tenant headers, logging).
+ */
 import axios from 'axios';
 import FormData from 'form-data';
 import AppError from '../utils/AppError.js';
@@ -269,7 +272,7 @@ export const listRecipeLinesService = async (query = {}, companyId, userId = nul
   }
 };
 
-// v2 plans
+// v2 plans → upstream /v2/plans/*
 export const generatePlanService = async (body, companyId, userId = null) => {
   try {
     const response = await apiClient.post('/v2/plans/generate', body, withKitchenContext(companyId, userId));

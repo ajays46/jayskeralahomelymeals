@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_MANAGER: submitted purchase request inbox. */
+
 function submittedDayKey(value) {
   if (value == null || value === '') return '';
   const s = String(value);

@@ -156,6 +156,7 @@ app.use('/api/ai-routes', aiRouteRoutes);
 app.use('/api/cxo', cxoRoutes);
 app.use('/api/assistant', assistantRoutes);
 app.use('/api/drivers', driverMapsRoutes);
+// @feature kitchen-store — mount BFF (`Server/src/routes/kitchenStore.routes.js`)
 app.use('/api/kitchen-store', kitchenStoreRoutes);
 app.use('/api', textRoutes);
 app.use('/api', tenantRoutes);

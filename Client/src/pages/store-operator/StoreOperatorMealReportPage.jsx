@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { StorePageHeader, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
+/** @feature kitchen-store — STORE_OPERATOR: meal report fetch + PDF export. */
+
 const defaultDate = new Date().toISOString().slice(0, 10);
 
 const sessionOrder = ['BREAKFAST', 'LUNCH', 'DINNER'];

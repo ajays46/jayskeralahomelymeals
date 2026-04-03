@@ -1,3 +1,6 @@
+/**
+ * @feature kitchen-store — Item image files on disk; tenant validation via `getItemService` (kitchen-store proxy).
+ */
 import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';

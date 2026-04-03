@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_MANAGER: recipe / BOM lines (menu ↔ inventory). */
 const StoreManagerRecipeBomPage = () => {
   const { items } = useKitchenInventoryMock();
   const { recipeLines, addRecipeLine, deleteRecipeLine } = useKitchenRecipeMock();

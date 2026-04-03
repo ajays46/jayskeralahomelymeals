@@ -8,6 +8,8 @@ import api from '../../api/axios';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
+/** @feature kitchen-store — STORE_OPERATOR: item master list, images, create item. */
+
 /** API host (same as axios) so `/uploads/...` loads from the Node server, not the Vite dev port. */
 const apiOrigin = () => {
   const stripApiSuffix = (value) => String(value || '').replace(/\/$/, '').replace(/\/api$/, '');

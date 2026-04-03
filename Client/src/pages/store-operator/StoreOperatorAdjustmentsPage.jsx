@@ -4,6 +4,7 @@ import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook'
 import { Button } from '@/components/ui/button';
 import { StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_OPERATOR: manual stock remove / expire movements. */
 const StoreOperatorAdjustmentsPage = () => {
   const { items, removeStock, expireStock } = useKitchenInventoryMock();
   const [selectedItemId, setSelectedItemId] = useState(items[0]?.id || '');

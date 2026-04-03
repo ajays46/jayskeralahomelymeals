@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_MANAGER: approve draft kitchen plans. */
 const StoreManagerPlanApprovalPage = () => {
   const { plans, approvePlan } = useKitchenPlansMock();
 

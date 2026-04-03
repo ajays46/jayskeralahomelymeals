@@ -3,6 +3,7 @@ import { useKitchenPurchaseSuggestionsMock } from '../../hooks/adminHook/kitchen
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_MANAGER: purchase recommendations from forecasts. */
 const StoreManagerPurchaseSuggestionsPage = () => {
   const { suggestions } = useKitchenPurchaseSuggestionsMock();
 

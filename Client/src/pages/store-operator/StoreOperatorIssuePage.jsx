@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_OPERATOR: issue approved kitchen plans. */
 const StoreOperatorIssuePage = () => {
   const { plans, issuePlan } = useKitchenIssueMock();
   const approvedPlans = plans.filter((plan) => plan.status === 'APPROVED');

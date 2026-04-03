@@ -190,7 +190,7 @@ export const showApiError = (error) => {
   showErrorToast(message, "Something went wrong");
 };
 
-/** Store manager / store operator kitchen-store flows (react-toastify via ToastContainer in main.jsx). */
+/** @feature kitchen-store — Toast helpers for store manager/operator flows (react-toastify). */
 export const showStoreSuccess = (message, title = 'Success') => {
   showSuccessToast(message, title);
 };

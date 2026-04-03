@@ -13,6 +13,8 @@ import {
 } from '../../hooks/adminHook/kitchenStoreHook';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
+/** @feature kitchen-store — STORE_MANAGER: off-list purchase exceptions / bulk review. */
+
 const ACTION_OPTIONS = ['KEEP', 'RETURN', 'INVESTIGATE', 'REJECT'];
 const COL_COUNT = 8;
 

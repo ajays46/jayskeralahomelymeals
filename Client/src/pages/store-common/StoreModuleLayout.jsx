@@ -4,6 +4,7 @@ import { useCompanyBasePath } from '../../context/TenantContext';
 import useAuthStore from '../../stores/Zustand.store';
 import { useLogout } from '../../hooks/userHooks/useLogin';
 
+/** @feature kitchen-store — Tenant layout: store manager / store operator navigation shell. */
 const managerLinks = [
   { to: 'store-manager/kitchen-dashboard', label: 'Manager Dashboard' },
   { to: 'store-manager/purchase-requests', label: 'Purchase Request Inbox' },

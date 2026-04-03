@@ -5,6 +5,7 @@ import { useKitchenInventoryMock, useKitchenPlansMock, useKitchenReportsMock } f
 import { Button } from '@/components/ui/button';
 import { StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_MANAGER: kitchen dashboard (inventory snapshot, plans, reports). */
 const StoreManagerKitchenDashboard = () => {
   const basePath = useCompanyBasePath();
   const { lowStockItems } = useKitchenInventoryMock();

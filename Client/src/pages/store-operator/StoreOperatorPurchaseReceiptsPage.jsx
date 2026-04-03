@@ -13,6 +13,8 @@ import {
 } from '../../hooks/adminHook/kitchenStoreHook';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
+/** @feature kitchen-store — STORE_OPERATOR: purchase receipts, lines, invoice upload/view. */
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 const previewBaseQtyAndUnitPrice = (purchasedQty, conversionToBase, lineTotal) => {

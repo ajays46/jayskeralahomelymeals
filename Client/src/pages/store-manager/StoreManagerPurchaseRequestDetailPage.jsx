@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { formatKitchenDateTime, useKitchenPurchaseRequestManagerApi } from '../../hooks/adminHook/kitchenStoreHook';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
+/** @feature kitchen-store — STORE_MANAGER: purchase request review, resolve lines, approve/reject. */
 const StoreManagerPurchaseRequestDetailPage = () => {
   const { requestId } = useParams();
   const basePath = useCompanyBasePath();

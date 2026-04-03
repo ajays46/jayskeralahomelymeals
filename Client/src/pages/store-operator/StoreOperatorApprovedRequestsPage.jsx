@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
+/** @feature kitchen-store — STORE_OPERATOR: approved/rejected requests, approved lines, PDF download. */
+
 function requestDayKey(value) {
   if (value == null || value === '') return '';
   const s = String(value);

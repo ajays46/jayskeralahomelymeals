@@ -3,6 +3,7 @@ import { useKitchenReportsMock } from '../../hooks/adminHook/kitchenStoreHook';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StorePageHeader, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_MANAGER: consumption / purchase vs usage reports from movements. */
 const StoreManagerReportsPage = () => {
   const { orderSummary, consumptionSummary, purchaseVsUsage, totalRevenue } = useKitchenReportsMock();
 

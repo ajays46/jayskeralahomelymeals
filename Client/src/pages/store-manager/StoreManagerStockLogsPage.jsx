@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_MANAGER: stock movement timeline across items. */
+
 function movementDayKey(value) {
   if (value == null || value === '') return '';
   const s = String(value);

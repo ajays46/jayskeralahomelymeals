@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { StoreNotice, StoreSection } from '@/components/store/StorePageShell';
 import api from '../../api/axios';
 
+/** @feature kitchen-store — Operator form: create inventory item (`POST /kitchen-store/v1/items`). */
 const initialForm = {
   name: '',
   unit: '',

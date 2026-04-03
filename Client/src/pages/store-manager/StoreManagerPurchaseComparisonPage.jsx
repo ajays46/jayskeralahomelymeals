@@ -12,6 +12,7 @@ import {
 } from '../../hooks/adminHook/kitchenStoreHook';
 import { showStoreError } from '../../utils/toastConfig.jsx';
 
+/** @feature kitchen-store — STORE_MANAGER: requested vs purchased comparison per request. */
 const StoreManagerPurchaseComparisonPage = () => {
   const basePath = useCompanyBasePath();
   const { approvedRequests, bootstrapLoading, error, listApprovedRequests } = useKitchenPurchaseRequestOperatorApi();

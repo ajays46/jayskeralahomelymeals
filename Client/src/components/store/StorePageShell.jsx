@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
+/** @feature kitchen-store — Shared layout primitives for store manager/operator pages. */
 const toneStyles = {
   sky: {
     card: 'border-slate-200/80 bg-white',

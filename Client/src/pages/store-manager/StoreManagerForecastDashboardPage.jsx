@@ -3,6 +3,7 @@ import { useKitchenForecastMock } from '../../hooks/adminHook/kitchenStoreHook';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StorePageHeader, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_MANAGER: demand and financial forecast dashboards. */
 const StoreManagerForecastDashboardPage = () => {
   const { pipelineRuns, demandForecasts, financialForecasts } = useKitchenForecastMock();
 

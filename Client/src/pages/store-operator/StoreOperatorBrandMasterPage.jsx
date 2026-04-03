@@ -3,6 +3,7 @@ import { StorePageShell, StoreStatCard, StoreStatGrid } from '@/components/store
 import { CreateBrandSection } from '@/components/store/CreateBrandSection';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
 
+/** @feature kitchen-store — STORE_OPERATOR: brand master (create brand, logo upload). */
 const StoreOperatorBrandMasterPage = () => {
   const { brands, createBrand, uploadBrandLogo } = useKitchenInventoryMock();
 

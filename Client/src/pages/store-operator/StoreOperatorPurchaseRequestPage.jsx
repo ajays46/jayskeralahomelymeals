@@ -9,6 +9,8 @@ import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/co
 import { CreateInventoryItemSection } from '@/components/store/CreateInventoryItemSection';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
+/** @feature kitchen-store — STORE_OPERATOR: create/submit purchase request from low stock / shopping list. */
+
 const createLocalLineId = () => `pr-line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const formatRequestReference = (requestId) => {

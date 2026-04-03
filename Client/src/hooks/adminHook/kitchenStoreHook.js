@@ -1,3 +1,6 @@
+/**
+ * @feature kitchen-store — React hooks and `/kitchen-store` API wiring for store manager/operator UIs.
+ */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../api/axios';
 
@@ -86,6 +89,7 @@ const normalizeRecipeLines = (linesRaw) => {
   }));
 };
 
+/** @feature kitchen-store — Plan DTO normalization (generate / get / approve / issue). */
 const normalizePlanDetail = (planRaw, itemNameMap) => {
   if (!planRaw) return null;
 
@@ -512,7 +516,7 @@ function useKitchenStoreData() {
     }
   };
 
-  // Mutations (plans)
+  // @feature kitchen-store — approvePlan / issuePlan / refreshPlan
   const refreshPlan = async (planId) => {
     const pRes = await api.get(`/kitchen-store/v2/plans/${planId}`);
     const pData = pRes.data?.data;
@@ -658,11 +662,13 @@ export const useKitchenInventoryMock = () => {
   };
 };
 
+/** @feature kitchen-store */
 export const useKitchenPlansMock = () => {
   const data = useKitchenStoreData();
   return { plans: data.plans, approvePlan: data.approvePlan };
 };
 
+/** @feature kitchen-store */
 export const useKitchenIssueMock = () => {
   const data = useKitchenStoreData();
   return { plans: data.plans, issued: data.plans?.some((p) => p.status === 'ISSUED'), issuedBy: data.plans?.find((p) => p.status === 'ISSUED')?.issued_by, issuePlan: data.issuePlan };

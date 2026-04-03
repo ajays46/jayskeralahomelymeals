@@ -16,6 +16,7 @@ import {
 } from '@/components/store/StorePageShell';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
+/** @feature kitchen-store — STORE_OPERATOR: inventory grid, low-stock, links to item detail. */
 const UNCATEGORIZED = '__uncategorized__';
 
 const stockFilterControlClass =

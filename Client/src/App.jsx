@@ -33,6 +33,7 @@ import AddMenuPage from './pages/admin/AddMenuPage';
 import MenuItemPage from './pages/admin/MenuItemPage';
 import MenuItemsTablePage from './pages/admin/MenuItemsTablePage';
 import UsersPage from './pages/admin/UsersPage';
+// @feature kitchen-store — store manager / store operator pages (routes below with StoreModuleLayout)
 import StoreManagerKitchenDashboard from './pages/store-manager/StoreManagerKitchenDashboard';
 import StoreManagerPlanApprovalPage from './pages/store-manager/StoreManagerPlanApprovalPage';
 import StoreManagerReportsPage from './pages/store-manager/StoreManagerReportsPage';
@@ -262,6 +263,7 @@ const App = () => {
               <Route path="admin/menu-items/:menuItemId" element={<MenuItemPage />} />
               <Route path="admin/menu-items-table" element={<MenuItemsTablePage />} />
               <Route path="admin/users" element={<UsersPage />} />
+              {/* @feature kitchen-store — tenant store module (manager + operator) */}
               <Route element={<StoreModuleLayout />}>
                 <Route path="store-manager/kitchen-dashboard" element={<StoreManagerKitchenDashboard />} />
                 <Route path="store-manager/plan-approval" element={<StoreManagerPlanApprovalPage />} />

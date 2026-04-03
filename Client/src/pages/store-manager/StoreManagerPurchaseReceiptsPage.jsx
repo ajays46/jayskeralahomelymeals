@@ -9,6 +9,8 @@ import {
   useKitchenPurchaseExceptionManagerApi
 } from '../../hooks/adminHook/kitchenStoreHook';
 
+/** @feature kitchen-store — STORE_MANAGER: purchase receipts list and line manager review. */
+
 const MANAGER_REVIEW_ACTIONS = ['KEEP', 'RETURN', 'INVESTIGATE', 'REJECT'];
 
 function receiptLineNeedsManagerReview(row) {

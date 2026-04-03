@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StorePageHeader, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — STORE_OPERATOR: single item detail and movement history. */
 const StoreOperatorItemDetailPage = () => {
   const { itemId } = useParams();
   const { items, movements } = useKitchenInventoryMock();

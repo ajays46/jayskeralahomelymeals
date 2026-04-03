@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StoreNotice, StoreSection } from '@/components/store/StorePageShell';
 
+/** @feature kitchen-store — Operator form: create brand + optional logo (kitchen-store API). */
 export const CreateBrandSection = ({
   idPrefix = 'create-brand',
   brands = [],

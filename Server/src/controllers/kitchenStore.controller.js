@@ -1,3 +1,6 @@
+/**
+ * @feature kitchen-store — HTTP handlers for kitchen-store BFF (delegate to kitchenStore.service).
+ */
 import {
   healthCheckService,
   createItemService,
