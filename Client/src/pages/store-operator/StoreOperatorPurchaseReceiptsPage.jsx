@@ -17,6 +17,29 @@ import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Renders brand logo + name from a normalized receipt line (null-safe). */
+function ReceiptLineBrandCell({ row }) {
+  const logoSrc = (row.brand_logo_s3_url || '').trim();
+  const brandLabel = (row.brand_name || '').trim();
+  if (!brandLabel && !logoSrc) {
+    return <span className="text-sm text-slate-400">—</span>;
+  }
+  return (
+    <div className="flex min-w-0 max-w-[12rem] items-center gap-2">
+      {logoSrc ? (
+        <img
+          src={logoSrc}
+          alt={brandLabel ? `${brandLabel} logo` : ''}
+          className="h-7 w-7 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
+        />
+      ) : null}
+      <span className="min-w-0 truncate text-sm text-slate-800" title={brandLabel || undefined}>
+        {brandLabel || '—'}
+      </span>
+    </div>
+  );
+}
+
 const previewBaseQtyAndUnitPrice = (purchasedQty, conversionToBase, lineTotal) => {
   const qty = Number(purchasedQty);
   const conv = Number(conversionToBase);
@@ -231,6 +254,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     if (!approvedPurchaseForm.purchase_unit.trim()) {
       throw new Error('Enter the purchase unit (e.g. bag, kg).');
     }
+    const bid = String(approvedPurchaseForm.brand_id || '').trim();
+    const bname = String(approvedPurchaseForm.brand || '').trim();
     await addReceiptLine(receiptId, {
       inventory_item_id: catalogItemId,
       purchase_request_line_id: String(selectedApprovedLine.id),
@@ -239,8 +264,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       conversion_to_base: conv,
       line_total: lt,
       purchase_date: approvedPurchaseForm.purchase_date,
-      brand_id: approvedPurchaseForm.brand_id || undefined,
-      brand_name: approvedPurchaseForm.brand.trim() || undefined,
+      ...(bid ? { brand_id: bid } : {}),
+      ...(bname ? { brand_name: bname } : {}),
       note: approvedPurchaseForm.note.trim() || 'Bought from approved list'
     });
   };
@@ -801,6 +826,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Item</TableHead>
+                <TableHead>Brand</TableHead>
                 <TableHead>Purchased Qty</TableHead>
                 <TableHead>Base Qty</TableHead>
                 <TableHead>Unit price (base)</TableHead>
@@ -815,6 +841,9 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               {selectedLines.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.inventory_item_name || '—'}</TableCell>
+                  <TableCell>
+                    <ReceiptLineBrandCell row={row} />
+                  </TableCell>
                   <TableCell>{row.purchased_qty} {row.purchase_unit}</TableCell>
                   <TableCell>{row.received_qty_in_base_unit}</TableCell>
                   <TableCell>{row.unit_price_in_base ? row.unit_price_in_base.toFixed(4) : '-'}</TableCell>

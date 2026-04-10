@@ -89,6 +89,52 @@ const normalizeRecipeLines = (linesRaw) => {
   }));
 };
 
+/** Upstream may return an array, `{ items: [] }`, or `{ lines: [] }`. */
+const extractRecipeLinesArray = (rData) => {
+  if (Array.isArray(rData)) return rData;
+  if (rData && Array.isArray(rData.items)) return rData.items;
+  if (rData && Array.isArray(rData.lines)) return rData.lines;
+  return [];
+};
+
+/** Calendar date in local TZ → DB `day_of_week` 1..7 (Mon..Sun). */
+export const dbDayOfWeekFromDate = (d) => {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return 1;
+  const js = d.getDay();
+  return js === 0 ? 7 : js;
+};
+
+const LS_KITCHEN_VEG_MENU_ID = 'kitchen_veg_menu_id';
+const LS_KITCHEN_NONVEG_MENU_ID = 'kitchen_nonveg_menu_id';
+
+/** Veg / non-veg `menu_id` for weekly schedule APIs (env or localStorage). */
+export const getConfiguredKitchenMenuIds = () => {
+  const envVeg = import.meta.env.VITE_KITCHEN_VEG_MENU_ID;
+  const envNon =
+    import.meta.env.VITE_KITCHEN_NONVEG_MENU_ID || import.meta.env.VITE_KITCHEN_NON_VEG_MENU_ID;
+  const veg =
+    (typeof envVeg === 'string' && envVeg.trim()) ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem(LS_KITCHEN_VEG_MENU_ID) : '') ||
+    '';
+  const nonVeg =
+    (typeof envNon === 'string' && envNon.trim()) ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem(LS_KITCHEN_NONVEG_MENU_ID) : '') ||
+    '';
+  return { vegMenuId: String(veg).trim(), nonVegMenuId: String(nonVeg).trim() };
+};
+
+export const persistKitchenMenuIds = (vegMenuId, nonVegMenuId) => {
+  if (typeof localStorage === 'undefined') return;
+  if (vegMenuId != null) localStorage.setItem(LS_KITCHEN_VEG_MENU_ID, String(vegMenuId).trim());
+  if (nonVegMenuId != null) localStorage.setItem(LS_KITCHEN_NONVEG_MENU_ID, String(nonVegMenuId).trim());
+};
+
+/** URL/API segment for `/v2/menus/by-kind/{...}/` (inventory server resolves `menu_id` from env). */
+export const KITCHEN_MENU_KIND = {
+  VEG: 'veg',
+  NON_VEG: 'non_veg'
+};
+
 /** @feature kitchen-store — Plan DTO normalization (generate / get / approve / issue). */
 const normalizePlanDetail = (planRaw, itemNameMap) => {
   if (!planRaw) return null;
@@ -225,7 +271,7 @@ function useKitchenStoreData() {
         try {
           const rRes = await api.get('/kitchen-store/v2/recipes/lines');
           const rData = rRes.data?.data;
-          const rawLines = Array.isArray(rData) ? rData : rData?.lines || [];
+          const rawLines = extractRecipeLinesArray(rData);
           const normalizedLines = normalizeRecipeLines(rawLines);
           if (!cancelled && normalizedLines.length > 0) setRecipeLines(normalizedLines);
         } catch {
@@ -592,9 +638,11 @@ function useKitchenStoreData() {
 
     try {
       await api.post('/kitchen-store/v2/recipes/lines', payload);
-      const rRes = await api.get('/kitchen-store/v2/recipes/lines');
+      const rRes = await api.get('/kitchen-store/v2/recipes/lines', {
+        params: payload.menu_item_id ? { menu_item_id: payload.menu_item_id } : {}
+      });
       const rData = rRes.data?.data;
-      const rawLines = Array.isArray(rData) ? rData : rData?.lines || [];
+      const rawLines = extractRecipeLinesArray(rData);
       const normalizedLines = normalizeRecipeLines(rawLines);
       if (normalizedLines.length) setRecipeLines(normalizedLines);
     } catch {
@@ -720,6 +768,287 @@ export const useKitchenRecipeMock = () => {
     recipeLines: data.recipeLines,
     addRecipeLine: data.addRecipeLine,
     deleteRecipeLine: data.deleteRecipeLine
+  };
+};
+
+const parseWeeklySchedulePayload = (res) => {
+  const d = res.data?.data ?? {};
+  const items = Array.isArray(d.items) ? d.items : [];
+  return {
+    menu_id: d.menu_id,
+    menu_kind: d.menu_kind,
+    items
+  };
+};
+
+/** @feature kitchen-store — `menus` rows for current company (Prisma). */
+export const fetchKitchenCatalogMenus = async () => {
+  const res = await api.get('/kitchen-store/v1/catalog/menus');
+  const data = res.data?.data;
+  return Array.isArray(data?.items) ? data.items : [];
+};
+
+/**
+ * Weekly schedule: default `GET .../by-kind/{veg|non_veg}/weekly-schedule` (kitchen inventory resolves menu_id).
+ * Optional: pick a company menu (`selectedMenuId`) → `GET .../menus/{uuid}/weekly-schedule`.
+ * Optional: `VITE_KITCHEN_USE_RAW_MENU_ROUTES` + env/localStorage UUIDs per veg/non-veg.
+ * Filters `items[]` by `dayOfWeek` + `mealSlot` locally.
+ * @feature kitchen-store
+ * @param {{ menuKind: string, dayOfWeek: number, mealSlot: string, scheduleReloadKey?: number, selectedMenuId?: string }} filters
+ */
+export const useKitchenWeeklyRecipeBom = ({
+  menuKind,
+  dayOfWeek,
+  mealSlot,
+  scheduleReloadKey = 0,
+  selectedMenuId = ''
+}) => {
+  const [schedulePayload, setSchedulePayload] = useState(null);
+  const [scheduleStatus, setScheduleStatus] = useState('idle');
+  const [scheduleError, setScheduleError] = useState('');
+
+  const [weeklySlot, setWeeklySlot] = useState(null);
+  const [slotStatus, setSlotStatus] = useState('idle');
+
+  const [recipeLines, setRecipeLines] = useState([]);
+  const [recipeStatus, setRecipeStatus] = useState('idle');
+  const [recipeError, setRecipeError] = useState('');
+
+  const catalogMenuId = String(selectedMenuId ?? '').trim();
+  const useCatalogMenu = catalogMenuId.length > 0;
+
+  const kindSegment = menuKind === KITCHEN_MENU_KIND.NON_VEG || menuKind === 'non_veg' ? 'non_veg' : 'veg';
+
+  const { vegMenuId, nonVegMenuId } = getConfiguredKitchenMenuIds();
+  const rawMenuIdForKind = kindSegment === 'non_veg' ? nonVegMenuId : vegMenuId;
+  const rawRoutesEnabled =
+    String(import.meta.env.VITE_KITCHEN_USE_RAW_MENU_ROUTES || '').toLowerCase() === 'true';
+  const useUuidPaths =
+    !useCatalogMenu && rawRoutesEnabled && String(rawMenuIdForKind || '').trim() !== '';
+
+  const targetMenuUuid = useCatalogMenu
+    ? catalogMenuId
+    : useUuidPaths
+      ? String(rawMenuIdForKind).trim()
+      : '';
+
+  const useMenuUuidApi = useCatalogMenu || useUuidPaths;
+
+  const scheduleFetchKey = useMemo(
+    () =>
+      [
+        useCatalogMenu ? `cat:${catalogMenuId}` : '',
+        useMenuUuidApi && !useCatalogMenu ? `raw:${targetMenuUuid}` : '',
+        !useMenuUuidApi ? `kind:${kindSegment}` : '',
+        scheduleReloadKey,
+        rawRoutesEnabled ? 'ro1' : 'ro0'
+      ]
+        .filter(Boolean)
+        .join('|'),
+    [useCatalogMenu, catalogMenuId, useMenuUuidApi, targetMenuUuid, kindSegment, scheduleReloadKey, rawRoutesEnabled]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    setScheduleStatus('loading');
+    setScheduleError('');
+    setSchedulePayload(null);
+
+    (async () => {
+      if (!useCatalogMenu && rawRoutesEnabled && !String(rawMenuIdForKind || '').trim()) {
+        if (!cancelled) {
+          setScheduleError(
+            'Raw menu UUID mode is on: set VITE_KITCHEN_VEG_MENU_ID and VITE_KITCHEN_NONVEG_MENU_ID (or VITE_KITCHEN_NON_VEG_MENU_ID), or save IDs in browser storage — or pick a menu from the company list below.'
+          );
+          setScheduleStatus('error');
+        }
+        return;
+      }
+      try {
+        const res = useMenuUuidApi
+          ? await api.get(`/kitchen-store/v2/menus/${encodeURIComponent(targetMenuUuid)}/weekly-schedule`)
+          : await api.get(`/kitchen-store/v2/menus/by-kind/${kindSegment}/weekly-schedule`);
+        if (cancelled) return;
+        setSchedulePayload(parseWeeklySchedulePayload(res));
+        setScheduleStatus('ok');
+      } catch (e) {
+        if (cancelled) return;
+        const msg =
+          e?.response?.data?.message || e?.response?.data?.detail || e?.message || 'Failed to load weekly schedule';
+        setSchedulePayload(null);
+        setScheduleError(msg);
+        setScheduleStatus('error');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scheduleFetchKey]);
+
+  useEffect(() => {
+    if (scheduleStatus === 'loading') {
+      setSlotStatus('loading');
+      setWeeklySlot(null);
+      return;
+    }
+    if (scheduleStatus === 'error') {
+      setSlotStatus('error');
+      setWeeklySlot(null);
+      return;
+    }
+    if (scheduleStatus !== 'ok' || !schedulePayload) {
+      setSlotStatus('idle');
+      setWeeklySlot(null);
+      return;
+    }
+    const slotUpper = String(mealSlot || '').toUpperCase();
+    const row = schedulePayload.items.find(
+      (i) => Number(i.day_of_week) === Number(dayOfWeek) && String(i.meal_slot || '').toUpperCase() === slotUpper
+    );
+    if (row) {
+      setWeeklySlot({
+        ...row,
+        menu_id: schedulePayload.menu_id,
+        menu_item_display_name: row.menu_item_display_name || row.menu_item_name || ''
+      });
+      setSlotStatus('ok');
+    } else {
+      setWeeklySlot(null);
+      setSlotStatus('not_found');
+    }
+  }, [scheduleStatus, schedulePayload, dayOfWeek, mealSlot]);
+
+  const saveWeeklySlot = useCallback(
+    async ({ day_of_week, meal_slot, menu_item_id }) => {
+      if (!menu_item_id) {
+        return { ok: false, message: 'Combo is required' };
+      }
+      try {
+        if (useMenuUuidApi) {
+          await api.put(`/kitchen-store/v2/menus/${encodeURIComponent(targetMenuUuid)}/weekly-slot`, {
+            day_of_week,
+            meal_slot,
+            menu_item_id
+          });
+          const sch = await api.get(
+            `/kitchen-store/v2/menus/${encodeURIComponent(targetMenuUuid)}/weekly-schedule`
+          );
+          setSchedulePayload(parseWeeklySchedulePayload(sch));
+        } else {
+          await api.put(`/kitchen-store/v2/menus/by-kind/${kindSegment}/weekly-slot`, {
+            day_of_week,
+            meal_slot,
+            menu_item_id
+          });
+          const sch = await api.get(`/kitchen-store/v2/menus/by-kind/${kindSegment}/weekly-schedule`);
+          setSchedulePayload(parseWeeklySchedulePayload(sch));
+        }
+        setScheduleStatus('ok');
+        setScheduleError('');
+        return { ok: true };
+      } catch (e) {
+        const msg =
+          e?.response?.data?.message || e?.response?.data?.detail || e?.message || 'Failed to save weekly slot';
+        setScheduleError(msg);
+        return { ok: false, message: msg };
+      }
+    },
+    [kindSegment, useMenuUuidApi, targetMenuUuid]
+  );
+
+  const searchMenuCombos = useCallback(
+    async (q, limit = 200) => {
+      try {
+        const url = useMenuUuidApi
+          ? `/kitchen-store/v2/menus/${encodeURIComponent(targetMenuUuid)}/menu-items`
+          : `/kitchen-store/v2/menus/by-kind/${kindSegment}/menu-items`;
+        const res = await api.get(url, {
+          params: { q: q || undefined, limit }
+        });
+        const data = res.data?.data;
+        const items = Array.isArray(data?.items) ? data.items : [];
+        return items.map((it) => ({
+          id: String(it.id ?? ''),
+          name: String(it.name ?? '')
+        }));
+      } catch {
+        return [];
+      }
+    },
+    [kindSegment, useMenuUuidApi, targetMenuUuid]
+  );
+
+  const fetchRecipeLinesForMenuItem = useCallback(async (menuItemId) => {
+    if (!menuItemId) {
+      setRecipeLines([]);
+      setRecipeStatus('idle');
+      return;
+    }
+    setRecipeStatus('loading');
+    setRecipeError('');
+    try {
+      const res = await api.get('/kitchen-store/v2/recipes/lines', {
+        params: { menu_item_id: menuItemId }
+      });
+      const rData = res.data?.data;
+      const rawLines = extractRecipeLinesArray(rData);
+      setRecipeLines(normalizeRecipeLines(rawLines));
+      setRecipeStatus('ok');
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message || e?.response?.data?.detail || e?.message || 'Failed to load recipe lines';
+      setRecipeLines([]);
+      setRecipeStatus('error');
+      setRecipeError(msg);
+    }
+  }, []);
+
+  const upsertRecipeLineForMenuItem = useCallback(async (line) => {
+    const payload = {
+      menu_item_id: line.menu_item_id,
+      inventory_item_id: line.inventory_item_id,
+      quantity_per_unit: line.quantity_per_unit,
+      unit: line.unit
+    };
+    try {
+      await api.post('/kitchen-store/v2/recipes/lines', payload);
+      await fetchRecipeLinesForMenuItem(line.menu_item_id);
+      return { ok: true };
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message || e?.response?.data?.detail || e?.message || 'Failed to save recipe line';
+      return { ok: false, message: msg };
+    }
+  }, [fetchRecipeLinesForMenuItem]);
+
+  const searchInventoryItems = useCallback(async (q) => {
+    try {
+      const res = await api.get('/kitchen-store/v1/items', {
+        params: { page: 1, page_size: 80, ...(q ? { q } : {}) }
+      });
+      const itemsData = res.data?.data || {};
+      return normalizeItems(itemsData.items || itemsData || []);
+    } catch {
+      return [];
+    }
+  }, []);
+
+  return {
+    weeklySlot,
+    slotStatus,
+    scheduleStatus,
+    scheduleError,
+    schedulePayload,
+    scheduleApiMode: useCatalogMenu ? 'company_catalog' : useUuidPaths ? 'raw_uuid' : 'by_kind',
+    recipeLines,
+    recipeStatus,
+    recipeError,
+    saveWeeklySlot,
+    searchMenuCombos,
+    fetchRecipeLinesForMenuItem,
+    upsertRecipeLineForMenuItem,
+    searchInventoryItems
   };
 };
 
@@ -911,6 +1240,12 @@ const normalizePurchaseRequestLine = (raw, index = 0) => {
   comparison_status: raw?.comparison_status || '',
   manager_review_status: raw?.manager_review_status || '',
   resolved_inventory_item_id: resolvedExplicit || invId || '',
+  brand_id:
+    raw?.brand_id != null && String(raw.brand_id).trim() !== ''
+      ? String(raw.brand_id)
+      : invNested?.brand_id != null && String(invNested.brand_id).trim() !== ''
+        ? String(invNested.brand_id)
+        : '',
   brand_name: brandName ? String(brandName) : '',
   brand_logo_s3_url: brandLogo ? String(brandLogo) : '',
   brand: brandField
@@ -945,6 +1280,9 @@ const normalizePurchaseReceiptLine = (raw, index = 0) => ({
   receipt_id: String(raw?.receipt_id ?? raw?.purchase_receipt_id ?? ''),
   inventory_item_id: raw?.inventory_item_id ? String(raw.inventory_item_id) : '',
   inventory_item_name: raw?.inventory_item_name || raw?.item_name || '',
+  brand_id: raw?.brand_id != null && String(raw.brand_id).trim() !== '' ? String(raw.brand_id) : '',
+  brand_name: (raw?.brand_name || '').trim(),
+  brand_logo_s3_url: (raw?.brand_logo_s3_url || '').trim(),
   purchase_request_line_id: raw?.purchase_request_line_id ? String(raw.purchase_request_line_id) : '',
   purchased_qty: toNum(raw?.purchased_qty ?? raw?.purchased_quantity ?? 0),
   purchase_unit: raw?.purchase_unit || raw?.unit || '',
@@ -952,7 +1290,7 @@ const normalizePurchaseReceiptLine = (raw, index = 0) => ({
   unit_price_in_base: toNum(raw?.unit_price_in_base ?? 0),
   line_total: toNum(raw?.line_total ?? 0),
   note: raw?.note || '',
-  off_list_purchase_reason: raw?.off_list_purchase_reason || '',
+  off_list_purchase_reason: raw?.off_list_purchase_reason ?? '',
   comparison_status: raw?.comparison_status || '',
   manager_review_status: raw?.manager_review_status || '',
   manager_action: raw?.manager_action || '',
@@ -999,6 +1337,9 @@ const normalizePurchaseExceptionRow = (raw, index = 0) => ({
   purchase_request_line_id: raw?.purchase_request_line_id ? String(raw.purchase_request_line_id) : '',
   inventory_item_id: raw?.inventory_item_id ? String(raw.inventory_item_id) : '',
   inventory_item_name: raw?.inventory_item_name || raw?.item_name || raw?.requested_item_name || '',
+  brand_id: raw?.brand_id != null ? String(raw.brand_id) : '',
+  brand_name: (raw?.brand_name || '').trim(),
+  brand_logo_s3_url: (raw?.brand_logo_s3_url || '').trim(),
   purchased_qty: toNum(raw?.purchased_qty ?? 0),
   purchase_unit: raw?.purchase_unit || raw?.unit || '',
   line_total: toNum(raw?.line_total ?? 0),

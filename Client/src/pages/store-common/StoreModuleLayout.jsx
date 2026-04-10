@@ -7,13 +7,13 @@ import { useLogout } from '../../hooks/userHooks/useLogin';
 /** @feature kitchen-store — Tenant layout: store manager / store operator navigation shell. */
 const managerLinks = [
   { to: 'store-manager/kitchen-dashboard', label: 'Manager Dashboard' },
+  { to: 'store-manager/recipe-bom', label: 'Recipe / BOM' },
   { to: 'store-manager/purchase-requests', label: 'Purchase Request Inbox' },
   { to: 'store-manager/purchase-receipts', label: 'Purchase Receipts' },
   { to: 'store-manager/purchase-comparison', label: 'Purchase Comparison' },
   { to: 'store-manager/off-list-review', label: 'Purchase Manager Review' },
   { to: 'store-manager/inventory', label: 'Inventory View' },
   { to: 'store-manager/stock-logs', label: 'Stock Logs' },
-  { to: 'store-manager/recipe-bom', label: 'Recipe / BOM' },
   { to: 'store-manager/plan-list', label: 'Plan List' },
   { to: 'store-manager/plan-approval', label: 'Plan Approval' },
   { to: 'store-manager/reports', label: 'Reports' },
@@ -30,7 +30,8 @@ const operatorLinks = [
   { to: 'store-operator/purchases', label: 'Purchase Receipts' },
   { to: 'store-operator/issue', label: 'Issue to Kitchen' },
   { to: 'store-operator/adjustments', label: 'Adjustments' },
-  { to: 'store-operator/meal-report', label: 'Meal Report' }
+  { to: 'store-operator/meal-report', label: 'Meal Report' },
+  { to: 'store-operator/recipe-bom', label: 'Recipe / BOM' }
 ];
 
 const linkClassName = ({ isActive }) =>

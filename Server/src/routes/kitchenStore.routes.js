@@ -54,7 +54,16 @@ import {
   listPurchaseRecommendations,
   listInventoryForecasts,
   listFinancialForecasts,
-  getMealReport
+  getMealReport,
+  listCatalogMenus,
+  getWeeklyScheduleByKind,
+  getWeeklySlotByKind,
+  putWeeklySlotByKind,
+  listMenuCombosByKind,
+  getWeeklySchedule,
+  getWeeklySlot,
+  putWeeklySlot,
+  listMenuCombos
 } from '../controllers/kitchenStore.controller.js';
 
 const router = express.Router();
@@ -102,10 +111,39 @@ router.post('/v1/items/:item_id/movements', checkRole('STORE_OPERATOR'), createI
 // v1: Low-stock + shopping list
 router.get('/v1/alerts/low-stock', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getLowStockAlerts);
 router.get('/v1/shopping-list', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getShoppingList);
+router.get('/v1/catalog/menus', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listCatalogMenus);
 
 // v2: Recipes
-router.post('/v2/recipes/lines', checkRole('STORE_MANAGER'), upsertRecipeLine);
+router.post('/v2/recipes/lines', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), upsertRecipeLine);
 router.get('/v2/recipes/lines', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listRecipeLines);
+
+// v2: Menus — by-kind (no menu UUID; register before :menu_id)
+router.get(
+  '/v2/menus/by-kind/:menu_kind/weekly-schedule',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  getWeeklyScheduleByKind
+);
+router.get(
+  '/v2/menus/by-kind/:menu_kind/weekly-slot',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  getWeeklySlotByKind
+);
+router.put(
+  '/v2/menus/by-kind/:menu_kind/weekly-slot',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  putWeeklySlotByKind
+);
+router.get(
+  '/v2/menus/by-kind/:menu_kind/menu-items',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  listMenuCombosByKind
+);
+
+// v2: Menus — raw menu_id (optional; same roles)
+router.get('/v2/menus/:menu_id/weekly-schedule', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getWeeklySchedule);
+router.get('/v2/menus/:menu_id/weekly-slot', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getWeeklySlot);
+router.put('/v2/menus/:menu_id/weekly-slot', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), putWeeklySlot);
+router.get('/v2/menus/:menu_id/menu-items', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listMenuCombos);
 
 // v2: Plans (generate, detail, approve, issue)
 router.post('/v2/plans/generate', checkRole('STORE_MANAGER'), generatePlan);

@@ -39,7 +39,7 @@ import StoreManagerPlanApprovalPage from './pages/store-manager/StoreManagerPlan
 import StoreManagerReportsPage from './pages/store-manager/StoreManagerReportsPage';
 import StoreManagerInventoryViewPage from './pages/store-manager/StoreManagerInventoryViewPage';
 import StoreManagerStockLogsPage from './pages/store-manager/StoreManagerStockLogsPage';
-import StoreManagerRecipeBomPage from './pages/store-manager/StoreManagerRecipeBomPage';
+import StoreOperatorRecipeBomPage from './pages/store-operator/StoreOperatorRecipeBomPage';
 import StoreManagerPlanListPage from './pages/store-manager/StoreManagerPlanListPage';
 import StoreManagerForecastDashboardPage from './pages/store-manager/StoreManagerForecastDashboardPage';
 import StoreManagerPurchaseSuggestionsPage from './pages/store-manager/StoreManagerPurchaseSuggestionsPage';
@@ -270,7 +270,6 @@ const App = () => {
                 <Route path="store-manager/reports" element={<StoreManagerReportsPage />} />
                 <Route path="store-manager/inventory" element={<StoreManagerInventoryViewPage />} />
                 <Route path="store-manager/stock-logs" element={<StoreManagerStockLogsPage />} />
-                <Route path="store-manager/recipe-bom" element={<StoreManagerRecipeBomPage />} />
                 <Route path="store-manager/plan-list" element={<StoreManagerPlanListPage />} />
                 <Route path="store-manager/forecast" element={<StoreManagerForecastDashboardPage />} />
                 <Route path="store-manager/purchase-suggestions" element={<StoreManagerPurchaseSuggestionsPage />} />
@@ -289,6 +288,8 @@ const App = () => {
                 <Route path="store-operator/item/:itemId" element={<StoreOperatorItemDetailPage />} />
                 <Route path="store-operator/purchases" element={<StoreOperatorPurchaseReceiptsPage />} />
                 <Route path="store-operator/meal-report" element={<StoreOperatorMealReportPage />} />
+                <Route path="store-operator/recipe-bom" element={<StoreOperatorRecipeBomPage />} />
+                <Route path="store-manager/recipe-bom" element={<StoreOperatorRecipeBomPage />} />
               </Route>
               <Route path="seller" element={<SellerPage />} />
               <Route path="seller/customers" element={<CustomersListPage />} />

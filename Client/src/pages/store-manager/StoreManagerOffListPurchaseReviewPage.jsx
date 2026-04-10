@@ -16,7 +16,9 @@ import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 /** @feature kitchen-store — STORE_MANAGER: off-list purchase exceptions / bulk review. */
 
 const ACTION_OPTIONS = ['KEEP', 'RETURN', 'INVESTIGATE', 'REJECT'];
-const COL_COUNT = 8;
+
+/** Columns without Off-list reason: Item, Brand, Receipt, Qty, Price, Status, Action, Note, Approve. */
+const BASE_PENDING_TABLE_COLS = 9;
 
 function shortId(id) {
   const s = String(id || '');
@@ -28,6 +30,28 @@ function formatPrice(value) {
   const n = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
   if (!Number.isFinite(n)) return '—';
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function ExceptionLineBrandCell({ row }) {
+  const logoSrc = (row.brand_logo_s3_url || '').trim();
+  const brandLabel = (row.brand_name || '').trim();
+  if (!brandLabel && !logoSrc) {
+    return <span className="text-sm text-slate-400">—</span>;
+  }
+  return (
+    <div className="flex min-w-0 max-w-[12rem] items-center gap-2">
+      {logoSrc ? (
+        <img
+          src={logoSrc}
+          alt={brandLabel ? `${brandLabel} logo` : ''}
+          className="h-7 w-7 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
+        />
+      ) : null}
+      <span className="min-w-0 truncate text-sm text-slate-800" title={brandLabel || undefined}>
+        {brandLabel || '—'}
+      </span>
+    </div>
+  );
 }
 
 /** Group lines by receipt; preserve receipt order as first seen in the list. */
@@ -48,6 +72,7 @@ function groupPendingByReceipt(rows) {
 /** One item row: action, note, Save line only. */
 function PendingReviewRow({
   row,
+  showOffListReasonColumn,
   actionLoading,
   busyKey,
   setBusyKey,
@@ -82,6 +107,9 @@ function PendingReviewRow({
   return (
     <TableRow className="align-top">
       <TableCell className="max-w-[14rem] font-medium">{row.inventory_item_name || '—'}</TableCell>
+      <TableCell>
+        <ExceptionLineBrandCell row={row} />
+      </TableCell>
       <TableCell className="whitespace-nowrap font-mono text-xs text-slate-600" title={row.receipt_id}>
         {shortId(row.receipt_id)}
       </TableCell>
@@ -96,6 +124,15 @@ function PendingReviewRow({
           {row.comparison_status || row.manager_review_status || 'PENDING'}
         </Badge>
       </TableCell>
+      {showOffListReasonColumn ? (
+        <TableCell className="max-w-[14rem] text-sm text-slate-700" title={row.off_list_purchase_reason || undefined}>
+          {row.off_list_purchase_reason?.trim() ? (
+            <span className="line-clamp-2">{row.off_list_purchase_reason}</span>
+          ) : (
+            <span className="text-slate-400">—</span>
+          )}
+        </TableCell>
+      ) : null}
       <TableCell className="min-w-[7.5rem]">
         <select
           className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-sm"
@@ -132,6 +169,7 @@ function PendingReviewRow({
 function ReceiptBulkRow({
   receiptId,
   lineCount,
+  tableColCount,
   actionLoading,
   busyKey,
   setBusyKey,
@@ -165,7 +203,7 @@ function ReceiptBulkRow({
 
   return (
     <TableRow className="border-t border-slate-200 bg-slate-50/80">
-      <TableCell colSpan={COL_COUNT} className="py-3">
+      <TableCell colSpan={tableColCount} className="py-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
           <p className="min-w-0 flex-1 text-sm text-slate-700">
             <span className="font-medium">Receipt</span>{' '}
@@ -224,6 +262,11 @@ const StoreManagerOffListPurchaseReviewPage = () => {
   }, [listPendingExceptions, pendingScope]);
 
   const segments = useMemo(() => groupPendingByReceipt(pendingExceptions), [pendingExceptions]);
+  const showOffListReasonColumn = useMemo(
+    () => pendingExceptions.some((row) => String(row.off_list_purchase_reason || '').trim().length > 0),
+    [pendingExceptions]
+  );
+  const pendingTableColCount = BASE_PENDING_TABLE_COLS + (showOffListReasonColumn ? 1 : 0);
   const scrollPendingTable = pendingExceptions.length > 6;
 
   const refresh = async (errorMessage) => {
@@ -312,10 +355,12 @@ const StoreManagerOffListPurchaseReviewPage = () => {
               >
                 <TableRow>
                   <TableHead>Item</TableHead>
+                  <TableHead>Brand</TableHead>
                   <TableHead>Receipt</TableHead>
                   <TableHead>Qty</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead>Status</TableHead>
+                  {showOffListReasonColumn ? <TableHead>Off-list reason</TableHead> : null}
                   <TableHead>Action</TableHead>
                   <TableHead>Note</TableHead>
                   <TableHead className="text-right">Approve individually</TableHead>
@@ -326,7 +371,7 @@ const StoreManagerOffListPurchaseReviewPage = () => {
                   <React.Fragment key={receiptId || 'no-receipt'}>
                     {receiptId && rows.some((r) => purchaseReceiptHasInvoice(r)) ? (
                       <TableRow className="bg-slate-50/90">
-                        <TableCell colSpan={COL_COUNT} className="py-2">
+                        <TableCell colSpan={pendingTableColCount} className="py-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-sm text-slate-600">
                               Receipt{' '}
@@ -351,6 +396,7 @@ const StoreManagerOffListPurchaseReviewPage = () => {
                       <PendingReviewRow
                         key={row.id}
                         row={row}
+                        showOffListReasonColumn={showOffListReasonColumn}
                         actionLoading={actionLoading}
                         busyKey={busyKey}
                         setBusyKey={setBusyKey}
@@ -362,6 +408,7 @@ const StoreManagerOffListPurchaseReviewPage = () => {
                       <ReceiptBulkRow
                         receiptId={receiptId}
                         lineCount={rows.length}
+                        tableColCount={pendingTableColCount}
                         actionLoading={actionLoading}
                         busyKey={busyKey}
                         setBusyKey={setBusyKey}

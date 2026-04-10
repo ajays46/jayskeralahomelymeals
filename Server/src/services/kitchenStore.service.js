@@ -272,6 +272,171 @@ export const listRecipeLinesService = async (query = {}, companyId, userId = nul
   }
 };
 
+/** @feature kitchen-store — Weekly menu slot + menu-item picker (upstream /v2/menus/...). */
+export const getWeeklySlotService = async (menuId, query = {}, companyId, userId = null) => {
+  const mid = String(menuId || '').trim();
+  try {
+    const response = await apiClient.get(
+      `/v2/menus/${encodeURIComponent(mid)}/weekly-slot`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getWeeklySlot', { endpoint: '/v2/menus/:menu_id/weekly-slot', companyId: companyId || null, menuId: mid });
+    return response.data;
+  } catch (error) {
+    logKitchenError('getWeeklySlot', error, { endpoint: '/v2/menus/:menu_id/weekly-slot', companyId: companyId || null, menuId: mid });
+    throw mapAxiosError(error);
+  }
+};
+
+export const putWeeklySlotService = async (menuId, body, companyId, userId = null) => {
+  const mid = String(menuId || '').trim();
+  try {
+    const response = await apiClient.put(
+      `/v2/menus/${encodeURIComponent(mid)}/weekly-slot`,
+      body,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('putWeeklySlot', { endpoint: '/v2/menus/:menu_id/weekly-slot', companyId: companyId || null, menuId: mid });
+    return response.data;
+  } catch (error) {
+    logKitchenError('putWeeklySlot', error, { endpoint: '/v2/menus/:menu_id/weekly-slot', companyId: companyId || null, menuId: mid });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listMenuCombosService = async (menuId, query = {}, companyId, userId = null) => {
+  const mid = String(menuId || '').trim();
+  try {
+    const response = await apiClient.get(
+      `/v2/menus/${encodeURIComponent(mid)}/menu-items`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('listMenuCombos', { endpoint: '/v2/menus/:menu_id/menu-items', companyId: companyId || null, menuId: mid });
+    return response.data;
+  } catch (error) {
+    logKitchenError('listMenuCombos', error, { endpoint: '/v2/menus/:menu_id/menu-items', companyId: companyId || null, menuId: mid });
+    throw mapAxiosError(error);
+  }
+};
+
+/** @feature kitchen-store — GET /v2/menus/:menu_id/weekly-schedule (optional raw UUID; same shape as by-kind). */
+export const getWeeklyScheduleService = async (menuId, query = {}, companyId, userId = null) => {
+  const mid = String(menuId || '').trim();
+  try {
+    const response = await apiClient.get(
+      `/v2/menus/${encodeURIComponent(mid)}/weekly-schedule`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getWeeklySchedule', {
+      endpoint: '/v2/menus/:menu_id/weekly-schedule',
+      companyId: companyId || null,
+      menuId: mid
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('getWeeklySchedule', error, {
+      endpoint: '/v2/menus/:menu_id/weekly-schedule',
+      companyId: companyId || null,
+      menuId: mid
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+/** @feature kitchen-store — `/v2/menus/by-kind/{veg|non_veg}/...` (no menu UUID in URL). */
+export const getWeeklyScheduleByKindService = async (menuKindSegment, query = {}, companyId, userId = null) => {
+  const seg = String(menuKindSegment || '').trim();
+  try {
+    const response = await apiClient.get(
+      `/v2/menus/by-kind/${encodeURIComponent(seg)}/weekly-schedule`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getWeeklyScheduleByKind', {
+      endpoint: '/v2/menus/by-kind/:menu_kind/weekly-schedule',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('getWeeklyScheduleByKind', error, {
+      endpoint: '/v2/menus/by-kind/:menu_kind/weekly-schedule',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getWeeklySlotByKindService = async (menuKindSegment, query = {}, companyId, userId = null) => {
+  const seg = String(menuKindSegment || '').trim();
+  try {
+    const response = await apiClient.get(
+      `/v2/menus/by-kind/${encodeURIComponent(seg)}/weekly-slot`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getWeeklySlotByKind', {
+      endpoint: '/v2/menus/by-kind/:menu_kind/weekly-slot',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('getWeeklySlotByKind', error, {
+      endpoint: '/v2/menus/by-kind/:menu_kind/weekly-slot',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const putWeeklySlotByKindService = async (menuKindSegment, body, companyId, userId = null) => {
+  const seg = String(menuKindSegment || '').trim();
+  try {
+    const response = await apiClient.put(
+      `/v2/menus/by-kind/${encodeURIComponent(seg)}/weekly-slot`,
+      body,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('putWeeklySlotByKind', {
+      endpoint: '/v2/menus/by-kind/:menu_kind/weekly-slot',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('putWeeklySlotByKind', error, {
+      endpoint: '/v2/menus/by-kind/:menu_kind/weekly-slot',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listMenuCombosByKindService = async (menuKindSegment, query = {}, companyId, userId = null) => {
+  const seg = String(menuKindSegment || '').trim();
+  try {
+    const response = await apiClient.get(
+      `/v2/menus/by-kind/${encodeURIComponent(seg)}/menu-items`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('listMenuCombosByKind', {
+      endpoint: '/v2/menus/by-kind/:menu_kind/menu-items',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    return response.data;
+  } catch (error) {
+    logKitchenError('listMenuCombosByKind', error, {
+      endpoint: '/v2/menus/by-kind/:menu_kind/menu-items',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    throw mapAxiosError(error);
+  }
+};
+
 // v2 plans → upstream /v2/plans/*
 export const generatePlanService = async (body, companyId, userId = null) => {
   try {

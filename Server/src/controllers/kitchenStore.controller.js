@@ -46,7 +46,15 @@ import {
   listPurchaseRecommendationsService,
   listInventoryForecastsService,
   listFinancialForecastsService,
-  getMealReportService
+  getMealReportService,
+  getWeeklySlotService,
+  putWeeklySlotService,
+  listMenuCombosService,
+  getWeeklyScheduleService,
+  getWeeklyScheduleByKindService,
+  getWeeklySlotByKindService,
+  putWeeklySlotByKindService,
+  listMenuCombosByKindService
 } from '../services/kitchenStore.service.js';
 import {
   listInventoryItemImagesService,
@@ -58,6 +66,7 @@ import {
   enrichPurchaseRequestListPayload,
   enrichSinglePurchaseRequestPayload
 } from '../utils/purchaseRequestEnrichment.js';
+import { listKitchenCatalogMenus } from '../services/kitchenCatalog.service.js';
 
 const requireIdParam = (value, name) => {
   if (!value || typeof value !== 'string' || !value.trim()) {
@@ -311,6 +320,276 @@ export const upsertRecipeLine = async (req, res, next) => {
 export const listRecipeLines = async (req, res, next) => {
   try {
     const result = await listRecipeLinesService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** @feature kitchen-store — Company menus from DB (`menus` table) for recipe/schedule UI. */
+export const listCatalogMenus = async (req, res, next) => {
+  try {
+    const companyId = req.companyId;
+    if (!companyId || typeof companyId !== 'string' || !companyId.trim()) {
+      throw new AppError('Company context is required (X-Company-ID header or user company)', 400);
+    }
+    const rows = await listKitchenCatalogMenus(companyId);
+    const items = rows.map((m) => ({
+      id: m.id,
+      name: m.name,
+      status: m.status,
+      created_at: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt
+    }));
+    res.status(200).json({ success: true, data: { items } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const MEAL_SLOTS = new Set(['BREAKFAST', 'LUNCH', 'DINNER']);
+
+/** Path segment for upstream `/v2/menus/by-kind/{seg}/...` (veg | non_veg). */
+const normalizeMenuKindSegment = (raw) => {
+  const k = String(raw ?? '')
+    .toLowerCase()
+    .trim()
+    .replace(/-/g, '_');
+  if (k === 'veg') return 'veg';
+  if (k === 'non_veg' || k === 'nonveg') return 'non_veg';
+  throw new AppError('menu_kind must be veg, non_veg, or non-veg', 400);
+};
+
+const buildOptionalWeeklyScheduleQuery = (req) => {
+  const query = {};
+  if (req.query.day_of_week != null && String(req.query.day_of_week).trim() !== '') {
+    const dow = Number(req.query.day_of_week);
+    if (!Number.isInteger(dow) || dow < 1 || dow > 7) {
+      throw new AppError('day_of_week must be an integer from 1 (Monday) through 7 (Sunday)', 400);
+    }
+    query.day_of_week = dow;
+  }
+  if (req.query.meal_slot != null && String(req.query.meal_slot).trim() !== '') {
+    const meal_slot = requireNonEmptyString(req.query.meal_slot, 'meal_slot').toUpperCase();
+    if (!MEAL_SLOTS.has(meal_slot)) {
+      throw new AppError('meal_slot must be BREAKFAST, LUNCH, or DINNER', 400);
+    }
+    query.meal_slot = meal_slot;
+  }
+  return query;
+};
+
+/** @feature kitchen-store — GET /v2/menus/by-kind/:menu_kind/weekly-schedule */
+export const getWeeklyScheduleByKind = async (req, res, next) => {
+  try {
+    const segment = normalizeMenuKindSegment(req.params.menu_kind);
+    const query = buildOptionalWeeklyScheduleQuery(req);
+    const result = await getWeeklyScheduleByKindService(segment, query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** @feature kitchen-store — GET /v2/menus/:menu_id/weekly-schedule (optional; same optional filters as by-kind). */
+export const getWeeklySchedule = async (req, res, next) => {
+  try {
+    const menuId = requireIdParam(req.params.menu_id, 'menu_id');
+    const query = buildOptionalWeeklyScheduleQuery(req);
+    const result = await getWeeklyScheduleService(menuId, query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** @feature kitchen-store — GET /v2/menus/by-kind/:menu_kind/weekly-slot */
+export const getWeeklySlotByKind = async (req, res, next) => {
+  try {
+    const segment = normalizeMenuKindSegment(req.params.menu_kind);
+    const meal_slot = requireNonEmptyString(req.query.meal_slot, 'meal_slot').toUpperCase();
+    if (!MEAL_SLOTS.has(meal_slot)) {
+      throw new AppError('meal_slot must be BREAKFAST, LUNCH, or DINNER', 400);
+    }
+
+    const dateRaw = req.query.date;
+    const dowRaw = req.query.day_of_week;
+    const hasDate = dateRaw != null && String(dateRaw).trim() !== '';
+    const hasDow = dowRaw != null && String(dowRaw).trim() !== '';
+
+    if (hasDate && hasDow) {
+      throw new AppError('Provide either date or day_of_week, not both', 400);
+    }
+    if (!hasDate && !hasDow) {
+      throw new AppError('Provide date or day_of_week', 400);
+    }
+
+    const query = { meal_slot };
+    if (hasDate) {
+      const date = String(dateRaw).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new AppError('date must be YYYY-MM-DD', 400);
+      }
+      query.date = date;
+    } else {
+      const dow = Number(dowRaw);
+      if (!Number.isInteger(dow) || dow < 1 || dow > 7) {
+        throw new AppError('day_of_week must be an integer from 1 (Monday) through 7 (Sunday)', 400);
+      }
+      query.day_of_week = dow;
+    }
+
+    const result = await getWeeklySlotByKindService(segment, query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** @feature kitchen-store — PUT /v2/menus/by-kind/:menu_kind/weekly-slot */
+export const putWeeklySlotByKind = async (req, res, next) => {
+  try {
+    const segment = normalizeMenuKindSegment(req.params.menu_kind);
+    const body = req.body || {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      throw new AppError('Request body must be an object', 400);
+    }
+
+    const meal_slot = requireNonEmptyString(body.meal_slot, 'meal_slot').toUpperCase();
+    if (!MEAL_SLOTS.has(meal_slot)) {
+      throw new AppError('meal_slot must be BREAKFAST, LUNCH, or DINNER', 400);
+    }
+
+    const dow = Number(body.day_of_week);
+    if (!Number.isInteger(dow) || dow < 1 || dow > 7) {
+      throw new AppError('day_of_week must be an integer from 1 (Monday) through 7 (Sunday)', 400);
+    }
+
+    const menu_item_id = requireIdParam(body.menu_item_id, 'menu_item_id');
+
+    const result = await putWeeklySlotByKindService(
+      segment,
+      { day_of_week: dow, meal_slot, menu_item_id },
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** @feature kitchen-store — GET /v2/menus/by-kind/:menu_kind/menu-items */
+export const listMenuCombosByKind = async (req, res, next) => {
+  try {
+    const segment = normalizeMenuKindSegment(req.params.menu_kind);
+    const query = {};
+    const q = optionalTrimmedString(req.query.q, 'q');
+    if (q !== undefined) query.q = q;
+    if (req.query.limit != null && String(req.query.limit).trim() !== '') {
+      const lim = Number(req.query.limit);
+      if (!Number.isFinite(lim) || lim < 1 || lim > 500) {
+        throw new AppError('limit must be between 1 and 500', 400);
+      }
+      query.limit = Math.floor(lim);
+    }
+    const result = await listMenuCombosByKindService(segment, query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** @feature kitchen-store — GET /v2/menus/:menu_id/weekly-slot (date XOR day_of_week + meal_slot). */
+export const getWeeklySlot = async (req, res, next) => {
+  try {
+    const menuId = requireIdParam(req.params.menu_id, 'menu_id');
+    const meal_slot = requireNonEmptyString(req.query.meal_slot, 'meal_slot').toUpperCase();
+    if (!MEAL_SLOTS.has(meal_slot)) {
+      throw new AppError('meal_slot must be BREAKFAST, LUNCH, or DINNER', 400);
+    }
+
+    const dateRaw = req.query.date;
+    const dowRaw = req.query.day_of_week;
+    const hasDate = dateRaw != null && String(dateRaw).trim() !== '';
+    const hasDow = dowRaw != null && String(dowRaw).trim() !== '';
+
+    if (hasDate && hasDow) {
+      throw new AppError('Provide either date or day_of_week, not both', 400);
+    }
+    if (!hasDate && !hasDow) {
+      throw new AppError('Provide date or day_of_week', 400);
+    }
+
+    const query = { meal_slot };
+    if (hasDate) {
+      const date = String(dateRaw).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new AppError('date must be YYYY-MM-DD', 400);
+      }
+      query.date = date;
+    } else {
+      const dow = Number(dowRaw);
+      if (!Number.isInteger(dow) || dow < 1 || dow > 7) {
+        throw new AppError('day_of_week must be an integer from 1 (Monday) through 7 (Sunday)', 400);
+      }
+      query.day_of_week = dow;
+    }
+
+    const result = await getWeeklySlotService(menuId, query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** @feature kitchen-store — PUT /v2/menus/:menu_id/weekly-slot */
+export const putWeeklySlot = async (req, res, next) => {
+  try {
+    const menuId = requireIdParam(req.params.menu_id, 'menu_id');
+    const body = req.body || {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      throw new AppError('Request body must be an object', 400);
+    }
+
+    const meal_slot = requireNonEmptyString(body.meal_slot, 'meal_slot').toUpperCase();
+    if (!MEAL_SLOTS.has(meal_slot)) {
+      throw new AppError('meal_slot must be BREAKFAST, LUNCH, or DINNER', 400);
+    }
+
+    const dow = Number(body.day_of_week);
+    if (!Number.isInteger(dow) || dow < 1 || dow > 7) {
+      throw new AppError('day_of_week must be an integer from 1 (Monday) through 7 (Sunday)', 400);
+    }
+
+    const menu_item_id = requireIdParam(body.menu_item_id, 'menu_item_id');
+
+    const result = await putWeeklySlotService(
+      menuId,
+      { day_of_week: dow, meal_slot, menu_item_id },
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** @feature kitchen-store — GET /v2/menus/:menu_id/menu-items */
+export const listMenuCombos = async (req, res, next) => {
+  try {
+    const menuId = requireIdParam(req.params.menu_id, 'menu_id');
+    const query = {};
+    const q = optionalTrimmedString(req.query.q, 'q');
+    if (q !== undefined) query.q = q;
+    if (req.query.limit != null && String(req.query.limit).trim() !== '') {
+      const lim = Number(req.query.limit);
+      if (!Number.isFinite(lim) || lim < 1 || lim > 500) {
+        throw new AppError('limit must be between 1 and 500', 400);
+      }
+      query.limit = Math.floor(lim);
+    }
+    const result = await listMenuCombosService(menuId, query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
