@@ -28,7 +28,7 @@ const StoreManagerKitchenDashboard = () => {
           {lowStockItems.length === 0 ? (
             <p className="text-sm text-gray-500 mt-2">No low stock alerts.</p>
           ) : (
-            <ul className="mt-2 text-sm text-gray-700 space-y-1">
+            <ul className="mt-2 text-sm text-gray-700 space-y-1 max-h-60 overflow-y-auto pr-1">
               {lowStockItems.map((item) => (
                 <li key={item.id}>
                   {item.name}: {item.current_quantity} {item.unit} (min {item.min_quantity})
