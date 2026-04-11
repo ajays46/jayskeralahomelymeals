@@ -1,3 +1,4 @@
+/** @product max_kitchen · @feature delivery-executive — exec routes, location updates, proof-of-delivery photos */
 import express from 'express';
 import multer from 'multer';
 import { resolveCompanyId } from '../middleware/resolveCompanyId.js';

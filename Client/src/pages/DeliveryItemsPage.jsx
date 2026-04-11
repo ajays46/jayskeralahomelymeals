@@ -19,6 +19,7 @@ import {
   MdRefresh
 } from 'react-icons/md';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 import Navbar from '../components/Navbar';
 
 const DeliveryItemsPage = () => {
@@ -47,7 +48,7 @@ const DeliveryItemsPage = () => {
     setLoading(true);
     try {
       // You'll need to implement this endpoint or use existing one
-      const response = await axiosInstance.get(`/orders/${orderId}`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/orders/${orderId}`);
       if (response.data.success) {
         setOrder(response.data.data);
       }
@@ -66,7 +67,7 @@ const DeliveryItemsPage = () => {
   const cancelDeliveryItem = async (deliveryItemId) => {
     setCancellingItems(prev => new Set(prev).add(deliveryItemId));
     try {
-      const response = await axiosInstance.put(`/seller/delivery-items/${deliveryItemId}/cancel`);
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/seller/delivery-items/${deliveryItemId}/cancel`);
       if (response.data.success) {
         showSuccessToast('Delivery item cancelled successfully');
         

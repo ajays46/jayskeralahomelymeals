@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Simplified delivery dashboard hook - Only summary and executives performance
@@ -46,7 +47,7 @@ export const useDeliveryDashboard = (period = 'all') => {
       setIsLoading(true);
       setError(null);
       
-      const response = await axiosInstance.get(`/delivery-dashboard/summary?period=${period}`);
+      const response = await axiosInstance.get(`${API.DELIVERY_DASH}/summary?period=${period}`);
       
       if (response.data.success) {
         setDashboardData(response.data.data);
@@ -91,7 +92,7 @@ export const useDeliveryExecutivesPerformance = (period = 'all') => {
       setIsLoading(true);
       setError(null);
       
-      const response = await axiosInstance.get(`/delivery-dashboard/executives-performance?period=${period}`);
+      const response = await axiosInstance.get(`${API.DELIVERY_DASH}/executives-performance?period=${period}`);
       
       if (response.data.success) {
         setExecutivesData(response.data.data);

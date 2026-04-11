@@ -1,7 +1,4 @@
-/**
- * ML Trip Routes - MaXHub Logistics delivery partner trip submission.
- * Base path: /api/ml-trips
- */
+/** @product max_route · @feature trips — trip CRUD, dashboard, shift/route start, route-overview maps */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

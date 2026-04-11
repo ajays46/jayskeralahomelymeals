@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -94,7 +95,7 @@ const FinancialDashboardPage = () => {
   useEffect(() => {
     const fetchFinancialData = async () => {
       try {
-        const response = await axiosInstance.get(`/financial/summary?period=${revenueFilter}`);
+        const response = await axiosInstance.get(`${API.FINANCIAL}/summary?period=${revenueFilter}`);
         
         if (response.data.success) {
           setFinancialData(response.data.data);

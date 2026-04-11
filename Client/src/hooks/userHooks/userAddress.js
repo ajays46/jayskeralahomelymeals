@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 // API functions
 const addressApi = {
   // Get all addresses
   getAddresses: async () => {
-    const response = await api.get('/addresses');
+    const response = await api.get(`${API.ADDRESSES}`);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to fetch addresses');
@@ -16,7 +17,7 @@ const addressApi = {
 
   // Create new address
   createAddress: async (addressData) => {
-    const response = await api.post('/addresses', addressData, {
+    const response = await api.post(`${API.ADDRESSES}`, addressData, {
       headers: {
         'Content-Type': 'application/json'
       }
@@ -31,7 +32,7 @@ const addressApi = {
 
   // Update address
   updateAddress: async ({ id, addressData }) => {
-    const response = await api.put(`/addresses/${id}`, addressData, {
+    const response = await api.put(`${API.ADDRESSES}/${id}`, addressData, {
       headers: {
         'Content-Type': 'application/json'
       }
@@ -46,7 +47,7 @@ const addressApi = {
 
   // Delete address
   deleteAddress: async (id) => {
-    const response = await api.delete(`/addresses/${id}`);
+    const response = await api.delete(`${API.ADDRESSES}/${id}`);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to delete address');
@@ -57,7 +58,7 @@ const addressApi = {
 
   // Get address by ID
   getAddressById: async (id) => {
-    const response = await api.get(`/addresses/${id}`);
+    const response = await api.get(`${API.ADDRESSES}/${id}`);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to fetch address');

@@ -1,3 +1,4 @@
+/** @product max_kitchen · @feature payments — payment processing, receipt upload */
 import express from 'express';
 import {
     createPayment,

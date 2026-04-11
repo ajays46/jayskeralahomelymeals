@@ -1,4 +1,5 @@
 import prisma from '../config/prisma.js';
+import kitchenPrisma from '../config/kitchenPrisma.js';
 import AppError from '../utils/AppError.js';
 import { increaseProductQuantitiesService } from './inventory.service.js';
 import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../utils/criticalLogger.js';
@@ -1117,7 +1118,7 @@ export const generateCustomerAccessLink = async (userId, sellerId) => {
     let tokenExists = true;
     let retries = 0;
     while (tokenExists && retries < 5) {
-      const existing = await prisma.customerPortalToken.findUnique({
+      const existing = await kitchenPrisma.customerPortalToken.findUnique({
         where: { shortToken }
       });
       if (!existing) {
@@ -1136,7 +1137,7 @@ export const generateCustomerAccessLink = async (userId, sellerId) => {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     // Store short token in database
-    await prisma.customerPortalToken.create({
+    await kitchenPrisma.customerPortalToken.create({
       data: {
         shortToken,
         userId,

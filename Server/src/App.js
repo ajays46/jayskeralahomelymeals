@@ -7,33 +7,19 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import maxKitchenV1Routes from './routes/max_kitchen/v1/index.js';
+import maxRouteV1Routes from './routes/max_route/v1/index.js';
+import jaiceV1Routes from './routes/jaice/v1/index.js';
+import { extractApiVersion } from './middleware/apiVersion.js';
+
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
-import sellerRoutes from './routes/seller.routes.js';
 import addressRoutes from './routes/auth.address.route.js';
-import orderRoutes from './routes/order.routes.js';
-import paymentRoutes from './routes/payment.routes.js';
-import deliveryItemRoutes from './routes/deliveryItem.routes.js';
-import deliveryManagerRoutes from './routes/deliveryManager.routes.js';
-import deliveryExecutiveRoutes from './routes/deliveryExecutive.routes.js';
 import externalUploadRoutes from './routes/externalUpload.routes.js';
 import financialRoutes from './routes/financial.routes.js';
 import deliveryDashboardRoutes from './routes/deliveryDashboard.routes.js';
-import sellerPerformanceRoutes from './routes/sellerPerformance.routes.js';
-import customerAccessRoutes from './routes/customerAccess.routes.js';
-import aiRouteRoutes from './routes/aiRoute.routes.js';
 import cxoRoutes from './routes/cxo.routes.js';
-import assistantRoutes from './routes/assistant.routes.js';
-import driverMapsRoutes from './routes/driverMaps.routes.js';
 import tenantRoutes from './routes/tenant.routes.js';
-import textRoutes from './routes/text.routes.js';
-import mlTripRoutes from './routes/mlTrip.routes.js';
-import mlAssistantRoutes from './routes/mlAssistant.routes.js';
-import mlShiftRoutes from './routes/mlShift.routes.js';
-import mlJourneyRoutes from './routes/mlJourney.routes.js';
-import mlVehicleTrackingRoutes from './routes/mlVehicleTracking.routes.js';
-import mlPartnerManagerRoutes from './routes/mlPartnerManager.routes.js';
-import kitchenStoreRoutes from './routes/kitchenStore.routes.js';
 import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
 import logRotationManager from './utils/logRotationManager.js';
 import { logInfo, logError, LOG_CATEGORIES } from './utils/criticalLogger.js';
@@ -136,36 +122,33 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/seller', sellerRoutes);
-app.use('/api/addresses', addressRoutes);
-app.use('/api/orders', orderRoutes);
+// ──── Product Namespaces ────
+// @product max_kitchen — food-delivery SaaS (store, orders, payments, seller, delivery, customer-portal)
+app.use('/api/max_kitchen/v1', maxKitchenV1Routes);
+// @product max_route — last-mile logistics (ai-routes, trips, journey, shift, partner-manager, tracking)
+app.use('/api/max_route/v1', maxRouteV1Routes);
+// @product jaice — AI assistants (delivery-manager chat, Jaice ML assistant)
+app.use('/api/jaice/v1', jaiceV1Routes);
 
-app.use('/api/payments', paymentRoutes);
-app.use('/api/delivery-items', deliveryItemRoutes);
-app.use('/api/delivery-managers', deliveryManagerRoutes);
-app.use('/api/delivery-executives', deliveryExecutiveRoutes);
+// ──── Versioned — cross-product / company-scoped ────
+// @feature auth — registration, login, token refresh, password reset (all companies)
+app.use('/api/v1/auth', extractApiVersion, authRoutes);
+// @feature admin — company CRUD, products, menus, users, route planning proxy (company-type aware)
+app.use('/api/v1/admin', extractApiVersion, adminRoutes);
+// @feature addresses — user address CRUD (all companies)
+app.use('/api/v1/addresses', extractApiVersion, addressRoutes);
+// @feature cxo — CEO/CFO dashboard, manager hierarchy, route map data (isolated from company type)
+app.use('/api/v1/cxo', extractApiVersion, cxoRoutes);
+// @feature delivery-dashboard — CEO delivery analytics: summary, exec performance, time, failures
+app.use('/api/v1/delivery-dashboard', extractApiVersion, deliveryDashboardRoutes);
+// @feature financial — CEO/CFO financial summary dashboard
+app.use('/api/v1/financial', extractApiVersion, financialRoutes);
+
+// ──── Unversioned — shared / legacy ────
+// @feature external — image upload proxy to external APIs
 app.use('/api/external', externalUploadRoutes);
-app.use('/api/financial', financialRoutes);
-app.use('/api/delivery-dashboard', deliveryDashboardRoutes);
-app.use('/api/seller-performance', sellerPerformanceRoutes);
-app.use('/api/customer-portal', customerAccessRoutes);
-app.use('/api/ai-routes', aiRouteRoutes);
-app.use('/api/cxo', cxoRoutes);
-app.use('/api/assistant', assistantRoutes);
-app.use('/api/drivers', driverMapsRoutes);
-// @feature kitchen-store — mount BFF (`Server/src/routes/kitchenStore.routes.js`)
-app.use('/api/kitchen-store', kitchenStoreRoutes);
-app.use('/api', textRoutes);
+// @feature tenant — company resolution by URL path (multi-tenant)
 app.use('/api', tenantRoutes);
-app.use('/api/ml-trips', mlTripRoutes);
-app.use('/api/ml-assistant', mlAssistantRoutes);
-app.use('/api/shift', mlShiftRoutes);
-app.use('/api/journey', mlJourneyRoutes);
-app.use('/api', mlVehicleTrackingRoutes);
-app.use('/api/ml-partner-manager', mlPartnerManagerRoutes);
 
 // Error logging middleware (should be after routes but before error handler)
 app.use(errorLogger);

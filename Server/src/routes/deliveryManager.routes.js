@@ -1,3 +1,4 @@
+/** @product max_kitchen · @feature delivery-manager — manager-level order/item cancellation */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Admin Hooks - Collection of React Query hooks for admin operations
@@ -11,7 +12,7 @@ export const useCreateCompany = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (company) => {
-            const response = await api.post('/admin/company-create', company);
+            const response = await api.post(`${API.ADMIN}/company-create`, company);
             return response.data;
         },
         onSuccess: () => {
@@ -24,7 +25,7 @@ export const useCompanyList = () => {
     return useQuery({
         queryKey: ['companyList'],
         queryFn: async () => {
-            const response = await api.get('/admin/company-list');
+            const response = await api.get(`${API.ADMIN}/company-list`);
             return response.data;
         }
     });
@@ -34,7 +35,7 @@ export const useCompanyDelete = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id) => {
-            const response = await api.put('/admin/company-delete', { id });
+            const response = await api.put(`${API.ADMIN}/company-delete`, { id });
             return response.data;
         },
         onSuccess: () => {
@@ -47,7 +48,7 @@ export const useCreateProduct = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (productData) => {
-            const response = await api.post('/admin/product-create', productData);
+            const response = await api.post(`${API.ADMIN}/product-create`, productData);
             return response.data;
         },
         onSuccess: () => {
@@ -61,7 +62,7 @@ export const useProductList = () => {
     return useQuery({
         queryKey: ['productList'],
         queryFn: async () => {
-            const response = await api.get('/admin/product-list');
+            const response = await api.get(`${API.ADMIN}/product-list`);
             return response.data;
         }
     });
@@ -71,7 +72,7 @@ export const useProductById = (productId) => {
     return useQuery({
         queryKey: ['product', productId],
         queryFn: async () => {
-            const response = await api.get(`/admin/product/${productId}`);
+            const response = await api.get(`${API.ADMIN}/product/${productId}`);
             return response.data;
         },
         enabled: !!productId
@@ -82,7 +83,7 @@ export const useUpdateProduct = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ productId, productData }) => {
-            const response = await api.put(`/admin/product/${productId}`, productData);
+            const response = await api.put(`${API.ADMIN}/product/${productId}`, productData);
             return response.data;
         },
         onSuccess: (data, variables) => {
@@ -96,7 +97,7 @@ export const useDeleteProduct = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (productId) => {
-            const response = await api.delete(`/admin/product/${productId}`);
+            const response = await api.delete(`${API.ADMIN}/product/${productId}`);
             return response.data;
         },
         onSuccess: () => {
@@ -131,7 +132,7 @@ export const useAdminOrders = (filters = {}) => {
                 params.append('limit', filters.limit);
             }
 
-            const response = await api.get(`/admin/orders?${params.toString()}`);
+            const response = await api.get(`${API.ADMIN}/orders?${params.toString()}`);
             return response.data;
         },
         keepPreviousData: true
@@ -142,7 +143,7 @@ export const useUpdateOrderStatus = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ orderId, status }) => {
-            const response = await api.put(`/admin/orders/${orderId}/status`, { status });
+            const response = await api.put(`${API.ADMIN}/orders/${orderId}/status`, { status });
             return response.data;
         },
         onSuccess: () => {
@@ -155,7 +156,7 @@ export const useDeleteOrder = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (orderId) => {
-            const response = await api.delete(`/admin/orders/${orderId}`);
+            const response = await api.delete(`${API.ADMIN}/orders/${orderId}`);
             return response.data;
         },
         onSuccess: () => {
@@ -169,7 +170,7 @@ export const useCreateMenu = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (menuData) => {
-            const response = await api.post('/admin/menu-create', menuData);
+            const response = await api.post(`${API.ADMIN}/menu-create`, menuData);
             return response.data;
         },
         onSuccess: () => {
@@ -183,7 +184,7 @@ export const useMenuList = () => {
     return useQuery({
         queryKey: ['menuList'],
         queryFn: async () => {
-            const response = await api.get('/admin/menu-list');
+            const response = await api.get(`${API.ADMIN}/menu-list`);
             return response.data;
         }
     });
@@ -193,7 +194,7 @@ export const useMenuById = (menuId) => {
     return useQuery({
         queryKey: ['menu', menuId],
         queryFn: async () => {
-            const response = await api.get(`/admin/menu/${menuId}`);
+            const response = await api.get(`${API.ADMIN}/menu/${menuId}`);
             return response.data;
         },
         enabled: !!menuId
@@ -204,7 +205,7 @@ export const useUpdateMenu = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ menuId, menuData }) => {
-            const response = await api.put(`/admin/menu/${menuId}`, menuData);
+            const response = await api.put(`${API.ADMIN}/menu/${menuId}`, menuData);
             return response.data;
         },
         onSuccess: (data, variables) => {
@@ -218,7 +219,7 @@ export const useDeleteMenu = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (menuId) => {
-            const response = await api.delete(`/admin/menu/${menuId}`);
+            const response = await api.delete(`${API.ADMIN}/menu/${menuId}`);
             return response.data;
         },
         onSuccess: () => {
@@ -232,7 +233,7 @@ export const useCreateMenuItem = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (menuItemData) => {
-            const response = await api.post('/admin/menu-item-create', menuItemData);
+            const response = await api.post(`${API.ADMIN}/menu-item-create`, menuItemData);
             return response.data;
         },
         onSuccess: () => {
@@ -246,7 +247,7 @@ export const useMenuItemList = () => {
     return useQuery({
         queryKey: ['menuItemList'],
         queryFn: async () => {
-            const response = await api.get('/admin/menu-item-list');
+            const response = await api.get(`${API.ADMIN}/menu-item-list`);
             return response.data;
         }
     });
@@ -256,7 +257,7 @@ export const useMenuItemById = (menuItemId) => {
     return useQuery({
         queryKey: ['menuItem', menuItemId],
         queryFn: async () => {
-            const response = await api.get(`/admin/menu-item/${menuItemId}`);
+            const response = await api.get(`${API.ADMIN}/menu-item/${menuItemId}`);
             return response.data;
         },
         enabled: !!menuItemId
@@ -267,7 +268,7 @@ export const useUpdateMenuItem = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ menuItemId, menuItemData }) => {
-            const response = await api.put(`/admin/menu-item/${menuItemId}`, menuItemData);
+            const response = await api.put(`${API.ADMIN}/menu-item/${menuItemId}`, menuItemData);
             return response.data;
         },
         onSuccess: (data, variables) => {
@@ -281,7 +282,7 @@ export const useDeleteMenuItem = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (menuItemId) => {
-            const response = await api.delete(`/admin/menu-item/${menuItemId}`);
+            const response = await api.delete(`${API.ADMIN}/menu-item/${menuItemId}`);
             return response.data;
         },
         onSuccess: () => {
@@ -295,7 +296,7 @@ export const useCreateMenuCategory = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (menuCategoryData) => {
-            const response = await api.post('/admin/menu-category-create', menuCategoryData);
+            const response = await api.post(`${API.ADMIN}/menu-category-create`, menuCategoryData);
             return response.data;
         },
         onSuccess: () => {
@@ -310,7 +311,7 @@ export const useMenuCategoryList = () => {
     return useQuery({
         queryKey: ['menuCategoryList'],
         queryFn: async () => {
-            const response = await api.get('/admin/menu-category-list');
+            const response = await api.get(`${API.ADMIN}/menu-category-list`);
             return response.data;
         }
     });
@@ -320,7 +321,7 @@ export const useMenuCategoryById = (menuCategoryId) => {
     return useQuery({
         queryKey: ['menuCategory', menuCategoryId],
         queryFn: async () => {
-            const response = await api.get(`/admin/menu-category/${menuCategoryId}`);
+            const response = await api.get(`${API.ADMIN}/menu-category/${menuCategoryId}`);
             return response.data;
         },
         enabled: !!menuCategoryId
@@ -331,7 +332,7 @@ export const useUpdateMenuCategory = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ menuCategoryId, menuCategoryData }) => {
-            const response = await api.put(`/admin/menu-category/${menuCategoryId}`, menuCategoryData);
+            const response = await api.put(`${API.ADMIN}/menu-category/${menuCategoryId}`, menuCategoryData);
             return response.data;
         },
         onSuccess: (data, variables) => {
@@ -345,7 +346,7 @@ export const useDeleteMenuCategory = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (menuCategoryId) => {
-            const response = await api.delete(`/admin/menu-category/${menuCategoryId}`);
+            const response = await api.delete(`${API.ADMIN}/menu-category/${menuCategoryId}`);
             return response.data;
         },
         onSuccess: () => {
@@ -359,7 +360,7 @@ export const useCreateMenuItemPrice = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (menuItemPriceData) => {
-            const response = await api.post('/admin/menu-item-price-create', menuItemPriceData);
+            const response = await api.post(`${API.ADMIN}/menu-item-price-create`, menuItemPriceData);
             return response.data;
         },
         onSuccess: () => {
@@ -374,7 +375,7 @@ export const useMenuItemPriceList = () => {
     return useQuery({
         queryKey: ['menuItemPriceList'],
         queryFn: async () => {
-            const response = await api.get('/admin/menu-item-price-list');
+            const response = await api.get(`${API.ADMIN}/menu-item-price-list`);
             return response.data;
         }
     });
@@ -384,7 +385,7 @@ export const useMenuItemPriceById = (menuItemPriceId) => {
     return useQuery({
         queryKey: ['menuItemPrice', menuItemPriceId],
         queryFn: async () => {
-            const response = await api.get(`/admin/menu-item-price/${menuItemPriceId}`);
+            const response = await api.get(`${API.ADMIN}/menu-item-price/${menuItemPriceId}`);
             return response.data;
         },
         enabled: !!menuItemPriceId
@@ -395,7 +396,7 @@ export const useUpdateMenuItemPrice = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async ({ menuItemPriceId, menuItemPriceData }) => {
-            const response = await api.put(`/admin/menu-item-price/${menuItemPriceId}`, menuItemPriceData);
+            const response = await api.put(`${API.ADMIN}/menu-item-price/${menuItemPriceId}`, menuItemPriceData);
             return response.data;
         },
         onSuccess: (data, variables) => {
@@ -409,7 +410,7 @@ export const useDeleteMenuItemPrice = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (menuItemPriceId) => {
-            const response = await api.delete(`/admin/menu-item-price/${menuItemPriceId}`);
+            const response = await api.delete(`${API.ADMIN}/menu-item-price/${menuItemPriceId}`);
             return response.data;
         },
         onSuccess: () => {
@@ -423,7 +424,7 @@ export const useMealsByDay = (day) => {
     return useQuery({
         queryKey: ['meals', day],
         queryFn: async () => {
-            const response = await api.get(`/admin/meals?day=${day}`);
+            const response = await api.get(`${API.ADMIN}/meals?day=${day}`);
     
             
             return response.data;
@@ -443,7 +444,7 @@ export const useMenusForBooking = (companyId = null) => {
         queryKey: ['menusForBooking', companyId],
         queryFn: async () => {
             const params = companyId ? { companyId } : {};
-            const response = await api.get('/admin/menus-for-booking', { params });
+            const response = await api.get(`${API.ADMIN}/menus-for-booking`, { params });
             return response.data;
         },
         enabled: !!companyId,
@@ -493,7 +494,7 @@ export const useAdminUsers = () => {
         queryKey: ['adminUsers'],
         queryFn: async () => {
             try {
-                const response = await api.get('/admin/users/list');
+                const response = await api.get(`${API.ADMIN}/users/list`);
                 return response.data;
             } catch (error) {
                 // Throw a more user-friendly error
@@ -519,7 +520,7 @@ export const useCreateAdminUser = () => {
     return useMutation({
         mutationFn: async (userData) => {
             // The admin ID will be automatically extracted from the JWT token on the backend
-            const response = await api.post('/admin/users/create', userData);
+            const response = await api.post(`${API.ADMIN}/users/create`, userData);
             return response.data;
         },
         onSuccess: (data) => {
@@ -543,7 +544,7 @@ export const useUpdateUserStatus = () => {
 
     return useMutation({
         mutationFn: async ({ userId, status }) => {
-            const response = await api.patch(`/admin/users/${userId}/status`, { status });
+            const response = await api.patch(`${API.ADMIN}/users/${userId}/status`, { status });
             return response.data;
         },
         onSuccess: (data) => {
@@ -564,7 +565,7 @@ export const useProductQuantitiesForMenus = () => {
     return useQuery({
         queryKey: ['productQuantitiesForMenus'],
         queryFn: async () => {
-            const response = await api.get('/admin/product-quantities-for-menus');
+            const response = await api.get(`${API.ADMIN}/product-quantities-for-menus`);
             return response.data;
         },
         staleTime: 5 * 60 * 1000, // 5 minutes

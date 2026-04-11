@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 import useAuthStore from '../../stores/Zustand.store';
 
 /**
@@ -23,7 +24,7 @@ export const useAllDeliveryExecutivesFromDb = (options = {}) => {
   return useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await axiosInstance.get('/admin/delivery-executives');
+      const response = await axiosInstance.get(`${API.ADMIN}/delivery-executives`);
       if (response.data.status !== 'success') {
         throw new Error(response.data.message || 'Failed to fetch delivery executives');
       }

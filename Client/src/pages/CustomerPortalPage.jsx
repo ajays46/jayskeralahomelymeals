@@ -17,6 +17,7 @@ import {
 import axios from 'axios';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 import useAuthStore from '../stores/Zustand.store';
 
 /**
@@ -114,7 +115,7 @@ const CustomerPortalPage = () => {
       }
 
       // Fetch orders for the user
-      const ordersResponse = await axiosInstance.get(`/orders/user/${userId}`);
+      const ordersResponse = await axiosInstance.get(`${API.MAX_KITCHEN}/orders/user/${userId}`);
       
       if (ordersResponse.data.success) {
         const fetchedOrders = ordersResponse.data.data.orders || [];
@@ -157,7 +158,7 @@ const CustomerPortalPage = () => {
 
       // Try to fetch addresses if endpoint exists
       try {
-        const addressesResponse = await axiosInstance.get('/addresses');
+        const addressesResponse = await axiosInstance.get(`${API.ADDRESSES}`);
         if (addressesResponse.data.success) {
           setAddresses(addressesResponse.data.data.addresses || addressesResponse.data.data || []);
         }
@@ -193,7 +194,7 @@ const CustomerPortalPage = () => {
    
         const baseURL = import.meta.env.VITE_PROD_API_URL;
       // Validate token and get customer info
-      const validateResponse = await axios.get(`${baseURL}/customer-portal/validate-token?token=${token}`);
+      const validateResponse = await axios.get(`${baseURL}${API.MAX_KITCHEN}/customer-portal/validate-token?token=${token}`);
       
       if (validateResponse.data.success) {
         const customerData = validateResponse.data.data;
@@ -210,8 +211,8 @@ const CustomerPortalPage = () => {
 
       // Fetch orders and addresses
       const [ordersResponse, addressesResponse] = await Promise.all([
-        axios.get(`${baseURL}/customer-portal/orders?token=${token}`),
-        axios.get(`${baseURL}/customer-portal/addresses?token=${token}`)
+        axios.get(`${baseURL}${API.MAX_KITCHEN}/customer-portal/orders?token=${token}`),
+        axios.get(`${baseURL}${API.MAX_KITCHEN}/customer-portal/addresses?token=${token}`)
       ]);
 
       if (ordersResponse.data.success) {

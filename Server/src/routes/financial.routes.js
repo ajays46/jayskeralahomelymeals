@@ -1,3 +1,4 @@
+/** @product shared · @feature financial — CEO/CFO financial summary dashboard */
 import express from 'express';
 import { 
   getDailyRevenue,

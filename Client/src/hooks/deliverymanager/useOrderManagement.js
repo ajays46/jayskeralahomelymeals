@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { message } from 'antd';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 export const useOrderManagement = () => {
   const [deliveryItems, setDeliveryItems] = useState({});
@@ -19,7 +20,7 @@ export const useOrderManagement = () => {
     setLoadingItems(prev => ({ ...prev, [orderId]: true }));
     
     try {
-      const response = await axiosInstance.get(`/api/orders/${orderId}/delivery-items`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/orders/${orderId}/delivery-items`);
       setDeliveryItems(prev => ({
         ...prev,
         [orderId]: response.data.data || []
@@ -34,7 +35,7 @@ export const useOrderManagement = () => {
 
   const handleCancelOrder = useCallback(async (orderId) => {
     try {
-      await axiosInstance.put(`/api/orders/${orderId}/cancel`);
+      await axiosInstance.put(`${API.MAX_KITCHEN}/orders/${orderId}/cancel`);
       message.success('Order cancelled successfully');
       // Refresh data or update state as needed
     } catch (error) {
@@ -45,7 +46,7 @@ export const useOrderManagement = () => {
 
   const handleCancelDeliveryItem = useCallback(async (itemId) => {
     try {
-      await axiosInstance.put(`/api/delivery-items/${itemId}/cancel`);
+      await axiosInstance.put(`${API.MAX_KITCHEN}/delivery-items/${itemId}/cancel`);
       message.success('Delivery item cancelled successfully');
       // Update local state or refresh data
     } catch (error) {

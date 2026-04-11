@@ -46,6 +46,7 @@ import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
 import Navbar from '../components/Navbar';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 import { SkeletonTable, SkeletonCard, SkeletonDashboard, SkeletonOrderCard } from '../components/Skeleton';
 import { isCXO, isCEO, isCFO, hasAnyRole } from '../utils/roleUtils';
 import { useSellersData } from '../hooks/deliverymanager/useSellersData';
@@ -157,7 +158,7 @@ const SellerPage = () => {
     const fetchUserOrders = async (userId) => {
       setLoadingOrders(true);
       try {
-        const response = await axiosInstance.get(`/seller/users/${userId}/orders`);
+        const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller/users/${userId}/orders`);
         if (response.data.success) {
           setUserOrders(response.data.data || []);
         }
@@ -176,7 +177,7 @@ const SellerPage = () => {
     const cancelDeliveryItem = async (deliveryItemId) => {
       setCancellingItems(prev => new Set(prev).add(deliveryItemId));
       try {
-        const response = await axiosInstance.put(`/seller/delivery-items/${deliveryItemId}/cancel`);
+        const response = await axiosInstance.put(`${API.MAX_KITCHEN}/seller/delivery-items/${deliveryItemId}/cancel`);
         if (response.data.success) {
           // Get the delivery item details to show what was cancelled
           const deliveryItem = userOrders.flatMap(order => order.deliveryItems || [])
@@ -210,7 +211,7 @@ const SellerPage = () => {
     const cancelOrder = async (orderId) => {
       setCancellingOrders(prev => new Set(prev).add(orderId));
       try {
-        const response = await axiosInstance.put(`/orders/${orderId}/cancel`);
+        const response = await axiosInstance.put(`${API.MAX_KITCHEN}/orders/${orderId}/cancel`);
         if (response.data.success) {
           showSuccessToast('Order cancelled successfully!');
           
@@ -244,7 +245,7 @@ const SellerPage = () => {
       
       setDeletingUsers(prev => new Set(prev).add(userToDelete.id));
       try {
-        const response = await axiosInstance.delete(`/seller/users/${userToDelete.id}`);
+        const response = await axiosInstance.delete(`${API.MAX_KITCHEN}/seller/users/${userToDelete.id}`);
         if (response.data.success) {
           showSuccessToast('User deleted successfully');
           // Remove user from local state

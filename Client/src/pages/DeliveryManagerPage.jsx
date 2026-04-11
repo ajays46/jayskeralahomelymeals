@@ -5,6 +5,7 @@ import { FiArrowLeft, FiUsers, FiShoppingBag, FiTrendingUp, FiCalendar, FiMapPin
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney } from 'react-icons/md';
 import { Modal, message } from 'antd';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 import { useActiveExecutives, useUpdateMultipleExecutiveStatus, useSaveRoutes, useVehicles, useAssignVehicle, useUnassignVehicle } from '../hooks/deliverymanager';
 import { useUpdateGeoLocation, useUpdateDeliveryComment } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { useTextCorrection } from '../hooks/useTextCorrection';
@@ -437,7 +438,7 @@ const DeliveryManagerPage = () => {
   const handleCancelOrder = async (orderId) => {
     try {
       setCancellingOrder(orderId);
-      const response = await axiosInstance.put(`/delivery-managers/orders/${orderId}/cancel`);
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/delivery-managers/orders/${orderId}/cancel`);
       
       if (response.data.success) {
         message.success('Order cancelled successfully');
@@ -490,7 +491,7 @@ const DeliveryManagerPage = () => {
       setCancellingItems(prev => new Set(prev).add(itemId));
       
       // Use the new delivery manager specific endpoint
-      const apiUrl = `/delivery-managers/delivery-items/${itemId}/cancel`;
+      const apiUrl = `${API.MAX_KITCHEN}/delivery-managers/delivery-items/${itemId}/cancel`;
       
       const response = await axiosInstance.put(apiUrl);
       
@@ -554,7 +555,7 @@ const DeliveryManagerPage = () => {
       message.loading('🚀 Starting route planning process...', 0);
       
       // Use backend proxy to avoid CORS issues when calling external API
-      const response = await axiosInstance.post('/admin/proxy-route-planning', {
+      const response = await axiosInstance.post(`${API.ADMIN}/proxy-route-planning`, {
         timestamp: new Date().toISOString(),
         source: 'delivery-manager-dashboard',
         userAgent: navigator.userAgent,
@@ -649,7 +650,7 @@ const DeliveryManagerPage = () => {
       message.loading('📊 Fetching session data...', 0);
       
       // Use backend proxy to avoid CORS issues when calling external API
-      const response = await axiosInstance.get('/admin/proxy-session-data');
+      const response = await axiosInstance.get(`${API.ADMIN}/proxy-session-data`);
       
       message.destroy(); // Clear loading message
       
@@ -842,7 +843,7 @@ const DeliveryManagerPage = () => {
       message.loading(`📱 Sending WhatsApp messages for ${executiveCount} executive(s)...`, 0);
       
       // Call the backend proxy endpoint for send_routes
-      const response = await axiosInstance.post('/admin/proxy-send-routes', {
+      const response = await axiosInstance.post(`${API.ADMIN}/proxy-send-routes`, {
         executiveCount: executiveCount,
         timestamp: new Date().toISOString(),
         source: 'delivery-manager-dashboard',
@@ -983,7 +984,7 @@ const DeliveryManagerPage = () => {
         
         // First, send the executive count to the API
       try {
-        await axiosInstance.post('/admin/proxy-executive-count', {
+        await axiosInstance.post(`${API.ADMIN}/proxy-executive-count`, {
           executiveCount: executiveCount,
           timestamp: new Date().toISOString(),
           source: 'delivery-manager-dashboard',
@@ -997,7 +998,7 @@ const DeliveryManagerPage = () => {
       
       // Execute the program with executive count
       
-      const response = await axiosInstance.post('/admin/proxy-run-script', {
+      const response = await axiosInstance.post(`${API.ADMIN}/proxy-run-script`, {
         executiveCount: executiveCount,
         timestamp: new Date().toISOString(),
         source: 'delivery-manager-dashboard',
@@ -1154,7 +1155,7 @@ const DeliveryManagerPage = () => {
         // Try to fetch through backend proxy as fallback
         try {
           // Create a proxy request through your backend
-          const proxyResponse = await axiosInstance.post('/admin/proxy-file-content', {
+          const proxyResponse = await axiosInstance.post(`${API.ADMIN}/proxy-file-content`, {
             url: url,
             filename: filename
           });
@@ -1241,7 +1242,7 @@ const DeliveryManagerPage = () => {
       message.loading(`🚚 Sending executive count (${executiveCount}) to EC2 instance...`, 0);
       
       // Send only the executive count to the EC2 instance
-      const response = await axiosInstance.post('/admin/proxy-executive-count', {
+      const response = await axiosInstance.post(`${API.ADMIN}/proxy-executive-count`, {
         executiveCount: executiveCount,
         timestamp: new Date().toISOString(),
         source: 'delivery-manager-dashboard',
@@ -1358,7 +1359,7 @@ const DeliveryManagerPage = () => {
       setError(null); // Reset error state
       
       // Fetch sellers with their order data
-      const response = await axiosInstance.get('/admin/sellers-with-orders');
+      const response = await axiosInstance.get(`${API.ADMIN}/sellers-with-orders`);
       
       if (response.data.status === 'success') {
         const sellersData = response.data.data;
@@ -1403,7 +1404,7 @@ const DeliveryManagerPage = () => {
     try {
       setLoadingExecutives(true);
       setExecutivesError(false); // Reset error state
-      const response = await axiosInstance.get('/admin/delivery-executives');
+      const response = await axiosInstance.get(`${API.ADMIN}/delivery-executives`);
       
       if (response.data.status === 'success') {
         setDeliveryExecutives(response.data.data || []);
@@ -1584,7 +1585,7 @@ const DeliveryManagerPage = () => {
       try {
         // Call logout API endpoint if it exists
         try {
-          await axiosInstance.post('/auth/logout');
+          await axiosInstance.post(`${API.AUTH}/logout`);
         } catch (error) {
         }
         
@@ -1624,7 +1625,7 @@ const DeliveryManagerPage = () => {
   const cancelOrder = async (orderId) => {
     try {
       setCancellingOrder(orderId);
-      const response = await axiosInstance.put(`/delivery-managers/orders/${orderId}/cancel`);
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/delivery-managers/orders/${orderId}/cancel`);
       
       if (response.data.success) {
         message.success('Order cancelled successfully');
@@ -1694,7 +1695,7 @@ const DeliveryManagerPage = () => {
   // Function to check current user authentication
   const checkUserAuth = async () => {
     try {
-      const response = await axiosInstance.get('/seller/profile');
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller/profile`);
       return response.data;
     } catch (error) {
       return null;
@@ -2134,7 +2135,7 @@ const DeliveryManagerPage = () => {
       message.loading(`Cancelling ${pendingOrders.length} orders...`, 0);
       
       const cancelPromises = pendingOrders.map(order => 
-        axiosInstance.put(`/delivery-managers/orders/${order.id}/cancel`)
+        axiosInstance.put(`${API.MAX_KITCHEN}/delivery-managers/orders/${order.id}/cancel`)
       );
 
       const results = await Promise.allSettled(cancelPromises);

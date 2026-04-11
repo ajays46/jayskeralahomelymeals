@@ -1,3 +1,4 @@
+/** @product shared · @feature auth — registration, login, token refresh, password management */
 import express from 'express';
 import { register, login, refreshToken, usersList, forgotPassword, resetPassword, logout, addRoleToUser, removeRoleFromUser, getUserRolesController, checkUserRole, changePassword } from '../controllers/auth.controller.js';
 import { authenticateToken } from '../middleware/authHandler.js';

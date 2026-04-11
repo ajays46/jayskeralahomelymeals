@@ -4,6 +4,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * @param {Object} options
@@ -26,7 +27,7 @@ export const useAddMlTrips = (options = {}) => {
         pickup: t.pickup,
         delivery: t.delivery,
       }));
-      const response = await api.post('/ml-trips', { trips: payload });
+      const response = await api.post(`${API.MAX_ROUTE}/ml-trips`, { trips: payload });
       return response.data;
     },
     ...options,

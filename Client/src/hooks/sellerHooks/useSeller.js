@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 import useAuthStore from '../../stores/Zustand.store';
 
 /**
@@ -24,7 +25,7 @@ export const useSeller = () => {
     setError(null);
     
     try {
-      const response = await axiosInstance.get('/seller/profile');
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller/profile`);
       if (response.data.success) {
         setSellerProfile(response.data.data);
       }
@@ -42,7 +43,7 @@ export const useSeller = () => {
     setError(null);
     
     try {
-      const response = await axiosInstance.get('/seller/users');
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller/users`);
       if (response.data.success) {
         setSellerUsers(response.data.data);
       }
@@ -63,7 +64,7 @@ export const useSeller = () => {
     setError(null);
     
     try {
-      const response = await axiosInstance.post('/seller/create-contact', contactData);
+      const response = await axiosInstance.post(`${API.MAX_KITCHEN}/seller/create-contact`, contactData);
       if (response.data.success) {
         // Refresh the users list
         await getSellerUsers();
@@ -88,7 +89,7 @@ export const useSeller = () => {
     setError(null);
     
     try {
-      const response = await axiosInstance.put(`/seller/users/${userId}`, updateData);
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/seller/users/${userId}`, updateData);
       
       if (response.data.success) {
         // Refresh the users list
@@ -113,7 +114,7 @@ export const useSeller = () => {
     }
     
     try {
-      const response = await axiosInstance.get(`/seller/users/${userId}/orders`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller/users/${userId}/orders`);
       if (response.data.success) {
         return response.data.data;
       }
@@ -130,7 +131,7 @@ export const useSeller = () => {
     }
     
     try {
-      const response = await axiosInstance.put(`/seller/orders/${orderId}/cancel`);
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/seller/orders/${orderId}/cancel`);
       if (response.data.success) {
         return response.data;
       }
@@ -147,7 +148,7 @@ export const useSeller = () => {
     }
     
     try {
-      const response = await axiosInstance.put(`/seller/delivery-items/${itemId}/cancel`);
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/seller/delivery-items/${itemId}/cancel`);
       if (response.data.success) {
         return response.data;
       }
@@ -164,7 +165,7 @@ export const useSeller = () => {
     }
     
     try {
-      const response = await axiosInstance.put(`/seller/orders/${orderId}/delivery-note`, {
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/seller/orders/${orderId}/delivery-note`, {
         deliveryNote: deliveryNote || null
       });
       if (response.data.success) {
@@ -183,7 +184,7 @@ export const useSeller = () => {
     }
     
     try {
-      const response = await axiosInstance.put(`/seller/orders/${orderId}/delivery-items-note`, {
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/seller/orders/${orderId}/delivery-items-note`, {
         deliveryDate: deliveryDate,
         deliveryNote: deliveryNote || null
       });
@@ -203,7 +204,7 @@ export const useSeller = () => {
     }
     
     try {
-      const response = await axiosInstance.put(`/seller/orders/${orderId}/delivery-items-note-range`, {
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/seller/orders/${orderId}/delivery-items-note-range`, {
         fromDate: fromDate,
         toDate: toDate,
         deliveryNote: deliveryNote || null,

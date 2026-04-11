@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../src/generated/kitchen-prisma"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("KITCHEN_DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model CustomerPortalToken {
+  id         String    @id @default(uuid()) @db.VarChar(36)
+  shortToken String    @unique @map("short_token") @db.VarChar(20)
+  userId     String    @map("user_id") @db.VarChar(36)
+  expiresAt  DateTime  @map("expires_at") @db.DateTime(0)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  usedAt     DateTime? @map("used_at") @db.DateTime(0)
+
+  @@index([shortToken], map: "idx_short_token")
+  @@index([userId], map: "idx_user_id")
+  @@index([expiresAt], map: "idx_expires_at")
+  @@map("customer_portal_tokens")
+}

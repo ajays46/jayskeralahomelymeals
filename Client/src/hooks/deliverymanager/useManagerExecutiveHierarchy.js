@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Fetches manager–executive hierarchy for CXO (CEO, CFO, ADMIN).
@@ -25,7 +26,7 @@ export const useManagerExecutiveHierarchy = (options = {}) => {
   return useQuery({
     queryKey: ['cxo', 'manager-executive-hierarchy', params],
     queryFn: async () => {
-      const response = await axiosInstance.get('/cxo/manager-executive-hierarchy', {
+      const response = await axiosInstance.get(`${API.CXO}/manager-executive-hierarchy`, {
         params: Object.keys(params).length ? params : undefined
       });
       if (!response.data.success) {

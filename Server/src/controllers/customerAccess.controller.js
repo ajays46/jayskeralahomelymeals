@@ -100,7 +100,7 @@ export const getCustomerOrderSummaryController = async (req, res, next) => {
 };
 
 // Get customer addresses
-export const getCustomerAddressesController = async (req, res, next) => {
+export const  getCustomerAddressesController = async (req, res, next) => {
   try {
     // Support both 't' (short token) and 'token' (legacy JWT) parameters
     const token = req.query.t || req.query.token;

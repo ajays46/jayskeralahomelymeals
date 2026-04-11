@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDashboardRoute } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { getCompanyBasePathFallback } from '../../utils/companyPaths';
+import { API } from '../../api/endpoints';
 
 export const useLogin = () => {
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
@@ -19,7 +20,7 @@ export const useLogin = () => {
 
   return useMutation({
     mutationFn: async (credentials) => {
-      const response = await api.post('/auth/login', credentials);       
+      const response = await api.post(`${API.AUTH}/login`, credentials);       
       return response.data;
     },
     onSuccess: (data) => {
@@ -72,7 +73,7 @@ export const useLogout = () => {
 
   return useMutation({
     mutationFn: async () => {
-      const response = await api.post('/auth/logout');
+      const response = await api.post(`${API.AUTH}/logout`);
       return response.data;
     },
     onSuccess: () => {
@@ -91,7 +92,7 @@ export const useLogout = () => {
 export const useRefreshToken = () => {
   return useMutation({
     mutationFn: async () => {
-      const response = await api.post('/auth/refresh-token');
+      const response = await api.post(`${API.AUTH}/refresh-token`);
       return response.data;
     },
     onError: (error) => {
@@ -107,7 +108,7 @@ export const useUsersList = () => {
   return useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const response = await api.get('/auth/home');
+      const response = await api.get(`${API.AUTH}/home`);
       return response.data;
     }
   });
@@ -116,7 +117,7 @@ export const useUsersList = () => {
 export const useForgotPassword = () => {
   return useMutation({
     mutationFn: async (identifier) => {
-      const response = await api.post('/auth/forgot-password', { identifier });
+      const response = await api.post(`${API.AUTH}/forgot-password`, { identifier });
       return response.data;
     },
     onError: (error) => {

@@ -1,3 +1,4 @@
+/** @product max_route · @feature journey — mark delivery stop as reached/delivered */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

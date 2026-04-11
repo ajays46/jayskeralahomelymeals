@@ -1,5 +1,6 @@
 import axios from 'axios';
 import useAuthStore from '../stores/Zustand.store';
+import { API } from './endpoints';
 
 /**
  * Axios Configuration - HTTP client setup with authentication and error handling
@@ -36,7 +37,7 @@ axiosInstance.interceptors.request.use(
     const url = config.url || '';
     const isAiApi = url.includes('ai-routes');
     const isCxoApi = url.includes('cxo');
-    const isDeliveryExecutiveApi = url.includes('delivery-executives') && !url.includes('/api/admin');
+    const isDeliveryExecutiveApi = url.includes('delivery-executives') && !url.includes('/admin');
     const isDriverMapsApi = url.includes('drivers/next-stop-maps') || url.includes('drivers/route-overview-maps');
     const isMlTripsApi = url.includes('ml-trips');
     const isShiftApi = url.includes('shift');
@@ -126,7 +127,7 @@ axiosInstance.interceptors.response.use(
         originalRequest._retry = true;
 
         try {
-          const res = await axiosInstance.post('/auth/refresh-token');
+          const res = await axiosInstance.post(`${API.AUTH}/refresh-token`);
           const { accessToken } = res.data;
 
           // ✅ Update Zustand store

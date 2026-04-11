@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { message } from 'antd';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 export const useSellersData = () => {
   const [sellers, setSellers] = useState([]);
@@ -18,7 +19,7 @@ export const useSellersData = () => {
     setError(null);
     
     try {
-      const response = await axiosInstance.get('/admin/sellers-with-orders');
+      const response = await axiosInstance.get(`${API.ADMIN}/sellers-with-orders`);
       
       if (response.data.status === 'success') {
         const sellersData = response.data.data || [];
@@ -50,7 +51,7 @@ export const useSellersData = () => {
 
   const handleCancelAllOrdersForSeller = useCallback(async (sellerId) => {
     try {
-      await axiosInstance.put(`/api/sellers/${sellerId}/cancel-all-orders`);
+      await axiosInstance.put(`${API.MAX_KITCHEN}/seller/${sellerId}/cancel-all-orders`);
       message.success('All orders for this seller have been cancelled');
       // Refresh data
       await fetchSellersData();

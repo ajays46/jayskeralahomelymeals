@@ -30,6 +30,7 @@ import {
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 
 const CustomersListPage = () => {
   const navigate = useNavigate();
@@ -171,7 +172,7 @@ const CustomersListPage = () => {
     
     setDeletingUsers(prev => new Set(prev).add(userToDelete.id));
     try {
-      const response = await axiosInstance.delete(`/seller/users/${userToDelete.id}`);
+      const response = await axiosInstance.delete(`${API.MAX_KITCHEN}/seller/users/${userToDelete.id}`);
       if (response.data.success) {
         showSuccessToast('Customer deleted successfully');
         getSellerUsers();

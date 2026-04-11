@@ -24,6 +24,7 @@ import { useCompanyBasePath } from '../context/TenantContext';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 import { isDeliveryManager, isSeller, isCXO, isCEO, isCFO } from '../utils/roleUtils';
 import { getValidDrafts, cleanExpiredDrafts } from '../utils/draftOrderUtils';
 
@@ -292,7 +293,7 @@ const CustomersListPage = () => {
     
     setDeletingUsers(prev => new Set(prev).add(userToDelete.id));
     try {
-      const response = await axiosInstance.delete(`/seller/users/${userToDelete.id}`);
+      const response = await axiosInstance.delete(`${API.MAX_KITCHEN}/seller/users/${userToDelete.id}`);
       if (response.data.success) {
         showSuccessToast('Customer deleted successfully');
         getSellerUsers();
@@ -323,7 +324,7 @@ const CustomersListPage = () => {
   const handleGenerateLink = useCallback(async (userId) => {
     setGeneratingLinks(prev => new Set(prev).add(userId));
     try {
-      const response = await axiosInstance.post(`/seller/users/${userId}/generate-link`);
+      const response = await axiosInstance.post(`${API.MAX_KITCHEN}/seller/users/${userId}/generate-link`);
       if (response.data.success) {
         showSuccessToast('Customer portal link generated successfully!');
         return response.data.data;
@@ -462,7 +463,7 @@ const CustomersListPage = () => {
     try {
       // Call logout API endpoint if it exists
       try {
-        await axiosInstance.post('/auth/logout');
+        await axiosInstance.post(`${API.AUTH}/logout`);
       } catch (error) {
         // Logout API call failed, proceeding with local logout
       }

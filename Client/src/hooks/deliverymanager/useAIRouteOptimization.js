@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 import useAuthStore from '../../stores/Zustand.store';
 
 /**
@@ -57,7 +58,7 @@ export const useAIRouteHealth = (options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.health(),
     queryFn: async () => {
-      const response = await axiosInstance.get('/ai-routes/health');
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/health`);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to check API health');
@@ -93,7 +94,7 @@ export const useAvailableDates = (options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.availableDates(),
     queryFn: async () => {
-      const response = await axiosInstance.get(`/ai-routes/delivery-data/available-dates`, {
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/delivery-data/available-dates`, {
         params: { limit }
       });
       
@@ -136,7 +137,7 @@ export const useDeliveryData = (filters = {}, options = {}) => {
       if (date) params.date = date;
       if (session) params.session = session;
       
-      const response = await axiosInstance.get('/ai-routes/delivery-data', { params });
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/delivery-data`, { params });
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch delivery data');
@@ -167,7 +168,7 @@ export const usePlanRoute = () => {
         const userId = useAuthStore.getState().user?.id;
         const payload = { ...routeData };
         if (userId) payload.user_id = userId;
-        const response = await axiosInstance.post('/ai-routes/route/plan', payload);
+        const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/route/plan`, payload);
         
 if (!response.data.success) {
         // Create error with warnings if available (prefer .error for 403 "You can only modify routes you created")
@@ -215,7 +216,7 @@ export const useSavePlanToS3 = () => {
       if (!routeIds || !Array.isArray(routeIds) || routeIds.length === 0) {
         throw new Error('route_ids is required');
       }
-      const response = await axiosInstance.post('/ai-routes/route/plan/save-to-s3', {
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/route/plan/save-to-s3`, {
         route_ids: routeIds
       });
       if (!response.data.success) {
@@ -237,7 +238,7 @@ export const useReassignDriver = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (body) => {
-      const response = await axiosInstance.post('/ai-routes/route/reassign-driver', body);
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/route/reassign-driver`, body);
       if (!response.data.success) {
         throw new Error(response.data.error || response.data.message || 'Reassign driver failed');
       }
@@ -260,7 +261,7 @@ export const useMoveStop = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (body) => {
-      const response = await axiosInstance.post('/ai-routes/route/move-stop', body);
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/route/move-stop`, body);
       if (!response.data.success) {
         throw new Error(response.data.error || response.data.message || 'Move stop failed');
       }
@@ -281,7 +282,7 @@ export const useMoveStop = () => {
 export const usePredictStartTime = () => {
   return useMutation({
     mutationFn: async (predictionData) => {
-      const response = await axiosInstance.post('/ai-routes/route/predict-start-time', predictionData);
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/route/predict-start-time`, predictionData);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to predict start time');
@@ -317,7 +318,7 @@ export const useStartJourney = () => {
       }
       
       // Send driver_id and route_id to the API
-      const response = await axiosInstance.post('/ai-routes/journey/start', requestBody);
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/journey/start`, requestBody);
       
       if (!response.data.success) {
         throw new Error(response.data.error || response.data.message || 'Failed to start journey');
@@ -418,7 +419,7 @@ export const useStopReached = () => {
       }
       
       // Use only the mark-stop endpoint (no fallback)
-      const response = await axiosInstance.post('/ai-routes/journey/mark-stop', requestBody);
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/journey/mark-stop`, requestBody);
       
       if (!response.data.success) {
         throw new Error(response.data.error || response.data.message || 'Failed to mark stop reached');
@@ -454,7 +455,7 @@ export const useEndJourney = () => {
     mutationFn: async (journeyData) => {
       const { user_id, route_id, latitude, longitude, session } = journeyData;
       
-      const response = await axiosInstance.post('/ai-routes/journey/end', {
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/journey/end`, {
         user_id,
         route_id,
         latitude,
@@ -498,7 +499,7 @@ export const useJourneyStatus = (routeId, options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.trackingStatus(routeId),
     queryFn: async () => {
-      const response = await axiosInstance.get(`/ai-routes/journey/status/${routeId}`);
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/journey/status/${routeId}`);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to get journey status');
@@ -530,7 +531,7 @@ export const useTrackingStatus = (routeId, options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.trackingStatus(routeId),
     queryFn: async () => {
-      const response = await axiosInstance.get(`/ai-routes/route/tracking-status/${routeId}`);
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/route/tracking-status/${routeId}`);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch tracking status');
@@ -558,7 +559,7 @@ export const useVehicleTracking = () => {
 
   return useMutation({
     mutationFn: async (trackingData) => {
-      const response = await axiosInstance.post('/ai-routes/vehicle-tracking', trackingData);
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/vehicle-tracking`, trackingData);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to save vehicle tracking data');
@@ -600,7 +601,7 @@ export const useGetAllVehicleTracking = (options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.allVehicleTracking(),
     queryFn: async () => {
-      const response = await axiosInstance.get('/ai-routes/vehicle/tracking/all');
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/vehicle/tracking/all`);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch all vehicle tracking');
@@ -659,7 +660,7 @@ export const useLiveVehicleTracking = (params = {}, options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.liveVehicleTracking({ active_only, status, driver_id }),
     queryFn: async () => {
-      const response = await axiosInstance.get('/ai-routes/vehicle-tracking/live-all', {
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/vehicle-tracking/live-all`, {
         params: queryParams
       });
       
@@ -708,7 +709,7 @@ export const useCurrentWeather = (params = {}, options = {}) => {
       if (lat || latitude) queryParams.lat = lat || latitude;
       if (lng || longitude) queryParams.lng = lng || longitude;
       
-      const response = await axiosInstance.get('/ai-routes/weather/current', { params: queryParams });
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/weather/current`, { params: queryParams });
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch current weather');
@@ -750,7 +751,7 @@ export const useWeatherForecast = (params = {}, options = {}) => {
       if (longitude) queryParams.longitude = longitude;
       if (session) queryParams.session = session;
       
-      const response = await axiosInstance.get('/ai-routes/weather/forecast', { params: queryParams });
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/weather/forecast`, { params: queryParams });
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch weather forecast');
@@ -786,7 +787,7 @@ export const useWeatherZones = (params = {}, options = {}) => {
       const queryParams = { is_active };
       if (priority !== undefined) queryParams.priority = priority;
       
-      const response = await axiosInstance.get('/ai-routes/weather/zones', { params: queryParams });
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/weather/zones`, { params: queryParams });
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch zones weather');
@@ -821,7 +822,7 @@ export const useWeatherPredictions = (params = {}, options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.weatherPredictions({ latitude, longitude, days, session }),
     queryFn: async () => {
-      const response = await axiosInstance.get('/ai-routes/weather/predictions', { 
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/weather/predictions`, { 
         params: { latitude, longitude, days, session } 
       });
       
@@ -859,7 +860,7 @@ export const useZones = (params = {}, options = {}) => {
       if (is_active !== undefined) queryParams.is_active = is_active;
       if (zone_type) queryParams.zone_type = zone_type;
       
-      const response = await axiosInstance.get('/ai-routes/zones', { params: queryParams });
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/zones`, { params: queryParams });
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch zones');
@@ -886,7 +887,7 @@ export const useZone = (zoneId, options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.zone(zoneId),
     queryFn: async () => {
-      const response = await axiosInstance.get(`/ai-routes/zones/${zoneId}`);
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/zones/${zoneId}`);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch zone');
@@ -908,7 +909,7 @@ export const useCreateZone = () => {
 
   return useMutation({
     mutationFn: async (zoneData) => {
-      const response = await axiosInstance.post('/ai-routes/zones', zoneData);
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/zones`, zoneData);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to create zone');
@@ -933,7 +934,7 @@ export const useUpdateZone = () => {
 
   return useMutation({
     mutationFn: async ({ zoneId, data }) => {
-      const response = await axiosInstance.put(`/ai-routes/zones/${zoneId}`, data);
+      const response = await axiosInstance.put(`${API.MAX_ROUTE}/ai-routes/zones/${zoneId}`, data);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to update zone');
@@ -959,7 +960,7 @@ export const useDeleteZone = () => {
 
   return useMutation({
     mutationFn: async (zoneId) => {
-      const response = await axiosInstance.delete(`/ai-routes/zones/${zoneId}`);
+      const response = await axiosInstance.delete(`${API.MAX_ROUTE}/ai-routes/zones/${zoneId}`);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to delete zone');
@@ -998,7 +999,7 @@ export const useZoneDeliveries = (zoneId, params = {}, options = {}) => {
       if (date) queryParams.date = date;
       if (session) queryParams.session = session;
       
-      const response = await axiosInstance.get(`/ai-routes/zones/${zoneId}/deliveries`, { params: queryParams });
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/zones/${zoneId}/deliveries`, { params: queryParams });
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch zone deliveries');
@@ -1020,7 +1021,7 @@ export const useReoptimizeRoute = () => {
 
   return useMutation({
     mutationFn: async (reoptimizeData) => {
-      const response = await axiosInstance.post('/ai-routes/route/reoptimize', reoptimizeData);
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/route/reoptimize`, reoptimizeData);
       
       if (!response.data.success) {
         throw new Error(response.data.error || response.data.message || 'Failed to reoptimize route');
@@ -1065,7 +1066,7 @@ export const useDriverNextStopMaps = (params = {}, options = {}) => {
       if (session) queryParams.session = session;
       if (companyId) queryParams.company_id = companyId;
       
-      const response = await axiosInstance.get('/drivers/next-stop-maps', { params: queryParams });
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/drivers/next-stop-maps`, { params: queryParams });
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch driver next stop maps');
@@ -1104,7 +1105,7 @@ export const useDriverRouteOverviewMaps = (params = {}, options = {}) => {
       if (session) queryParams.session = session;
       if (companyId) queryParams.company_id = companyId;
       
-      const response = await axiosInstance.get('/drivers/route-overview-maps', { params: queryParams });
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/drivers/route-overview-maps`, { params: queryParams });
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch driver route overview maps');
@@ -1131,7 +1132,7 @@ export const useMissingGeoLocations = (limit = 100, options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.missingGeoLocations(limit),
     queryFn: async () => {
-      const response = await axiosInstance.get('/ai-routes/address/get-missing-geo-locations', {
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/address/get-missing-geo-locations`, {
         params: { limit }
       });
       
@@ -1155,7 +1156,7 @@ export const useUpdateGeoLocation = () => {
 
   return useMutation({
     mutationFn: async ({ address_id, delivery_item_id, geo_location, order_id, menu_item_id, delivery_date, session }) => {
-      const response = await axiosInstance.post('/ai-routes/address/update-geo-location', {
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/address/update-geo-location`, {
         address_id,
         delivery_item_id,
         geo_location,
@@ -1190,7 +1191,7 @@ export const useCheckTraffic = () => {
 
   return useMutation({
     mutationFn: async ({ route_id, current_location, check_all_segments = true }) => {
-      const response = await axiosInstance.post('/ai-routes/journey/check-traffic', {
+      const response = await axiosInstance.post(`${API.MAX_ROUTE}/ai-routes/journey/check-traffic`, {
         route_id,
         current_location,
         check_all_segments
@@ -1231,7 +1232,7 @@ export const useRouteOrder = (routeId, options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.routeOrder(routeId),
     queryFn: async () => {
-      const response = await axiosInstance.get(`/ai-routes/journey/route-order/${routeId}`);
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/journey/route-order/${routeId}`);
       
       if (!response.data.success) {
         throw new Error(response.data.error || response.data.message || 'Failed to get route order');
@@ -1261,7 +1262,7 @@ export const useRouteStatusFromActualStops = (routeId, options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.routeStatus(routeId),
     queryFn: async () => {
-      const response = await axiosInstance.get(`/ai-routes/route/${routeId}/status`);
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/route/${routeId}/status`);
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to get route status');
       }
@@ -1283,7 +1284,7 @@ export const useUpdateDeliveryComment = () => {
 
   return useMutation({
     mutationFn: async ({ delivery_id, comments }) => {
-      const response = await axiosInstance.put(`/ai-routes/delivery_data/${delivery_id}/comments`, {
+      const response = await axiosInstance.put(`${API.MAX_ROUTE}/ai-routes/delivery_data/${delivery_id}/comments`, {
         comments
       });
       
@@ -1333,7 +1334,7 @@ export const useRouteMapData = (params = {}, options = {}) => {
       if (route_id) queryParams.route_id = route_id;
       if (driver_name) queryParams.driver_name = driver_name;
 
-      const response = await axiosInstance.get('/ai-routes/route/map-data', {
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/route/map-data`, {
         params: queryParams
       });
 
@@ -1383,7 +1384,7 @@ export const useRouteMapDataByManager = (params = {}, options = {}) => {
       if (session) queryParams.session = session;
       if (driver_name) queryParams.driver_name = driver_name;
 
-      const response = await axiosInstance.get('/ai-routes/cxo/route/map-data-by-manager', {
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/cxo/route/map-data-by-manager`, {
         params: queryParams
       });
 
@@ -1431,7 +1432,7 @@ export const useExecutivePerformance = (options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.executivePerformance(params),
     queryFn: async () => {
-      const response = await axiosInstance.get('/ai-routes/executive/performance', {
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/executive/performance`, {
         params: Object.keys(params).length ? params : undefined
       });
       if (!response.data.success) {
@@ -1468,7 +1469,7 @@ export const useExecutivePerformanceByDriver = (options = {}) => {
   return useQuery({
     queryKey: aiRouteKeys.executivePerformanceByDriver(driver_name),
     queryFn: async () => {
-      const response = await axiosInstance.get('/ai-routes/executive/performance/by-driver', {
+      const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/executive/performance/by-driver`, {
         params: { driver_name }
       });
       if (!response.data.success) {

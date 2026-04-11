@@ -4,6 +4,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 const TRIP_DETAIL_KEY = ['ml-trip-detail'];
 
@@ -11,7 +12,7 @@ export function useMlTripDetail(tripId, options = {}) {
   return useQuery({
     queryKey: [...TRIP_DETAIL_KEY, tripId],
     queryFn: async () => {
-      const { data } = await api.get(`/ml-trips/${tripId}`);
+      const { data } = await api.get(`${API.MAX_ROUTE}/ml-trips/${tripId}`);
       if (data && data.success === false) {
         throw new Error(data.error || 'Trip not found');
       }

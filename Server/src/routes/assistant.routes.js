@@ -1,3 +1,4 @@
+/** @product jaice · @feature assistant — delivery manager AI chat (OpenAI-powered) */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

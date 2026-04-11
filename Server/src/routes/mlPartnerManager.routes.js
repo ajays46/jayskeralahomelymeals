@@ -1,7 +1,4 @@
-/**
- * ML Partner Manager Routes - MaXHub Logistics: partner manager assigns vehicles to delivery partners.
- * Base path: /api/ml-partner-manager
- */
+/** @product max_route · @feature partner-manager — executives, partners, vehicles assign/unassign */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

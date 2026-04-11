@@ -4,6 +4,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 const DASHBOARD_QUERY_KEY = ['ml-partner-dashboard'];
 
@@ -12,7 +13,7 @@ export function useMlPartnerDashboard(platform, options = {}) {
     queryKey: [...DASHBOARD_QUERY_KEY, platform ?? 'all'],
     queryFn: async () => {
       const params = platform ? { platform } : {};
-      const { data } = await api.get('/ml-trips/dashboard', { params });
+      const { data } = await api.get(`${API.MAX_ROUTE}/ml-trips/dashboard`, { params });
       return data?.data ?? {};
     },
     ...options,

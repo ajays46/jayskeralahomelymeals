@@ -1,3 +1,4 @@
+/** @product max_kitchen · @feature delivery-items — item status tracking, delivery image uploads */
 import express from 'express';
 import multer from 'multer';
 import { authenticateToken } from '../middleware/authHandler.js';

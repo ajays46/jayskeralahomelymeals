@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 import useAuthStore from '../../stores/Zustand.store';
 import { showSuccessToast, showErrorToast } from '../../utils/toastConfig.jsx';
 
@@ -11,7 +12,7 @@ const coordinatorApi = {
     const companyId = useAuthStore.getState().user?.companyId;
     const headers = {};
     if (companyId) headers['X-Company-ID'] = companyId;
-    const response = await axiosInstance.get('/ai-routes/coordinator/settings', {
+    const response = await axiosInstance.get(`${API.MAX_ROUTE}/ai-routes/coordinator/settings`, {
       headers,
       params: companyId ? { company_id: companyId } : undefined
     });
@@ -25,7 +26,7 @@ const coordinatorApi = {
     const companyId = useAuthStore.getState().user?.companyId;
     const headers = {};
     if (companyId) headers['X-Company-ID'] = companyId;
-    const response = await axiosInstance.put('/ai-routes/coordinator/settings', updates, {
+    const response = await axiosInstance.put(`${API.MAX_ROUTE}/ai-routes/coordinator/settings`, updates, {
       headers
     });
     if (!response.data.success) {

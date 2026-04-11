@@ -5,6 +5,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 const TRIPS_LIST_KEY = ['ml-trips-list'];
 
@@ -16,7 +17,7 @@ export function useMlTripsList(filters = {}, options = {}) {
       const params = {};
       if (platform) params.platform = platform;
       if (status) params.status = status;
-      const { data } = await api.get('/ml-trips', { params });
+      const { data } = await api.get(`${API.MAX_ROUTE}/ml-trips`, { params });
       if (data && data.success === false) {
         throw new Error(data.error || 'Failed to load trips');
       }

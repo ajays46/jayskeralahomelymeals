@@ -1,6 +1,4 @@
-/**
- * @feature kitchen-store — Express BFF routes under `/api/kitchen-store` (auth, tenant, upstream proxy).
- */
+/** @product max_kitchen · @feature store — inventory, brands, recipes, purchase requests, meal reports, forecasting */
 import express from 'express';
 import multer from 'multer';
 import { authenticateToken } from '../middleware/authHandler.js';

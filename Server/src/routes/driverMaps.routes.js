@@ -1,3 +1,4 @@
+/** @product max_kitchen · @feature drivers — next-stop & route-overview Google Maps links */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 // Custom hook for updating executive status using React Query
 export const useUpdateExecutiveStatus = () => {
@@ -7,7 +8,7 @@ export const useUpdateExecutiveStatus = () => {
 
   return useMutation({
     mutationFn: async (statusUpdates) => {
-      const response = await axiosInstance.post('/admin/update-executive-status', {
+      const response = await axiosInstance.post(`${API.ADMIN}/update-executive-status`, {
         updates: statusUpdates
       });
       
@@ -34,7 +35,7 @@ export const useUpdateMultipleExecutiveStatus = () => {
 
   return useMutation({
     mutationFn: async (statusUpdates) => {
-      const response = await axiosInstance.post('/admin/update-executive-status', {
+      const response = await axiosInstance.post(`${API.ADMIN}/update-executive-status`, {
         updates: statusUpdates
       });
       if (!response.data.success) {

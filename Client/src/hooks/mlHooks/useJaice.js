@@ -4,6 +4,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 const JAICE_KEYS = {
   greeting: ['ml-jaice', 'greeting'],
@@ -15,7 +16,7 @@ export function useJaiceGreeting(options = {}) {
   return useQuery({
     queryKey: JAICE_KEYS.greeting,
     queryFn: async () => {
-      const { data } = await api.get('/ml-assistant/greeting');
+      const { data } = await api.get(`${API.JAICE}/ml-assistant/greeting`);
       return data;
     },
     staleTime: 5 * 60 * 1000,
@@ -27,7 +28,7 @@ export function useJaicePing(options = {}) {
   return useQuery({
     queryKey: JAICE_KEYS.ping,
     queryFn: async () => {
-      const { data } = await api.get('/ml-assistant/chat/ping');
+      const { data } = await api.get(`${API.JAICE}/ml-assistant/chat/ping`);
       return data;
     },
     staleTime: 30 * 1000,
@@ -39,7 +40,7 @@ export function useJaiceDebugConfig(options = {}) {
   return useQuery({
     queryKey: JAICE_KEYS.debugConfig,
     queryFn: async () => {
-      const { data } = await api.get('/ml-assistant/debug/config');
+      const { data } = await api.get(`${API.JAICE}/ml-assistant/debug/config`);
       return data;
     },
     staleTime: 60 * 1000,
@@ -51,7 +52,7 @@ export function useJaiceChat(options = {}) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ messages, max_tokens = 512, temperature = 0.3 }) => {
-      const { data } = await api.post('/ml-assistant/chat', {
+      const { data } = await api.post(`${API.JAICE}/ml-assistant/chat`, {
         messages,
         max_tokens,
         temperature,

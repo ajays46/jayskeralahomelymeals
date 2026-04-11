@@ -4,6 +4,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 const EXECUTIVES_KEY = ['ml-partner-manager', 'executives'];
 const PARTNERS_KEY = ['ml-partner-manager', 'partners'];
@@ -14,7 +15,7 @@ export function useMlPartnerManagerExecutives(options = {}) {
   return useQuery({
     queryKey: EXECUTIVES_KEY,
     queryFn: async () => {
-      const { data } = await api.get('/ml-partner-manager/executives');
+      const { data } = await api.get(`${API.MAX_ROUTE}/ml-partner-manager/executives`);
       return {
         executives: data?.executives ?? [],
         vehicle_choices: data?.vehicle_choices ?? [],
@@ -28,7 +29,7 @@ export function useMlPartnerManagerPartners(options = {}) {
   return useQuery({
     queryKey: PARTNERS_KEY,
     queryFn: async () => {
-      const { data } = await api.get('/ml-partner-manager/partners');
+      const { data } = await api.get(`${API.MAX_ROUTE}/ml-partner-manager/partners`);
       return data?.data ?? [];
     },
     ...options,
@@ -39,7 +40,7 @@ export function useMlPartnerManagerCreatePartner(options = {}) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      const { data } = await api.post('/ml-partner-manager/partners', payload);
+      const { data } = await api.post(`${API.MAX_ROUTE}/ml-partner-manager/partners`, payload);
       return data;
     },
     onSuccess: () => {
@@ -55,7 +56,7 @@ export function useMlPartnerManagerVehicles(userId = null, options = {}) {
     queryKey: [...VEHICLES_KEY, userId ?? 'all'],
     queryFn: async () => {
       const params = userId ? { user_id: userId } : {};
-      const { data } = await api.get('/ml-partner-manager/vehicles', { params });
+      const { data } = await api.get(`${API.MAX_ROUTE}/ml-partner-manager/vehicles`, { params });
       return data?.data ?? [];
     },
     ...options,
@@ -67,7 +68,7 @@ export function useMlPartnerManagerAssignVehicle(options = {}) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, registration_number, force_assign = false }) => {
-      const { data } = await api.post('/ml-partner-manager/vehicles/assign', {
+      const { data } = await api.post(`${API.MAX_ROUTE}/ml-partner-manager/vehicles/assign`, {
         userId,
         registration_number,
         force_assign,
@@ -87,7 +88,7 @@ export function useMlPartnerManagerUnassignVehicle(options = {}) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId }) => {
-      const { data } = await api.post('/ml-partner-manager/vehicles/unassign', { userId });
+      const { data } = await api.post(`${API.MAX_ROUTE}/ml-partner-manager/vehicles/unassign`, { userId });
       return data?.data ?? data;
     },
     onSuccess: () => {

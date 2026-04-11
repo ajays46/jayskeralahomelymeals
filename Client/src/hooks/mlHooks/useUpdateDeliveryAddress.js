@@ -5,6 +5,7 @@
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 const TRIPS_LIST_KEY = ['ml-trips-list'];
 const TRIP_DETAIL_KEY = ['ml-trip-detail'];
@@ -13,7 +14,7 @@ export function useUpdateDeliveryAddress(options = {}) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ tripId, ...addressData }) => {
-      const { data } = await api.patch(`/ml-trips/${tripId}/delivery-address`, addressData);
+      const { data } = await api.patch(`${API.MAX_ROUTE}/ml-trips/${tripId}/delivery-address`, addressData);
       return data;
     },
     onSuccess: (data, { tripId }) => {

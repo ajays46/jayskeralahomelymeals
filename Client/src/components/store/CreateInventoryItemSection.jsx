@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StoreNotice, StoreSection } from '@/components/store/StorePageShell';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /** @feature kitchen-store — Operator form: create inventory item (`POST /kitchen-store/v1/items`). */
 const initialForm = {
@@ -85,7 +86,7 @@ export const CreateInventoryItemSection = ({
 
     setIsSubmitting(true);
     try {
-      const createResponse = await api.post('/kitchen-store/v1/items', payload);
+      const createResponse = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v1/items`, payload);
       const createdItem = extractCreatedItem(createResponse?.data);
       const createdItemId = createdItem?.id;
 

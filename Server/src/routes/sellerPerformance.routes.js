@@ -1,3 +1,4 @@
+/** @product max_kitchen · @feature seller-performance — CEO seller KPI dashboard */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

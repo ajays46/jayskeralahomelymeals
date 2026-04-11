@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Custom hook for fetching seller performance data
@@ -21,7 +22,7 @@ export const useSellerPerformanceSummary = (period = 'all') => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axiosInstance.get(`/seller-performance/summary?period=${period}`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller-performance/summary?period=${period}`);
       if (response.data.success) {
         setSummaryData(response.data.data);
       } else {
@@ -54,7 +55,7 @@ export const useSellerPerformanceDetails = (period = 'all') => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axiosInstance.get(`/seller-performance/details?period=${period}`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller-performance/details?period=${period}`);
       if (response.data.success) {
         setSellersData(response.data.data);
       } else {
@@ -83,7 +84,7 @@ export const useTopPerformingSellers = (period = 'all', limit = 5) => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axiosInstance.get(`/seller-performance/top-performers?period=${period}&limit=${limit}`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller-performance/top-performers?period=${period}&limit=${limit}`);
       if (response.data.success) {
         setTopPerformers(response.data.data.topPerformers);
       } else {

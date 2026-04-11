@@ -1,3 +1,4 @@
+/** @product max_route · @feature shift — driver shift status, end-shift */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

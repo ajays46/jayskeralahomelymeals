@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MdPerson, MdLock, MdVisibility, MdVisibilityOff } from 'react-icons/md';
 import axios from 'axios';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import { API } from '../api/endpoints';
 import useAuthStore from '../stores/Zustand.store';
 
 /**
@@ -43,7 +44,7 @@ const CustomerLoginPage = () => {
       const baseURL = import.meta.env.VITE_NODE_ENV === 'development' 
         ? (import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000')
         : import.meta.env.VITE_PROD_API_URL 
-      const response = await axios.get(`${baseURL}/customer-portal/validate-token?token=${urlToken}`);
+      const response = await axios.get(`${baseURL}${API.MAX_KITCHEN}/customer-portal/validate-token?token=${urlToken}`);
       
       if (response.data.success) {
         const data = response.data.data;
@@ -111,7 +112,7 @@ const CustomerLoginPage = () => {
         : import.meta.env.VITE_PROD_API_URL
       
       // Login using phone number as identifier
-      const response = await axios.post(`${baseURL}/auth/login`, {
+      const response = await axios.post(`${baseURL}${API.AUTH}/login`, {
         identifier: formData.phoneNumber,
         password: formData.password
       }, { withCredentials: true });

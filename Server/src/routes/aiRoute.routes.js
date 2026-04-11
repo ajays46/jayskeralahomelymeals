@@ -1,3 +1,4 @@
+/** @product max_route · @feature ai-routes — AI route optimization, weather, zones, journey, vehicle tracking, CXO map data */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

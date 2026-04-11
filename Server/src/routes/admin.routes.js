@@ -1,3 +1,4 @@
+/** @product shared · @feature admin — company CRUD, products, menus, users, route planning proxy */
 import express from 'express';
 // import { verifyToken } from '../middleware/verifyToken.js';
 import { authenticateToken } from '../middleware/authHandler.js';

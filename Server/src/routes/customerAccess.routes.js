@@ -1,3 +1,4 @@
+/** @product max_kitchen · @feature customer-portal — token-based customer access, orders, addresses, password setup */
 import express from 'express';
 import { 
   validateCustomerTokenController,

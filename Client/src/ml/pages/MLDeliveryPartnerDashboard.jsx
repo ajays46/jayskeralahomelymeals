@@ -8,6 +8,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 import useAuthStore from '../../stores/Zustand.store';
 import MLNavbar from '../components/MLNavbar';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
@@ -202,7 +203,7 @@ const MLDeliveryPartnerDashboard = () => {
         start_date: routeStartDate || defaultRange.startDate,
         end_date: routeEndDate || defaultRange.endDate,
       };
-      const { data } = await api.get('/ml-trips/route-overview-maps', { params });
+      const { data } = await api.get(`${API.MAX_ROUTE}/ml-trips/route-overview-maps`, { params });
       return data || {};
     },
   });

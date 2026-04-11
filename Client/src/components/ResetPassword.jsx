@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/axios';
+import { API } from '../api/endpoints';
 import { validateResetPassword } from '../validations/resetValidation';
 
 /**
@@ -44,7 +45,7 @@ const ResetPassword = () => {
 
         setIsSubmitting(true);
         try {
-            await api.post('/auth/reset-password', { token, id, newPassword });
+            await api.post(`${API.AUTH}/reset-password`, { token, id, newPassword });
             setSuccess('Password reset successful! You can now log in.');
             setShowPopup(true);
             setTimeout(() => navigate('/jayskeralahomelymeals'), 2000);

@@ -5,6 +5,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 export function useMlTripsByOrderId(options = {}) {
   return useMutation({
@@ -13,7 +14,7 @@ export function useMlTripsByOrderId(options = {}) {
       if (!order_id) {
         throw new Error('Order ID is required');
       }
-      const { data } = await api.get('/ml-trips/by-order-id', {
+      const { data } = await api.get(`${API.MAX_ROUTE}/ml-trips/by-order-id`, {
         params: { order_id },
       });
       if (data && data.success === false) {

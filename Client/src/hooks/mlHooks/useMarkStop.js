@@ -5,6 +5,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 export const useMarkStop = (options = {}) => {
   return useMutation({
@@ -17,7 +18,7 @@ export const useMarkStop = (options = {}) => {
       if (comments) payload.comments = comments;
       if (latitude != null) payload.latitude = Number(latitude);
       if (longitude != null) payload.longitude = Number(longitude);
-      const response = await api.post('/journey/mark-stop', payload);
+      const response = await api.post(`${API.MAX_ROUTE}/journey/mark-stop`, payload);
       return response.data;
     },
     ...options,

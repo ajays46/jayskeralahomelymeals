@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 const MAX_TOKENS = 512;
 const TEMPERATURE = 0.7;
@@ -30,7 +31,7 @@ export function useAssistantChat() {
     mutationFn: async ({ nextMessages, companyId, userId }) => {
       try {
         const { data } = await axiosInstance.post(
-          '/assistant/chat',
+          `${API.JAICE}/assistant/chat`,
           { messages: nextMessages, max_tokens: MAX_TOKENS, temperature: TEMPERATURE },
           {
             headers: {

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Hook for checking if delivery images exist for a specific stop
@@ -31,7 +32,7 @@ export const useCheckDeliveryImages = (addressId, deliveryDate, deliverySession,
       });
 
       const response = await axiosInstance.get(
-        `/delivery-executives/check-delivery-images?${params.toString()}`
+        `${API.MAX_KITCHEN}/delivery-executives/check-delivery-images?${params.toString()}`
       );
 
       if (!response.data.success) {
@@ -49,7 +50,7 @@ export const useCheckDeliveryImages = (addressId, deliveryDate, deliverySession,
 
 /**
  * Hook to check multiple stops at once (batch check).
- * Uses GET /delivery-executives/check-delivery-images (backend returns only delivery photos,
+ * Uses GET /max_kitchen/v1/delivery-executives/check-delivery-images (backend returns only delivery photos,
  * i.e. is_pre_delivery = false; pre-delivery photos are excluded).
  * @param {Array} stops - Array of { addressId, deliveryDate, deliverySession }
  * @param {Object} options - React Query options
@@ -89,7 +90,7 @@ export const useCheckMultipleDeliveryImages = (stops = [], options = {}) => {
           });
 
           const response = await axiosInstance.get(
-            `/delivery-executives/check-delivery-images?${params.toString()}`
+            `${API.MAX_KITCHEN}/delivery-executives/check-delivery-images?${params.toString()}`
           );
 
           if (response.data.success) {
@@ -169,7 +170,7 @@ export const useCheckMultiplePreDeliveryImages = (stops = [], options = {}) => {
           });
 
           const response = await axiosInstance.get(
-            `/delivery-executives/check-pre-delivery-images?${params.toString()}`
+            `${API.MAX_KITCHEN}/delivery-executives/check-pre-delivery-images?${params.toString()}`
           );
 
           if (response.data.success) {

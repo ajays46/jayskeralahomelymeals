@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { message } from 'antd';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 export const useDeliveryExecutives = () => {
   const [deliveryExecutives, setDeliveryExecutives] = useState([]);
@@ -13,7 +14,7 @@ export const useDeliveryExecutives = () => {
     setExecutivesError(false);
     
     try {
-      const response = await axiosInstance.get('/admin/delivery-executives');
+      const response = await axiosInstance.get(`${API.ADMIN}/delivery-executives`);
       
       if (response.data.status === 'success') {
         setDeliveryExecutives(response.data.data || []);
@@ -47,7 +48,7 @@ export const useDeliveryExecutives = () => {
         status: exec.status
       }));
       
-      await axiosInstance.put('/api/delivery-executives/status', { executives: statusUpdates });
+      await axiosInstance.put(`${API.MAX_KITCHEN}/delivery-executives/status`, { executives: statusUpdates });
       message.success('Executive statuses updated successfully');
     } catch (error) {
       console.error('Error updating executive statuses:', error);

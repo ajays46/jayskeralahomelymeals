@@ -1,3 +1,4 @@
+/** @product max_kitchen · @feature seller — seller profile, customer management, delivery notes */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

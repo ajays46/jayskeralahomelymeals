@@ -3,6 +3,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 import useMLDeliveryPartnerStore from '../../stores/MLDeliveryPartner.store.js';
 
 const SHIFT_STATUS_KEY = ['ml-shift-status'];
@@ -13,7 +14,7 @@ export function useShiftStatus(options = {}) {
   const query = useQuery({
     queryKey: SHIFT_STATUS_KEY,
     queryFn: async () => {
-      const { data } = await api.get('/shift/status');
+      const { data } = await api.get(`${API.MAX_ROUTE}/shift/status`);
       const inShift = !!data?.inShift;
       setInShift(inShift);
       return { inShift };

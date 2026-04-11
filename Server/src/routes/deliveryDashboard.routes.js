@@ -1,3 +1,4 @@
+/** @product shared · @feature delivery-dashboard — CEO delivery analytics and performance */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

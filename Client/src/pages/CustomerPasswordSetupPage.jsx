@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MdLock, MdVisibility, MdVisibilityOff, MdCheckCircle } from 'react-icons/md';
 import axios from 'axios';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import { API } from '../api/endpoints';
 
 /**
  * CustomerPasswordSetupPage - Password setup page for customers
@@ -53,7 +54,7 @@ const CustomerPasswordSetupPage = () => {
       const baseURL = import.meta.env.VITE_NODE_ENV === 'development' 
         ? (import.meta.env.VITE_DEV_API_URL || 'http://localhost:5000')
         : import.meta.env.VITE_PROD_API_URL
-      const response = await axios.get(`${baseURL}/customer-portal/validate-token?token=${urlToken}`);
+      const response = await axios.get(`${baseURL}${API.MAX_KITCHEN}/customer-portal/validate-token?token=${urlToken}`);
       
       if (response.data.success) {
         const data = response.data.data;
@@ -130,7 +131,7 @@ const CustomerPasswordSetupPage = () => {
         : import.meta.env.VITE_PROD_API_URL
       
       const response = await axios.post(
-        `${baseURL}/customer-portal/setup-password?token=${token}`,
+        `${baseURL}${API.MAX_KITCHEN}/customer-portal/setup-password?token=${token}`,
         { password: formData.password }
       );
 

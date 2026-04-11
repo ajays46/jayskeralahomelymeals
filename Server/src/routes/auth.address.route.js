@@ -1,3 +1,4 @@
+/** @product shared · @feature addresses — user address CRUD */
 import express from 'express';
 import { 
     getUserAddresses, 

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiTrendingUp, FiTrendingDown, FiBarChart2, FiPieChart, FiActivity, FiTarget, FiCalendar } from 'react-icons/fi';
 import { MdLocalShipping, MdStore, MdPerson, MdAttachMoney, MdAnalytics, MdDashboard, MdAssessment, MdBusinessCenter } from 'react-icons/md';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 import Navbar from '../components/Navbar';
 import { SkeletonChart, SkeletonDashboard, SkeletonLoading } from '../components/Skeleton';
 
@@ -27,7 +28,7 @@ const DeliveryAnalyticsPage = () => {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get('/admin/sellers-with-orders');
+      const response = await axiosInstance.get(`${API.ADMIN}/sellers-with-orders`);
       
       if (response.data.status === 'success') {
         const sellersData = response.data.data;

@@ -52,6 +52,7 @@ import {
   DeliveryNote
 } from '../components/booking';
 import axiosInstance from '../api/axios.js';
+import { API } from '../api/endpoints';
 
 // Draft Orders List Component
 const DraftOrdersList = ({ onLoadDraft, onDeleteDraft, currentDraftId }) => {
@@ -1061,7 +1062,7 @@ const BookingWizardPage = () => {
     
     setIsLoadingUserAddresses(true);
     try {
-      const response = await axiosInstance.get(`/seller/users/${userId}/addresses`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller/users/${userId}/addresses`);
       
       if (response.data.success) {
         setSelectedUserAddresses(response.data.data || []);
@@ -1082,7 +1083,7 @@ const BookingWizardPage = () => {
     }
     
     try {
-      const response = await axiosInstance.post(`/seller/users/${userId}/addresses`, addressData);
+      const response = await axiosInstance.post(`${API.MAX_KITCHEN}/seller/users/${userId}/addresses`, addressData);
       
       if (response.data.success) {
         await fetchUserAddresses(userId);
@@ -1102,7 +1103,7 @@ const BookingWizardPage = () => {
     }
     
     try {
-      const response = await axiosInstance.delete(`/seller/users/${selectedUser.id}/addresses/${addressId}`);
+      const response = await axiosInstance.delete(`${API.MAX_KITCHEN}/seller/users/${selectedUser.id}/addresses/${addressId}`);
       
       if (response.data.success) {
         await fetchUserAddresses(selectedUser.id);

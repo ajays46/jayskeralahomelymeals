@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Hook for uploading pre-delivery photos/videos to external API (before delivery at stop).
@@ -33,7 +34,7 @@ export const useUploadPreDeliveryPhoto = () => {
         formData.append('file', file);
       });
 
-      const response = await axiosInstance.post('/delivery-executives/upload-pre-delivery-photo', formData, {
+      const response = await axiosInstance.post(`${API.MAX_KITCHEN}/delivery-executives/upload-pre-delivery-photo`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

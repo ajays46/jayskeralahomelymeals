@@ -38,6 +38,7 @@ import {
 } from '../utils/toastConfig.jsx';
 import { cleanExpiredDrafts } from '../utils/draftOrderUtils';
 import axiosInstance from '../api/axios.js';
+import { API } from '../api/endpoints';
 import useAuthStore from '../stores/Zustand.store.js';
 import { SkeletonWizardStep, SkeletonLoading } from '../components/Skeleton';
 import AddressPicker from '../components/AddressPicker';
@@ -233,7 +234,7 @@ const PaymentWizardPage = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axiosInstance.get(`/orders/${orderId}`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/orders/${orderId}`);
       if (response.data.success) {
         setOrderDetails(response.data.data);
         setPaymentAmount(response.data.data.totalAmount?.toString() || '');
@@ -259,7 +260,7 @@ const PaymentWizardPage = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axiosInstance.get(`/payments/${paymentId}`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/payments/${paymentId}`);
       if (response.data.success) {
         const payment = response.data.data.payment;
         
@@ -274,7 +275,7 @@ const PaymentWizardPage = () => {
         } else if (payment.orderId) {
           // Fallback: Fetch order details separately if not included in payment response
           try {
-            const orderResponse = await axiosInstance.get(`/orders/${payment.orderId}`);
+            const orderResponse = await axiosInstance.get(`${API.MAX_KITCHEN}/orders/${payment.orderId}`);
             if (orderResponse.data.success) {
               orderDetails = orderResponse.data.data;
             }
@@ -525,7 +526,7 @@ const PaymentWizardPage = () => {
     
     setIsLoadingUserAddresses(true);
     try {
-      const response = await axiosInstance.get(`/seller/users/${userId}/addresses`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/seller/users/${userId}/addresses`);
       
       if (response.data.success) {
         const addresses = response.data.data || [];
@@ -550,7 +551,7 @@ const PaymentWizardPage = () => {
     }
     
     try {
-      const response = await axiosInstance.post(`/seller/users/${userId}/addresses`, addressData);
+      const response = await axiosInstance.post(`${API.MAX_KITCHEN}/seller/users/${userId}/addresses`, addressData);
       
       if (response.data.success) {
         await fetchUserAddresses(userId);
@@ -573,7 +574,7 @@ const PaymentWizardPage = () => {
     }
     
     try {
-      const response = await axiosInstance.delete(`/seller/users/${userId}/addresses/${addressId}`);
+      const response = await axiosInstance.delete(`${API.MAX_KITCHEN}/seller/users/${userId}/addresses/${addressId}`);
       
       if (response.data.success) {
         await fetchUserAddresses(userId);
@@ -974,7 +975,7 @@ const PaymentWizardPage = () => {
         formData.append('externalReceiptUrl', externalReceiptUrl);
       }
       
-      const response = await axiosInstance.post(`/payments/${location.state.paymentId}/receipt`, formData, {
+      const response = await axiosInstance.post(`${API.MAX_KITCHEN}/payments/${location.state.paymentId}/receipt`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

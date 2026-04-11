@@ -4,6 +4,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 export const useStartRoute = (options = {}) => {
   return useMutation({
@@ -16,7 +17,7 @@ export const useStartRoute = (options = {}) => {
           lng: Number(current_location.lng),
         };
       }
-      const response = await api.post('/ml-trips/start-route', payload);
+      const response = await api.post(`${API.MAX_ROUTE}/ml-trips/start-route`, payload);
       return response.data;
     },
     ...options,

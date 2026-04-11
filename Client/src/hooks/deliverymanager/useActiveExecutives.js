@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 import useAuthStore from '../../stores/Zustand.store';
 
 // Custom hook for fetching active executives using React Query (company-scoped when companyId is set)
@@ -23,7 +24,7 @@ export const useActiveExecutives = (options = {}) => {
   return useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await axiosInstance.get('/admin/active-executives');
+      const response = await axiosInstance.get(`${API.ADMIN}/active-executives`);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch active executives');

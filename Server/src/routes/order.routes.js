@@ -1,3 +1,4 @@
+/** @product max_kitchen · @feature orders — order CRUD, menu pricing, order total calculation */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { 

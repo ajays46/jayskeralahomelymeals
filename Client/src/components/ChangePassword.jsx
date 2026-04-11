@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MdLock, MdVisibility, MdVisibilityOff, MdClose, MdCheck } from 'react-icons/md';
 import api from '../api/axios';
+import { API } from '../api/endpoints';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
 
@@ -117,7 +118,7 @@ const ChangePassword = ({ isOpen, onClose }) => {
       }
       
       // Make the API call to change password
-      const response = await api.post('/auth/change-password', {
+      const response = await api.post(`${API.AUTH}/change-password`, {
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword
       });

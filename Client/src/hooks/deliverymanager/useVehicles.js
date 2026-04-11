@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 import { showSuccessToast, showErrorToast } from '../../utils/toastConfig.jsx';
 
 // Query keys
@@ -21,7 +22,7 @@ export const useVehicles = (filters = {}, options = {}) => {
         params.append('user_id', filters.user_id);
       }
       
-      const response = await axiosInstance.get(`/admin/vehicles?${params.toString()}`);
+      const response = await axiosInstance.get(`${API.ADMIN}/vehicles?${params.toString()}`);
       return response.data;
     },
     ...options
@@ -34,7 +35,7 @@ export const useAssignVehicle = () => {
   
   return useMutation({
     mutationFn: async ({ vehicleId, userId, companyId }) => {
-      const response = await axiosInstance.post('/admin/vehicles/assign', {
+      const response = await axiosInstance.post(`${API.ADMIN}/vehicles/assign`, {
         vehicleId,
         userId,
         ...(companyId && { company_id: companyId })
@@ -59,7 +60,7 @@ export const useUnassignVehicle = () => {
   
   return useMutation({
     mutationFn: async ({ vehicleId, userId, companyId }) => {
-      const response = await axiosInstance.post('/admin/vehicles/unassign', {
+      const response = await axiosInstance.post(`${API.ADMIN}/vehicles/unassign`, {
         vehicleId,
         userId,
         ...(companyId && { company_id: companyId })

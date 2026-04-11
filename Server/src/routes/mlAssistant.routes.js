@@ -1,6 +1,4 @@
-/**
- * ML Assistant (Jaice) routes - proxy to 5004. Allowed: DELIVERY_MANAGER, CEO, CFO, ADMIN.
- */
+/** @product jaice · @feature ml-assistant — Jaice AI chat (greeting, ping, chat, debug config) */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

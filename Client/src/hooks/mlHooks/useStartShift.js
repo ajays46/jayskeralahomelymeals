@@ -6,6 +6,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * @param {Object} options
@@ -25,7 +26,7 @@ export const useStartShift = (options = {}) => {
         };
       }
       if (vehicle_number != null && String(vehicle_number).trim()) payload.vehicle_number = String(vehicle_number).trim();
-      const response = await api.post('/ml-trips/shift/start', payload);
+      const response = await api.post(`${API.MAX_ROUTE}/ml-trips/shift/start`, payload);
       return response.data;
     },
     ...options,

@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Hook for uploading delivery photos/videos to external API
@@ -38,7 +39,7 @@ export const useUploadDeliveryPhoto = () => {
       formData.append('date', date); // Date in YYYY-MM-DD format
 
       // Make API call
-      const response = await axiosInstance.post('/delivery-executives/upload-delivery-photo', formData, {
+      const response = await axiosInstance.post(`${API.MAX_KITCHEN}/delivery-executives/upload-delivery-photo`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

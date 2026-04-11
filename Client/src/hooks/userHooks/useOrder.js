@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Order API functions - Handles all order-related API operations
@@ -8,7 +9,7 @@ import api from '../../api/axios';
 const orderApi = {
   // Create new order
   createOrder: async (orderData) => {
-    const response = await api.post('/orders', orderData, {
+    const response = await api.post(`${API.MAX_KITCHEN}/orders`, orderData, {
       headers: {
         'Content-Type': 'application/json'
       }
@@ -30,7 +31,7 @@ const orderApi = {
     if (filters.endDate) queryParams.append('endDate', filters.endDate);
     if (filters.orderTime) queryParams.append('orderTime', filters.orderTime);
 
-    const response = await api.get(`/orders?${queryParams.toString()}`);
+    const response = await api.get(`${API.MAX_KITCHEN}/orders?${queryParams.toString()}`);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to fetch orders');
@@ -41,7 +42,7 @@ const orderApi = {
 
   // Get order by ID
   getOrderById: async (orderId) => {
-    const response = await api.get(`/orders/${orderId}`);
+    const response = await api.get(`${API.MAX_KITCHEN}/orders/${orderId}`);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to fetch order');
@@ -52,7 +53,7 @@ const orderApi = {
 
   // Update order status
   updateOrderStatus: async ({ orderId, status }) => {
-    const response = await api.put(`/orders/${orderId}/status`, { status }, {
+    const response = await api.put(`${API.MAX_KITCHEN}/orders/${orderId}/status`, { status }, {
       headers: {
         'Content-Type': 'application/json'
       }
@@ -67,7 +68,7 @@ const orderApi = {
 
   // Cancel order
   cancelOrder: async (orderId) => {
-    const response = await api.delete(`/orders/${orderId}`);
+    const response = await api.delete(`${API.MAX_KITCHEN}/orders/${orderId}`);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to delete order');
@@ -78,7 +79,7 @@ const orderApi = {
 
   // Calculate menu pricing
   calculateMenuPricing: async ({ menuId, orderMode }) => {
-    const response = await api.post('/orders/calculate-menu-pricing', {
+    const response = await api.post(`${API.MAX_KITCHEN}/orders/calculate-menu-pricing`, {
       menuId,
       orderMode
     }, {
@@ -96,7 +97,7 @@ const orderApi = {
 
   // Calculate order total
   calculateOrderTotal: async ({ menuId, selectedDates, skipMeals, orderMode, dateMenuSelections }) => {
-    const response = await api.post('/orders/calculate-order-total', {
+    const response = await api.post(`${API.MAX_KITCHEN}/orders/calculate-order-total`, {
       menuId,
       selectedDates,
       skipMeals,
@@ -117,7 +118,7 @@ const orderApi = {
 
   // Create payment
   createPayment: async (paymentData) => {
-    const response = await api.post('/payments', paymentData, {
+    const response = await api.post(`${API.MAX_KITCHEN}/payments`, paymentData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -132,7 +133,7 @@ const orderApi = {
 
   // Cancel order (direct API call)
   cancelOrder: async (orderId) => {
-    const response = await api.delete(`/orders/${orderId}`);
+    const response = await api.delete(`${API.MAX_KITCHEN}/orders/${orderId}`);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to delete order');

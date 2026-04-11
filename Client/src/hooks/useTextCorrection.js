@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 
 const DEBOUNCE_MS = 400;
 const MIN_LENGTH = 5;
 
 /**
- * Hook for text auto-correction (spelling/grammar) via POST /text/correct.
+ * Hook for text auto-correction (spelling/grammar) via POST /max_kitchen/v1/text/correct.
  * Debounces input, fetches suggestion when text length >= MIN_LENGTH.
  * Shows "Suggested: ..." with Apply button; text updates only when user clicks Apply (no "Checking...").
  * @param {string} text - Current input value
@@ -28,7 +29,7 @@ export function useTextCorrection(text, { onApply, debounceMs = DEBOUNCE_MS, min
     }
     setCorrecting(true);
     try {
-      const { data } = await axiosInstance.post('/text/correct', { text: trimmed });
+      const { data } = await axiosInstance.post(`${API.MAX_KITCHEN}/text/correct`, { text: trimmed });
       if (data?.success && data?.changed && data?.corrected) {
         setSuggestion(data.corrected);
       } else {

@@ -4,12 +4,13 @@
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 export const useVehicleTracking = (options = {}) => {
   return useMutation({
     mutationFn: async ({ route_id, tracking_points } = {}) => {
       const payload = { route_id, tracking_points };
-      const response = await api.post('/vehicle-tracking', payload);
+      const response = await api.post(`${API.MAX_ROUTE}/vehicle-tracking`, payload);
       return response.data;
     },
     ...options,
@@ -30,7 +31,7 @@ export const useLiveVehiclePosition = (vehicleNumber, options = {}) => {
   return useQuery({
     queryKey: [...LIVE_VEHICLE_KEY, vn || '__auto__'],
     queryFn: async () => {
-      const { data } = await api.get('/vehicle-tracking/live', vn ? { params: { vehicle_number: vn } } : undefined);
+      const { data } = await api.get(`${API.MAX_ROUTE}/vehicle-tracking/live`, vn ? { params: { vehicle_number: vn } } : undefined);
       return data;
     },
     enabled: enabledOverride !== undefined ? enabledOverride : defaultEnabled,

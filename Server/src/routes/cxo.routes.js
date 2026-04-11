@@ -1,3 +1,4 @@
+/** @product shared · @feature cxo — CEO/CFO dashboard, manager hierarchy (isolated from company type) */
 import express from 'express';
 import { authenticateToken } from '../middleware/authHandler.js';
 import { checkRole } from '../middleware/checkRole.js';

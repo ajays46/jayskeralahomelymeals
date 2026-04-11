@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuthStore from "../stores/Zustand.store";
 import { getCompanyBasePathFallback } from "../utils/companyPaths";
 import api from "../api/axios";
+import { API } from "../api/endpoints";
 
 /**
  * ProtectedRoute - Route protection component with authentication guard.
@@ -34,7 +35,7 @@ const ProtectedRoute = ({ children }) => {
       return;
     }
     setCheckingSession(true);
-    api.post('/auth/refresh-token')
+    api.post(`${API.AUTH}/refresh-token`)
       .then((res) => {
         if (res.data?.accessToken) {
           setAccessToken(res.data.accessToken);

@@ -12,6 +12,7 @@ import {
 } from 'react-icons/md';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import axiosInstance from '../api/axios.js';
+import { API } from '../api/endpoints';
 import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store.js';
 
@@ -36,7 +37,7 @@ const UploadReceiptPage = () => {
 
   const fetchPaymentDetails = async () => {
     try {
-      const response = await axiosInstance.get(`/payments/${paymentId}`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/payments/${paymentId}`);
       if (response.data.success) {
         setPayment(response.data.data.payment);
       } else {
@@ -122,7 +123,7 @@ const UploadReceiptPage = () => {
       const orderAmount = payment?.paymentAmount || 0;
       formData.append('orderAmount', orderAmount.toString());
       
-      const response = await axiosInstance.post(`/payments/${paymentId}/receipt`, formData, {
+      const response = await axiosInstance.post(`${API.MAX_KITCHEN}/payments/${paymentId}/receipt`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

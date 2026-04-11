@@ -1,4 +1,5 @@
 import prisma from '../config/prisma.js';
+import kitchenPrisma from '../config/kitchenPrisma.js';
 import AppError from '../utils/AppError.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
@@ -9,119 +10,77 @@ import bcrypt from 'bcrypt';
  * Features: Token validation, order status viewing, delivery tracking
  */
 
+const USER_WITH_CONTACT_AUTH = {
+  contacts: {
+    select: {
+      firstName: true,
+      lastName: true,
+      phoneNumbers: { select: { number: true, type: true } }
+    }
+  },
+  auth: {
+    select: { email: true, status: true, password: true, phoneNumber: true }
+  }
+};
+
+function formatUserResponse(user) {
+  return {
+    userId: user.id,
+    customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Customer',
+    phoneNumber: user.contacts?.[0]?.phoneNumbers?.[0]?.number || user.auth.phoneNumber || null,
+    email: user.auth.email,
+    needsPasswordSetup: user.auth.password === 'NO_PASSWORD_NEEDED'
+  };
+}
+
 // Validate customer access token (supports both short tokens and legacy JWT tokens)
 export const validateCustomerToken = async (token) => {
   try {
-    // Check if token is a short token (8 characters) or JWT (longer)
     const isShortToken = token.length <= 20 && !token.includes('.');
 
     if (isShortToken) {
-      // Validate short token from database
-      const tokenRecord = await prisma.customerPortalToken.findUnique({
+      const tokenRecord = await kitchenPrisma.customerPortalToken.findUnique({
         where: { shortToken: token },
-        include: {
-          user: {
-            include: {
-              contacts: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  phoneNumbers: {
-                    select: {
-                      number: true,
-                      type: true
-                    }
-                  }
-                }
-              },
-              auth: {
-                select: {
-                  email: true,
-                  status: true,
-                  password: true,
-                  phoneNumber: true
-                }
-              }
-            }
-          }
-        }
       });
 
       if (!tokenRecord) {
         throw new AppError('Invalid access link', 401);
       }
 
-      // Check if token has expired
       if (new Date() > new Date(tokenRecord.expiresAt)) {
-        // Delete expired token
-        await prisma.customerPortalToken.delete({
+        await kitchenPrisma.customerPortalToken.delete({
           where: { id: tokenRecord.id }
         });
         throw new AppError('Access link has expired (24 hours). Please request a new link from your seller.', 401);
       }
 
-      const user = tokenRecord.user;
-
-      if (!user || user.status !== 'ACTIVE' || user.auth.status !== 'ACTIVE') {
-        throw new AppError('User not found or inactive', 401);
-      }
-
-      // Mark token as used (optional - you can keep it for multiple uses or delete it)
-      // For now, we'll keep it until expiration for better UX
-
-      return {
-        userId: user.id,
-        customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Customer',
-        phoneNumber: user.contacts?.[0]?.phoneNumbers?.[0]?.number || user.auth.phoneNumber || null,
-        email: user.auth.email,
-        needsPasswordSetup: user.auth.password === 'NO_PASSWORD_NEEDED'
-      };
-    } else {
-      // Legacy JWT token support (for backward compatibility)
-      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-      
-      if (decoded.type !== 'CUSTOMER_ACCESS') {
-        throw new AppError('Invalid token type', 401);
-      }
-
-      // Verify user exists and is active
       const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        include: {
-          contacts: {
-            select: {
-              firstName: true,
-              lastName: true,
-              phoneNumbers: {
-                select: {
-                  number: true,
-                  type: true
-                }
-              }
-            }
-          },
-          auth: {
-            select: {
-              email: true,
-              status: true,
-              password: true,
-              phoneNumber: true
-            }
-          }
-        }
+        where: { id: tokenRecord.userId },
+        include: USER_WITH_CONTACT_AUTH
       });
 
       if (!user || user.status !== 'ACTIVE' || user.auth.status !== 'ACTIVE') {
         throw new AppError('User not found or inactive', 401);
       }
 
-      return {
-        userId: user.id,
-        customerName: user.contacts?.[0] ? `${user.contacts[0].firstName} ${user.contacts[0].lastName}` : 'Customer',
-        phoneNumber: user.contacts?.[0]?.phoneNumbers?.[0]?.number || user.auth.phoneNumber || null,
-        email: user.auth.email,
-        needsPasswordSetup: user.auth.password === 'NO_PASSWORD_NEEDED'
-      };
+      return formatUserResponse(user);
+    } else {
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+      
+      if (decoded.type !== 'CUSTOMER_ACCESS') {
+        throw new AppError('Invalid token type', 401);
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        include: USER_WITH_CONTACT_AUTH
+      });
+
+      if (!user || user.status !== 'ACTIVE' || user.auth.status !== 'ACTIVE') {
+        throw new AppError('User not found or inactive', 401);
+      }
+
+      return formatUserResponse(user);
     }
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -140,38 +99,21 @@ export const validateCustomerToken = async (token) => {
 // Setup customer password (supports both short tokens and legacy JWT tokens)
 export const setupCustomerPassword = async (token, password) => {
   try {
-    // Check if token is a short token (8 characters) or JWT (longer)
     const isShortToken = token.length <= 20 && !token.includes('.');
 
     let userId;
 
     if (isShortToken) {
-      // Validate short token from database
-      const tokenRecord = await prisma.customerPortalToken.findUnique({
+      const tokenRecord = await kitchenPrisma.customerPortalToken.findUnique({
         where: { shortToken: token },
-        include: {
-          user: {
-            include: {
-              auth: {
-                select: {
-                  id: true,
-                  password: true,
-                  email: true
-                }
-              }
-            }
-          }
-        }
       });
 
       if (!tokenRecord) {
         throw new AppError('Invalid access link', 401);
       }
 
-      // Check if token has expired
       if (new Date() > new Date(tokenRecord.expiresAt)) {
-        // Delete expired token
-        await prisma.customerPortalToken.delete({
+        await kitchenPrisma.customerPortalToken.delete({
           where: { id: tokenRecord.id }
         });
         throw new AppError('Access link has expired (24 hours). Please request a new link.', 401);
@@ -179,7 +121,6 @@ export const setupCustomerPassword = async (token, password) => {
 
       userId = tokenRecord.userId;
     } else {
-      // Legacy JWT token support (for backward compatibility)
       const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
       
       if (decoded.type !== 'CUSTOMER_ACCESS') {
@@ -189,17 +130,10 @@ export const setupCustomerPassword = async (token, password) => {
       userId = decoded.userId;
     }
 
-    // Get user with auth info
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        auth: {
-          select: {
-            id: true,
-            password: true,
-            email: true
-          }
-        }
+        auth: { select: { id: true, password: true, email: true } }
       }
     });
 
@@ -207,15 +141,12 @@ export const setupCustomerPassword = async (token, password) => {
       throw new AppError('User not found', 404);
     }
 
-    // Check if password is already set
     if (user.auth.password !== 'NO_PASSWORD_NEEDED') {
       throw new AppError('Password already set up', 400);
     }
 
-    // Hash the new password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Update the password
     await prisma.auth.update({
       where: { id: user.auth.id },
       data: { password: hashedPassword }

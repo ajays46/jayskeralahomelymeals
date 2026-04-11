@@ -82,6 +82,7 @@ import RoleSelectionSidebar from './components/RoleSelectionSidebar';
 import Footer from './components/Footer';
 import useAuthStore from './stores/Zustand.store';
 import api from './api/axios';
+import { API } from './api/endpoints';
 import { TenantProvider, useTenant } from './context/TenantContext';
 import { getCompanyBasePathFallback } from './utils/companyPaths';
 
@@ -195,7 +196,7 @@ const App = () => {
       const state = useAuthStore.getState();
       if (state.accessToken) return;
       if (!state.user && !state.isAuthenticated) return;
-      api.post('/auth/refresh-token')
+      api.post(`${API.AUTH}/refresh-token`)
         .then((res) => {
           if (res.data?.accessToken) state.setAccessToken(res.data.accessToken);
         })

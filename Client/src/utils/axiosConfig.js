@@ -1,5 +1,6 @@
 import axios from 'axios';
 import useAuthStore from '../stores/Zustand.store';
+import { API } from '../api/endpoints';
 
 // Create axios instance
 const api = axios.create({
@@ -33,7 +34,7 @@ api.interceptors.response.use(
 
             try {
                 // Try to refresh token
-                const response = await api.post('/auth/refresh-token');
+                const response = await api.post(`${API.AUTH}/refresh-token`);
                 const { accessToken } = response.data;
 
                 // Update token in memory only (Zustand store)

@@ -4,6 +4,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 const CXO_DASHBOARD_KEY = ['cxo-dashboard'];
 
@@ -24,7 +25,7 @@ export function useCxoDashboardSummary(params = {}, options = {}) {
   return useQuery({
     queryKey: [...CXO_DASHBOARD_KEY, 'summary', queryParams],
     queryFn: async () => {
-      const { data } = await api.get('/cxo/dashboard/summary', { params: Object.keys(queryParams).length ? queryParams : { days: 30 } });
+      const { data } = await api.get(`${API.CXO}/dashboard/summary`, { params: Object.keys(queryParams).length ? queryParams : { days: 30 } });
       return data;
     },
     ...options,
@@ -37,7 +38,7 @@ export function useCxoMenuDemand(params = {}, options = {}) {
   return useQuery({
     queryKey: [...CXO_DASHBOARD_KEY, 'menu-demand', queryParams],
     queryFn: async () => {
-      const { data } = await api.get('/cxo/dashboard/menu-demand', { params: Object.keys(queryParams).length ? queryParams : { days: 30, limit: 10 } });
+      const { data } = await api.get(`${API.CXO}/dashboard/menu-demand`, { params: Object.keys(queryParams).length ? queryParams : { days: 30, limit: 10 } });
       return data;
     },
     ...options,
@@ -50,7 +51,7 @@ export function useCxoOrderAreas(params = {}, options = {}) {
   return useQuery({
     queryKey: [...CXO_DASHBOARD_KEY, 'order-areas', queryParams],
     queryFn: async () => {
-      const { data } = await api.get('/cxo/dashboard/order-areas', { params: Object.keys(queryParams).length ? queryParams : { days: 30, limit: 10 } });
+      const { data } = await api.get(`${API.CXO}/dashboard/order-areas`, { params: Object.keys(queryParams).length ? queryParams : { days: 30, limit: 10 } });
       return data;
     },
     ...options,
@@ -63,7 +64,7 @@ export function useCxoDriverEarnings(params = {}, options = {}) {
   return useQuery({
     queryKey: [...CXO_DASHBOARD_KEY, 'driver-earnings', queryParams],
     queryFn: async () => {
-      const { data } = await api.get('/cxo/dashboard/driver-earnings', { params: Object.keys(queryParams).length ? queryParams : { days: 30 } });
+      const { data } = await api.get(`${API.CXO}/dashboard/driver-earnings`, { params: Object.keys(queryParams).length ? queryParams : { days: 30 } });
       return data;
     },
     ...options,
@@ -76,7 +77,7 @@ export function useCxoDriverDistance(params = {}, options = {}) {
   return useQuery({
     queryKey: [...CXO_DASHBOARD_KEY, 'driver-distance', queryParams],
     queryFn: async () => {
-      const { data } = await api.get('/cxo/dashboard/driver-distance', { params: Object.keys(queryParams).length ? queryParams : { days: 30 } });
+      const { data } = await api.get(`${API.CXO}/dashboard/driver-distance`, { params: Object.keys(queryParams).length ? queryParams : { days: 30 } });
       return data;
     },
     ...options,
@@ -88,7 +89,7 @@ export function useCxoLiveDrivers(options = {}) {
   return useQuery({
     queryKey: [...CXO_DASHBOARD_KEY, 'live-drivers'],
     queryFn: async () => {
-      const { data } = await api.get('/cxo/dashboard/live-drivers');
+      const { data } = await api.get(`${API.CXO}/dashboard/live-drivers`);
       return data;
     },
     refetchInterval: 30000,
@@ -102,7 +103,7 @@ export function useCxoRouteHistory(params = {}, options = {}) {
   return useQuery({
     queryKey: [...CXO_DASHBOARD_KEY, 'route-history', queryParams],
     queryFn: async () => {
-      const { data } = await api.get('/cxo/dashboard/route-history', { params: Object.keys(queryParams).length ? queryParams : { days: 30, limit: 20 } });
+      const { data } = await api.get(`${API.CXO}/dashboard/route-history`, { params: Object.keys(queryParams).length ? queryParams : { days: 30, limit: 20 } });
       return data;
     },
     ...options,

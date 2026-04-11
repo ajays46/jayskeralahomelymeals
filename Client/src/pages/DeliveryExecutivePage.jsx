@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
+import { API } from '../api/endpoints';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
 import { useStartJourney, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops, useRouteMapData, useExecutivePerformanceByDriver } from '../hooks/deliverymanager/useAIRouteOptimization';
 import { useUploadDeliveryPhoto, useUploadPreDeliveryPhoto, useCheckMultipleDeliveryImages, useCheckMultiplePreDeliveryImages } from '../hooks/deliverymanager';
@@ -1214,7 +1215,7 @@ const DeliveryExecutivePage = () => {
     setLoadingStatus(prev => ({ ...prev, [stopIndex]: true }));
     
     try {
-      const response = await axiosInstance.get(`/api/delivery-items/status/${deliveryItemId}`);
+      const response = await axiosInstance.get(`${API.MAX_KITCHEN}/delivery-items/status/${deliveryItemId}`);
       
       if (response.data.success) {
         setDeliveryStatus(prev => ({
@@ -1472,7 +1473,7 @@ const DeliveryExecutivePage = () => {
       // If address_id is available, use it to update address geo_location directly
       if (addressId) {
         // Use delivery executive location endpoint to update address
-        const response = await axiosInstance.put(`/delivery-executives/${user.id}/location`, {
+        const response = await axiosInstance.put(`${API.MAX_KITCHEN}/delivery-executives/${user.id}/location`, {
           address_id: addressId,
           latitude: completionLocation.latitude,
           longitude: completionLocation.longitude
@@ -1647,7 +1648,7 @@ const DeliveryExecutivePage = () => {
         longitude: completionLocation.longitude
       };
       
-      const response = await axiosInstance.put(`/api/delivery-items/${deliveryItemId}/address`, requestData);
+      const response = await axiosInstance.put(`${API.MAX_KITCHEN}/delivery-items/${deliveryItemId}/address`, requestData);
 
       if (response.data.success) {
         // Mark location as updated for this stop (using address_id + session if available)
@@ -1750,7 +1751,7 @@ const DeliveryExecutivePage = () => {
     try {
       // Call logout API endpoint if it exists
       try {
-        await axiosInstance.post('/auth/logout');
+        await axiosInstance.post(`${API.AUTH}/logout`);
       } catch (error) {
         // Logout API call failed, proceeding with local logout
       }
@@ -1871,7 +1872,7 @@ const DeliveryExecutivePage = () => {
     setRoutesError(null);
 
     try {
-      const apiUrl = `/delivery-executives/routes?driver_id=${driverId}`;
+      const apiUrl = `${API.MAX_KITCHEN}/delivery-executives/routes?driver_id=${driverId}`;
       
       const response = await axiosInstance.get(apiUrl);
 
@@ -2417,7 +2418,7 @@ const DeliveryExecutivePage = () => {
     setCapturingProofIndex(index);
     try {
       // Try backend Puppeteer capture first (accurate image)
-      const response = await axiosInstance.post('/delivery-executives/capture-proof', payload, {
+      const response = await axiosInstance.post(`${API.MAX_KITCHEN}/delivery-executives/capture-proof`, payload, {
         responseType: 'blob',
         timeout: 30000,
       });

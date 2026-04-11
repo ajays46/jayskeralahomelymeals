@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Custom hook for delivery dashboard data management
@@ -46,7 +47,7 @@ export const useDeliveryDashboard = (period = 'all') => {
       setIsLoading(true);
       setError(null);
       
-      const response = await axiosInstance.get(`/delivery-dashboard/summary?period=${period}`);
+      const response = await axiosInstance.get(`${API.DELIVERY_DASH}/summary?period=${period}`);
       
       if (response.data.success) {
         setDashboardData(response.data.data);
@@ -91,7 +92,7 @@ export const useDeliveryExecutivesPerformance = (period = 'all') => {
       setIsLoading(true);
       setError(null);
       
-      const response = await axiosInstance.get(`/delivery-dashboard/executives-performance?period=${period}`);
+      const response = await axiosInstance.get(`${API.DELIVERY_DASH}/executives-performance?period=${period}`);
       
       if (response.data.success) {
         setExecutivesData(response.data.data);
@@ -141,7 +142,7 @@ export const useDeliveryTimeAnalytics = (period = 'all') => {
       setIsLoading(true);
       setError(null);
       
-      const response = await axiosInstance.get(`/delivery-dashboard/time-analytics?period=${period}`);
+      const response = await axiosInstance.get(`${API.DELIVERY_DASH}/time-analytics?period=${period}`);
       
       if (response.data.success) {
         setTimeAnalyticsData(response.data.data);
@@ -188,7 +189,7 @@ export const useDeliveryFailureAnalysis = (period = 'all') => {
       setIsLoading(true);
       setError(null);
       
-      const response = await axiosInstance.get(`/delivery-dashboard/failure-analysis?period=${period}`);
+      const response = await axiosInstance.get(`${API.DELIVERY_DASH}/failure-analysis?period=${period}`);
       
       if (response.data.success) {
         setFailureData(response.data.data);
@@ -241,7 +242,7 @@ export const useRealTimeDeliveryStatus = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await axiosInstance.get('/delivery-dashboard/real-time-status');
+      const response = await axiosInstance.get(`${API.DELIVERY_DASH}/real-time-status`);
       
       if (response.data.success) {
         setRealTimeData(response.data.data);

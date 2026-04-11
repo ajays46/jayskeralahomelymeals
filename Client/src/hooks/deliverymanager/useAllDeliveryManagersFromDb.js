@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '../../api/axios';
+import { API } from '../../api/endpoints';
 
 /**
  * Fetches ALL delivery managers from DB.
@@ -19,7 +20,7 @@ export const useAllDeliveryManagersFromDb = (options = {}) => {
   return useQuery({
     queryKey: ['allDeliveryManagersFromDb'],
     queryFn: async () => {
-      const response = await axiosInstance.get('/admin/delivery-managers');
+      const response = await axiosInstance.get(`${API.ADMIN}/delivery-managers`);
       if (response.data.status !== 'success') {
         throw new Error(response.data.message || 'Failed to fetch delivery managers');
       }
