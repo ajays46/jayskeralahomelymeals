@@ -130,7 +130,7 @@ export const persistKitchenMenuIds = (vegMenuId, nonVegMenuId) => {
   if (nonVegMenuId != null) localStorage.setItem(LS_KITCHEN_NONVEG_MENU_ID, String(nonVegMenuId).trim());
 };
 
-/** URL/API segment for `/v2/menus/by-kind/{...}/` (inventory server resolves `menu_id` from env). */
+/** URL/API segment for `/kitchen/menus/by-kind/{...}/` (inventory server resolves `menu_id` from env). */
 export const KITCHEN_MENU_KIND = {
   VEG: 'veg',
   NON_VEG: 'non_veg'
@@ -1822,9 +1822,18 @@ export const useKitchenReceiptsApi = () => {
   }, []);
 
   const addReceiptLine = useCallback(async (receipt_id, line) => {
-    // `line` should match the backend schema (purchased_qty, purchase_unit, conversion_to_base, line_total, purchase_date, note...)
     const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${receipt_id}/lines`, line);
     return res.data?.data;
+  }, []);
+
+  const uploadReceiptLineImage = useCallback(async (receipt_id, line_id, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post(
+      `${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${receipt_id}/lines/${line_id}/image/upload`,
+      formData
+    );
+    return res.data?.data || {};
   }, []);
 
   const listReceipts = useCallback(async (from_date, to_date) => {
@@ -1925,6 +1934,7 @@ export const useKitchenReceiptsApi = () => {
     uploadReceiptInvoice,
     createReceipt,
     addReceiptLine,
+    uploadReceiptLineImage,
     listReceipts,
     listReceiptLines,
     getReceiptInvoiceViewUrl,

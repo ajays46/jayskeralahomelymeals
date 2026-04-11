@@ -24,6 +24,7 @@ import {
   uploadPurchaseReceiptInvoiceService,
   createPurchaseReceiptService,
   addPurchaseReceiptLineService,
+  uploadPurchaseReceiptLineImageService,
   listPurchaseReceiptsService,
   listPurchaseReceiptLinesService,
   getPurchaseReceiptInvoiceUrlService,
@@ -734,6 +735,31 @@ export const addPurchaseReceiptLine = async (req, res, next) => {
 
     const result = await addPurchaseReceiptLineService(receiptId, body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadPurchaseReceiptLineImage = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const lineId = requireIdParam(req.params.line_id, 'line_id');
+    const file = req.file;
+    if (!file) {
+      throw new AppError('Image file is required (multipart field: file)', 400);
+    }
+    const allowedMime = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowedMime.has(file.mimetype)) {
+      throw new AppError('Image file must be JPG, PNG, or WebP', 400);
+    }
+    const result = await uploadPurchaseReceiptLineImageService(
+      receiptId,
+      lineId,
+      file,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }

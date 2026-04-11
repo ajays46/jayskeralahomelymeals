@@ -65,6 +65,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     createReceipt,
     uploadReceiptInvoice,
     addReceiptLine,
+    uploadReceiptLineImage,
     listReceipts,
     listReceiptLines,
     viewReceiptInvoiceInNewTab
@@ -106,11 +107,37 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     [purchaseProofFile]
   );
 
+  const [approvedLineImageFile, setApprovedLineImageFile] = useState(null);
+  const approvedLineImageInputRef = useRef(null);
+  const approvedLineImagePreviewUrl = useMemo(
+    () => (approvedLineImageFile ? URL.createObjectURL(approvedLineImageFile) : null),
+    [approvedLineImageFile]
+  );
+
+  const [offListImageFile, setOffListImageFile] = useState(null);
+  const offListImageInputRef = useRef(null);
+  const offListImagePreviewUrl = useMemo(
+    () => (offListImageFile ? URL.createObjectURL(offListImageFile) : null),
+    [offListImageFile]
+  );
+
   useEffect(() => {
     return () => {
       if (purchaseProofPreviewUrl) URL.revokeObjectURL(purchaseProofPreviewUrl);
     };
   }, [purchaseProofPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (approvedLineImagePreviewUrl) URL.revokeObjectURL(approvedLineImagePreviewUrl);
+    };
+  }, [approvedLineImagePreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (offListImagePreviewUrl) URL.revokeObjectURL(offListImagePreviewUrl);
+    };
+  }, [offListImagePreviewUrl]);
 
   const onPurchaseProofFileChange = (e) => {
     const f = e.target.files?.[0] ?? null;
@@ -120,6 +147,16 @@ const StoreOperatorPurchaseReceiptsPage = () => {
   const clearPurchaseProof = () => {
     setPurchaseProofFile(null);
     if (purchaseProofInputRef.current) purchaseProofInputRef.current.value = '';
+  };
+
+  const clearApprovedLineImage = () => {
+    setApprovedLineImageFile(null);
+    if (approvedLineImageInputRef.current) approvedLineImageInputRef.current.value = '';
+  };
+
+  const clearOffListImage = () => {
+    setOffListImageFile(null);
+    if (offListImageInputRef.current) offListImageInputRef.current.value = '';
   };
 
   useEffect(() => {
@@ -256,7 +293,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     }
     const bid = String(approvedPurchaseForm.brand_id || '').trim();
     const bname = String(approvedPurchaseForm.brand || '').trim();
-    await addReceiptLine(receiptId, {
+    return await addReceiptLine(receiptId, {
       inventory_item_id: catalogItemId,
       purchase_request_line_id: String(selectedApprovedLine.id),
       purchased_qty: pq,
@@ -359,7 +396,18 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     }
     setStatus('');
     try {
-      await addApprovedLineToReceipt(activeReceiptId);
+      const lineResult = await addApprovedLineToReceipt(activeReceiptId);
+      const lineId = String(lineResult?.line_id ?? lineResult?.id ?? '');
+      if (approvedLineImageFile && lineId) {
+        try {
+          await uploadReceiptLineImage(activeReceiptId, lineId, approvedLineImageFile);
+        } catch (imgErr) {
+          const imgMsg = formatKitchenStoreApiError(imgErr, 'Line added but image upload failed.');
+          setStatus(imgMsg);
+          showStoreError(imgMsg, 'Image upload failed');
+        }
+      }
+      clearApprovedLineImage();
       setStatus('Approved line added to the receipt.');
       showStoreSuccess('Approved line added to the receipt.', 'Line added');
       await loadReceiptHistory();
@@ -401,7 +449,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     }
     setStatus('');
     try {
-      await addReceiptLine(activeReceiptId, {
+      const lineResult = await addReceiptLine(activeReceiptId, {
         inventory_item_id: offListForm.inventory_item_id,
         purchased_qty: pq,
         purchase_unit: offListForm.purchase_unit.trim() || 'kg',
@@ -411,6 +459,17 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         off_list_purchase_reason: offListForm.off_list_purchase_reason.trim(),
         note: offListForm.note.trim() || 'Bought outside approved list'
       });
+      const lineId = String(lineResult?.line_id ?? lineResult?.id ?? '');
+      if (offListImageFile && lineId) {
+        try {
+          await uploadReceiptLineImage(activeReceiptId, lineId, offListImageFile);
+        } catch (imgErr) {
+          const imgMsg = formatKitchenStoreApiError(imgErr, 'Line added but image upload failed.');
+          setStatus(imgMsg);
+          showStoreError(imgMsg, 'Image upload failed');
+        }
+      }
+      clearOffListImage();
       setStatus('Off-list purchase line added to receipt.');
       showStoreSuccess('Off-list line added to the receipt.', 'Line added');
       setOffListForm({
@@ -632,6 +691,45 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, note: e.target.value }))}
               placeholder="Operator note"
             />
+            <div className="rounded-lg border border-slate-200/90 bg-slate-50/70 p-2.5 md:col-span-3">
+              <div className="text-xs font-medium text-slate-800">Item image (optional)</div>
+              <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <input
+                  ref={approvedLineImageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  aria-label="Choose item image for approved purchase"
+                  onChange={(e) => setApprovedLineImageFile(e.target.files?.[0] ?? null)}
+                />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => approvedLineImageInputRef.current?.click()}>
+                    Choose image
+                  </Button>
+                  {approvedLineImageFile ? (
+                    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-slate-600" onClick={clearApprovedLineImage}>
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+                {approvedLineImagePreviewUrl ? (
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-md border border-dashed border-slate-200 bg-white p-1.5 sm:max-w-[11rem]">
+                    <img
+                      src={approvedLineImagePreviewUrl}
+                      alt="Selected item image preview"
+                      className="max-h-24 w-full rounded object-contain"
+                    />
+                    <span className="truncate text-[10px] text-slate-500" title={approvedLineImageFile?.name || ''}>
+                      {approvedLineImageFile?.name}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex h-16 min-w-0 flex-1 items-center justify-center rounded-md border border-dashed border-slate-200 bg-white/80 px-2 text-center text-[11px] text-slate-400 sm:max-w-[11rem]">
+                    No image
+                  </div>
+                )}
+              </div>
+            </div>
             {(selectedBrand?.name || selectedBrand?.logo_view_url || selectedApprovedLine?.brand_name) ? (
               <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/90 px-3 py-2 md:col-span-3">
                 {selectedBrand?.logo_view_url ? (
@@ -751,6 +849,45 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               onChange={(e) => setOffListForm((prev) => ({ ...prev, note: e.target.value }))}
               placeholder="Optional note"
             />
+            <div className="rounded-lg border border-slate-200/90 bg-slate-50/70 p-2.5 md:col-span-3">
+              <div className="text-xs font-medium text-slate-800">Item image (optional)</div>
+              <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <input
+                  ref={offListImageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  aria-label="Choose item image for off-list purchase"
+                  onChange={(e) => setOffListImageFile(e.target.files?.[0] ?? null)}
+                />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => offListImageInputRef.current?.click()}>
+                    Choose image
+                  </Button>
+                  {offListImageFile ? (
+                    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-slate-600" onClick={clearOffListImage}>
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+                {offListImagePreviewUrl ? (
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-md border border-dashed border-slate-200 bg-white p-1.5 sm:max-w-[11rem]">
+                    <img
+                      src={offListImagePreviewUrl}
+                      alt="Selected item image preview"
+                      className="max-h-24 w-full rounded object-contain"
+                    />
+                    <span className="truncate text-[10px] text-slate-500" title={offListImageFile?.name || ''}>
+                      {offListImageFile?.name}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex h-16 min-w-0 flex-1 items-center justify-center rounded-md border border-dashed border-slate-200 bg-white/80 px-2 text-center text-[11px] text-slate-400 sm:max-w-[11rem]">
+                    No image
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           {offListPreview ? (
             <StoreNotice tone="sky">
