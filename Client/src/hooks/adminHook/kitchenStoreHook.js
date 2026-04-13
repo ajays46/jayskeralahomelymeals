@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../api/axios';
 import { API } from '../../api/endpoints';
+import { mergeNearExpiryRowsIntoMap } from '../../utils/nearExpiryUi.js';
 
 const toNum = (value) => Number(Number(value || 0).toFixed(4));
 
@@ -182,6 +183,8 @@ function useKitchenStoreData() {
   const [demandForecasts, setDemandForecasts] = useState([]);
   const [financialForecasts, setFinancialForecasts] = useState([]);
   const [purchaseSuggestions, setPurchaseSuggestions] = useState([]);
+  const [nearExpiryByItemId, setNearExpiryByItemId] = useState({});
+  const [nearExpiryMeta, setNearExpiryMeta] = useState({ total_count: 0, days_threshold: 7 });
 
   const [apiAvailable, setApiAvailable] = useState(false);
 
@@ -194,7 +197,7 @@ function useKitchenStoreData() {
   }, [items]);
 
   const refreshItems = async () => {
-    const itemsRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/items`, {
+    const itemsRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, {
       params: { page: 1, page_size: 50 }
     });
     const itemsData = itemsRes.data?.data || {};
@@ -212,6 +215,24 @@ function useKitchenStoreData() {
     setBrands(fetchedBrands);
     return fetchedBrands;
   };
+
+  const refreshNearExpiry = useCallback(async () => {
+    try {
+      const nearRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/expiry/near-expiry`, {
+        params: { days_threshold: 7 }
+      });
+      const nearData = nearRes.data?.data || {};
+      const rows = Array.isArray(nearData.items) ? nearData.items : [];
+      setNearExpiryByItemId(mergeNearExpiryRowsIntoMap(rows));
+      setNearExpiryMeta({
+        total_count: Number(nearData.total_count ?? rows.length) || 0,
+        days_threshold: Number(nearData.days_threshold ?? 7) || 7
+      });
+    } catch {
+      setNearExpiryByItemId({});
+      setNearExpiryMeta({ total_count: 0, days_threshold: 7 });
+    }
+  }, []);
 
   // Bootstrap UI state from kitchen-store proxy APIs
   useEffect(() => {
@@ -233,7 +254,7 @@ function useKitchenStoreData() {
 
         // 2) Low stock
         try {
-          const lowRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/alerts/low-stock`);
+          const lowRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/alerts/low-stock`);
           const lowData = lowRes.data?.data || {};
           const lowItems = normalizeAlertListItems(lowData.items || []);
           if (!cancelled) setLowStockItems(lowItems);
@@ -248,6 +269,12 @@ function useKitchenStoreData() {
           }
         }
 
+        try {
+          if (!cancelled) await refreshNearExpiry();
+        } catch {
+          /* refreshNearExpiry handles errors internally */
+        }
+
         // 3) Movements (combined timeline by fetching movements for each item)
         const currentItems = fetchedItems;
         const localItemNameMap = {};
@@ -256,7 +283,7 @@ function useKitchenStoreData() {
         });
         const movementLists = await Promise.all(
           currentItems.map(async (it) => {
-            const movRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/items/${it.id}/movements`, {
+            const movRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items/${it.id}/movements`, {
               params: { page: 1, page_size: 50 }
             });
             const movRaw = movRes.data?.data || [];
@@ -328,7 +355,7 @@ function useKitchenStoreData() {
 
         // 6) Forecasts + purchase recommendations
         try {
-          const invRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/forecasts/inventory`);
+          const invRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/forecasts/inventory`);
           const invData = invRes.data?.data || {};
           const invArr = invData || [];
           const mapped = (Array.isArray(invArr) ? invArr : invData?.forecasts || []).map((row) => ({
@@ -344,7 +371,7 @@ function useKitchenStoreData() {
         }
 
         try {
-          const finRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/forecasts/financial`);
+          const finRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/forecasts/financial`);
           const finData = finRes.data?.data || {};
           const finArr = finData || [];
           const mapped = (Array.isArray(finArr) ? finArr : finData?.forecasts || []).map((row) => ({
@@ -359,7 +386,7 @@ function useKitchenStoreData() {
         }
 
         try {
-          const recRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchases/recommendations`);
+          const recRes = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchases/recommendations`);
           const recData = recRes.data?.data || {};
           const recArr = recData || [];
           const mapped = (Array.isArray(recArr) ? recArr : recData?.recommendations || []).map((row) => ({
@@ -386,8 +413,7 @@ function useKitchenStoreData() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshNearExpiry]);
 
   // Mutations (inventory movement)
   const addMovementViaApi = async (itemId, movementType, quantity, note) => {
@@ -400,7 +426,7 @@ function useKitchenStoreData() {
       note: note || ''
     };
 
-    const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v1/items/${itemId}/movements`, payload);
+    const res = await api.post(`${API.MAX_KITCHEN_INVENTORY}/items/${itemId}/movements`, payload);
     return res.data?.data;
   };
 
@@ -418,17 +444,18 @@ function useKitchenStoreData() {
   const createItem = async (payload) => {
     if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
     try {
-      const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v1/items`, payload);
+      const res = await api.post(`${API.MAX_KITCHEN_INVENTORY}/items`, payload);
       const raw = res.data?.data;
       const itemId = extractCreatedItemId(raw);
       await refreshItems();
       try {
-        const lowRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/alerts/low-stock`);
+        const lowRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/alerts/low-stock`);
         const lowData = lowRes.data?.data || {};
         setLowStockItems(normalizeItems(lowData.items || []));
       } catch {
         // ignore low stock refresh failure
       }
+      void refreshNearExpiry();
       return { ok: true, itemId };
     } catch (e) {
       return {
@@ -472,7 +499,7 @@ function useKitchenStoreData() {
   const listItemImages = async (itemId) => {
     if (!apiAvailable) return [];
     try {
-      const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/items/${itemId}/images`);
+      const res = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items/${itemId}/images`);
       const data = res.data?.data;
       return Array.isArray(data) ? data : [];
     } catch {
@@ -488,7 +515,7 @@ function useKitchenStoreData() {
       fd.append('image', file);
       if (isPrimary) fd.append('is_primary', 'true');
       if (sortOrder != null && sortOrder !== '') fd.append('sort_order', String(sortOrder));
-      await api.post(`${API.MAX_KITCHEN}/kitchen-store/v1/items/${itemId}/images`, fd);
+      await api.post(`${API.MAX_KITCHEN_INVENTORY}/items/${itemId}/images`, fd);
       return { ok: true };
     } catch (e) {
       return {
@@ -500,12 +527,12 @@ function useKitchenStoreData() {
 
   const getItemDetail = async (itemId) => {
     if (!apiAvailable) return null;
-    const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/items/${itemId}`);
+    const res = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items/${itemId}`);
     return res.data?.data || null;
   };
 
   const refreshItemMovements = async (itemId) => {
-    const movRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/items/${itemId}/movements`, {
+    const movRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items/${itemId}/movements`, {
       params: { page: 1, page_size: 50 }
     });
     const movRaw = movRes.data?.data || [];
@@ -526,6 +553,7 @@ function useKitchenStoreData() {
         setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, current_quantity: toNum(out.new_current_quantity) } : it)));
       }
       await refreshItemMovements(itemId);
+      void refreshNearExpiry();
     } catch {
       // keep UI stable
     }
@@ -542,6 +570,7 @@ function useKitchenStoreData() {
         setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, current_quantity: toNum(out.new_current_quantity) } : it)));
       }
       await refreshItemMovements(itemId);
+      void refreshNearExpiry();
     } catch {
       // keep UI stable
     }
@@ -558,6 +587,7 @@ function useKitchenStoreData() {
         setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, current_quantity: toNum(out.new_current_quantity) } : it)));
       }
       await refreshItemMovements(itemId);
+      void refreshNearExpiry();
     } catch {
       // keep UI stable
     }
@@ -595,7 +625,7 @@ function useKitchenStoreData() {
       // refresh plan and items
       await refreshPlan(planId);
       try {
-        const itemsRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/items`, {
+        const itemsRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, {
           params: { page: 1, page_size: 50, include_brand_logo_view_url: true }
         });
         const itemsData = itemsRes.data?.data || {};
@@ -686,7 +716,10 @@ function useKitchenStoreData() {
     pipelineRuns,
     demandForecasts,
     financialForecasts,
-    purchaseSuggestions
+    purchaseSuggestions,
+    nearExpiryByItemId,
+    nearExpiryMeta,
+    refreshNearExpiry
   };
 }
 
@@ -707,7 +740,10 @@ export const useKitchenInventoryMock = () => {
     refreshItems: data.refreshItems,
     addStock: data.addStock,
     removeStock: data.removeStock,
-    expireStock: data.expireStock
+    expireStock: data.expireStock,
+    nearExpiryByItemId: data.nearExpiryByItemId,
+    nearExpiryMeta: data.nearExpiryMeta,
+    refreshNearExpiry: data.refreshNearExpiry
   };
 };
 
@@ -1025,7 +1061,7 @@ export const useKitchenWeeklyRecipeBom = ({
 
   const searchInventoryItems = useCallback(async (q) => {
     try {
-      const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/items`, {
+      const res = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, {
         params: { page: 1, page_size: 80, ...(q ? { q } : {}) }
       });
       const itemsData = res.data?.data || {};
@@ -1113,7 +1149,7 @@ const MAX_CATALOG_PAGES = 40;
 async function buildKitchenCatalogNameToIdMap() {
   const nameToId = new Map();
   for (let page = 1; page <= MAX_CATALOG_PAGES; page += 1) {
-    const itemsRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/items`, {
+    const itemsRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, {
       params: { page, page_size: ITEMS_PAGE_SIZE_CATALOG, include_brand_logo_view_url: true }
     });
     const itemsData = itemsRes.data?.data || {};
@@ -1171,6 +1207,10 @@ const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
   const brandName = raw?.brand_name ?? raw?.brand?.name ?? '';
   const brandLogo =
     raw?.brand_logo_s3_url ?? raw?.brand_logo_url ?? raw?.brand?.logo_s3_url ?? raw?.brand?.brand_logo_s3_url ?? '';
+  const itemImage =
+    (typeof raw?.primary_image_url === 'string' && raw.primary_image_url.trim()) ||
+    (typeof raw?.item_primary_image_url === 'string' && raw.item_primary_image_url.trim()) ||
+    '';
 
   return {
     id: String(raw?.id ?? raw?.line_id ?? `${source}-${index}-${name || 'row'}`),
@@ -1186,7 +1226,7 @@ const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
     note: raw?.operator_note || raw?.note || '',
     brand_id: raw?.brand_id != null && raw.brand_id !== '' ? String(raw.brand_id) : '',
     brand_name: brandName ? String(brandName) : '',
-    brand_logo_s3_url: brandLogo ? String(brandLogo) : ''
+    brand_logo_s3_url: itemImage || (brandLogo ? String(brandLogo) : '')
   };
 };
 
@@ -1211,6 +1251,10 @@ const normalizePurchaseRequestLine = (raw, index = 0) => {
     raw?.brand_logo_s3_url ??
     raw?.inventory_brand_logo_s3_url ??
     invNested?.brand_logo_s3_url ??
+    '';
+  const lineItemImage =
+    (typeof raw?.item_primary_image_url === 'string' && raw.item_primary_image_url.trim()) ||
+    (typeof raw?.primary_image_url === 'string' && raw.primary_image_url.trim()) ||
     '';
   const brandField =
     raw?.brand != null && String(raw.brand).trim() !== '' ? String(raw.brand).trim() : brandName || '';
@@ -1248,8 +1292,9 @@ const normalizePurchaseRequestLine = (raw, index = 0) => {
         ? String(invNested.brand_id)
         : '',
   brand_name: brandName ? String(brandName) : '',
-  brand_logo_s3_url: brandLogo ? String(brandLogo) : '',
-  brand: brandField
+  brand_logo_s3_url: lineItemImage || (brandLogo ? String(brandLogo) : ''),
+  brand: brandField,
+  freshness_priority: raw?.freshness_priority != null ? String(raw.freshness_priority) : ''
   };
 };
 
@@ -1272,6 +1317,9 @@ const normalizePurchaseRequestHeader = (raw, index = 0) => {
     total_lines: Number(raw?.total_lines ?? raw?.lines_count ?? lines.length ?? 0),
     approved_lines: Number(raw?.approved_lines ?? lines.filter((line) => line.status === 'APPROVED').length),
     rejected_lines: Number(raw?.rejected_lines ?? lines.filter((line) => line.status === 'REJECTED').length),
+    purchase_type: raw?.purchase_type != null ? String(raw.purchase_type) : '',
+    for_date: raw?.for_date != null ? String(raw.for_date) : '',
+    urgency: raw?.urgency != null ? String(raw.urgency) : '',
     lines
   };
 };
@@ -1281,6 +1329,7 @@ const normalizePurchaseReceiptLine = (raw, index = 0) => ({
   receipt_id: String(raw?.receipt_id ?? raw?.purchase_receipt_id ?? ''),
   inventory_item_id: raw?.inventory_item_id ? String(raw.inventory_item_id) : '',
   inventory_item_name: raw?.inventory_item_name || raw?.item_name || '',
+  item_primary_image_url: (raw?.item_primary_image_url || '').trim(),
   brand_id: raw?.brand_id != null && String(raw.brand_id).trim() !== '' ? String(raw.brand_id) : '',
   brand_name: (raw?.brand_name || '').trim(),
   brand_logo_s3_url: (raw?.brand_logo_s3_url || '').trim(),
@@ -1297,7 +1346,9 @@ const normalizePurchaseReceiptLine = (raw, index = 0) => ({
   manager_action: raw?.manager_action || '',
   manager_action_note: raw?.manager_action_note || '',
   stock_applied: Boolean(raw?.stock_applied),
-  purchase_date: raw?.purchase_date || ''
+  purchase_date: raw?.purchase_date || '',
+  manufacturing_date: raw?.manufacturing_date || raw?.mfg_date || '',
+  expiry_date: raw?.expiry_date || raw?.expires_on || ''
 });
 
 const normalizePurchaseReceiptHeader = (raw, index = 0) => ({
@@ -1352,6 +1403,8 @@ const normalizePurchaseExceptionRow = (raw, index = 0) => ({
   stock_applied: Boolean(raw?.stock_applied),
   note: raw?.note || '',
   purchase_date: raw?.purchase_date || '',
+  manufacturing_date: raw?.manufacturing_date || raw?.mfg_date || '',
+  expiry_date: raw?.expiry_date || raw?.expires_on || '',
   invoice_s3_key: raw?.invoice_s3_key || '',
   invoice_s3_url: raw?.invoice_s3_url || '',
   invoice_uploaded_at: raw?.invoice_uploaded_at || ''
@@ -1394,8 +1447,8 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     setBootstrapLoading(true);
     setError('');
     const [lowStockRes, shoppingRes] = await Promise.allSettled([
-      api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/alerts/low-stock`),
-      api.get(`${API.MAX_KITCHEN}/kitchen-store/v1/shopping-list`)
+      api.get(`${API.MAX_KITCHEN_INVENTORY}/alerts/low-stock`),
+      api.get(`${API.MAX_KITCHEN_INVENTORY}/shopping-list`)
     ]);
 
     const nextErrors = [];
@@ -1443,25 +1496,30 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
   }, []);
 
   const createPurchaseRequest = useCallback(async (payload) => {
-    const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests`, payload);
+    const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests`, payload);
     return res.data?.data || {};
   }, []);
 
   const addPurchaseRequestLine = useCallback(async (requestId, line) => {
-    const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}/lines`, line);
+    const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/lines`, line);
     return res.data?.data || {};
   }, []);
 
   const submitPurchaseRequest = useCallback(async (requestId) => {
-    const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}/submit`);
+    const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/submit`);
     return res.data?.data || {};
   }, []);
 
-  const createAndSubmitPurchaseRequest = useCallback(async ({ requested_note, lines }) => {
+  const createAndSubmitPurchaseRequest = useCallback(async ({ requested_note, lines, purchase_type, for_date, urgency }) => {
     setSubmitLoading(true);
     setError('');
     try {
-      const created = await createPurchaseRequest({ requested_note });
+      const created = await createPurchaseRequest({
+        requested_note,
+        ...(purchase_type ? { purchase_type } : {}),
+        ...(for_date ? { for_date } : {}),
+        ...(urgency ? { urgency } : {})
+      });
       const requestId = String(created?.id ?? created?.request_id ?? created?.purchase_request_id ?? '');
       if (!requestId) {
         throw new Error('Purchase request id was not returned by the API.');
@@ -1474,7 +1532,8 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
           requested_unit: line.requested_unit,
           requested_quantity: Number(line.requested_quantity),
           is_new_item: Boolean(line.is_new_item),
-          operator_note: line.operator_note || ''
+          operator_note: line.operator_note || '',
+          ...(line.freshness_priority ? { freshness_priority: line.freshness_priority } : {})
         });
       }
 
@@ -1499,8 +1558,8 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     };
     try {
       const [approvedSettled, rejectedSettled] = await Promise.allSettled([
-        api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests`, { params: { status: 'APPROVED', mine } }),
-        api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests`, { params: { status: 'REJECTED', mine } })
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests`, { params: { status: 'APPROVED', mine } }),
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests`, { params: { status: 'REJECTED', mine } })
       ]);
       const byId = new Map();
       if (approvedSettled.status === 'fulfilled') {
@@ -1538,7 +1597,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     setBootstrapLoading(true);
     setError('');
     try {
-      const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}/approved-lines`);
+      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/approved-lines`);
       const raw = res.data?.data;
       const list = Array.isArray(raw) ? raw : raw?.lines || raw?.items || [];
       let normalized = list.map((line, index) => normalizePurchaseRequestLine(line, index));
@@ -1564,7 +1623,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     setBootstrapLoading(true);
     setError('');
     try {
-      const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}`);
+      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}`);
       const normalized = normalizePurchaseRequestHeader(res.data?.data || {}, 0);
       setBootstrapLoading(false);
       return normalized;
@@ -1580,7 +1639,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     setDownloadLoading(true);
     setError('');
     try {
-      const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}/approved-lines.txt`, {
+      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/approved-lines.txt`, {
         responseType: 'blob'
       });
       const filename = parseFilenameFromDisposition(
@@ -1624,6 +1683,116 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
   };
 };
 
+const extractPurchaseRhythmList = (raw) => {
+  if (Array.isArray(raw)) return raw;
+  if (!raw || typeof raw !== 'object') return [];
+  const keys = ['items', 'requests', 'results', 'queue', 'rows', 'lines'];
+  for (const k of keys) {
+    const arr = raw[k];
+    if (Array.isArray(arr)) return arr;
+  }
+  return [];
+};
+
+/**
+ * Weekly/daily purchase rhythm APIs (Tasks 3–6) for manager dashboards + lists.
+ */
+export const useKitchenPurchaseRhythmApi = () => {
+  const [loadingWeekly, setLoadingWeekly] = useState(false);
+  const [loadingDaily, setLoadingDaily] = useState(false);
+  const [error, setError] = useState('');
+  const [weeklyRequests, setWeeklyRequests] = useState([]);
+  const [weeklyQueue, setWeeklyQueue] = useState([]);
+  const [weeklyDashboard, setWeeklyDashboard] = useState(null);
+  const [dailyRequests, setDailyRequests] = useState([]);
+  const [dailyQueue, setDailyQueue] = useState([]);
+  const [dailyDashboard, setDailyDashboard] = useState(null);
+  const [dailyShortage, setDailyShortage] = useState(null);
+  const [dailyReceiptsToday, setDailyReceiptsToday] = useState(null);
+
+  const refreshWeekly = useCallback(async () => {
+    setLoadingWeekly(true);
+    setError('');
+    try {
+      const [reqRes, qRes, dRes] = await Promise.all([
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/weekly/purchase-requests`),
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/weekly/approval-queue`),
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/weekly/dashboard`)
+      ]);
+      const wr = reqRes.data?.data;
+      const wq = qRes.data?.data;
+      const wd = dRes.data?.data;
+      const reqList = extractPurchaseRhythmList(wr).map((r, i) => normalizePurchaseRequestHeader(r, i));
+      setWeeklyRequests(reqList);
+      setWeeklyQueue(extractPurchaseRhythmList(wq));
+      setWeeklyDashboard(wd ?? null);
+      setLoadingWeekly(false);
+      return { ok: true };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to load weekly purchase rhythm.');
+      setError(message);
+      setWeeklyRequests([]);
+      setWeeklyQueue([]);
+      setWeeklyDashboard(null);
+      setLoadingWeekly(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  const refreshDaily = useCallback(async () => {
+    setLoadingDaily(true);
+    setError('');
+    try {
+      const [reqRes, qRes, dashRes, shortRes, recRes] = await Promise.all([
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/daily/purchase-requests`),
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/daily/approval-queue`),
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/daily/dashboard`),
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/daily/shortage-detection`),
+        api.get(`${API.MAX_KITCHEN_PURCHASE}/daily/stock-receipt-today`)
+      ]);
+      const dr = reqRes.data?.data;
+      const dq = qRes.data?.data;
+      const dd = dashRes.data?.data;
+      const ds = shortRes.data?.data;
+      const rt = recRes.data?.data;
+      const reqList = extractPurchaseRhythmList(dr).map((r, i) => normalizePurchaseRequestHeader(r, i));
+      setDailyRequests(reqList);
+      setDailyQueue(extractPurchaseRhythmList(dq));
+      setDailyDashboard(dd ?? null);
+      setDailyShortage(ds ?? null);
+      setDailyReceiptsToday(rt ?? null);
+      setLoadingDaily(false);
+      return { ok: true };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to load daily purchase rhythm.');
+      setError(message);
+      setDailyRequests([]);
+      setDailyQueue([]);
+      setDailyDashboard(null);
+      setDailyShortage(null);
+      setDailyReceiptsToday(null);
+      setLoadingDaily(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  return {
+    loadingWeekly,
+    loadingDaily,
+    error,
+    weeklyRequests,
+    weeklyQueue,
+    weeklyDashboard,
+    dailyRequests,
+    dailyQueue,
+    dailyDashboard,
+    dailyShortage,
+    dailyReceiptsToday,
+    refreshWeekly,
+    refreshDaily
+  };
+};
+
 export const useKitchenPurchaseRequestManagerApi = () => {
   const [listLoading, setListLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -1636,7 +1805,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     setListLoading(true);
     setError('');
     try {
-      const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests`, {
+      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests`, {
         params: { status: 'SUBMITTED' }
       });
       const raw = res.data?.data;
@@ -1658,7 +1827,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     setDetailLoading(true);
     setError('');
     try {
-      const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}`);
+      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}`);
       const normalized = normalizePurchaseRequestHeader(res.data?.data || {}, 0);
       setActiveRequest(normalized);
       setDetailLoading(false);
@@ -1676,7 +1845,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     setActionLoading(true);
     setError('');
     try {
-      const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v1/items`, payload);
+      const res = await api.post(`${API.MAX_KITCHEN_INVENTORY}/items`, payload);
       const created = res.data?.data || {};
       const itemId = extractCreatedItemIdFromResponse(created);
       setActionLoading(false);
@@ -1694,7 +1863,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     setError('');
     try {
       const res = await api.post(
-        `${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}/lines/${lineId}/resolve-item`,
+        `${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/lines/${lineId}/resolve-item`,
         payload
       );
       setActionLoading(false);
@@ -1712,7 +1881,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     setError('');
     try {
       const res = await api.post(
-        `${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}/lines/${lineId}/manager-update`,
+        `${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/lines/${lineId}/manager-update`,
         payload
       );
       setActionLoading(false);
@@ -1729,7 +1898,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     setActionLoading(true);
     setError('');
     try {
-      const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}/approve`, payload);
+      const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/approve`, payload);
       setActionLoading(false);
       return { ok: true, data: res.data?.data || {} };
     } catch (err) {
@@ -1744,7 +1913,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     setActionLoading(true);
     setError('');
     try {
-      const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}/reject`, payload);
+      const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/reject`, payload);
       setActionLoading(false);
       return { ok: true, data: res.data?.data || {} };
     } catch (err) {
@@ -1776,7 +1945,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
 export const useKitchenReceiptsApi = () => {
   /** Presigned PUT to S3 from the browser — requires CORS on the target bucket. Prefer {@link uploadReceiptInvoice} when you already have a receipt id. */
   const getInvoiceUploadUrl = useCallback(async ({ filename, content_type, purchase_request_id }) => {
-    const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/purchases/invoice-upload-url`, {
+    const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchases/invoice-upload-url`, {
       filename,
       content_type,
       purchase_request_id
@@ -1806,7 +1975,7 @@ export const useKitchenReceiptsApi = () => {
     const formData = new FormData();
     formData.append('file', file);
     const res = await api.post(
-      `${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${receiptId}/invoice/upload`,
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${receiptId}/invoice/upload`,
       formData
     );
     return res.data?.data || {};
@@ -1817,12 +1986,12 @@ export const useKitchenReceiptsApi = () => {
     if (!body?.purchase_request_id) {
       throw new Error('purchase_request_id is required to create a receipt.');
     }
-    const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts`, body);
+    const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchases/receipts`, body);
     return res.data?.data;
   }, []);
 
   const addReceiptLine = useCallback(async (receipt_id, line) => {
-    const res = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${receipt_id}/lines`, line);
+    const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${receipt_id}/lines`, line);
     return res.data?.data;
   }, []);
 
@@ -1830,14 +1999,14 @@ export const useKitchenReceiptsApi = () => {
     const formData = new FormData();
     formData.append('file', file);
     const res = await api.post(
-      `${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${receipt_id}/lines/${line_id}/image/upload`,
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${receipt_id}/lines/${line_id}/image/upload`,
       formData
     );
     return res.data?.data || {};
   }, []);
 
   const listReceipts = useCallback(async (from_date, to_date) => {
-    const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts`, {
+    const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchases/receipts`, {
       params: { from_date, to_date }
     });
     const raw = res.data?.data;
@@ -1846,7 +2015,7 @@ export const useKitchenReceiptsApi = () => {
   }, []);
 
   const listReceiptLines = useCallback(async (receipt_id) => {
-    const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${receipt_id}/lines`);
+    const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${receipt_id}/lines`);
     const raw = res.data?.data;
     const rows = Array.isArray(raw) ? raw : raw?.lines || raw?.items || [];
     return rows.map((row, index) => normalizePurchaseReceiptLine(row, index));
@@ -1854,7 +2023,7 @@ export const useKitchenReceiptsApi = () => {
 
   const getReceiptInvoiceViewUrl = useCallback(async (receiptId) => {
     const res = await api.get(
-      `${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${encodeURIComponent(receiptId)}/invoice/url`
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/invoice/url`
     );
     const raw = res.data?.data ?? res.data;
     const url = raw?.url;
@@ -1869,7 +2038,7 @@ export const useKitchenReceiptsApi = () => {
    */
   const viewReceiptInvoiceInNewTab = useCallback(async (receiptId) => {
     const res = await api.get(
-      `${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${encodeURIComponent(receiptId)}/invoice/view`,
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/invoice/view`,
       { responseType: 'blob', validateStatus: () => true }
     );
     if (res.status !== 200) {
@@ -1901,8 +2070,15 @@ export const useKitchenReceiptsApi = () => {
     window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
   }, []);
 
+  const getReceiptInvoiceTraceability = useCallback(async (receiptId) => {
+    const res = await api.get(
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/invoice-traceability`
+    );
+    return res.data?.data ?? res.data ?? {};
+  }, []);
+
   const getPurchaseComparison = useCallback(async (requestId) => {
-    const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchase-requests/${requestId}/purchase-comparison`);
+    const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/purchase-comparison`);
     const raw = res.data?.data;
     let rows = [];
     if (Array.isArray(raw)) {
@@ -1939,7 +2115,8 @@ export const useKitchenReceiptsApi = () => {
     listReceiptLines,
     getReceiptInvoiceViewUrl,
     viewReceiptInvoiceInNewTab,
-    getPurchaseComparison
+    getPurchaseComparison,
+    getReceiptInvoiceTraceability
   };
 };
 
@@ -1956,7 +2133,7 @@ export const useKitchenPurchaseExceptionManagerApi = () => {
     setListLoading(true);
     setError('');
     try {
-      const res = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/purchases/off-list-review`, {
+      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchases/off-list-review`, {
         params: { status, pending_scope }
       });
       const raw = res.data?.data;
@@ -1979,7 +2156,7 @@ export const useKitchenPurchaseExceptionManagerApi = () => {
     setError('');
     try {
       const res = await api.post(
-        `${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${receiptId}/lines/${lineId}/manager-review`,
+        `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${receiptId}/lines/${lineId}/manager-review`,
         payload
       );
       setActionLoading(false);
@@ -1997,7 +2174,7 @@ export const useKitchenPurchaseExceptionManagerApi = () => {
     setError('');
     try {
       const res = await api.post(
-        `${API.MAX_KITCHEN}/kitchen-store/v2/purchases/receipts/${receiptId}/lines/manager-review-bulk`,
+        `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${receiptId}/lines/manager-review-bulk`,
         payload
       );
       setActionLoading(false);

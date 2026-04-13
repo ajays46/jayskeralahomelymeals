@@ -2,6 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
+import {
+  compareNearExpiryInfo,
+  nearExpiryChipClassName,
+  nearExpiryCountdownLabel,
+  nearExpiryRowClassName
+} from '../../utils/nearExpiryUi.js';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -42,7 +48,7 @@ const InventoryBrandCell = ({ item }) => {
 
 const StoreManagerInventoryViewPage = () => {
   const basePath = useCompanyBasePath();
-  const { items, lowStockItems } = useKitchenInventoryMock();
+  const { items, lowStockItems, nearExpiryByItemId, nearExpiryMeta, refreshNearExpiry } = useKitchenInventoryMock();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [unitFilter, setUnitFilter] = useState('all');
@@ -83,10 +89,11 @@ const StoreManagerInventoryViewPage = () => {
         const low = isLowStock(item);
         if (statusFilter === 'low' && !low) return false;
         if (statusFilter === 'healthy' && low) return false;
+        if (statusFilter === 'near_expiry' && !nearExpiryByItemId[item.id]) return false;
       }
       return true;
     });
-  }, [items, search, categoryFilter, unitFilter, statusFilter]);
+  }, [items, search, categoryFilter, unitFilter, statusFilter, nearExpiryByItemId]);
 
   const filtersActive =
     search.trim() !== '' || categoryFilter !== 'all' || unitFilter !== 'all' || statusFilter !== 'all';
@@ -102,14 +109,78 @@ const StoreManagerInventoryViewPage = () => {
     ? `Showing ${filteredItems.length} of ${items.length} items.`
     : 'Live inventory item list.';
 
+  const nearExpirySummaryRows = useMemo(() => {
+    return Object.entries(nearExpiryByItemId)
+      .map(([id, info]) => {
+        const it = items.find((i) => i.id === id);
+        return { id, name: it?.name || 'Unknown item', ...info };
+      })
+      .sort((a, b) => compareNearExpiryInfo(a, b));
+  }, [nearExpiryByItemId, items]);
+
   return (
     <StorePageShell>
       <StoreStatGrid>
         <StoreStatCard label="Inventory Items" value={items.length} />
         <StoreStatCard label="Low Stock Items" value={lowStockItems.length} />
+        <StoreStatCard
+          label={`Near expiry (≤${nearExpiryMeta.days_threshold}d)`}
+          value={nearExpiryMeta.total_count}
+          tone="rose"
+        />
         <StoreStatCard label="Units Tracked" value={new Set(items.map((item) => item.unit)).size} />
       </StoreStatGrid>
-      <StoreSection title="Inventory Table" description={tableDescription}>
+      <StoreSection
+        title="Near-expiry focus"
+        description={`Catalog items with batches expiring within ${nearExpiryMeta.days_threshold} days. Row colors match severity (expired → critical → warning → approaching).`}
+        headerActions={
+          <Button type="button" variant="outline" size="sm" onClick={() => void refreshNearExpiry()}>
+            Refresh
+          </Button>
+        }
+      >
+        {nearExpirySummaryRows.length === 0 ? (
+          <p className="text-sm text-slate-500">No near-expiry batches in the current window.</p>
+        ) : (
+          <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
+            {nearExpirySummaryRows.slice(0, 16).map((row) => (
+              <li
+                key={row.id}
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/80 px-3 py-2 ${nearExpiryRowClassName(row)}`}
+              >
+                <Link
+                  to={`${basePath}/store-operator/item/${row.id}`}
+                  className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900 hover:underline"
+                >
+                  {row.name}
+                </Link>
+                <div className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+                  <span
+                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${nearExpiryChipClassName(row)}`}
+                  >
+                    {nearExpiryCountdownLabel(row)}
+                  </span>
+                  {row.expiry_date ? (
+                    <span className="text-[11px] text-slate-600 sm:text-xs">{row.expiry_date}</span>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {nearExpirySummaryRows.length > 16 ? (
+          <p className="mt-2 text-xs text-slate-500">Showing 16 of {nearExpirySummaryRows.length}. Use the table below with filter &quot;Near expiry&quot; for the full set.</p>
+        ) : null}
+      </StoreSection>
+      <StoreSection
+        title="Inventory Table"
+        description={tableDescription}
+        headerActions={
+          <Button type="button" variant="outline" size="sm" onClick={() => void refreshNearExpiry()}>
+            Refresh near-expiry
+          </Button>
+        }
+      >
         <div className="mb-3 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="flex min-w-[12rem] flex-1 flex-col gap-1">
             <label htmlFor="inv-filter-search" className="text-xs font-medium text-slate-600">
@@ -175,6 +246,7 @@ const StoreManagerInventoryViewPage = () => {
               <option value="all">All</option>
               <option value="low">Low stock</option>
               <option value="healthy">Healthy</option>
+              <option value="near_expiry">Near expiry</option>
             </select>
           </div>
           {filtersActive ? (
@@ -194,21 +266,23 @@ const StoreManagerInventoryViewPage = () => {
                 <TableHead>Current</TableHead>
                 <TableHead>Min</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Expiry</TableHead>
                 <TableHead className="text-right">Detail</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
+                  <TableCell colSpan={9} className="py-10 text-center text-sm text-slate-500">
                     No items match the current filters.
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredItems.map((item) => {
                   const isLow = isLowStock(item);
+                  const exp = nearExpiryByItemId[item.id];
                   return (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.id} className={exp ? nearExpiryRowClassName(exp) : undefined}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
                         <InventoryBrandCell item={item} />
@@ -221,6 +295,25 @@ const StoreManagerInventoryViewPage = () => {
                         <Badge variant={isLow ? 'warning' : 'secondary'}>
                           {isLow ? 'Low stock' : 'Healthy'}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        {exp ? (
+                          <div className="flex max-w-[10rem] flex-col gap-0.5">
+                            <span
+                              className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${nearExpiryChipClassName(exp)}`}
+                            >
+                              {nearExpiryCountdownLabel(exp)}
+                            </span>
+                            {exp.expiry_date ? (
+                              <span className="text-[11px] leading-tight text-slate-500">{exp.expiry_date}</span>
+                            ) : null}
+                            {exp.batch_count > 1 ? (
+                              <span className="text-[11px] text-slate-400">{exp.batch_count} batches</span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-slate-400">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button asChild variant="outline" size="sm">

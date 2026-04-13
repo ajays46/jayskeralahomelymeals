@@ -14,6 +14,10 @@ const V1 = 'v1';
 export const API = Object.freeze({
   /** MaX Kitchen — food-delivery SaaS */
   MAX_KITCHEN:  `/max_kitchen/${V1}`,
+  /** Guide paths: `/inventory/items`, movements, alerts, FEFO, expiry (same BFF auth as kitchen-store). */
+  MAX_KITCHEN_INVENTORY: `/max_kitchen/${V1}/inventory`,
+  /** Guide paths: `/purchase/purchase-requests`, weekly/daily, receipts, traceability. */
+  MAX_KITCHEN_PURCHASE: `/max_kitchen/${V1}/purchase`,
 
   /** MaX Route — last-mile logistics */
   MAX_ROUTE:    `/max_route/${V1}`,

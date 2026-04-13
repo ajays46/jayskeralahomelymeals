@@ -309,6 +309,8 @@ const StoreManagerPurchaseReceiptsPage = () => {
                     <TableHead>Base Qty</TableHead>
                     <TableHead>Unit price (base)</TableHead>
                     <TableHead>Line Total</TableHead>
+                    <TableHead>Mfg date</TableHead>
+                    <TableHead>Expiry</TableHead>
                     <TableHead>Comparison</TableHead>
                     <TableHead>Off-list reason</TableHead>
                     <TableHead>Manager Review</TableHead>
@@ -329,6 +331,12 @@ const StoreManagerPurchaseReceiptsPage = () => {
                         <TableCell>{row.received_qty_in_base_unit}</TableCell>
                         <TableCell>{row.unit_price_in_base ? row.unit_price_in_base.toFixed(4) : '-'}</TableCell>
                         <TableCell>{row.line_total}</TableCell>
+                        <TableCell className="whitespace-nowrap text-sm">
+                          {(row.manufacturing_date || '').trim() || '—'}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-sm">
+                          {(row.expiry_date || '').trim() || '—'}
+                        </TableCell>
                         <TableCell>{row.comparison_status || '-'}</TableCell>
                         <TableCell className="max-w-48 text-sm">{row.off_list_purchase_reason || '-'}</TableCell>
                         <TableCell>{row.manager_review_status || '-'}</TableCell>

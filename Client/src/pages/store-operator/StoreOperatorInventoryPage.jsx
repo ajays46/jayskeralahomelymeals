@@ -2,6 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
+import {
+  nearExpiryChipClassName,
+  nearExpiryCountdownLabel,
+  nearExpiryRowClassName
+} from '../../utils/nearExpiryUi.js';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -51,7 +56,8 @@ const InventoryBrandCell = ({ item }) => {
 
 const StoreOperatorInventoryPage = () => {
   const basePath = useCompanyBasePath();
-  const { items, lowStockItems, addStock, movements } = useKitchenInventoryMock();
+  const { items, lowStockItems, addStock, movements, nearExpiryByItemId, nearExpiryMeta, refreshNearExpiry } =
+    useKitchenInventoryMock();
   const [stockInputs, setStockInputs] = useState({});
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
@@ -94,13 +100,17 @@ const StoreOperatorInventoryPage = () => {
         const low = isLowStock(item);
         if (statusFilter === 'low' && !low) return false;
         if (statusFilter === 'ok' && low) return false;
+        if (statusFilter === 'near_expiry' && !nearExpiryByItemId[item.id]) return false;
       }
       return true;
     });
-  }, [items, search, categoryFilter, unitFilter, statusFilter]);
+  }, [items, search, categoryFilter, unitFilter, statusFilter, nearExpiryByItemId]);
 
   const stockFiltersActive =
-    search.trim() !== '' || categoryFilter !== 'all' || unitFilter !== 'all' || statusFilter !== 'all';
+    search.trim() !== '' ||
+    categoryFilter !== 'all' ||
+    unitFilter !== 'all' ||
+    statusFilter !== 'all';
 
   const clearStockFilters = () => {
     setSearch('');
@@ -159,12 +169,22 @@ const StoreOperatorInventoryPage = () => {
       <StoreStatGrid>
         <StoreStatCard label="Items" value={items.length} tone="sky" />
         <StoreStatCard label="Low Stock Alerts" value={lowStockItems.length} tone="amber" />
+        <StoreStatCard
+          label={`Near expiry (≤${nearExpiryMeta.days_threshold}d)`}
+          value={nearExpiryMeta.total_count}
+          tone="rose"
+        />
         <StoreStatCard label="Recent Movements" value={movements.slice(0, 8).length} tone="slate" />
       </StoreStatGrid>
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
       <StoreSection
         title="Current Stock"
         description={stockFiltersActive ? `Showing ${filteredItems.length} of ${items.length} items.` : undefined}
+        headerActions={
+          <Button type="button" variant="outline" size="sm" onClick={() => void refreshNearExpiry()}>
+            Refresh near-expiry
+          </Button>
+        }
       >
         <div className="mb-3 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="flex min-w-[12rem] flex-1 flex-col gap-1">
@@ -231,6 +251,7 @@ const StoreOperatorInventoryPage = () => {
               <option value="all">All</option>
               <option value="low">Low</option>
               <option value="ok">OK</option>
+              <option value="near_expiry">Near expiry</option>
             </select>
           </div>
           {stockFiltersActive ? (
@@ -249,6 +270,7 @@ const StoreOperatorInventoryPage = () => {
               <TableHead className="text-center">Current Qty</TableHead>
               <TableHead className="text-center">Min Qty</TableHead>
               <TableHead className="text-center">Status</TableHead>
+              <TableHead>Expiry</TableHead>
               <TableHead className="w-[220px]">Add Stock</TableHead>
               <TableHead className="text-right">Detail</TableHead>
             </TableRow>
@@ -256,15 +278,16 @@ const StoreOperatorInventoryPage = () => {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
+                <TableCell colSpan={9} className="py-10 text-center text-sm text-slate-500">
                   {items.length === 0 ? 'No inventory items loaded.' : 'No items match the current filters.'}
                 </TableCell>
               </TableRow>
             ) : (
               filteredItems.map((item) => {
                 const isLow = isLowStock(item);
+                const exp = nearExpiryByItemId[item.id];
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className={exp ? nearExpiryRowClassName(exp) : undefined}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
                       <InventoryBrandCell item={item} />
@@ -274,6 +297,25 @@ const StoreOperatorInventoryPage = () => {
                     <TableCell className="text-center">{item.min_quantity}</TableCell>
                     <TableCell className="text-center">
                       <Badge variant={isLow ? 'warningSoft' : 'successSoft'}>{isLow ? 'Low' : 'OK'}</Badge>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      {exp ? (
+                        <div className="flex max-w-[10rem] flex-col gap-0.5">
+                          <span
+                            className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${nearExpiryChipClassName(exp)}`}
+                          >
+                            {nearExpiryCountdownLabel(exp)}
+                          </span>
+                          {exp.expiry_date ? (
+                            <span className="text-[11px] leading-tight text-slate-500">{exp.expiry_date}</span>
+                          ) : null}
+                          {exp.batch_count > 1 ? (
+                            <span className="text-[11px] text-slate-400">{exp.batch_count} batches</span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-slate-400">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/90 px-2 py-1 shadow-sm">

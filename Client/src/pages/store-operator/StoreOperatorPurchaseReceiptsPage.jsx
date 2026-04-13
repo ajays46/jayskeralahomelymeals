@@ -17,9 +17,15 @@ import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Non-empty YYYY-MM-DD from date input → API field; omit when blank. */
+const optionalLineDate = (value) => {
+  const s = String(value || '').trim();
+  return s || undefined;
+};
+
 /** Renders brand logo + name from a normalized receipt line (null-safe). */
 function ReceiptLineBrandCell({ row }) {
-  const logoSrc = (row.brand_logo_s3_url || '').trim();
+  const logoSrc = (row.item_primary_image_url || row.brand_logo_s3_url || '').trim();
   const brandLabel = (row.brand_name || '').trim();
   if (!brandLabel && !logoSrc) {
     return <span className="text-sm text-slate-400">—</span>;
@@ -68,7 +74,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     uploadReceiptLineImage,
     listReceipts,
     listReceiptLines,
-    viewReceiptInvoiceInNewTab
+    viewReceiptInvoiceInNewTab,
+    getReceiptInvoiceTraceability
   } = useKitchenReceiptsApi();
 
   const [selectedRequestId, setSelectedRequestId] = useState(searchParams.get('requestId') || '');
@@ -77,6 +84,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
   const [history, setHistory] = useState([]);
   const [selectedLines, setSelectedLines] = useState([]);
   const [status, setStatus] = useState('');
+  const [traceabilityJson, setTraceabilityJson] = useState('');
+  const [traceabilityLoading, setTraceabilityLoading] = useState(false);
   const [approvedPurchaseForm, setApprovedPurchaseForm] = useState({
     purchase_request_line_id: '',
     purchased_qty: '',
@@ -86,6 +95,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     conversion_to_base: '1',
     line_total: '',
     purchase_date: today(),
+    manufacturing_date: '',
+    expiry_date: '',
     note: ''
   });
   const [offListForm, setOffListForm] = useState({
@@ -95,6 +106,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     conversion_to_base: '1',
     line_total: '',
     purchase_date: today(),
+    manufacturing_date: '',
+    expiry_date: '',
     off_list_purchase_reason: '',
     note: ''
   });
@@ -182,6 +195,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       brand: '',
       line_total: '',
       purchase_date: today(),
+      manufacturing_date: '',
+      expiry_date: '',
       note: ''
     }));
   }, [fetchApprovedLines, selectedRequestId]);
@@ -259,6 +274,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
 
   const openReceiptLines = async (receiptId) => {
     setActiveReceiptId(receiptId);
+    setTraceabilityJson('');
     setStatus('');
     try {
       const rows = await listReceiptLines(receiptId);
@@ -267,6 +283,28 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt lines.';
       setStatus(msg);
       showStoreError(msg, 'Could not load receipt lines');
+    }
+  };
+
+  const loadInvoiceTraceability = async () => {
+    if (!activeReceiptId) {
+      const msg = 'Open a receipt from the register first.';
+      setStatus(msg);
+      showStoreError(msg, 'No receipt');
+      return;
+    }
+    setTraceabilityLoading(true);
+    setTraceabilityJson('');
+    setStatus('');
+    try {
+      const data = await getReceiptInvoiceTraceability(activeReceiptId);
+      setTraceabilityJson(JSON.stringify(data, null, 2));
+    } catch (err) {
+      const msg = formatKitchenStoreApiError(err, 'Could not load invoice traceability.');
+      setStatus(msg);
+      showStoreError(msg, 'Traceability');
+    } finally {
+      setTraceabilityLoading(false);
     }
   };
 
@@ -293,6 +331,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     }
     const bid = String(approvedPurchaseForm.brand_id || '').trim();
     const bname = String(approvedPurchaseForm.brand || '').trim();
+    const mfg = optionalLineDate(approvedPurchaseForm.manufacturing_date);
+    const exp = optionalLineDate(approvedPurchaseForm.expiry_date);
     return await addReceiptLine(receiptId, {
       inventory_item_id: catalogItemId,
       purchase_request_line_id: String(selectedApprovedLine.id),
@@ -303,6 +343,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       purchase_date: approvedPurchaseForm.purchase_date,
       ...(bid ? { brand_id: bid } : {}),
       ...(bname ? { brand_name: bname } : {}),
+      ...(mfg ? { manufacturing_date: mfg } : {}),
+      ...(exp ? { expiry_date: exp } : {}),
       note: approvedPurchaseForm.note.trim() || 'Bought from approved list'
     });
   };
@@ -347,8 +389,10 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       }
       setActiveReceiptId(receiptId);
       setSelectedLines([]);
-      setStatus('Receipt created. Use Add item to record approved lines on this receipt.');
-      showStoreSuccess('Receipt created. Add items to record purchased lines.', 'Receipt created');
+      setStatus(
+        'Receipt created. Expand "Add approved purchase lines" if needed, or use off-list — then add lines to this receipt.'
+      );
+      showStoreSuccess('Receipt created. Add receipt lines when ready.', 'Receipt created');
       clearPurchaseProof();
       await loadReceiptHistory();
       await openReceiptLines(receiptId);
@@ -449,6 +493,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     }
     setStatus('');
     try {
+      const mfg = optionalLineDate(offListForm.manufacturing_date);
+      const exp = optionalLineDate(offListForm.expiry_date);
       const lineResult = await addReceiptLine(activeReceiptId, {
         inventory_item_id: offListForm.inventory_item_id,
         purchased_qty: pq,
@@ -457,6 +503,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         line_total: lt,
         purchase_date: offListForm.purchase_date,
         off_list_purchase_reason: offListForm.off_list_purchase_reason.trim(),
+        ...(mfg ? { manufacturing_date: mfg } : {}),
+        ...(exp ? { expiry_date: exp } : {}),
         note: offListForm.note.trim() || 'Bought outside approved list'
       });
       const lineId = String(lineResult?.line_id ?? lineResult?.id ?? '');
@@ -479,6 +527,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         conversion_to_base: '1',
         line_total: '',
         purchase_date: today(),
+        manufacturing_date: '',
+        expiry_date: '',
         off_list_purchase_reason: '',
         note: ''
       });
@@ -586,7 +636,11 @@ const StoreOperatorPurchaseReceiptsPage = () => {
           </Button>
         </div>
 
-        <div className="mt-4 text-sm font-medium text-slate-700">Add Approved Purchase items</div>
+        <details className="mt-4 rounded-lg border border-slate-200/80 bg-slate-50/40 px-3 py-2">
+          <summary className="cursor-pointer select-none text-sm font-medium text-slate-800">
+            Add approved purchase lines
+          </summary>
+          <div className="mt-3 space-y-3">
         {approvedLines.length === 0 ? (
           <StoreNotice tone="amber">No approved lines are available for the selected request.</StoreNotice>
         ) : (
@@ -679,14 +733,46 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               step="0.01"
               aria-label="Line total amount paid for this purchase"
             />
-            <input
-              className="rounded border px-3 py-2"
-              type="date"
-              value={approvedPurchaseForm.purchase_date}
-              onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, purchase_date: e.target.value }))}
-            />
+            <div className="flex flex-col gap-1">
+              <label htmlFor="approved-line-purchase-date" className="text-xs font-medium text-slate-600">
+                Purchase date
+              </label>
+              <input
+                id="approved-line-purchase-date"
+                className="rounded border px-3 py-2"
+                type="date"
+                value={approvedPurchaseForm.purchase_date}
+                onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, purchase_date: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="approved-manufacturing-date" className="text-xs font-medium text-slate-600">
+                Manufacturing date (optional)
+              </label>
+              <input
+                id="approved-manufacturing-date"
+                className="rounded border px-3 py-2"
+                type="date"
+                value={approvedPurchaseForm.manufacturing_date}
+                onChange={(e) =>
+                  setApprovedPurchaseForm((prev) => ({ ...prev, manufacturing_date: e.target.value }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="approved-expiry-date" className="text-xs font-medium text-slate-600">
+                Expiry date (optional)
+              </label>
+              <input
+                id="approved-expiry-date"
+                className="rounded border px-3 py-2"
+                type="date"
+                value={approvedPurchaseForm.expiry_date}
+                onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, expiry_date: e.target.value }))}
+              />
+            </div>
             <textarea
-              className="rounded border px-3 py-2 text-sm md:col-span-2"
+              className="rounded border px-3 py-2 text-sm md:col-span-3"
               value={approvedPurchaseForm.note}
               onChange={(e) => setApprovedPurchaseForm((prev) => ({ ...prev, note: e.target.value }))}
               placeholder="Operator note"
@@ -766,6 +852,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             </div>
           </>
         )}
+          </div>
+        </details>
         {/* {approvedLinePreview ? (
           <StoreNotice tone="sky">
             Preview (backend uses the same math): received in base unit ≈{' '}
@@ -828,14 +916,35 @@ const StoreOperatorPurchaseReceiptsPage = () => {
               min="0"
               step="0.01"
             />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-medium text-slate-600">Purchase date</span>
+              <input
+                className="rounded border px-2 py-1.5 text-sm"
+                type="date"
+                value={offListForm.purchase_date}
+                onChange={(e) => setOffListForm((prev) => ({ ...prev, purchase_date: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-medium text-slate-600">Mfg date (opt.)</span>
+              <input
+                className="rounded border px-2 py-1.5 text-sm"
+                type="date"
+                value={offListForm.manufacturing_date}
+                onChange={(e) => setOffListForm((prev) => ({ ...prev, manufacturing_date: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-medium text-slate-600">Expiry (opt.)</span>
+              <input
+                className="rounded border px-2 py-1.5 text-sm"
+                type="date"
+                value={offListForm.expiry_date}
+                onChange={(e) => setOffListForm((prev) => ({ ...prev, expiry_date: e.target.value }))}
+              />
+            </div>
             <input
-              className="rounded border px-2 py-1.5 text-sm"
-              type="date"
-              value={offListForm.purchase_date}
-              onChange={(e) => setOffListForm((prev) => ({ ...prev, purchase_date: e.target.value }))}
-            />
-            <input
-              className="rounded border px-2 py-1.5 text-sm md:col-span-2"
+              className="rounded border px-2 py-1.5 text-sm md:col-span-3"
               value={offListForm.off_list_purchase_reason}
               onChange={(e) => setOffListForm((prev) => ({ ...prev, off_list_purchase_reason: e.target.value }))}
               placeholder="Off-list purchase reason"
@@ -955,7 +1064,22 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         </div>
       </StoreSection>
 
-      <StoreSection title="Received Item " tone="amber">
+      <StoreSection
+        title="Received Item "
+        tone="amber"
+        headerActions={
+          activeReceiptId ? (
+            <Button type="button" variant="outline" size="sm" disabled={traceabilityLoading} onClick={loadInvoiceTraceability}>
+              {traceabilityLoading ? 'Loading…' : 'Invoice traceability'}
+            </Button>
+          ) : null
+        }
+      >
+        {traceabilityJson ? (
+          <pre className="mb-4 max-h-64 overflow-auto rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
+            {traceabilityJson}
+          </pre>
+        ) : null}
         {selectedLines.length === 0 ? (
           <StoreNotice tone="amber">Open a receipt to view received item lines.</StoreNotice>
         ) : (
@@ -968,6 +1092,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                 <TableHead>Base Qty</TableHead>
                 <TableHead>Unit price (base)</TableHead>
                 <TableHead>Line Total</TableHead>
+                <TableHead>Mfg date</TableHead>
+                <TableHead>Expiry</TableHead>
                 <TableHead>Comparison</TableHead>
                 <TableHead>Manager Review</TableHead>
                 <TableHead>Manager action</TableHead>
@@ -985,6 +1111,12 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                   <TableCell>{row.received_qty_in_base_unit}</TableCell>
                   <TableCell>{row.unit_price_in_base ? row.unit_price_in_base.toFixed(4) : '-'}</TableCell>
                   <TableCell>{row.line_total}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {(row.manufacturing_date || '').trim() || '—'}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {(row.expiry_date || '').trim() || '—'}
+                  </TableCell>
                   <TableCell>{row.comparison_status || '-'}</TableCell>
                   <TableCell>{row.manager_review_status || '-'}</TableCell>
                   <TableCell>{row.manager_action || '-'}</TableCell>

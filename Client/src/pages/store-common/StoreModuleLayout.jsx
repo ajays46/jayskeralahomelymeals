@@ -8,7 +8,7 @@ import { useLogout } from '../../hooks/userHooks/useLogin';
 const managerLinks = [
   { to: 'store-manager/kitchen-dashboard', label: 'Manager Dashboard' },
   { to: 'store-manager/recipe-bom', label: 'Recipe / BOM' },
-  { to: 'store-manager/purchase-requests', label: 'Purchase Request Inbox' },
+  { to: 'store-manager/purchase-requests', label: 'Purchase requests' },
   { to: 'store-manager/purchase-receipts', label: 'Purchase Receipts' },
   { to: 'store-manager/purchase-comparison', label: 'Purchase Comparison' },
   { to: 'store-manager/off-list-review', label: 'Purchase Manager Review' },

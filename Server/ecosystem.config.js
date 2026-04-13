@@ -11,14 +11,18 @@ export default {
       PORT: 5000,
       AI_ROUTE_API: 'https://api.jayskeralainnovations.com/flask1',
       AI_ROUTE_API_SECOND: 'https://api.jayskeralainnovations.com/flask2',
-      AI_ROUTE_API_THIRD: 'https://api.jayskeralainnovations.com/flask3'
+      AI_ROUTE_API_THIRD: 'https://api.jayskeralainnovations.com/flask3',
+      AI_ROUTE_API_FOURTH: 'https://api.jayskeralainnovations.com/flask4',
+      AI_ROUTE_API_FIFTH: 'https://api.jayskeralainnovations.com/flask5'
     },
     env_production: {
       NODE_ENV: 'production',
       PORT: 5000,
       AI_ROUTE_API: process.env.AI_ROUTE_API || 'https://api.jayskeralainnovations.com/flask1',
       AI_ROUTE_API_SECOND: process.env.AI_ROUTE_API_SECOND || 'https://api.jayskeralainnovations.com/flask2',
-      AI_ROUTE_API_THIRD: process.env.AI_ROUTE_API_THIRD || 'https://api.jayskeralainnovations.com/flask3'
+      AI_ROUTE_API_THIRD: process.env.AI_ROUTE_API_THIRD || 'https://api.jayskeralainnovations.com/flask3',
+      AI_ROUTE_API_FOURTH: process.env.AI_ROUTE_API_FOURTH || 'https://api.jayskeralainnovations.com/flask4',
+      AI_ROUTE_API_FIFTH: process.env.AI_ROUTE_API_FIFTH || 'https://api.jayskeralainnovations.com/flask5'
     }
   }]
 };

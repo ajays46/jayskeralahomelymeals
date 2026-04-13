@@ -8,6 +8,8 @@ import { logError, LOG_CATEGORIES, logInfo } from '../../../utils/criticalLogger
 
 const AI_ROUTE_API = process.env.AI_ROUTE_API
 const KITCHEN_STORE_BASE_URL = process.env.AI_ROUTE_API_FIFTH;
+
+console.log('KITCHEN_STORE_BASE_URL', KITCHEN_STORE_BASE_URL);
 const EXTERNAL_API_AUTH_TOKEN = process.env.EXTERNAL_API_AUTH_TOKEN || 'mysecretkey123';
 const K = '/api/max_kitchen/v1';
 
@@ -608,7 +610,6 @@ export const uploadPurchaseReceiptLineImageService = async (receiptId, lineId, f
       contentType: file.mimetype || 'application/octet-stream',
       knownLength: file.size
     });
-    formData.append('line_id', String(lineId));
     const contextConfig = withKitchenContext(companyId, userId, {
       headers: {
         ...formData.getHeaders()
@@ -616,12 +617,12 @@ export const uploadPurchaseReceiptLineImageService = async (receiptId, lineId, f
       maxBodyLength: Infinity
     });
     const response = await apiClient.post(
-      `${K}/purchase/purchases/receipts/${receiptId}/items-photo/upload`,
+      `${K}/purchase/purchases/receipts/${encodeURIComponent(receiptId)}/lines/${encodeURIComponent(lineId)}/image/upload`,
       formData,
       contextConfig
     );
     logKitchenSuccess('uploadPurchaseReceiptLineImage', {
-      endpoint: '/purchase/purchases/receipts/:receipt_id/items-photo/upload',
+      endpoint: '/purchase/purchases/receipts/:receipt_id/lines/:line_id/image/upload',
       companyId: companyId || null,
       receiptId,
       lineId
@@ -629,7 +630,7 @@ export const uploadPurchaseReceiptLineImageService = async (receiptId, lineId, f
     return parseKitchenJsonResponse(response);
   } catch (error) {
     logKitchenError('uploadPurchaseReceiptLineImage', error, {
-      endpoint: '/purchase/purchases/receipts/:receipt_id/items-photo/upload',
+      endpoint: '/purchase/purchases/receipts/:receipt_id/lines/:line_id/image/upload',
       companyId: companyId || null,
       receiptId,
       lineId
@@ -1135,6 +1136,244 @@ export const getMealReportService = async (query = {}, companyId, userId = null)
       requestCompanyId: query?.company_id || companyId || null,
       includeZeroLocations: query?.include_zero_locations ?? 'false',
       includeCustomerNames: query?.include_customer_names ?? 'true'
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+// ── Tasks 3–6: inventory + purchase (upstream /api/max_kitchen/v1/...) ─────────────────
+
+export const listWeeklyPurchaseRequestsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/weekly/purchase-requests`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listWeeklyPurchaseRequests', { endpoint: '/purchase/weekly/purchase-requests', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listWeeklyPurchaseRequests', error, { endpoint: '/purchase/weekly/purchase-requests', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getWeeklyPurchaseApprovalQueueService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/weekly/approval-queue`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getWeeklyPurchaseApprovalQueue', { endpoint: '/purchase/weekly/approval-queue', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getWeeklyPurchaseApprovalQueue', error, { endpoint: '/purchase/weekly/approval-queue', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getWeeklyPurchaseDashboardService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/weekly/dashboard`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getWeeklyPurchaseDashboard', { endpoint: '/purchase/weekly/dashboard', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getWeeklyPurchaseDashboard', error, { endpoint: '/purchase/weekly/dashboard', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listDailyPurchaseRequestsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/daily/purchase-requests`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listDailyPurchaseRequests', { endpoint: '/purchase/daily/purchase-requests', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listDailyPurchaseRequests', error, { endpoint: '/purchase/daily/purchase-requests', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getDailyPurchaseApprovalQueueService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/daily/approval-queue`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getDailyPurchaseApprovalQueue', { endpoint: '/purchase/daily/approval-queue', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getDailyPurchaseApprovalQueue', error, { endpoint: '/purchase/daily/approval-queue', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getDailyShortageDetectionService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/daily/shortage-detection`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getDailyShortageDetection', { endpoint: '/purchase/daily/shortage-detection', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getDailyShortageDetection', error, { endpoint: '/purchase/daily/shortage-detection', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getDailyStockReceiptTodayService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/daily/stock-receipt-today`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getDailyStockReceiptToday', { endpoint: '/purchase/daily/stock-receipt-today', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getDailyStockReceiptToday', error, { endpoint: '/purchase/daily/stock-receipt-today', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const postDailyMarkKitchenUsableService = async (itemId, body, companyId, userId = null) => {
+  const id = String(itemId || '').trim();
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/daily/mark-kitchen-usable/${encodeURIComponent(id)}`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('postDailyMarkKitchenUsable', {
+      endpoint: '/purchase/daily/mark-kitchen-usable/:item_id',
+      companyId: companyId || null,
+      itemId: id
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('postDailyMarkKitchenUsable', error, {
+      endpoint: '/purchase/daily/mark-kitchen-usable/:item_id',
+      companyId: companyId || null,
+      itemId: id
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getDailyFreshnessAlertsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/daily/freshness-alerts`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getDailyFreshnessAlerts', { endpoint: '/purchase/daily/freshness-alerts', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getDailyFreshnessAlerts', error, { endpoint: '/purchase/daily/freshness-alerts', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getDailyPrepReadinessService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/daily/prep-readiness`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getDailyPrepReadiness', { endpoint: '/purchase/daily/prep-readiness', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getDailyPrepReadiness', error, { endpoint: '/purchase/daily/prep-readiness', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getDailyPurchaseDashboardService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/daily/dashboard`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getDailyPurchaseDashboard', { endpoint: '/purchase/daily/dashboard', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getDailyPurchaseDashboard', error, { endpoint: '/purchase/daily/dashboard', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getFefoSuggestionService = async (itemId, query = {}, companyId, userId = null) => {
+  const id = String(itemId || '').trim();
+  try {
+    const response = await apiClient.get(
+      `${K}/inventory/fefo-suggestion/${encodeURIComponent(id)}`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getFefoSuggestion', { endpoint: '/inventory/fefo-suggestion/:item_id', companyId: companyId || null, itemId: id });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getFefoSuggestion', error, { endpoint: '/inventory/fefo-suggestion/:item_id', companyId: companyId || null, itemId: id });
+    throw mapAxiosError(error);
+  }
+};
+
+export const postFefoConsumeService = async (itemId, query = {}, companyId, userId = null) => {
+  const id = String(itemId || '').trim();
+  try {
+    const response = await apiClient.post(
+      `${K}/inventory/fefo-consume/${encodeURIComponent(id)}`,
+      {},
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('postFefoConsume', { endpoint: '/inventory/fefo-consume/:item_id', companyId: companyId || null, itemId: id });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('postFefoConsume', error, { endpoint: '/inventory/fefo-consume/:item_id', companyId: companyId || null, itemId: id });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getNearExpiryInventoryService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/expiry/near-expiry`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getNearExpiryInventory', { endpoint: '/inventory/expiry/near-expiry', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getNearExpiryInventory', error, { endpoint: '/inventory/expiry/near-expiry', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const postBlockExpiredInventoryService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/inventory/expiry/block-expired`, body || {}, withKitchenContext(companyId, userId));
+    logKitchenSuccess('postBlockExpiredInventory', { endpoint: '/inventory/expiry/block-expired', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('postBlockExpiredInventory', error, { endpoint: '/inventory/expiry/block-expired', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getStockBatchesForItemService = async (itemId, query = {}, companyId, userId = null) => {
+  const id = String(itemId || '').trim();
+  try {
+    const response = await apiClient.get(
+      `${K}/inventory/stock-batches/${encodeURIComponent(id)}`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getStockBatchesForItem', { endpoint: '/inventory/stock-batches/:item_id', companyId: companyId || null, itemId: id });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getStockBatchesForItem', error, { endpoint: '/inventory/stock-batches/:item_id', companyId: companyId || null, itemId: id });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getExpiryDashboardService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/expiry/dashboard`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getExpiryDashboard', { endpoint: '/inventory/expiry/dashboard', companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getExpiryDashboard', error, { endpoint: '/inventory/expiry/dashboard', companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getReceiptInvoiceTraceabilityService = async (receiptId, companyId, userId = null) => {
+  const id = String(receiptId || '').trim();
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchases/receipts/${encodeURIComponent(id)}/invoice-traceability`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('getReceiptInvoiceTraceability', {
+      endpoint: '/purchase/purchases/receipts/:id/invoice-traceability',
+      companyId: companyId || null,
+      receiptId: id
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getReceiptInvoiceTraceability', error, {
+      endpoint: '/purchase/purchases/receipts/:id/invoice-traceability',
+      companyId: companyId || null,
+      receiptId: id
     });
     throw mapAxiosError(error);
   }

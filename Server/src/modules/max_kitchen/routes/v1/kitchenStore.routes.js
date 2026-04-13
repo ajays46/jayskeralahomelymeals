@@ -30,6 +30,7 @@ import {
   uploadPurchaseReceiptInvoice,
   createPurchaseReceipt,
   addPurchaseReceiptLine,
+  uploadPurchaseReceiptLineImage,
   listPurchaseReceipts,
   listPurchaseReceiptLines,
   getPurchaseReceiptInvoiceUrl,
@@ -159,6 +160,12 @@ router.post(
 );
 router.post('/v2/purchases/receipts', checkRole('STORE_OPERATOR'), createPurchaseReceipt);
 router.post('/v2/purchases/receipts/:receipt_id/lines', checkRole('STORE_OPERATOR'), addPurchaseReceiptLine);
+router.post(
+  '/v2/purchases/receipts/:receipt_id/lines/:line_id/image/upload',
+  checkRole('STORE_OPERATOR'),
+  itemImageUpload.single('file'),
+  uploadPurchaseReceiptLineImage
+);
 router.get('/v2/purchases/receipts', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseReceipts);
 router.get(
   '/v2/purchases/receipts/:receipt_id/invoice/url',

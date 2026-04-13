@@ -55,7 +55,25 @@ import {
   getWeeklyScheduleByKindService,
   getWeeklySlotByKindService,
   putWeeklySlotByKindService,
-  listMenuCombosByKindService
+  listMenuCombosByKindService,
+  listWeeklyPurchaseRequestsService,
+  getWeeklyPurchaseApprovalQueueService,
+  getWeeklyPurchaseDashboardService,
+  listDailyPurchaseRequestsService,
+  getDailyPurchaseApprovalQueueService,
+  getDailyShortageDetectionService,
+  getDailyStockReceiptTodayService,
+  postDailyMarkKitchenUsableService,
+  getDailyFreshnessAlertsService,
+  getDailyPrepReadinessService,
+  getDailyPurchaseDashboardService,
+  getFefoSuggestionService,
+  postFefoConsumeService,
+  getNearExpiryInventoryService,
+  postBlockExpiredInventoryService,
+  getStockBatchesForItemService,
+  getExpiryDashboardService,
+  getReceiptInvoiceTraceabilityService
 } from '../services/kitchenStore.service.js';
 import {
   listInventoryItemImagesService,
@@ -733,7 +751,15 @@ export const addPurchaseReceiptLine = async (req, res, next) => {
       throw new AppError('off_list_purchase_reason is required when purchase_request_line_id is not provided', 400);
     }
 
-    const result = await addPurchaseReceiptLineService(receiptId, body, req.companyId, kitchenActorUserId(req));
+    const expiryDate = optionalTrimmedString(body.expiry_date, 'expiry_date');
+    const manufacturingDate = optionalTrimmedString(body.manufacturing_date, 'manufacturing_date');
+    const payload = { ...body };
+    if (expiryDate !== undefined) payload.expiry_date = expiryDate;
+    else delete payload.expiry_date;
+    if (manufacturingDate !== undefined) payload.manufacturing_date = manufacturingDate;
+    else delete payload.manufacturing_date;
+
+    const result = await addPurchaseReceiptLineService(receiptId, payload, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -824,7 +850,6 @@ export const streamPurchaseReceiptInvoice = async (req, res, next) => {
 
 export const createPurchaseRequest = async (req, res, next) => {
   try {
-    console.log('createPurchaseRequest', req.body);
     const requestedNote = req.body?.requested_note;
     if (requestedNote != null && typeof requestedNote !== 'string') {
       throw new AppError('requested_note must be a string', 400);
@@ -852,6 +877,9 @@ export const addPurchaseRequestLine = async (req, res, next) => {
     }
     if (!body.is_new_item && (!body.inventory_item_id || typeof body.inventory_item_id !== 'string')) {
       throw new AppError('inventory_item_id is required for existing inventory lines', 400);
+    }
+    if (body.freshness_priority != null && typeof body.freshness_priority !== 'string') {
+      throw new AppError('freshness_priority must be a string', 400);
     }
     const result = await addPurchaseRequestLineService(requestId, body, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
@@ -975,7 +1003,6 @@ export const downloadApprovedPurchaseRequestLinesTxt = async (req, res, next) =>
   try {
     const requestId = requireIdParam(req.params.request_id, 'request_id');
     const result = await downloadApprovedPurchaseRequestLinesTxtService(requestId, req.companyId, kitchenActorUserId(req));
-    console.log('result', result);
     if (result?.headers?.contentType) {
       res.setHeader('Content-Type', result.headers.contentType);
     } else {
@@ -1100,6 +1127,189 @@ export const listInventoryForecasts = async (req, res, next) => {
 export const listFinancialForecasts = async (req, res, next) => {
   try {
     const result = await listFinancialForecastsService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listWeeklyPurchaseRequests = async (req, res, next) => {
+  try {
+    const result = await listWeeklyPurchaseRequestsService(req.query, req.companyId, kitchenActorUserId(req));
+    const enriched = await enrichPurchaseRequestListPayload(result, req.companyId);
+    res.status(200).json({ success: true, data: enriched });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getWeeklyPurchaseApprovalQueue = async (req, res, next) => {
+  try {
+    const result = await getWeeklyPurchaseApprovalQueueService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getWeeklyPurchaseDashboard = async (req, res, next) => {
+  try {
+    const result = await getWeeklyPurchaseDashboardService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listDailyPurchaseRequests = async (req, res, next) => {
+  try {
+    const result = await listDailyPurchaseRequestsService(req.query, req.companyId, kitchenActorUserId(req));
+    const enriched = await enrichPurchaseRequestListPayload(result, req.companyId);
+    res.status(200).json({ success: true, data: enriched });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDailyPurchaseApprovalQueue = async (req, res, next) => {
+  try {
+    const result = await getDailyPurchaseApprovalQueueService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDailyShortageDetection = async (req, res, next) => {
+  try {
+    const result = await getDailyShortageDetectionService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDailyStockReceiptToday = async (req, res, next) => {
+  try {
+    const result = await getDailyStockReceiptTodayService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const postDailyMarkKitchenUsable = async (req, res, next) => {
+  try {
+    const itemId = requireIdParam(req.params.item_id, 'item_id');
+    const body = req.body || {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      throw new AppError('Request body must be an object', 400);
+    }
+    const result = await postDailyMarkKitchenUsableService(itemId, body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDailyFreshnessAlerts = async (req, res, next) => {
+  try {
+    const result = await getDailyFreshnessAlertsService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDailyPrepReadiness = async (req, res, next) => {
+  try {
+    const result = await getDailyPrepReadinessService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDailyPurchaseDashboard = async (req, res, next) => {
+  try {
+    const result = await getDailyPurchaseDashboardService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getFefoSuggestion = async (req, res, next) => {
+  try {
+    const itemId = requireIdParam(req.params.item_id, 'item_id');
+    const rq = req.query?.required_quantity;
+    if (rq == null || rq === '') {
+      throw new AppError('required_quantity query parameter is required', 400);
+    }
+    requirePositiveNumber(rq, 'required_quantity');
+    const result = await getFefoSuggestionService(itemId, req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const postFefoConsume = async (req, res, next) => {
+  try {
+    const itemId = requireIdParam(req.params.item_id, 'item_id');
+    const rq = req.query?.required_quantity;
+    if (rq == null || rq === '') {
+      throw new AppError('required_quantity query parameter is required', 400);
+    }
+    requirePositiveNumber(rq, 'required_quantity');
+    const result = await postFefoConsumeService(itemId, req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getNearExpiryInventory = async (req, res, next) => {
+  try {
+    const result = await getNearExpiryInventoryService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const postBlockExpiredInventory = async (req, res, next) => {
+  try {
+    const result = await postBlockExpiredInventoryService(req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getStockBatchesForItem = async (req, res, next) => {
+  try {
+    const itemId = requireIdParam(req.params.item_id, 'item_id');
+    const result = await getStockBatchesForItemService(itemId, req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getExpiryDashboard = async (req, res, next) => {
+  try {
+    const result = await getExpiryDashboardService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getReceiptInvoiceTraceability = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const result = await getReceiptInvoiceTraceabilityService(receiptId, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);

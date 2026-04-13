@@ -44,6 +44,7 @@ import StoreManagerPlanListPage from './pages/store-manager/StoreManagerPlanList
 import StoreManagerForecastDashboardPage from './pages/store-manager/StoreManagerForecastDashboardPage';
 import StoreManagerPurchaseSuggestionsPage from './pages/store-manager/StoreManagerPurchaseSuggestionsPage';
 import StoreManagerPurchaseRequestInboxPage from './pages/store-manager/StoreManagerPurchaseRequestInboxPage';
+import StoreManagerPurchaseRhythmRedirect from './pages/store-manager/StoreManagerPurchaseRhythmRedirect';
 import StoreManagerPurchaseRequestDetailPage from './pages/store-manager/StoreManagerPurchaseRequestDetailPage';
 import StoreManagerOffListPurchaseReviewPage from './pages/store-manager/StoreManagerOffListPurchaseReviewPage';
 import StoreManagerPurchaseReceiptsPage from './pages/store-manager/StoreManagerPurchaseReceiptsPage';
@@ -274,6 +275,7 @@ const App = () => {
                 <Route path="store-manager/plan-list" element={<StoreManagerPlanListPage />} />
                 <Route path="store-manager/forecast" element={<StoreManagerForecastDashboardPage />} />
                 <Route path="store-manager/purchase-suggestions" element={<StoreManagerPurchaseSuggestionsPage />} />
+                <Route path="store-manager/purchase-rhythm" element={<StoreManagerPurchaseRhythmRedirect />} />
                 <Route path="store-manager/purchase-requests" element={<StoreManagerPurchaseRequestInboxPage />} />
                 <Route path="store-manager/purchase-requests/:requestId" element={<StoreManagerPurchaseRequestDetailPage />} />
                 <Route path="store-manager/purchase-receipts" element={<StoreManagerPurchaseReceiptsPage />} />

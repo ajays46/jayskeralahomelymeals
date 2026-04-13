@@ -34,6 +34,8 @@ import deliveryItemRoutes from './deliveryItem.routes.js';
 import deliveryManagerRoutes from './deliveryManager.routes.js';
 import driverMapsRoutes from './driverMaps.routes.js';
 import kitchenStoreRoutes from './kitchenStore.routes.js';
+import inventoryRestRoutes from './inventoryRest.routes.js';
+import purchaseRestRoutes from './purchaseRest.routes.js';
 import orderRoutes from './order.routes.js';
 import paymentRoutes from './payment.routes.js';
 import sellerRoutes from './seller.routes.js';
@@ -46,6 +48,10 @@ router.use(extractApiVersion);
 
 // @feature store — inventory, brands, recipes, purchase, forecasting
 router.use('/kitchen-store', kitchenStoreRoutes);
+
+// Guide-aligned REST prefixes (same BFF → upstream as kitchen-store)
+router.use('/inventory', inventoryRestRoutes);
+router.use('/purchase', purchaseRestRoutes);
 
 // @feature orders — order CRUD, pricing calculations
 router.use('/orders', orderRoutes);

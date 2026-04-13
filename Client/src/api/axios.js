@@ -42,8 +42,10 @@ axiosInstance.interceptors.request.use(
     const isMlTripsApi = url.includes('ml-trips');
     const isShiftApi = url.includes('shift');
     const isMlAssistantApi = url.includes('ml-assistant');
-    // @feature kitchen-store — attach X-Company-ID / X-User-ID for BFF
-    const isKitchenStoreApi = url.includes('kitchen-store');
+    // @feature kitchen-store — attach X-Company-ID / X-User-ID for BFF (legacy prefix + guide `/inventory` & `/purchase`)
+    const isKitchenStoreApi =
+      url.includes('kitchen-store') ||
+      (url.includes('max_kitchen') && (url.includes('/inventory/') || url.includes('/purchase/')));
     const isCompanyScoped = url.includes('sellers-with-orders') || url.includes('delivery-managers') || url.includes('active-executives') || isAiApi || isCxoApi || isDeliveryExecutiveApi || isDriverMapsApi || isMlTripsApi || isShiftApi || isMlAssistantApi || isKitchenStoreApi;
     const needsUserId =
       isAiApi || isCxoApi || isDriverMapsApi || isMlAssistantApi || isKitchenStoreApi;
