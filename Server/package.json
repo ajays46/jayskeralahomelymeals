@@ -11,7 +11,10 @@
     "db:migrate": "npx prisma migrate dev",
     "db:studio": "npx prisma studio",
     "db:reset": "npx prisma migrate reset",
-    "db:fix-order-status": "node scripts/fix-order-status.js"
+    "db:fix-order-status": "node scripts/fix-order-status.js",
+    "kitchen:generate": "npx prisma generate --schema src/modules/max_kitchen/prisma/schema.prisma",
+    "kitchen:migrate": "npx prisma migrate dev --schema src/modules/max_kitchen/prisma/schema.prisma",
+    "kitchen:studio": "npx prisma studio --schema src/modules/max_kitchen/prisma/schema.prisma"
   },
   "keywords": [],
   "author": "",

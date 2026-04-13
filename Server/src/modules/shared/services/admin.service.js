@@ -1,0 +1,2329 @@
+import prisma from '../../../config/prisma.js';
+import bcrypt from 'bcryptjs';
+import { saveBase64Image } from '../../../utils/imageUpload.js';
+import { generateApiKey } from '../../../utils/helpers.js';
+import { logCritical, logError, logInfo, logTransaction, logPerformance, LOG_CATEGORIES } from '../../../utils/criticalLogger.js';
+import { createDeliveryExecutiveProfile } from './deliveryExecutiveProfile.service.js';
+
+/**
+ * Admin Service - Business logic for admin operations and data management
+ * Handles all admin-related database operations and business rules
+ * Features: Company management, product management, menu management, user management, inventory tracking
+ */
+
+/** True when admin is scoped to a company (non-empty string); false = super admin, see all */
+const hasCompanyScope = (adminCompanyId) =>
+  typeof adminCompanyId === 'string' && adminCompanyId.trim() !== '';
+
+/**
+ * Get or create a system user for company addresses
+ * This ensures we have a valid user_id for addresses that belong to companies
+ */
+const getOrCreateSystemUser = async () => {
+  const systemUserId = '00000000-0000-0000-0000-000000000000';
+  
+  // First, try to find an existing admin user
+  const adminUser = await prisma.user.findFirst({
+    where: {
+      userRoles: {
+        some: {
+          name: 'ADMIN'
+        }
+      }
+    },
+    select: { id: true }
+  });
+  
+  if (adminUser) {
+    return adminUser.id;
+  }
+  
+  // If no admin user exists, try to find the system user
+  let systemUser = await prisma.user.findUnique({
+    where: { id: systemUserId },
+    select: { id: true }
+  });
+  
+  // If system user doesn't exist, create it
+  if (!systemUser) {
+    try {
+      // Create auth record for system user
+      const systemAuth = await prisma.auth.create({
+        data: {
+          email: 'system@company.local',
+          password: 'system', // This won't be used for login
+          phoneNumber: '0000000000',
+          apiKey: 'SYSTEM_KEY',
+          status: 'ACTIVE'
+        }
+      });
+      
+      // Create system user
+      systemUser = await prisma.user.create({
+        data: {
+          id: systemUserId,
+          authId: systemAuth.id,
+          status: 'ACTIVE'
+        }
+      });
+      
+      // Create ADMIN role for system user
+      await prisma.userRole.create({
+        data: {
+          userId: systemUserId,
+          name: 'ADMIN'
+        }
+      });
+      
+      logInfo(LOG_CATEGORIES.SYSTEM, 'System user created for company addresses', {
+        userId: systemUserId
+      });
+    } catch (error) {
+      // If creation fails (e.g., due to unique constraints), try to find it again
+      systemUser = await prisma.user.findUnique({
+        where: { id: systemUserId },
+        select: { id: true }
+      });
+      
+      if (!systemUser) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Failed to create system user, using first available user', {
+          error: error.message
+        });
+        // Last resort: use the first user in the system
+        const firstUser = await prisma.user.findFirst({
+          select: { id: true }
+        });
+        if (firstUser) {
+          return firstUser.id;
+        }
+        throw new Error('No users found in system. Please create at least one user before creating companies.');
+      }
+    }
+  }
+  
+  return systemUser.id;
+};
+
+export const createCompanyService = async ({ name, address }) => {
+  // Check if a company with the same name exists
+  const existing = await prisma.company.findFirst({
+    where: { name },
+  });
+  if (existing) {
+    return existing;
+  }
+
+  // Get or create a system user for company addresses
+  const systemUserId = await getOrCreateSystemUser();
+  
+  // First create the address
+  const newAddress = await prisma.address.create({
+    data: {
+      userId: systemUserId,
+      street: address.street,
+      housename: address.housename || '',
+      city: address.city,
+      pincode: parseInt(address.pincode),
+      geoLocation: address.geoLocation || null,
+      addressType: address.addressType || 'HOME'
+    }
+  });
+  
+  // Then create the company with the address ID
+  const newCompany = await prisma.company.create({
+    data: {
+      name,
+      address_id: newAddress.id,
+    }
+  });
+
+  logInfo(LOG_CATEGORIES.SYSTEM, 'Company created successfully', {
+    companyId: newCompany.id,
+    companyName: name,
+    addressId: newAddress.id
+  });
+
+  // Return company with address details
+  return {
+    ...newCompany,
+    address: newAddress
+  };
+};
+
+export const companyListService = async (adminCompanyId) => {
+  const scopeByCompany = hasCompanyScope(adminCompanyId);
+  const where = scopeByCompany ? { id: (adminCompanyId || '').trim() } : {};
+  const companies = await prisma.company.findMany({ where });
+  
+  // Fetch address details for each company
+  const companiesWithAddresses = await Promise.all(
+    companies.map(async (company) => {
+      try {
+        const address = await prisma.address.findUnique({
+          where: { id: company.address_id }
+        });
+        return {
+          ...company,
+          address: address || null
+        };
+      } catch (error) {
+        console.error(`Error fetching address for company ${company.id}:`, error);
+        return {
+          ...company,
+          address: null
+        };
+      }
+    })
+  );
+  
+  return companiesWithAddresses;
+};
+
+export const companyDeleteService = async (id) => {
+  return await prisma.company.delete({
+    where: { id },
+  });
+};
+
+export const createProductService = async (productData) => {
+  const startTime = Date.now();
+  const logContext = {
+    productName: productData.productName,
+    code: productData.code,
+    companyId: productData.companyId,
+    category: productData.category?.productCategoryName,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Creating new product', logContext);
+    
+    const {
+      productName,
+      code,
+      imageUrl,
+      companyId,
+      status,
+      category,
+      price,
+      quantity
+    } = productData;
+
+    // Save image to uploads folder if it's a base64 string
+    let savedImageUrl = imageUrl;
+    if (imageUrl && imageUrl.startsWith('data:image/')) {
+      try {
+        // Create a clean filename: only first 20 characters, alphanumeric and hyphens only
+        const cleanProductName = productName
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+          .replace(/\s+/g, '-') // Replace spaces with hyphens
+          .substring(0, 20); // Take only first 20 characters
+        
+        const filename = saveBase64Image(imageUrl, `${cleanProductName}-${Date.now()}.jpg`);
+        savedImageUrl = `/uploads/${filename}`;
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product image saved successfully', {
+          ...logContext,
+          filename: filename
+        });
+      } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Failed to save product image', {
+          ...logContext,
+          error: error.message
+        });
+        throw new Error(`Failed to save image: ${error.message}`);
+      }
+    }
+
+    // Use transaction to ensure all related records are created together
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('Product Creation Transaction Started', {
+        productName,
+        code,
+        companyId
+      });
+
+      // 1. Create the product
+      const product = await tx.product.create({
+        data: {
+          productName,
+          code,
+          imageUrl: savedImageUrl,
+          companyId,
+          status,
+        },
+      });
+
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Product created successfully', {
+        ...logContext,
+        productId: product.id
+      });
+
+      // 2. Create product category
+      if (category && category.productCategoryName) {
+        await tx.productCategory.create({
+          data: {
+            companyId,
+            productId: product.id,
+            productCategoryName: category.productCategoryName,
+            description: category.description || '',
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product category created', {
+          ...logContext,
+          productId: product.id,
+          categoryName: category.productCategoryName
+        });
+      }
+
+      // 3. Create product price
+      if (price && price.length > 0) {
+        await tx.productPrice.create({
+          data: {
+            date: new Date(price[0].date),
+            productId: product.id,
+            price: price[0].price,
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product price created', {
+          ...logContext,
+          productId: product.id,
+          price: price[0].price
+        });
+      }
+
+      // 4. Create product quantity
+      if (quantity && quantity.length > 0) {
+        await tx.productQuantity.create({
+          data: {
+            date: new Date(quantity[0].date),
+            productId: product.id,
+            quantity: quantity[0].quantity,
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product quantity created', {
+          ...logContext,
+          productId: product.id,
+          quantity: quantity[0].quantity
+        });
+      }
+
+      // Return the created product with all related data
+      const completeProduct = await tx.product.findUnique({
+        where: { id: product.id },
+        include: {
+          company: true,
+          categories: true,
+          prices: true,
+          quantities: true,
+        },
+      });
+
+      const duration = Date.now() - startTime;
+      logCritical(LOG_CATEGORIES.SYSTEM, 'Product creation completed successfully', {
+        ...logContext,
+        productId: product.id,
+        duration: `${duration}ms`
+      });
+
+      logPerformance('Product Creation', duration, {
+        productId: product.id,
+        productName: productName
+      });
+
+      return completeProduct;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 15000, // 15 second timeout for product creation
+    });
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.SYSTEM, 'Product creation failed', {
+      ...logContext,
+      error: error.message,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    throw error;
+  }
+};
+
+export const productListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId) ? { companyId: (adminCompanyId || '').trim() } : {};
+  const products = await prisma.product.findMany({
+    where,
+    include: {
+      company: true,
+      categories: true,
+      prices: {
+        orderBy: {
+          date: 'desc'
+        },
+        take: 1 // Get only the latest price
+      },
+      quantities: {
+        orderBy: {
+          date: 'desc'
+        },
+        take: 1 // Get only the latest quantity
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+  
+  return products;
+};
+
+export const getProductByIdService = async (productId) => {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: {
+      company: true,
+      categories: true,
+      prices: {
+        orderBy: {
+          date: 'desc'
+        }
+      },
+      quantities: {
+        orderBy: {
+          date: 'desc'
+        }
+      }
+    }
+  });
+  
+  if (!product) {
+    throw new Error('Product not found');
+  }
+  
+  return product;
+};
+
+export const updateProductService = async (productId, productData) => {
+  const startTime = Date.now();
+  const logContext = {
+    productId,
+    productName: productData.productName,
+    code: productData.code,
+    companyId: productData.companyId,
+    category: productData.category?.productCategoryName,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Updating product', logContext);
+    
+    const {
+      productName,
+      code,
+      imageUrl,
+      companyId,
+      status,
+      category,
+      price,
+      quantity
+    } = productData;
+
+    // Use transaction to ensure all related records are updated together
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('Product Update Transaction Started', {
+        productId,
+        productName,
+        code
+      });
+
+      // Check if product exists
+      const existingProduct = await tx.product.findUnique({
+        where: { id: productId }
+      });
+
+      if (!existingProduct) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Product not found for update', logContext);
+        throw new Error('Product not found');
+      }
+
+      // Check if code is being changed and if it already exists
+      if (code !== existingProduct.code) {
+        const codeExists = await tx.product.findUnique({
+          where: { code }
+        });
+        if (codeExists) {
+          logError(LOG_CATEGORIES.SYSTEM, 'Product code already exists', {
+            ...logContext,
+            existingCode: existingProduct.code,
+            newCode: code
+          });
+          throw new Error('Product with this code already exists');
+        }
+      }
+
+      // Check if company exists
+      const company = await tx.company.findUnique({
+        where: { id: companyId }
+      });
+      if (!company) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Company not found for product update', {
+          ...logContext,
+          companyId
+        });
+        throw new Error('Company not found');
+      }
+
+      // 1. Update the product
+      const updatedProduct = await tx.product.update({
+        where: { id: productId },
+        data: {
+          productName,
+          code,
+          imageUrl,
+          companyId,
+          status,
+        },
+      });
+
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Product updated successfully', {
+        ...logContext,
+        productId: updatedProduct.id
+      });
+
+      // 2. Update product category (delete existing and create new)
+      await tx.productCategory.deleteMany({
+        where: { productId }
+      });
+
+      if (category && category.productCategoryName) {
+        await tx.productCategory.create({
+          data: {
+            companyId,
+            productId: updatedProduct.id,
+            productCategoryName: category.productCategoryName,
+            description: category.description || '',
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product category updated', {
+          ...logContext,
+          productId: updatedProduct.id,
+          categoryName: category.productCategoryName
+        });
+      }
+
+      // 3. Update product price (delete existing and create new)
+      await tx.productPrice.deleteMany({
+        where: { productId }
+      });
+
+      if (price && price.length > 0) {
+        await tx.productPrice.create({
+          data: {
+            date: new Date(price[0].date),
+            productId: updatedProduct.id,
+            price: price[0].price,
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product price updated', {
+          ...logContext,
+          productId: updatedProduct.id,
+          price: price[0].price
+        });
+      }
+
+      // 4. Update product quantity (delete existing and create new)
+      await tx.productQuantity.deleteMany({
+        where: { productId }
+      });
+
+      if (quantity && quantity.length > 0) {
+        await tx.productQuantity.create({
+          data: {
+            date: new Date(quantity[0].date),
+            productId: updatedProduct.id,
+            quantity: quantity[0].quantity,
+          },
+        });
+        
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Product quantity updated', {
+          ...logContext,
+          productId: updatedProduct.id,
+          quantity: quantity[0].quantity
+        });
+      }
+
+      // Return the updated product with all related data
+      const completeProduct = await tx.product.findUnique({
+        where: { id: updatedProduct.id },
+        include: {
+          company: true,
+          categories: true,
+          prices: true,
+          quantities: true,
+        },
+      });
+
+      const duration = Date.now() - startTime;
+      logCritical(LOG_CATEGORIES.SYSTEM, 'Product update completed successfully', {
+        ...logContext,
+        productId: updatedProduct.id,
+        duration: `${duration}ms`
+      });
+
+      logPerformance('Product Update', duration, {
+        productId: updatedProduct.id,
+        productName: productName
+      });
+
+      return completeProduct;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 15000, // 15 second timeout for product update
+    });
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.SYSTEM, 'Product update failed', {
+      ...logContext,
+      error: error.message,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    throw error;
+  }
+};
+
+export const deleteProductService = async (productId) => {
+  const startTime = Date.now();
+  const logContext = {
+    productId,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Deleting product', logContext);
+    
+    // Use transaction to ensure all related records are deleted together
+    return await prisma.$transaction(async (tx) => {
+      logTransaction('Product Deletion Transaction Started', {
+        productId
+      });
+
+      // Check if product exists
+      const existingProduct = await tx.product.findUnique({
+        where: { id: productId }
+      });
+
+      if (!existingProduct) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Product not found for deletion', logContext);
+        throw new Error('Product not found');
+      }
+
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Product found for deletion', {
+        ...logContext,
+        productName: existingProduct.productName,
+        code: existingProduct.code
+      });
+
+      // Delete related records first (due to foreign key constraints)
+      await tx.productCategory.deleteMany({
+        where: { productId }
+      });
+
+      await tx.productPrice.deleteMany({
+        where: { productId }
+      });
+
+      await tx.productQuantity.deleteMany({
+        where: { productId }
+      });
+
+      logInfo(LOG_CATEGORIES.SYSTEM, 'Product related records deleted', {
+        ...logContext,
+        productName: existingProduct.productName
+      });
+
+      // Delete the product
+      const deletedProduct = await tx.product.delete({
+        where: { id: productId }
+      });
+
+      const duration = Date.now() - startTime;
+      logCritical(LOG_CATEGORIES.SYSTEM, 'Product deletion completed successfully', {
+        ...logContext,
+        productName: deletedProduct.productName,
+        code: deletedProduct.code,
+        duration: `${duration}ms`
+      });
+
+      logPerformance('Product Deletion', duration, {
+        productId: productId,
+        productName: deletedProduct.productName
+      });
+
+      return deletedProduct;
+    }, {
+      isolationLevel: 'ReadCommitted', // Prevent dirty reads
+      timeout: 10000, // 10 second timeout for product deletion
+    });
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logCritical(LOG_CATEGORIES.SYSTEM, 'Product deletion failed', {
+      ...logContext,
+      error: error.message,
+      duration: `${duration}ms`,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    throw error;
+  }
+};
+
+// Menu services
+export const createMenuService = async (menuData) => {
+  const { name, companyId, status } = menuData;
+
+  // Check if company exists
+  const company = await prisma.company.findUnique({
+    where: { id: companyId }
+  });
+
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  // Create the menu
+  const menu = await prisma.menu.create({
+    data: {
+      name,
+      companyId,
+      status,
+    },
+    include: {
+      company: true,
+      menuItems: true,
+    },
+  });
+
+  return menu;
+};
+
+export const menuListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId) ? { companyId: (adminCompanyId || '').trim() } : {};
+  const menus = await prisma.menu.findMany({
+    where,
+    include: {
+      company: true,
+      menuItems: {
+        include: {
+          product: true, // Include product relation
+        },
+      },
+      menuCategories: true, // Include menu categories to get food type info
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+  
+  return menus;
+};
+
+export const getMenuByIdService = async (menuId) => {
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId },
+    include: {
+      company: true,
+      menuItems: {
+        include: {
+          product: true, // Include product relation
+        },
+      },
+      menuCategories: true, // Include menu categories to get food type info
+    }
+  });
+  
+  if (!menu) {
+    throw new Error('Menu not found');
+  }
+  
+  return menu;
+};
+
+export const updateMenuService = async (menuId, menuData) => {
+  const { name, companyId, status } = menuData;
+
+  // Check if menu exists
+  const existingMenu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!existingMenu) {
+    throw new Error('Menu not found');
+  }
+
+  // Check if company exists
+  const company = await prisma.company.findUnique({
+    where: { id: companyId }
+  });
+
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  // Update the menu
+  const updatedMenu = await prisma.menu.update({
+    where: { id: menuId },
+    data: {
+      name,
+      companyId,
+      status,
+    },
+    include: {
+      company: true,
+      menuItems: {
+        include: {
+          product: true, // Include product relation
+        },
+      },
+    },
+  });
+
+  return updatedMenu;
+};
+
+export const deleteMenuService = async (menuId) => {
+  // Check if menu exists
+  const existingMenu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!existingMenu) {
+    throw new Error('Menu not found');
+  }
+
+  // Use transaction to ensure all related records are deleted together
+  return await prisma.$transaction(async (tx) => {
+    // Delete menu items first (due to foreign key constraints)
+    await tx.menuItem.deleteMany({
+      where: { menuId }
+    });
+
+    // Delete the menu
+    const deletedMenu = await tx.menu.delete({
+      where: { id: menuId }
+    });
+
+    return deletedMenu;
+  }, {
+    isolationLevel: 'ReadCommitted', // Prevent dirty reads
+    timeout: 10000, // 10 second timeout for menu deletion
+  });
+};
+
+// Menu Item services
+export const createMenuItemService = async (menuItemData) => {
+  const { name, menuId, productId } = menuItemData;
+
+
+  // Check if menu exists
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!menu) {
+    throw new Error('Menu not found');
+  }
+
+  // Check if product exists (if productId is provided)
+  if (productId) {
+    const product = await prisma.product.findUnique({
+      where: { id: productId }
+    });
+
+    if (!product) {
+      throw new Error('Product not found');
+    }
+  }
+
+  // Create the menu item
+  const menuItem = await prisma.menuItem.create({
+    data: {
+      name,
+      menuId,
+      productId: productId || null, // Store product ID
+    },
+    include: {
+      menu: {
+        include: {
+          company: true,
+        },
+      },
+      product: true, // Include product relation
+    },
+  });
+
+  return menuItem;
+};
+
+export const menuItemListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId)
+    ? { menu: { companyId: (adminCompanyId || '').trim() } }
+    : {};
+  const menuItems = await prisma.menuItem.findMany({
+    where,
+    include: {
+      menu: {
+        include: {
+          company: true,
+          menuCategories: true,
+        },
+      },
+      product: true, // Include product relation
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+  
+  return menuItems;
+};
+
+export const getMenuItemByIdService = async (menuItemId) => {
+  const menuItem = await prisma.menuItem.findUnique({
+    where: { id: menuItemId },
+    include: {
+      menu: {
+        include: {
+          company: true,
+          menuCategories: true,
+        },
+      },
+      product: true, // Include product relation
+    }
+  });
+  
+  if (!menuItem) {
+    throw new Error('Menu item not found');
+  }
+  
+  return menuItem;
+};
+
+export const updateMenuItemService = async (menuItemId, menuItemData) => {
+  const { name, menuId, productId } = menuItemData;
+
+  // Check if menu item exists
+  const existingMenuItem = await prisma.menuItem.findUnique({
+    where: { id: menuItemId }
+  });
+
+  if (!existingMenuItem) {
+    throw new Error('Menu item not found');
+  }
+
+  // Check if menu exists
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!menu) {
+    throw new Error('Menu not found');
+  }
+
+  // Check if product exists (if productId is provided)
+  if (productId) {
+    const product = await prisma.product.findUnique({
+      where: { id: productId }
+    });
+
+    if (!product) {
+      throw new Error('Product not found');
+    }
+  }
+
+  // Update the menu item
+  const updatedMenuItem = await prisma.menuItem.update({
+    where: { id: menuItemId },
+    data: {
+      name,
+      menuId,
+      productId: productId || null, // Store product ID
+    },
+    include: {
+      menu: {
+        include: {
+          company: true,
+        },
+      },
+      product: true, // Include product relation
+    },
+  });
+
+  return updatedMenuItem;
+};
+
+export const deleteMenuItemService = async (menuItemId) => {
+  // Check if menu item exists
+  const existingMenuItem = await prisma.menuItem.findUnique({
+    where: { id: menuItemId }
+  });
+
+  if (!existingMenuItem) {
+    throw new Error('Menu item not found');
+  }
+
+  // Delete the menu item
+  const deletedMenuItem = await prisma.menuItem.delete({
+    where: { id: menuItemId },
+    include: {
+      menu: {
+        include: {
+          company: true,
+        },
+      },
+    },
+  });
+
+  return deletedMenuItem;
+};
+
+// Menu Category services
+export const createMenuCategoryService = async (menuCategoryData) => {
+  const { name, description, companyId, menuId } = menuCategoryData;
+
+  // Check if company exists
+  const company = await prisma.company.findUnique({
+    where: { id: companyId }
+  });
+
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  // Check if menu exists
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!menu) {
+    throw new Error('Menu not found');
+  }
+
+  // Create the menu category
+  const menuCategory = await prisma.menuCategory.create({
+    data: {
+      name,
+      description,
+      companyId,
+      menuId,
+    },
+    include: {
+      company: true,
+      menu: true,
+    },
+  });
+
+  return menuCategory;
+};
+
+export const menuCategoryListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId) ? { companyId: (adminCompanyId || '').trim() } : {};
+  const menuCategories = await prisma.menuCategory.findMany({
+    where,
+    include: {
+      company: true,
+      menu: true,
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+  
+  return menuCategories;
+};
+
+export const getMenuCategoryByIdService = async (menuCategoryId) => {
+  const menuCategory = await prisma.menuCategory.findUnique({
+    where: { id: menuCategoryId },
+    include: {
+      company: true,
+      menu: true,
+    }
+  });
+  
+  if (!menuCategory) {
+    throw new Error('Menu category not found');
+  }
+  
+  return menuCategory;
+};
+
+export const updateMenuCategoryService = async (menuCategoryId, menuCategoryData) => {
+  const { name, description, companyId, menuId } = menuCategoryData;
+
+  // Check if menu category exists
+  const existingMenuCategory = await prisma.menuCategory.findUnique({
+    where: { id: menuCategoryId }
+  });
+
+  if (!existingMenuCategory) {
+    throw new Error('Menu category not found');
+  }
+
+  // Check if company exists
+  const company = await prisma.company.findUnique({
+    where: { id: companyId }
+  });
+
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  // Check if menu exists
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId }
+  });
+
+  if (!menu) {
+    throw new Error('Menu not found');
+  }
+
+  // Update the menu category
+  const updatedMenuCategory = await prisma.menuCategory.update({
+    where: { id: menuCategoryId },
+    data: {
+      name,
+      description,
+      companyId,
+      menuId,
+    },
+    include: {
+      company: true,
+      menu: true,
+    },
+  });
+
+  return updatedMenuCategory;
+};
+
+export const deleteMenuCategoryService = async (menuCategoryId) => {
+  // Check if menu category exists
+  const existingMenuCategory = await prisma.menuCategory.findUnique({
+    where: { id: menuCategoryId }
+  });
+
+  if (!existingMenuCategory) {
+    throw new Error('Menu category not found');
+  }
+
+  // Delete the menu category
+  const deletedMenuCategory = await prisma.menuCategory.delete({
+    where: { id: menuCategoryId },
+    include: {
+      company: true,
+      menu: true,
+    },
+  });
+
+  return deletedMenuCategory;
+};
+
+// Menu Item Price services
+export const createMenuItemPriceService = async (menuItemPriceData) => {
+  const { companyId, menuItemId, totalPrice } = menuItemPriceData;
+
+  // Check if company exists
+  const company = await prisma.company.findUnique({
+    where: { id: companyId }
+  });
+
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  // Check if menu item exists
+  const menuItem = await prisma.menuItem.findUnique({
+    where: { id: menuItemId }
+  });
+
+  if (!menuItem) {
+    throw new Error('Menu item not found');
+  }
+
+  // Create the menu item price
+  const menuItemPrice = await prisma.menuItemPrice.create({
+    data: {
+      companyId,
+      menuItemId,
+      totalPrice,
+    },
+    include: {
+      company: true,
+      menuItem: {
+        include: {
+          product: true, // Include product relation
+          menu: true,
+        },
+      },
+    },
+  });
+
+  return menuItemPrice;
+};
+
+export const menuItemPriceListService = async (adminCompanyId) => {
+  const where = hasCompanyScope(adminCompanyId) ? { companyId: (adminCompanyId || '').trim() } : {};
+  const menuItemPrices = await prisma.menuItemPrice.findMany({
+    where,
+    include: {
+      company: true,
+      menuItem: {
+        include: {
+          product: true, // Include product relation
+          menu: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+  
+  return menuItemPrices;
+};
+
+export const getMenuItemPriceByIdService = async (menuItemPriceId) => {
+  const menuItemPrice = await prisma.menuItemPrice.findUnique({
+    where: { id: menuItemPriceId },
+    include: {
+      company: true,
+      menuItem: {
+        include: {
+          product: true, // Include product relation
+          menu: true,
+        },
+      },
+    }
+  });
+  
+  if (!menuItemPrice) {
+    throw new Error('Menu item price not found');
+  }
+  
+  return menuItemPrice;
+};
+
+export const updateMenuItemPriceService = async (menuItemPriceId, menuItemPriceData) => {
+  const { companyId, menuItemId, totalPrice } = menuItemPriceData;
+
+  // Check if menu item price exists
+  const existingMenuItemPrice = await prisma.menuItemPrice.findUnique({
+    where: { id: menuItemPriceId }
+  });
+
+  if (!existingMenuItemPrice) {
+    throw new Error('Menu item price not found');
+  }
+
+  // Check if company exists
+  const company = await prisma.company.findUnique({
+    where: { id: companyId }
+  });
+
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  // Check if menu item exists
+  const menuItem = await prisma.menuItem.findUnique({
+    where: { id: menuItemId }
+  });
+
+  if (!menuItem) {
+    throw new Error('Menu item not found');
+  }
+
+  // Update the menu item price
+  const updatedMenuItemPrice = await prisma.menuItemPrice.update({
+    where: { id: menuItemPriceId },
+    data: {
+      companyId,
+      menuItemId,
+      totalPrice,
+    },
+    include: {
+      company: true,
+      menuItem: {
+        include: {
+          product: true, // Include product relation
+          menu: true,
+        },
+      },
+    },
+  });
+
+  return updatedMenuItemPrice;
+};
+
+export const deleteMenuItemPriceService = async (menuItemPriceId) => {
+  // Check if menu item price exists
+  const existingMenuItemPrice = await prisma.menuItemPrice.findUnique({
+    where: { id: menuItemPriceId }
+  });
+
+  if (!existingMenuItemPrice) {
+    throw new Error('Menu item price not found');
+  }
+
+  // Delete the menu item price
+  const deletedMenuItemPrice = await prisma.menuItemPrice.delete({
+    where: { id: menuItemPriceId },
+    include: {
+      company: true,
+      menuItem: {
+        include: {
+          product: true, // Include product relation
+          menu: true,
+        },
+      },
+    },
+  });
+
+  return deletedMenuItemPrice;
+};
+
+// Get meals by day of the week
+export const getMealsByDayService = async (dayOfWeek, adminCompanyId) => {
+  // Convert day to proper format (e.g., "Monday" to "MONDAY")
+  const formattedDay = dayOfWeek.toUpperCase();
+  
+  // Base filter: menu item name matches day
+  const nameFilter = {
+    OR: [
+      { name: { startsWith: dayOfWeek } },
+      { name: { startsWith: dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1) } },
+      { name: { startsWith: dayOfWeek.toUpperCase() } }
+    ]
+  };
+  // Super admin sees all; company admin sees only their company's menu items (via menu.companyId)
+  const where = hasCompanyScope(adminCompanyId)
+    ? { ...nameFilter, menu: { companyId: (adminCompanyId || '').trim() } }
+    : nameFilter;
+
+  const menuItems = await prisma.menuItem.findMany({
+    where,
+    include: {
+      product: true, // Include product relation
+      menu: {
+        include: {
+          menuCategories: true
+        }
+      },
+      prices: {
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 1 // Get the latest price
+      }
+    },
+    orderBy: {
+      name: 'asc'
+    }
+  });
+
+  // Categorize items into breakfast, lunch, dinner
+  const categorizedMeals = {
+    breakfast: [],
+    lunch: [],
+    dinner: []
+  };
+
+  menuItems.forEach(item => {
+    // Compute food type from menu categories
+    let foodType = 'VEG'; // Default
+    if (item.menu && item.menu.menuCategories) {
+      const categoryNames = item.menu.menuCategories.map(cat => cat.name.toLowerCase());
+      if (categoryNames.some(name => name.includes('non') || name.includes('non-veg'))) {
+        foodType = 'NON_VEG';
+      }
+    }
+
+    const mealData = {
+      id: item.id,
+      name: item.name,
+      price: item.prices[0]?.totalPrice || 0,
+      productImage: item.product?.imageUrl || '', // Get product image from relation
+      productName: item.product?.productName || '', // Get product name from relation
+      productCode: item.product?.code || '', // Get product code from relation
+      menuName: item.menu?.name || '',
+      foodType: foodType // Computed from menu categories
+    };
+
+    // Determine category based on item name
+    const itemName = item.name.toLowerCase();
+    if (itemName.includes('breakfast')) {
+      categorizedMeals.breakfast.push(mealData);
+    } else if (itemName.includes('lunch')) {
+      categorizedMeals.lunch.push(mealData);
+    } else if (itemName.includes('dinner')) {
+      categorizedMeals.dinner.push(mealData);
+    } else {
+      // If no specific meal type is mentioned, categorize based on product or menu
+      // You can customize this logic based on your needs
+      const productName = item.product?.productName?.toLowerCase() || '';
+      const menuName = item.menu?.name?.toLowerCase() || '';
+      
+      // Default categorization logic - you can modify this
+      if (productName.includes('breakfast') || menuName.includes('breakfast')) {
+        categorizedMeals.breakfast.push(mealData);
+      } else if (productName.includes('lunch') || menuName.includes('lunch')) {
+        categorizedMeals.lunch.push(mealData);
+      } else if (productName.includes('dinner') || menuName.includes('dinner')) {
+        categorizedMeals.dinner.push(mealData);
+      } else {
+        // If still no match, put in breakfast by default (or you can create an "other" category)
+        categorizedMeals.breakfast.push(mealData);
+      }
+    }
+  });
+
+  return {
+    day: dayOfWeek,
+    meals: categorizedMeals
+  };
+};
+
+// Get menus with categories and menu items for booking page (optionally scoped by companyId for multi-tenant)
+export const getMenusForBookingService = async (companyId = null) => {
+  const menus = await prisma.menu.findMany({
+    where: {
+      status: 'ACTIVE',
+      ...(companyId ? { companyId } : {})
+    },
+    include: {
+      company: true,
+      menuCategories: true,
+      menuItems: {
+        include: {
+          product: true, // Include product relation
+          prices: {
+            orderBy: {
+              createdAt: 'desc'
+            },
+            take: 1 // Get the latest price
+          }
+        }
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+
+  // Transform the data to show each menu item as a separate option
+  const transformedMenuItems = [];
+  
+  menus.forEach(menu => {
+    const menuItems = menu.menuItems || [];
+    const categories = menu.menuCategories || [];
+    
+    // Create a separate menu item object for each menu item
+    menuItems.forEach(item => {
+      // Check if this is a comprehensive menu item
+      const itemName = item.name?.toLowerCase() || '';
+      const productName = item.product?.productName?.toLowerCase() || '';
+      const menuName = menu.name?.toLowerCase() || '';
+      
+      // Define comprehensive menu keywords
+      const comprehensiveKeywords = [
+        'monthly', 'plan', 'weekly', 'weekday', 'week-day', 'full week', 'comprehensive'
+      ];
+      
+      // Define daily rate keywords
+      const dailyRateKeywords = [
+        'breakfast', 'lunch', 'dinner', 'meal', 'daily', 'per day', 'single'
+      ];
+      
+      // Check if item is comprehensive (monthly/weekly packages)
+      const isComprehensiveItem = comprehensiveKeywords.some(keyword => 
+        itemName.includes(keyword) || productName.includes(keyword) || menuName.includes(keyword)
+      );
+      
+      // Check if item is daily rate (individual meals like breakfast)
+      const isDailyRateItem = dailyRateKeywords.some(keyword => 
+        itemName.includes(keyword) || productName.includes(keyword)
+      );
+      
+      // Determine meal types for this item
+      let mealTypes = {
+        breakfast: [],
+        lunch: [],
+        dinner: []
+      };
+      
+      if (isComprehensiveItem) {
+        // For comprehensive items, include all meal types
+        const comprehensiveItem = {
+          ...item,
+          isComprehensive: true,
+          mealTypes: ['breakfast', 'lunch', 'dinner']
+        };
+        mealTypes.breakfast.push(comprehensiveItem);
+        mealTypes.lunch.push(comprehensiveItem);
+        mealTypes.dinner.push(comprehensiveItem);
+      } else if (isDailyRateItem) {
+        // For daily rate items, determine specific meal type
+        if (itemName.includes('breakfast') || productName.includes('breakfast')) {
+          mealTypes.breakfast.push(item);
+        } else if (itemName.includes('lunch') || productName.includes('lunch')) {
+          mealTypes.lunch.push(item);
+        } else if (itemName.includes('dinner') || productName.includes('dinner')) {
+          mealTypes.dinner.push(item);
+        } else {
+          // If no specific meal type is mentioned, include in all meal types
+          mealTypes.breakfast.push(item);
+          mealTypes.lunch.push(item);
+          mealTypes.dinner.push(item);
+        }
+      } else {
+        // For other regular items, determine meal type based on name
+        if (itemName.includes('breakfast') || productName.includes('breakfast')) {
+          mealTypes.breakfast.push(item);
+        }
+        if (itemName.includes('lunch') || productName.includes('lunch')) {
+          mealTypes.lunch.push(item);
+        }
+        if (itemName.includes('dinner') || productName.includes('dinner')) {
+          mealTypes.dinner.push(item);
+        }
+      }
+      
+      // Create menu item object
+      const menuItemObject = {
+        id: item.id, // Use menu item ID as the main ID
+        menuId: menu.id, // Keep reference to parent menu
+        name: item.name, // Menu item name
+        menuName: menu.name, // Parent menu name for reference
+        status: menu.status,
+        company: menu.company,
+        categories: categories,
+        mealTypes: mealTypes,
+        hasBreakfast: mealTypes.breakfast.length > 0,
+        hasLunch: mealTypes.lunch.length > 0,
+        hasDinner: mealTypes.dinner.length > 0,
+        isComprehensiveMenu: isComprehensiveItem,
+        isDailyRateItem: isDailyRateItem,
+        // Include the menu item data
+        menuItem: item,
+        // Include pricing
+        price: item.prices && item.prices[0] ? item.prices[0].totalPrice : 0,
+        product: item.product
+      };
+      
+      transformedMenuItems.push(menuItemObject);
+    });
+  });
+
+  return transformedMenuItems;
+};
+
+// Admin Order Management Services
+export const getAllOrdersService = async (filters, adminCompanyId) => {
+  const { status, startDate, endDate, orderTime, page = 1, limit = 10 } = filters;
+  
+  const skip = (page - 1) * limit;
+  
+  // Build where clause
+  const where = {};
+  
+  if (status && status !== 'all' && status !== null) {
+    where.status = status;
+  }
+  
+  if (startDate && endDate && startDate !== 'null' && endDate !== 'null' && startDate !== null && endDate !== null) {
+    where.orderDate = {
+      gte: new Date(startDate),
+      lte: new Date(endDate)
+    };
+  }
+  
+  if (orderTime && orderTime !== 'all' && orderTime !== null) {
+    where.orderTimes = orderTime;
+  }
+
+  // Super admin sees all; company admin sees only their company's orders (via order's user)
+  if (hasCompanyScope(adminCompanyId)) {
+    where.user = { companyId: (adminCompanyId || '').trim() };
+  }
+
+  // Get orders with pagination (without including problematic relations)
+  const orders = await prisma.order.findMany({
+    where,
+    include: {
+      deliveryAddress: true
+    },
+    orderBy: {
+      createdAt: 'desc'
+    },
+    skip,
+    take: parseInt(limit)
+  });
+
+  // Fetch delivery items separately to avoid relationship issues
+  const ordersWithDetails = await Promise.all(
+    orders.map(async (order) => {
+      try {
+        const deliveryItems = await prisma.deliveryItem.findMany({
+          where: { 
+            orderId: order.id,
+            user: {
+              isNot: null
+            }
+          },
+          include: {
+            user: {
+              include: {
+                auth: true
+              }
+            },
+            menuItem: {
+              include: {
+                product: true
+              }
+            }
+          }
+        });
+
+        return {
+          ...order,
+          deliveryItems: deliveryItems
+        };
+      } catch (error) {
+        console.error(`Error fetching delivery items for order ${order.id}:`, error);
+        // Return order with empty delivery items if there's an error
+        return {
+          ...order,
+          deliveryItems: []
+        };
+      }
+    })
+  );
+
+  // Get total count for pagination
+  const totalOrders = await prisma.order.count({ where });
+  
+  return {
+    orders: ordersWithDetails,
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(totalOrders / limit),
+      totalOrders,
+      hasNextPage: page * limit < totalOrders,
+      hasPrevPage: page > 1
+    }
+  };
+};
+
+export const updateOrderStatusService = async (orderId, status) => {
+  // Check if order exists
+  const existingOrder = await prisma.order.findUnique({
+    where: { id: orderId }
+  });
+
+  if (!existingOrder) {
+    throw new Error('Order not found');
+  }
+
+  // Update order status
+  const updatedOrder = await prisma.order.update({
+    where: { id: orderId },
+    data: { status },
+    include: {
+      deliveryAddress: true
+    }
+  });
+
+  // Fetch delivery items separately
+  try {
+    const deliveryItems = await prisma.deliveryItem.findMany({
+      where: { 
+        orderId: orderId,
+        user: {
+          isNot: null
+        }
+      },
+      include: {
+        user: {
+          include: {
+            auth: true
+          }
+        },
+        menuItem: {
+          include: {
+            product: true
+          }
+        }
+      }
+    });
+
+    const orderWithDetails = {
+      ...updatedOrder,
+      deliveryItems: deliveryItems
+    };
+
+    return orderWithDetails;
+  } catch (error) {
+    console.error(`Error fetching delivery items for order ${orderId}:`, error);
+    // Return order with empty delivery items if there's an error
+    return {
+      ...updatedOrder,
+      deliveryItems: []
+    };
+  }
+};
+
+export const deleteOrderService = async (orderId) => {
+  // Check if order exists
+  const existingOrder = await prisma.order.findUnique({
+    where: { id: orderId }
+  });
+
+  if (!existingOrder) {
+    throw new Error('Order not found');
+  }
+
+  // Use transaction to ensure all related records are deleted together
+  return await prisma.$transaction(async (tx) => {
+    // Delete delivery items first (due to foreign key constraints)
+    await tx.deliveryItem.deleteMany({
+      where: { orderId }
+    });
+
+    // Delete the order
+    const deletedOrder = await tx.order.delete({
+      where: { id: orderId }
+    });
+
+    return deletedOrder;
+  }, {
+    isolationLevel: 'ReadCommitted', // Prevent dirty reads
+    timeout: 10000, // 10 second timeout for order deletion
+  });
+};
+
+// Get product quantities for menu items
+export const getProductQuantitiesForMenusService = async (adminCompanyId) => {
+  try {
+    // Super admin sees all; company admin sees only their company's menu items (via menu.companyId)
+    const where = {
+      productId: { not: null }
+    };
+    if (hasCompanyScope(adminCompanyId)) {
+      where.menu = { companyId: (adminCompanyId || '').trim() };
+    }
+    const menuItemsWithQuantities = await prisma.menuItem.findMany({
+      where,
+      include: {
+        product: {
+          include: {
+            quantities: {
+              orderBy: {
+                createdAt: 'desc'
+              },
+              take: 1 // Get the latest quantity
+            }
+          }
+        }
+      }
+    });
+
+    // Transform the data to return product ID and quantity
+    const productQuantities = {};
+    menuItemsWithQuantities.forEach(menuItem => {
+      if (menuItem.product && menuItem.product.quantities && menuItem.product.quantities.length > 0) {
+        productQuantities[menuItem.product.id] = {
+          productId: menuItem.product.id,
+          productName: menuItem.product.productName,
+          quantity: menuItem.product.quantities[0].quantity,
+          lastUpdated: menuItem.product.quantities[0].updatedAt
+        };
+      }
+    });
+
+    return productQuantities;
+  } catch (error) {
+    console.error('Error getting product quantities for menus:', error);
+    throw new Error('Failed to get product quantities for menus');
+  }
+};
+
+// Get all vehicles
+export const getVehiclesService = async (filters = {}) => {
+  try {
+    const { user_id } = filters;
+    
+    const where = {};
+    if (user_id) {
+      where.user_id = user_id;
+    }
+    
+    const vehicles = await prisma.vehicles.findMany({
+      where,
+      orderBy: {
+        created_at: 'desc'
+      }
+    });
+    
+    return vehicles;
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Error fetching vehicles', {
+      error: error.message,
+      stack: error.stack,
+      filters
+    });
+    throw error;
+  }
+};
+
+// Assign vehicle to executive
+export const assignVehicleToExecutiveService = async (vehicleIdOrNumber, userId, companyId = null) => {
+  try {
+    // Get the vehicle to get its registration number
+    // vehicleIdOrNumber can be either vehicle ID (UUID) or vehicle registration number (string)
+    let vehicle = null;
+    let vehicleNumber = null;
+    
+    // Try to find by ID first (UUID format)
+    if (vehicleIdOrNumber && vehicleIdOrNumber.length === 36) {
+      vehicle = await prisma.vehicles.findUnique({
+        where: { id: vehicleIdOrNumber }
+      });
+      if (vehicle) {
+        vehicleNumber = vehicle.registration_number;
+      }
+    }
+    
+    // If not found by ID, treat it as registration number
+    if (!vehicle) {
+      vehicleNumber = vehicleIdOrNumber;
+    }
+    
+    if (!vehicleNumber) {
+      throw new Error('Vehicle ID or registration number is required');
+    }
+    
+    // Database updates commented out - only using external API
+    // // Update vehicle with user_id
+    // const updatedVehicle = await prisma.vehicles.update({
+    //   where: { id: vehicleId },
+    //   data: { user_id: userId }
+    // });
+    
+    // // Update DeliveryExecutive with vehicle number
+    // try {
+    //   await prisma.deliveryExecutive.update({
+    //     where: { userId: userId },
+    //     data: { vehicleNumber: vehicle.registration_number }
+    //   });
+    // } catch (deliveryExecError) {
+    //   // If DeliveryExecutive doesn't exist, log but don't fail
+    //   logError(LOG_CATEGORIES.SYSTEM, 'DeliveryExecutive not found for vehicle assignment', {
+    //     userId,
+    //     error: deliveryExecError.message
+    //   });
+    //   // Continue - vehicle assignment still succeeds
+    // }
+    
+    // External API format: POST /api/executives/{user_id}/vehicle with body {"registration_number": "..."}
+    const assignPayload = { registration_number: vehicleNumber };
+    const assignHeaders = {
+      'Authorization': 'Bearer mysecretkey123',
+      'Content-Type': 'application/json',
+      'X-Company-ID': companyId || ''
+    };
+    const assignUrl = `${process.env.AI_ROUTE_API}/api/executives/${userId}/vehicle`;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Vehicle assign: outgoing request to external API', {
+      url: assignUrl,
+      method: 'POST',
+      headers: { 'Content-Type': assignHeaders['Content-Type'], 'X-Company-ID': assignHeaders['X-Company-ID'] || '(empty)' },
+      body: assignPayload
+    });
+    const response = await fetch(assignUrl, {
+      method: 'POST',
+      headers: assignHeaders,
+      body: JSON.stringify(assignPayload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+        logError(LOG_CATEGORIES.SYSTEM, 'External API vehicle assignment failed', {
+          userId,
+          vehicleIdOrNumber,
+          vehicleNumber: vehicleNumber,
+          status: response.status,
+          error: errorText
+        });
+      throw new Error(`External API failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+        logInfo(LOG_CATEGORIES.SYSTEM, 'External API vehicle assignment succeeded', {
+          userId,
+          vehicleIdOrNumber,
+          vehicleNumber: vehicleNumber,
+          response: data
+        });
+    
+    // Return the API response
+    return {
+      success: true,
+      message: data.message || 'Vehicle assigned to executive successfully',
+      data: data,
+      vehicle: {
+        registration_number: vehicleNumber
+      }
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Error assigning vehicle to executive', {
+      error: error.message,
+      stack: error.stack,
+      vehicleIdOrNumber,
+      userId
+    });
+    throw error;
+  }
+};
+
+// Unassign vehicle from executive
+export const unassignVehicleFromExecutiveService = async (vehicleIdOrNumber, userId, companyId = null) => {
+  try {
+    // Get user_id from parameter (required for unassignment)
+    const executiveUserId = userId;
+    
+    if (!executiveUserId) {
+      throw new Error('User ID is required for vehicle unassignment');
+    }
+    
+    // Database lookup commented out - not needed for unassignment
+    // const vehicle = await prisma.vehicles.findUnique({
+    //   where: { id: vehicleIdOrNumber }
+    // });
+    
+    // Database updates commented out - only using external API
+    // const previousUserId = vehicle.user_id;
+    
+    // // Update vehicle to remove user_id
+    // const updatedVehicle = await prisma.vehicles.update({
+    //   where: { id: vehicleId },
+    //   data: { user_id: null }
+    // });
+    
+    // // Clear vehicleNumber from DeliveryExecutive if user_id existed
+    // if (previousUserId) {
+    //   try {
+    //     await prisma.deliveryExecutive.update({
+    //       where: { userId: previousUserId },
+    //       data: { vehicleNumber: null }
+    //     });
+    //   } catch (deliveryExecError) {
+    //     // If DeliveryExecutive doesn't exist, log but don't fail
+    //     logError(LOG_CATEGORIES.SYSTEM, 'DeliveryExecutive not found for vehicle unassignment', {
+    //       userId: previousUserId,
+    //       error: deliveryExecError.message
+    //     });
+    //     // Continue - vehicle unassignment still succeeds
+    //   }
+    // }
+    
+    // External API format: POST /api/executives/{user_id}/vehicle with body {"registration_number": null} for unassign
+    const unassignPayload = { registration_number: null };
+    const unassignHeaders = {
+      'Authorization': 'Bearer mysecretkey123',
+      'Content-Type': 'application/json',
+      'X-Company-ID': companyId || ''
+    };
+    const unassignUrl = `${process.env.AI_ROUTE_API}/api/executives/${executiveUserId}/vehicle`;
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Vehicle unassign: outgoing request to external API', {
+      url: unassignUrl,
+      method: 'POST',
+      headers: { 'Content-Type': unassignHeaders['Content-Type'], 'X-Company-ID': unassignHeaders['X-Company-ID'] || '(empty)' },
+      body: unassignPayload
+    });
+    const response = await fetch(unassignUrl, {
+      method: 'POST',
+      headers: unassignHeaders,
+      body: JSON.stringify(unassignPayload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+        logError(LOG_CATEGORIES.SYSTEM, 'External API vehicle unassignment failed', {
+          userId: executiveUserId,
+          vehicleIdOrNumber,
+          status: response.status,
+          error: errorText
+        });
+      throw new Error(`External API failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+        logInfo(LOG_CATEGORIES.SYSTEM, 'External API vehicle unassignment succeeded', {
+          userId: executiveUserId,
+          vehicleIdOrNumber,
+          response: data
+        });
+    
+    // Return the API response
+    return {
+      success: true,
+      message: data.message || 'Vehicle unassigned from executive successfully',
+      data: data
+    };
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Error unassigning vehicle from executive', {
+      error: error.message,
+      stack: error.stack,
+      vehicleIdOrNumber,
+      userId
+    });
+    throw error;
+  }
+};
+
+export const checkProductCodeExistsService = async (code) => {
+  return prisma.product.findUnique({ where: { code } });
+};
+
+export const checkCompanyExistsService = async (companyId) => {
+  return prisma.company.findUnique({ where: { id: companyId } });
+};
+
+export const checkOrderCompanyScopeService = async (orderId, adminCompanyId) => {
+  if (adminCompanyId == null) return true;
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { user: { select: { companyId: true } } }
+  });
+  if (!order || order.user.companyId !== adminCompanyId) return false;
+  return true;
+};
+
+export const createAdminUserService = async ({ email, phone, password, rolesToAssign, companyId, contact, adminId }) => {
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (!company) {
+    const AppError = (await import('../../../utils/AppError.js')).default;
+    throw new AppError('Company not found', 404);
+  }
+
+  const existingAuth = await prisma.auth.findUnique({ where: { email } });
+  if (existingAuth) {
+    const AppError = (await import('../../../utils/AppError.js')).default;
+    throw new AppError('Email already registered', 409);
+  }
+
+  const existingPhoneInCompany = await prisma.auth.findFirst({
+    where: { phoneNumber: phone, user: { companyId } }
+  });
+  if (existingPhoneInCompany) {
+    const AppError = (await import('../../../utils/AppError.js')).default;
+    throw new AppError('This phone number is already registered in this company', 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const api_key = generateApiKey();
+
+  return prisma.$transaction(async (tx) => {
+    const auth = await tx.auth.create({
+      data: { email, password: hashedPassword, phoneNumber: phone, apiKey: api_key, status: 'ACTIVE' }
+    });
+
+    const user = await tx.user.create({
+      data: { authId: auth.id, status: 'ACTIVE', companyId, createdBy: adminId || null }
+    });
+
+    const userRoles = [];
+    for (const roleName of rolesToAssign) {
+      const userRole = await tx.userRole.create({ data: { userId: user.id, name: roleName } });
+      userRoles.push(userRole);
+    }
+
+    let contactRecord = null;
+    if (contact && contact.firstName && contact.lastName) {
+      contactRecord = await tx.contact.create({
+        data: { userId: user.id, firstName: contact.firstName, lastName: contact.lastName }
+      });
+      if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
+        for (const phoneData of contact.phoneNumbers) {
+          await tx.phoneNumber.create({
+            data: { contactId: contactRecord.id, type: phoneData.type || 'PRIMARY', number: phoneData.number }
+          });
+        }
+      }
+    }
+
+    if (rolesToAssign.includes('DELIVERY_EXECUTIVE') || rolesToAssign.includes('DELIVERY_PARTNER')) {
+      await createDeliveryExecutiveProfile(tx, user.id);
+    }
+
+    return {
+      id: user.id,
+      email: auth.email,
+      phone: auth.phoneNumber,
+      roles: userRoles.map(ur => ur.name),
+      primaryRole: userRoles[0]?.name,
+      company: company.name,
+      companyId: company.id,
+      status: user.status,
+      createdAt: user.createdAt,
+      contact: contactRecord ? { firstName: contactRecord.firstName, lastName: contactRecord.lastName } : null
+    };
+  });
+};
+
+export const getAdminUsersService = async (adminCompanyId) => {
+  const where = adminCompanyId != null ? { companyId: adminCompanyId } : {};
+  const users = await prisma.user.findMany({
+    where,
+    include: {
+      auth: true, userRoles: true, company: true,
+      contacts: { include: { phoneNumbers: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const allowedRoles = ['CEO', 'CFO', 'ADMIN', 'SELLER', 'STORE_MANAGER', 'STORE_OPERATOR', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'USER'];
+  return users
+    .filter(user => {
+      if (!user.auth || !user.auth.email) return false;
+      return (user.userRoles || []).some(ur => allowedRoles.includes(ur.name));
+    })
+    .map(user => ({
+      id: user.id,
+      name: user.auth?.email?.split('@')[0] || 'Unknown User',
+      email: user.auth?.email || 'No Email',
+      phone: user.auth?.phoneNumber || 'No Phone',
+      roles: user.userRoles.map(ur => ur.name),
+      primaryRole: user.userRoles[0]?.name || 'USER',
+      company: user.company?.name || 'No Company',
+      companyId: user.companyId,
+      status: user.status,
+      createdAt: user.createdAt,
+      createdBy: user.createdBy,
+      contact: user.contacts && user.contacts.length > 0 ? {
+        firstName: user.contacts[0].firstName,
+        lastName: user.contacts[0].lastName,
+        phoneNumbers: user.contacts[0].phoneNumbers
+      } : null
+    }));
+};
+
+export const updateUserStatusService = async (userId, status, adminCompanyId) => {
+  const where = { id: userId };
+  if (adminCompanyId != null) where.companyId = adminCompanyId;
+
+  const user = await prisma.user.findFirst({ where });
+  if (!user) return null;
+
+  return prisma.user.update({ where: { id: userId }, data: { status } });
+};
+
+export const getSellersWithOrdersService = async (companyId) => {
+  const where = {};
+  if (companyId && typeof companyId === 'string' && companyId.trim()) {
+    where.companyId = companyId.trim();
+  }
+
+  const sellers = await prisma.user.findMany({
+    where,
+    include: { auth: true, userRoles: true, company: true, contacts: { include: { phoneNumbers: true } } },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const validSellers = sellers.filter(user => {
+    if (!user.auth || !user.auth.email) return false;
+    return user.userRoles[0]?.name === 'SELLER';
+  });
+
+  return Promise.all(validSellers.map(async (seller) => {
+    let orders = [];
+    let totalRevenue = 0;
+
+    const sellerUsers = await prisma.user.findMany({
+      where: { createdBy: seller.id }, select: { id: true }
+    });
+    const userIds = sellerUsers.map(u => u.id);
+
+    if (userIds.length > 0) {
+      orders = await prisma.order.findMany({
+        where: { userId: { in: userIds } },
+        include: {
+          user: { include: { auth: true, contacts: { include: { phoneNumbers: true } } } },
+          deliveryItems: {
+            include: {
+              menuItem: { include: { product: true, prices: true } },
+              deliveryAddress: { select: { id: true, street: true, housename: true, city: true, pincode: true, geoLocation: true, googleMapsUrl: true, addressType: true } }
+            }
+          },
+          payments: { include: { paymentReceipts: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      });
+      totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+    }
+
+    const transformedOrders = orders.map(order => ({
+      id: order.id,
+      customerName: order.user?.contacts?.[0]?.firstName || order.user?.auth?.email?.split('@')[0] || 'User',
+      customerPhone: order.user?.contacts?.[0]?.phoneNumbers?.[0]?.number || order.user?.auth?.phoneNumber || 'No phone',
+      customerEmail: order.user?.auth?.email || 'No email',
+      totalPrice: order.totalPrice || 0, status: order.status || 'PENDING', createdAt: order.createdAt,
+      deliveryItems: order.deliveryItems?.map(item => ({
+        id: item.id, orderId: item.orderId,
+        menuItem: { name: item.menuItem?.name || 'Unknown Item', price: item.menuItem?.prices?.[0]?.totalPrice || 0, product: item.menuItem?.product || null },
+        quantity: item.quantity, deliveryDate: item.deliveryDate, deliveryTimeSlot: item.deliveryTimeSlot, status: item.status,
+        address: item.deliveryAddress || null
+      })) || [],
+      paymentReceipts: order.payments?.flatMap(p => p.paymentReceipts?.map(r => ({ id: r.id, imageUrl: r.receiptImageUrl, receiptUrl: p.receiptUrl })) || []) || []
+    }));
+
+    return {
+      id: seller.id, name: seller.auth.email.split('@')[0], email: seller.auth.email,
+      phone: seller.auth.phoneNumber || 'No Phone', role: seller.userRoles[0]?.name || 'SELLER',
+      company: seller.company?.name || 'No Company', companyId: seller.companyId,
+      status: seller.status, createdAt: seller.createdAt,
+      orderCount: transformedOrders.length, totalRevenue, recentOrders: transformedOrders
+    };
+  }));
+};
+
+export const getDeliveryExecutivesService = async (companyId) => {
+  const where = {};
+  if (companyId && typeof companyId === 'string' && companyId.trim()) where.companyId = companyId.trim();
+
+  const executives = await prisma.user.findMany({
+    where, include: { auth: true, userRoles: true, company: true, contacts: { take: 1 } },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return executives
+    .filter(user => user.auth?.email && (user.userRoles || []).some(r => r.name === 'DELIVERY_EXECUTIVE'))
+    .map(exec => {
+      let name = exec.auth.email.split('@')[0];
+      if (exec.contacts?.[0]) {
+        const fullName = [exec.contacts[0].firstName, exec.contacts[0].lastName].filter(Boolean).join(' ').trim();
+        if (fullName) name = fullName;
+      }
+      return {
+        id: exec.id, name, email: exec.auth.email, phoneNumber: exec.auth.phoneNumber || 'No phone',
+        role: (exec.userRoles || []).find(r => r.name === 'DELIVERY_EXECUTIVE')?.name || 'DELIVERY_EXECUTIVE',
+        companyName: exec.company?.name || 'No Company', companyId: exec.companyId,
+        status: exec.status, currentStatus: 'Available',
+        joinedDate: exec.createdAt, lastActive: exec.updatedAt || exec.createdAt, createdAt: exec.createdAt
+      };
+    });
+};
+
+export const getDeliveryManagersService = async (companyId) => {
+  const where = {};
+  if (companyId && typeof companyId === 'string' && companyId.trim()) where.companyId = companyId.trim();
+
+  const managers = await prisma.user.findMany({
+    where, include: { auth: true, userRoles: true, company: true, contacts: { take: 1 } },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return managers
+    .filter(user => user.auth?.email && (user.userRoles || []).some(r => r.name === 'DELIVERY_MANAGER'))
+    .map(mgr => {
+      let name = mgr.auth.email.split('@')[0];
+      if (mgr.contacts?.[0]) {
+        const fullName = [mgr.contacts[0].firstName, mgr.contacts[0].lastName].filter(Boolean).join(' ').trim();
+        if (fullName) name = fullName;
+      }
+      return {
+        id: mgr.id, name, email: mgr.auth.email, phoneNumber: mgr.auth.phoneNumber || 'No phone',
+        role: 'DELIVERY_MANAGER', companyName: mgr.company?.name || 'No Company', companyId: mgr.companyId,
+        status: mgr.status, joinedDate: mgr.createdAt, lastActive: mgr.updatedAt || mgr.createdAt, createdAt: mgr.createdAt
+      };
+    });
+};
+
+export const getOrphanedUsersService = async (adminCompanyId) => {
+  const where = adminCompanyId != null ? { companyId: adminCompanyId } : {};
+  const allUsers = await prisma.user.findMany({
+    where, select: { id: true, authId: true, createdAt: true, updatedAt: true, status: true }
+  });
+  const orphaned = [];
+  for (const user of allUsers) {
+    try {
+      const auth = await prisma.auth.findUnique({ where: { id: user.authId } });
+      if (!auth) orphaned.push(user);
+    } catch { orphaned.push(user); }
+  }
+  return orphaned;
+};
+
+export const cleanupOrphanedUsersService = async (adminCompanyId) => {
+  const where = adminCompanyId != null ? { companyId: adminCompanyId } : {};
+  const allUsers = await prisma.user.findMany({ where, select: { id: true, authId: true } });
+  const usersToDelete = [];
+  for (const user of allUsers) {
+    try {
+      const auth = await prisma.auth.findUnique({ where: { id: user.authId } });
+      if (!auth) usersToDelete.push(user.id);
+    } catch { usersToDelete.push(user.id); }
+  }
+  if (usersToDelete.length === 0) return { count: 0 };
+  return prisma.user.deleteMany({ where: { id: { in: usersToDelete } } });
+};
+
+export const addUserRolesService = async (userId, roles, adminCompanyId) => {
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { userRoles: true } });
+  if (!user) return null;
+  if (adminCompanyId != null && user.companyId !== adminCompanyId) return { forbidden: true };
+
+  const existingRoles = user.userRoles.map(ur => ur.name);
+  const newRoles = roles.filter(role => !existingRoles.includes(role));
+  if (newRoles.length === 0) return { userId: user.id, existingRoles, newRoles: [], noChange: true };
+
+  await prisma.userRole.createMany({ data: newRoles.map(name => ({ userId: user.id, name })) });
+  const updatedUser = await prisma.user.findUnique({
+    where: { id: userId }, include: { userRoles: true, auth: true, company: true }
+  });
+  return { userId: user.id, email: updatedUser.auth?.email, allRoles: updatedUser.userRoles.map(ur => ur.name), addedRoles: newRoles, existingRoles };
+};
+
+export const removeUserRolesService = async (userId, roles, adminCompanyId) => {
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { userRoles: true } });
+  if (!user) return null;
+  if (adminCompanyId != null && user.companyId !== adminCompanyId) return { forbidden: true };
+
+  const existingRoles = user.userRoles.map(ur => ur.name);
+  const rolesToRemove = roles.filter(role => existingRoles.includes(role));
+  if (rolesToRemove.length === 0) return { userId: user.id, existingRoles, removedRoles: [], noChange: true };
+
+  await prisma.userRole.deleteMany({ where: { userId: user.id, name: { in: rolesToRemove } } });
+  const updatedUser = await prisma.user.findUnique({
+    where: { id: userId }, include: { userRoles: true, auth: true, company: true }
+  });
+  return { userId: user.id, email: updatedUser.auth?.email, remainingRoles: updatedUser.userRoles.map(ur => ur.name), removedRoles: rolesToRemove, previousRoles: existingRoles };
+};
+
+export const filterExecutivesByCompanyService = async (executiveUserIds, companyId) => {
+  const usersInCompany = await prisma.user.findMany({
+    where: { id: { in: executiveUserIds }, companyId }, select: { id: true }
+  });
+  return new Set(usersInCompany.map(u => u.id));
+};
+

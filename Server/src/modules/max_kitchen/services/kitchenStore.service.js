@@ -1,0 +1,1142 @@
+/**
+ * @feature kitchen-store — Upstream kitchen inventory API client (axios proxy, tenant headers, logging).
+ */
+import axios from 'axios';
+import FormData from 'form-data';
+import AppError from '../../../utils/AppError.js';
+import { logError, LOG_CATEGORIES, logInfo } from '../../../utils/criticalLogger.js';
+
+const AI_ROUTE_API = process.env.AI_ROUTE_API
+const KITCHEN_STORE_BASE_URL = process.env.AI_ROUTE_API_FIFTH;
+const EXTERNAL_API_AUTH_TOKEN = process.env.EXTERNAL_API_AUTH_TOKEN || 'mysecretkey123';
+const K = '/api/max_kitchen/v1';
+
+const apiClient = axios.create({
+  baseURL: KITCHEN_STORE_BASE_URL,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${EXTERNAL_API_AUTH_TOKEN}`
+  }
+});
+
+const apiClientAI = axios.create({
+  baseURL: AI_ROUTE_API,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${EXTERNAL_API_AUTH_TOKEN}`
+  }
+});
+/** Tenant + acting user for kitchen inventory upstream (see FRONTEND_KITCHEN_STORE_GUIDE §2.1). */
+const withKitchenContext = (companyId, userId, config = {}) => {
+  const headers = { ...(config.headers || {}) };
+  if (companyId) headers['X-Company-ID'] = companyId;
+  const uid = userId != null && String(userId).trim() !== '' ? String(userId).trim() : null;
+  if (uid) headers['X-User-ID'] = uid;
+  return { ...config, headers };
+};
+
+const mapKitchenErrorCodeToHttpStatus = (code) => {
+  const map = {
+    bad_request: 400,
+    unauthorized: 401,
+    forbidden: 403,
+    not_found: 404,
+    conflict: 409,
+    validation_error: 422,
+    rate_limited: 429,
+    internal_error: 500
+  };
+  return map[code] ?? 500;
+};
+
+/** Upstream Max Kitchen JSON envelope: `{ ok, data?, error?, meta? }` (see FRONTEND_MAX_KITCHEN_API_BASE_MIGRATION). */
+const unwrapKitchenJsonBody = (body) => {
+  if (body == null || typeof body !== 'object') return body;
+  if (!Object.prototype.hasOwnProperty.call(body, 'ok')) return body;
+  if (body.ok === true) return body.data;
+  const err = body.error && typeof body.error === 'object' ? body.error : {};
+  const message =
+    typeof err.message === 'string' && err.message.trim() !== ''
+      ? err.message
+      : 'Kitchen Store request failed';
+  const code = typeof err.code === 'string' ? err.code : 'internal_error';
+  const status = mapKitchenErrorCodeToHttpStatus(code);
+  throw new AppError(message, status, err.details ?? null);
+};
+
+const parseKitchenJsonResponse = (response) => {
+  const rt = response.config?.responseType;
+  if (rt === 'arraybuffer' || rt === 'blob' || rt === 'stream') return response.data;
+  return unwrapKitchenJsonBody(response.data);
+};
+
+const mapAxiosError = (error) => {
+  const data = error.response?.data;
+  const status = error.response?.status || 500;
+  const message =
+    (data?.error && typeof data.error === 'object' && data.error.message) ||
+    data?.detail ||
+    data?.message ||
+    error.message ||
+    'Kitchen Store proxy request failed';
+  return new AppError(message, status);
+};
+
+const logKitchenSuccess = (operation, context = {}) => {
+  logInfo(LOG_CATEGORIES.INVENTORY, `Kitchen Store ${operation} succeeded`, context);
+};
+
+const logKitchenError = (operation, error, context = {}) => {
+  logError(LOG_CATEGORIES.INVENTORY, `Kitchen Store ${operation} failed`, {
+    ...context,
+    status: error.response?.status || null,
+    error: error.message
+  });
+};
+
+export const healthCheckService = async (companyId = null, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/health`, withKitchenContext(companyId, userId));
+    logKitchenSuccess('healthCheck', { endpoint: `${K}/health`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response) ?? { ok: true };
+  } catch (error) {
+    logKitchenError('healthCheck', error, { endpoint: `${K}/health`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+// Inventory: Items
+export const createItemService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/inventory/items`, body, withKitchenContext(companyId, userId));
+    logKitchenSuccess('createItem', { endpoint: `/inventory/items`, companyId: companyId || null, itemName: body?.name || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('createItem', error, { endpoint: `/inventory/items`, companyId: companyId || null, itemName: body?.name || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listItemsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/items`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listItems', { endpoint: `/inventory/items`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listItems', error, { endpoint: `/inventory/items`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getItemService = async (itemId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/items/${itemId}`, withKitchenContext(companyId, userId));
+    logKitchenSuccess('getItem', { endpoint: '/inventory/items/:item_id', companyId: companyId || null, itemId });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getItem', error, { endpoint: '/inventory/items/:item_id', companyId: companyId || null, itemId });
+    throw mapAxiosError(error);
+  }
+};
+
+// Store: Brands
+export const listBrandsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/store/brands`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listBrands', { endpoint: `/store/brands`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listBrands', error, { endpoint: `/store/brands`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const createBrandService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/store/brands`, body || {}, withKitchenContext(companyId, userId));
+    logKitchenSuccess('createBrand', { endpoint: `/store/brands`, companyId: companyId || null, brandName: body?.name || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('createBrand', error, { endpoint: `/store/brands`, companyId: companyId || null, brandName: body?.name || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const uploadBrandLogoService = async (brandId, file, companyId, userId = null) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file.buffer, {
+      filename: file.originalname || 'brand-logo',
+      contentType: file.mimetype || 'application/octet-stream',
+      knownLength: file.size
+    });
+    const contextConfig = withKitchenContext(companyId, userId, {
+      headers: {
+        ...formData.getHeaders()
+      },
+      maxBodyLength: Infinity
+    });
+    const response = await apiClient.post(
+      `${K}/store/brands/${brandId}/logo/upload`,
+      formData,
+      contextConfig
+    );
+    logKitchenSuccess('uploadBrandLogo', {
+      endpoint: '/store/brands/:brand_id/logo/upload',
+      companyId: companyId || null,
+      brandId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('uploadBrandLogo', error, {
+      endpoint: '/store/brands/:brand_id/logo/upload',
+      companyId: companyId || null,
+      brandId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getBrandLogoViewUrlService = async (brandId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/store/brands/${brandId}/logo/view-url`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('getBrandLogoViewUrl', {
+      endpoint: '/store/brands/:brand_id/logo/view-url',
+      companyId: companyId || null,
+      brandId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getBrandLogoViewUrl', error, {
+      endpoint: '/store/brands/:brand_id/logo/view-url',
+      companyId: companyId || null,
+      brandId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+// Inventory: Stock movements
+export const listItemMovementsService = async (itemId, query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/items/${itemId}/movements`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listItemMovements', { endpoint: '/inventory/items/:item_id/movements', companyId: companyId || null, itemId });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listItemMovements', error, { endpoint: '/inventory/items/:item_id/movements', companyId: companyId || null, itemId });
+    throw mapAxiosError(error);
+  }
+};
+
+export const createItemMovementService = async (itemId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/inventory/items/${itemId}/movements`, body, withKitchenContext(companyId, userId));
+    logKitchenSuccess('createItemMovement', {
+      endpoint: '/inventory/items/:item_id/movements',
+      companyId: companyId || null,
+      itemId,
+      movementType: body?.movement_type || null
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('createItemMovement', error, {
+      endpoint: '/inventory/items/:item_id/movements',
+      companyId: companyId || null,
+      itemId,
+      movementType: body?.movement_type || null
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+// Inventory: alerts + shopping list
+export const getLowStockAlertsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/alerts/low-stock`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getLowStockAlerts', { endpoint: `/inventory/alerts/low-stock`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getLowStockAlerts', error, { endpoint: `/inventory/alerts/low-stock`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getShoppingListService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/shopping-list`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('getShoppingList', { endpoint: `/inventory/shopping-list`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getShoppingList', error, { endpoint: `/inventory/shopping-list`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+// Recipe: lines
+export const upsertRecipeLineService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/recipe/recipes/lines`, body, withKitchenContext(companyId, userId));
+    logKitchenSuccess('upsertRecipeLine', {
+      endpoint: `/recipe/recipes/lines`,
+      companyId: companyId || null,
+      menuItemId: body?.menu_item_id || null,
+      inventoryItemId: body?.inventory_item_id || null
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('upsertRecipeLine', error, {
+      endpoint: `/recipe/recipes/lines`,
+      companyId: companyId || null,
+      menuItemId: body?.menu_item_id || null,
+      inventoryItemId: body?.inventory_item_id || null
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listRecipeLinesService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/recipe/recipes/lines`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listRecipeLines', { endpoint: `/recipe/recipes/lines`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listRecipeLines', error, { endpoint: `/recipe/recipes/lines`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+/** @feature kitchen-store — Weekly menu slot + menu-item picker (upstream /kitchen/menus/...). */
+export const getWeeklySlotService = async (menuId, query = {}, companyId, userId = null) => {
+  const mid = String(menuId || '').trim();
+  try {
+    const response = await apiClient.get(
+      `${K}/kitchen/menus/${encodeURIComponent(mid)}/weekly-slot`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getWeeklySlot', { endpoint: '/kitchen/menus/:menu_id/weekly-slot', companyId: companyId || null, menuId: mid });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getWeeklySlot', error, { endpoint: '/kitchen/menus/:menu_id/weekly-slot', companyId: companyId || null, menuId: mid });
+    throw mapAxiosError(error);
+  }
+};
+
+export const putWeeklySlotService = async (menuId, body, companyId, userId = null) => {
+  const mid = String(menuId || '').trim();
+  try {
+    const response = await apiClient.put(
+      `${K}/kitchen/menus/${encodeURIComponent(mid)}/weekly-slot`,
+      body,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('putWeeklySlot', { endpoint: '/kitchen/menus/:menu_id/weekly-slot', companyId: companyId || null, menuId: mid });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('putWeeklySlot', error, { endpoint: '/kitchen/menus/:menu_id/weekly-slot', companyId: companyId || null, menuId: mid });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listMenuCombosService = async (menuId, query = {}, companyId, userId = null) => {
+  const mid = String(menuId || '').trim();
+  try {
+    const response = await apiClient.get(
+      `${K}/kitchen/menus/${encodeURIComponent(mid)}/menu-items`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('listMenuCombos', { endpoint: '/kitchen/menus/:menu_id/menu-items', companyId: companyId || null, menuId: mid });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listMenuCombos', error, { endpoint: '/kitchen/menus/:menu_id/menu-items', companyId: companyId || null, menuId: mid });
+    throw mapAxiosError(error);
+  }
+};
+
+/** @feature kitchen-store — GET /kitchen/menus/:menu_id/weekly-schedule (optional raw UUID; same shape as by-kind). */
+export const getWeeklyScheduleService = async (menuId, query = {}, companyId, userId = null) => {
+  const mid = String(menuId || '').trim();
+  try {
+    const response = await apiClient.get(
+      `${K}/kitchen/menus/${encodeURIComponent(mid)}/weekly-schedule`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getWeeklySchedule', {
+      endpoint: '/kitchen/menus/:menu_id/weekly-schedule',
+      companyId: companyId || null,
+      menuId: mid
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getWeeklySchedule', error, {
+      endpoint: '/kitchen/menus/:menu_id/weekly-schedule',
+      companyId: companyId || null,
+      menuId: mid
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+/** @feature kitchen-store — `/kitchen/menus/by-kind/{veg|non_veg}/...` (no menu UUID in URL). */
+export const getWeeklyScheduleByKindService = async (menuKindSegment, query = {}, companyId, userId = null) => {
+  const seg = String(menuKindSegment || '').trim();
+  try {
+    const response = await apiClient.get(
+      `${K}/kitchen/menus/by-kind/${encodeURIComponent(seg)}/weekly-schedule`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getWeeklyScheduleByKind', {
+      endpoint: '/kitchen/menus/by-kind/:menu_kind/weekly-schedule',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getWeeklyScheduleByKind', error, {
+      endpoint: '/kitchen/menus/by-kind/:menu_kind/weekly-schedule',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getWeeklySlotByKindService = async (menuKindSegment, query = {}, companyId, userId = null) => {
+  const seg = String(menuKindSegment || '').trim();
+  try {
+    const response = await apiClient.get(
+      `${K}/kitchen/menus/by-kind/${encodeURIComponent(seg)}/weekly-slot`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('getWeeklySlotByKind', {
+      endpoint: '/kitchen/menus/by-kind/:menu_kind/weekly-slot',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getWeeklySlotByKind', error, {
+      endpoint: '/kitchen/menus/by-kind/:menu_kind/weekly-slot',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const putWeeklySlotByKindService = async (menuKindSegment, body, companyId, userId = null) => {
+  const seg = String(menuKindSegment || '').trim();
+  try {
+    const response = await apiClient.put(
+      `${K}/kitchen/menus/by-kind/${encodeURIComponent(seg)}/weekly-slot`,
+      body,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('putWeeklySlotByKind', {
+      endpoint: '/kitchen/menus/by-kind/:menu_kind/weekly-slot',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('putWeeklySlotByKind', error, {
+      endpoint: '/kitchen/menus/by-kind/:menu_kind/weekly-slot',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listMenuCombosByKindService = async (menuKindSegment, query = {}, companyId, userId = null) => {
+  const seg = String(menuKindSegment || '').trim();
+  try {
+    const response = await apiClient.get(
+      `${K}/kitchen/menus/by-kind/${encodeURIComponent(seg)}/menu-items`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('listMenuCombosByKind', {
+      endpoint: '/kitchen/menus/by-kind/:menu_kind/menu-items',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listMenuCombosByKind', error, {
+      endpoint: '/kitchen/menus/by-kind/:menu_kind/menu-items',
+      companyId: companyId || null,
+      menuKind: seg
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+// Kitchen: plans
+export const generatePlanService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/kitchen/plans/generate`, body, withKitchenContext(companyId, userId));
+    logKitchenSuccess('generatePlan', { endpoint: `/kitchen/plans/generate`, companyId: companyId || null, planDate: body?.plan_date || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('generatePlan', error, { endpoint: `/kitchen/plans/generate`, companyId: companyId || null, planDate: body?.plan_date || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getPlanService = async (planId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/kitchen/plans/${planId}`, withKitchenContext(companyId, userId));
+    logKitchenSuccess('getPlan', { endpoint: '/kitchen/plans/:plan_id', companyId: companyId || null, planId });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getPlan', error, { endpoint: '/kitchen/plans/:plan_id', companyId: companyId || null, planId });
+    throw mapAxiosError(error);
+  }
+};
+
+/** Not in the published migration path table; upstream may still expose POST /kitchen/plans/:id/approve. */
+export const approvePlanService = async (planId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/kitchen/plans/${planId}/approve`, body || {}, withKitchenContext(companyId, userId));
+    logKitchenSuccess('approvePlan', { endpoint: '/kitchen/plans/:plan_id/approve', companyId: companyId || null, planId });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('approvePlan', error, { endpoint: '/kitchen/plans/:plan_id/approve', companyId: companyId || null, planId });
+    throw mapAxiosError(error);
+  }
+};
+
+export const issuePlanService = async (planId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/kitchen/plans/${planId}/issue`, body || {}, withKitchenContext(companyId, userId));
+    logKitchenSuccess('issuePlan', { endpoint: '/kitchen/plans/:plan_id/issue', companyId: companyId || null, planId });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('issuePlan', error, { endpoint: '/kitchen/plans/:plan_id/issue', companyId: companyId || null, planId });
+    throw mapAxiosError(error);
+  }
+};
+
+// Purchase: receipts
+export const createPurchaseInvoiceUploadUrlService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchases/invoice-upload-url`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('createPurchaseInvoiceUploadUrl', {
+      endpoint: `${K}/purchase/purchases/invoice-upload-url`,
+      companyId: companyId || null
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('createPurchaseInvoiceUploadUrl', error, {
+      endpoint: `${K}/purchase/purchases/invoice-upload-url`,
+      companyId: companyId || null
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const uploadPurchaseReceiptInvoiceService = async (receiptId, file, companyId, userId = null) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file.buffer, {
+      filename: file.originalname || 'invoice',
+      contentType: file.mimetype || 'application/octet-stream',
+      knownLength: file.size
+    });
+    const contextConfig = withKitchenContext(companyId, userId, {
+      headers: {
+        ...formData.getHeaders()
+      },
+      maxBodyLength: Infinity
+    });
+    const response = await apiClient.post(
+      `${K}/purchase/purchases/receipts/${receiptId}/invoice/upload`,
+      formData,
+      contextConfig
+    );
+    logKitchenSuccess('uploadPurchaseReceiptInvoice', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/invoice/upload',
+      companyId: companyId || null,
+      receiptId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('uploadPurchaseReceiptInvoice', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/invoice/upload',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const createPurchaseReceiptService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/purchase/purchases/receipts`, body || {}, withKitchenContext(companyId, userId));
+    logKitchenSuccess('createPurchaseReceipt', { endpoint: `/purchase/purchases/receipts`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('createPurchaseReceipt', error, { endpoint: `/purchase/purchases/receipts`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const addPurchaseReceiptLineService = async (receiptId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/purchase/purchases/receipts/${receiptId}/lines`, body || {}, withKitchenContext(companyId, userId));
+    logKitchenSuccess('addPurchaseReceiptLine', { endpoint: '/purchase/purchases/receipts/:receipt_id/lines', companyId: companyId || null, receiptId });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('addPurchaseReceiptLine', error, { endpoint: '/purchase/purchases/receipts/:receipt_id/lines', companyId: companyId || null, receiptId });
+    throw mapAxiosError(error);
+  }
+};
+
+export const uploadPurchaseReceiptLineImageService = async (receiptId, lineId, file, companyId, userId = null) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file.buffer, {
+      filename: file.originalname || 'line-image',
+      contentType: file.mimetype || 'application/octet-stream',
+      knownLength: file.size
+    });
+    formData.append('line_id', String(lineId));
+    const contextConfig = withKitchenContext(companyId, userId, {
+      headers: {
+        ...formData.getHeaders()
+      },
+      maxBodyLength: Infinity
+    });
+    const response = await apiClient.post(
+      `${K}/purchase/purchases/receipts/${receiptId}/items-photo/upload`,
+      formData,
+      contextConfig
+    );
+    logKitchenSuccess('uploadPurchaseReceiptLineImage', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/items-photo/upload',
+      companyId: companyId || null,
+      receiptId,
+      lineId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('uploadPurchaseReceiptLineImage', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/items-photo/upload',
+      companyId: companyId || null,
+      receiptId,
+      lineId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listPurchaseReceiptsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/purchases/receipts`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listPurchaseReceipts', { endpoint: `/purchase/purchases/receipts`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listPurchaseReceipts', error, { endpoint: `/purchase/purchases/receipts`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listPurchaseReceiptLinesService = async (receiptId, query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/purchases/receipts/${receiptId}/lines`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listPurchaseReceiptLines', { endpoint: '/purchase/purchases/receipts/:receipt_id/lines', companyId: companyId || null, receiptId });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listPurchaseReceiptLines', error, { endpoint: '/purchase/purchases/receipts/:receipt_id/lines', companyId: companyId || null, receiptId });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getPurchaseReceiptInvoiceUrlService = async (receiptId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchases/receipts/${receiptId}/invoice/url`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('getPurchaseReceiptInvoiceUrl', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/invoice/url',
+      companyId: companyId || null,
+      receiptId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getPurchaseReceiptInvoiceUrl', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/invoice/url',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+const inferInvoiceContentTypeFromUrl = (urlString) => {
+  try {
+    const path = new URL(urlString).pathname.toLowerCase();
+    if (path.endsWith('.pdf')) return 'application/pdf';
+    if (path.endsWith('.png')) return 'image/png';
+    if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg';
+  } catch (_) {
+    /* ignore */
+  }
+  return null;
+};
+
+/** Fetch invoice from S3 with Content-Type header required by presigned URL signature. */
+export const streamPurchaseReceiptInvoiceService = async (receiptId, companyId, userId = null) => {
+  const payload = await getPurchaseReceiptInvoiceUrlService(receiptId, companyId, userId);
+  const nested = payload?.data && typeof payload.data === 'object' ? payload.data : null;
+  const url =
+    (typeof payload?.url === 'string' && payload.url) ||
+    (nested && typeof nested.url === 'string' && nested.url) ||
+    null;
+  if (!url) {
+    throw new AppError('No invoice view URL available for this receipt.', 404);
+  }
+  const signedContentType =
+    payload?.content_type ||
+    payload?.contentType ||
+    nested?.content_type ||
+    nested?.contentType ||
+    inferInvoiceContentTypeFromUrl(url);
+  if (!signedContentType) {
+    throw new AppError('Could not determine invoice content type for storage request.', 422);
+  }
+
+  const s3Res = await axios.get(url, {
+    headers: { 'Content-Type': signedContentType },
+    responseType: 'stream',
+    timeout: 120000,
+    validateStatus: () => true
+  });
+
+  if (s3Res.status !== 200) {
+    logKitchenError(
+      'streamPurchaseReceiptInvoiceS3',
+      new Error(`S3 invoice fetch status ${s3Res.status}`),
+      { receiptId, companyId: companyId || null, signedContentType }
+    );
+    throw new AppError('Could not load invoice file from storage.', 502);
+  }
+
+  const contentType = s3Res.headers['content-type'] || signedContentType;
+  return { stream: s3Res.data, contentType };
+};
+
+// Purchase: requests
+export const createPurchaseRequestService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/purchase/purchase-requests`, body || {}, withKitchenContext(companyId, userId));
+    logKitchenSuccess('createPurchaseRequest', { endpoint: `/purchase/purchase-requests`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('createPurchaseRequest', error, { endpoint: `/purchase/purchase-requests`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const addPurchaseRequestLineService = async (requestId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchase-requests/${requestId}/lines`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('addPurchaseRequestLine', {
+      endpoint: '/purchase/purchase-requests/:request_id/lines',
+      companyId: companyId || null,
+      requestId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('addPurchaseRequestLine', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/lines',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const submitPurchaseRequestService = async (requestId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchase-requests/${requestId}/submit`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('submitPurchaseRequest', {
+      endpoint: '/purchase/purchase-requests/:request_id/submit',
+      companyId: companyId || null,
+      requestId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('submitPurchaseRequest', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/submit',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listPurchaseRequestsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/purchase-requests`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listPurchaseRequests', { endpoint: `/purchase/purchase-requests`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listPurchaseRequests', error, { endpoint: `/purchase/purchase-requests`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getPurchaseRequestService = async (requestId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/purchase-requests/${requestId}`, withKitchenContext(companyId, userId));
+    logKitchenSuccess('getPurchaseRequest', {
+      endpoint: '/purchase/purchase-requests/:request_id',
+      companyId: companyId || null,
+      requestId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getPurchaseRequest', error, {
+      endpoint: '/purchase/purchase-requests/:request_id',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const resolvePurchaseRequestLineItemService = async (requestId, lineId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchase-requests/${requestId}/lines/${lineId}/resolve-item`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('resolvePurchaseRequestLineItem', {
+      endpoint: '/purchase/purchase-requests/:request_id/lines/:line_id/resolve-item',
+      companyId: companyId || null,
+      requestId,
+      lineId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('resolvePurchaseRequestLineItem', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/lines/:line_id/resolve-item',
+      companyId: companyId || null,
+      requestId,
+      lineId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const updatePurchaseRequestLineManagerService = async (requestId, lineId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchase-requests/${requestId}/lines/${lineId}/manager-update`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('updatePurchaseRequestLineManager', {
+      endpoint: '/purchase/purchase-requests/:request_id/lines/:line_id/manager-update',
+      companyId: companyId || null,
+      requestId,
+      lineId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('updatePurchaseRequestLineManager', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/lines/:line_id/manager-update',
+      companyId: companyId || null,
+      requestId,
+      lineId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const approvePurchaseRequestService = async (requestId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchase-requests/${requestId}/approve`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('approvePurchaseRequest', {
+      endpoint: '/purchase/purchase-requests/:request_id/approve',
+      companyId: companyId || null,
+      requestId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('approvePurchaseRequest', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/approve',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const rejectPurchaseRequestService = async (requestId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchase-requests/${requestId}/reject`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('rejectPurchaseRequest', {
+      endpoint: '/purchase/purchase-requests/:request_id/reject',
+      companyId: companyId || null,
+      requestId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('rejectPurchaseRequest', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/reject',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listApprovedPurchaseRequestLinesService = async (requestId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchase-requests/${requestId}/approved-lines`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('listApprovedPurchaseRequestLines', {
+      endpoint: '/purchase/purchase-requests/:request_id/approved-lines',
+      companyId: companyId || null,
+      requestId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listApprovedPurchaseRequestLines', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/approved-lines',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const downloadApprovedPurchaseRequestLinesTxtService = async (requestId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchase-requests/${requestId}/approved-lines.txt`,
+      withKitchenContext(companyId, userId, { responseType: 'arraybuffer' })
+    );
+    logKitchenSuccess('downloadApprovedPurchaseRequestLinesTxt', {
+      endpoint: '/purchase/purchase-requests/:request_id/approved-lines.txt',
+      companyId: companyId || null,
+      requestId
+    });
+    return {
+      data: response.data,
+      headers: {
+        contentType: response.headers['content-type'],
+        contentDisposition: response.headers['content-disposition']
+      }
+    };
+  } catch (error) {
+    logKitchenError('downloadApprovedPurchaseRequestLinesTxt', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/approved-lines.txt',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getPurchaseRequestComparisonService = async (requestId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchase-requests/${requestId}/purchase-comparison`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('getPurchaseRequestComparison', {
+      endpoint: '/purchase/purchase-requests/:request_id/purchase-comparison',
+      companyId: companyId || null,
+      requestId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getPurchaseRequestComparison', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/purchase-comparison',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listOffListPurchaseReviewService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchases/off-list-review`,
+      withKitchenContext(companyId, userId, { params: query })
+    );
+    logKitchenSuccess('listOffListPurchaseReview', {
+      endpoint: `${K}/purchase/purchases/off-list-review`,
+      companyId: companyId || null
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listOffListPurchaseReview', error, {
+      endpoint: `${K}/purchase/purchases/off-list-review`,
+      companyId: companyId || null
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const reviewPurchaseReceiptLineService = async (receiptId, lineId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchases/receipts/${receiptId}/lines/${lineId}/manager-review`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('reviewPurchaseReceiptLine', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/lines/:line_id/manager-review',
+      companyId: companyId || null,
+      receiptId,
+      lineId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('reviewPurchaseReceiptLine', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/lines/:line_id/manager-review',
+      companyId: companyId || null,
+      receiptId,
+      lineId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const reviewPurchaseReceiptLinesBulkService = async (receiptId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchases/receipts/${receiptId}/lines/manager-review-bulk`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('reviewPurchaseReceiptLinesBulk', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/lines/manager-review-bulk',
+      companyId: companyId || null,
+      receiptId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('reviewPurchaseReceiptLinesBulk', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/lines/manager-review-bulk',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+// Inventory: forecasts + Purchase: recommendations
+export const listPurchaseRecommendationsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/purchase/purchases/recommendations`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listPurchaseRecommendations', { endpoint: `/purchase/purchases/recommendations`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listPurchaseRecommendations', error, { endpoint: `/purchase/purchases/recommendations`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listInventoryForecastsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/forecasts/inventory`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listInventoryForecasts', { endpoint: `/inventory/forecasts/inventory`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listInventoryForecasts', error, { endpoint: `/inventory/forecasts/inventory`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listFinancialForecastsService = async (query = {}, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/forecasts/financial`, withKitchenContext(companyId, userId, { params: query }));
+    logKitchenSuccess('listFinancialForecasts', { endpoint: `/inventory/forecasts/financial`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listFinancialForecasts', error, { endpoint: `/inventory/forecasts/financial`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getMealReportService = async (query = {}, companyId, userId = null) => {
+  try {
+    const upstreamParams = {
+      ...query,
+      company_id: query?.company_id || companyId || undefined,
+      include_zero_locations:
+        query?.include_zero_locations != null ? query.include_zero_locations : 'false',
+      include_customer_names:
+        query?.include_customer_names != null ? query.include_customer_names : 'true'
+    };
+
+    // Some deployments expose this endpoint as /api/meal-report, others as /meal-report.
+    // Try the API-prefixed path first to match current API documentation.
+    let response;
+    try {
+      response = await apiClientAI.get('/api/meal-report', withKitchenContext(companyId, userId, { params: upstreamParams }));
+    } catch (firstError) {
+      if (firstError?.response?.status === 404) {
+        response = await apiClientAI.get('/meal-report', withKitchenContext(companyId, userId, { params: upstreamParams }));
+      } else {
+        throw firstError;
+      }
+    }
+
+    const payload = response.data?.data || response.data || {};
+    logKitchenSuccess('getMealReport', {
+      endpoint: '/api/meal-report',
+      companyId: companyId || null,
+      date: upstreamParams?.date || null,
+      requestCompanyId: upstreamParams?.company_id || null,
+      includeZeroLocations: upstreamParams?.include_zero_locations ?? null,
+      includeCustomerNames: upstreamParams?.include_customer_names ?? null
+    });
+    return payload;
+  } catch (error) {
+    logKitchenError('getMealReport', error, {
+      endpoint: '/api/meal-report',
+      companyId: companyId || null,
+      date: query?.date || null,
+      requestCompanyId: query?.company_id || companyId || null,
+      includeZeroLocations: query?.include_zero_locations ?? 'false',
+      includeCustomerNames: query?.include_customer_names ?? 'true'
+    });
+    throw mapAxiosError(error);
+  }
+};
+

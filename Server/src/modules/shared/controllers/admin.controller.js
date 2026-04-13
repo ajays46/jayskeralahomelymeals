@@ -1,0 +1,1867 @@
+import AppError from '../../../utils/AppError.js';
+import { createCompanyService, companyListService, companyDeleteService, createProductService, productListService, getProductByIdService, updateProductService, deleteProductService, createMenuService, menuListService, getMenuByIdService, updateMenuService, deleteMenuService, createMenuItemService, menuItemListService, getMenuItemByIdService, updateMenuItemService, deleteMenuItemService, createMenuCategoryService, menuCategoryListService, getMenuCategoryByIdService, updateMenuCategoryService, deleteMenuCategoryService, createMenuItemPriceService, menuItemPriceListService, getMenuItemPriceByIdService, updateMenuItemPriceService, deleteMenuItemPriceService, getMealsByDayService, getMenusForBookingService, getAllOrdersService, updateOrderStatusService, deleteOrderService, getProductQuantitiesForMenusService, getVehiclesService, assignVehicleToExecutiveService, unassignVehicleFromExecutiveService, checkProductCodeExistsService, checkCompanyExistsService, checkOrderCompanyScopeService, createAdminUserService, getAdminUsersService, updateUserStatusService, getSellersWithOrdersService, getDeliveryExecutivesService, getDeliveryManagersService, getOrphanedUsersService, cleanupOrphanedUsersService, addUserRolesService, removeUserRolesService, filterExecutivesByCompanyService } from '../services/admin.service.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../../../utils/criticalLogger.js';
+
+/**
+ * Admin Controller - Handles all admin-related API endpoints and business logic
+ * Features: Company management, product management, menu management, user management, order management, analytics
+ */
+
+export const createCompany = async (req, res, next) => {
+    try {
+        // Only super admin (companyId === null) can create companies
+        if (req.adminCompanyId != null) {
+            throw new AppError('Only super admin can create companies', 403);
+        }
+        const { name, address } = req.body;
+      
+        const company = await createCompanyService({ name, address });
+        res.status(201).json({
+            status: 'success',
+            data: company
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const companyList = async (req, res, next) => {
+    try {
+        const adminCompanyId = req.adminCompanyId;
+        const companies = await companyListService(adminCompanyId);
+        res.status(200).json({
+            status: 'success',
+            data: companies
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const companyDelete = async (req, res, next) => {
+    try {
+        const { id } = req.body;
+        if (req.adminCompanyId != null && id !== req.adminCompanyId) {
+            throw new AppError('You can only delete your own company', 403);
+        }
+        const company = await companyDeleteService(id);
+        res.status(200).json({
+            status: 'success',
+            data: company
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const createProduct = async (req, res, next) => {
+    try {
+        const productData = req.body;
+        
+        // Validate required fields
+        if (!productData.productName || !productData.code || !productData.companyId) {
+            throw new AppError('Missing required fields: productName, code, companyId', 400);
+        }
+        // Company-scoped admin can only create for their company
+        if (req.adminCompanyId != null && productData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create products for your company', 403);
+        }
+
+        const existingProduct = await checkProductCodeExistsService(productData.code);
+        if (existingProduct) {
+            throw new AppError('Product with this code already exists', 400);
+        }
+
+        const company = await checkCompanyExistsService(productData.companyId);
+        if (!company) {
+            throw new AppError('Company not found', 404);
+        }
+
+        const product = await createProductService(productData);
+        
+        res.status(201).json({
+            status: 'success',
+            message: 'Product created successfully',
+            data: product
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const productList = async (req, res, next) => {
+    try {
+        const adminCompanyId = req.adminCompanyId;
+        const products = await productListService(adminCompanyId);
+        res.status(200).json({
+            status: 'success',
+            data: products
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getProductById = async (req, res, next) => {
+    try {
+        const { productId } = req.params;
+        const product = await getProductByIdService(productId);
+        if (req.adminCompanyId != null && product.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this product', 403);
+        }
+        res.status(200).json({
+            status: 'success',
+            data: product
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const updateProduct = async (req, res, next) => {
+    try {
+        const { productId } = req.params;
+        const productData = req.body;
+        
+        // Validate required fields
+        if (!productData.productName || !productData.code || !productData.companyId) {
+            throw new AppError('Missing required fields: productName, code, companyId', 400);
+        }
+        if (req.adminCompanyId != null && productData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only update products for your company', 403);
+        }
+        const existing = await getProductByIdService(productId);
+        if (req.adminCompanyId != null && existing.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this product', 403);
+        }
+
+        const product = await updateProductService(productId, productData);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Product updated successfully',
+            data: product
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const deleteProduct = async (req, res, next) => {
+    try {
+        const { productId } = req.params;
+        const existing = await getProductByIdService(productId);
+        if (req.adminCompanyId != null && existing.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this product', 403);
+        }
+        const deletedProduct = await deleteProductService(productId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Product deleted successfully',
+            data: deletedProduct
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Menu controllers
+export const createMenu = async (req, res, next) => {
+    try {
+        const menuData = req.body;
+        
+        // Validate required fields
+        if (!menuData.name || !menuData.companyId) {
+            throw new AppError('Missing required fields: name, companyId', 400);
+        }
+        if (req.adminCompanyId != null && menuData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create menus for your company', 403);
+        }
+
+        const menu = await createMenuService(menuData);
+        
+        res.status(201).json({
+            status: 'success',
+            message: 'Menu created successfully',
+            data: menu
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const menuList = async (req, res, next) => {
+    try {
+        const adminCompanyId = req.adminCompanyId;
+        const menus = await menuListService(adminCompanyId);
+        res.status(200).json({
+            status: 'success',
+            data: menus
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getMenuById = async (req, res, next) => {
+    try {
+        const { menuId } = req.params;
+        const menu = await getMenuByIdService(menuId);
+        if (req.adminCompanyId != null && menu.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu', 403);
+        }
+        res.status(200).json({
+            status: 'success',
+            data: menu
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const updateMenu = async (req, res, next) => {
+    try {
+        const { menuId } = req.params;
+        const menuData = req.body;
+        
+        // Validate required fields
+        if (!menuData.name || !menuData.companyId) {
+            throw new AppError('Missing required fields: name, companyId', 400);
+        }
+        if (req.adminCompanyId != null && menuData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only update menus for your company', 403);
+        }
+        const existingMenu = await getMenuByIdService(menuId);
+        if (req.adminCompanyId != null && existingMenu.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu', 403);
+        }
+
+        const menu = await updateMenuService(menuId, menuData);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu updated successfully',
+            data: menu
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const deleteMenu = async (req, res, next) => {
+    try {
+        const { menuId } = req.params;
+        const existingMenu = await getMenuByIdService(menuId);
+        if (req.adminCompanyId != null && existingMenu.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu', 403);
+        }
+        const deletedMenu = await deleteMenuService(menuId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu deleted successfully',
+            data: deletedMenu
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Menu Item controllers
+export const createMenuItem = async (req, res, next) => {
+    try {
+        const menuItemData = req.body;
+        
+        // Validate required fields
+        if (!menuItemData.name || !menuItemData.menuId) {
+            throw new AppError('Missing required fields: name, menuId', 400);
+        }
+        if (req.adminCompanyId != null) {
+            const menu = await getMenuByIdService(menuItemData.menuId);
+            if (menu.companyId !== req.adminCompanyId) {
+                throw new AppError('You can only add menu items to menus in your company', 403);
+            }
+        }
+
+        const menuItem = await createMenuItemService(menuItemData);
+        
+        res.status(201).json({
+            status: 'success',
+            message: 'Menu item created successfully',
+            data: menuItem
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const menuItemList = async (req, res, next) => {
+    try {
+        const adminCompanyId = req.adminCompanyId;
+        const menuItems = await menuItemListService(adminCompanyId);
+        res.status(200).json({
+            status: 'success',
+            data: menuItems
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getMenuItemById = async (req, res, next) => {
+    try {
+        const { menuItemId } = req.params;
+        const menuItem = await getMenuItemByIdService(menuItemId);
+        if (req.adminCompanyId != null && menuItem.menu?.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item', 403);
+        }
+        res.status(200).json({
+            status: 'success',
+            data: menuItem
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const updateMenuItem = async (req, res, next) => {
+    try {
+        const { menuItemId } = req.params;
+        const menuItemData = req.body;
+        
+        // Validate required fields
+        if (!menuItemData.name || !menuItemData.menuId) {
+            throw new AppError('Missing required fields: name, menuId', 400);
+        }
+        const existingMenuItem = await getMenuItemByIdService(menuItemId);
+        if (req.adminCompanyId != null && existingMenuItem.menu?.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item', 403);
+        }
+        const menu = await getMenuByIdService(menuItemData.menuId);
+        if (req.adminCompanyId != null && menu.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only assign menu items to menus in your company', 403);
+        }
+
+        const menuItem = await updateMenuItemService(menuItemId, menuItemData);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu item updated successfully',
+            data: menuItem
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const deleteMenuItem = async (req, res, next) => {
+    try {
+        const { menuItemId } = req.params;
+        const existingMenuItem = await getMenuItemByIdService(menuItemId);
+        if (req.adminCompanyId != null && existingMenuItem.menu?.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item', 403);
+        }
+        const deletedMenuItem = await deleteMenuItemService(menuItemId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu item deleted successfully',
+            data: deletedMenuItem
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Menu Category controllers
+export const createMenuCategory = async (req, res, next) => {
+    try {
+        const menuCategoryData = req.body;
+        
+        // Validate required fields
+        if (!menuCategoryData.name || !menuCategoryData.companyId || !menuCategoryData.menuId) {
+            throw new AppError('Missing required fields: name, companyId, menuId', 400);
+        }
+        if (req.adminCompanyId != null && menuCategoryData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create menu categories for your company', 403);
+        }
+
+        const menuCategory = await createMenuCategoryService(menuCategoryData);
+        
+        res.status(201).json({
+            status: 'success',
+            message: 'Menu category created successfully',
+            data: menuCategory
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const menuCategoryList = async (req, res, next) => {
+    try {
+        const adminCompanyId = req.adminCompanyId;
+        const menuCategories = await menuCategoryListService(adminCompanyId);
+        res.status(200).json({
+            status: 'success',
+            data: menuCategories
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getMenuCategoryById = async (req, res, next) => {
+    try {
+        const { menuCategoryId } = req.params;
+        const menuCategory = await getMenuCategoryByIdService(menuCategoryId);
+        if (req.adminCompanyId != null && menuCategory.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu category', 403);
+        }
+        res.status(200).json({
+            status: 'success',
+            data: menuCategory
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const updateMenuCategory = async (req, res, next) => {
+    try {
+        const { menuCategoryId } = req.params;
+        const menuCategoryData = req.body;
+        
+        // Validate required fields
+        if (!menuCategoryData.name || !menuCategoryData.companyId || !menuCategoryData.menuId) {
+            throw new AppError('Missing required fields: name, companyId, menuId', 400);
+        }
+        if (req.adminCompanyId != null && menuCategoryData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only update menu categories for your company', 403);
+        }
+        const existingCategory = await getMenuCategoryByIdService(menuCategoryId);
+        if (req.adminCompanyId != null && existingCategory.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu category', 403);
+        }
+
+        const menuCategory = await updateMenuCategoryService(menuCategoryId, menuCategoryData);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu category updated successfully',
+            data: menuCategory
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const deleteMenuCategory = async (req, res, next) => {
+    try {
+        const { menuCategoryId } = req.params;
+        const existingCategory = await getMenuCategoryByIdService(menuCategoryId);
+        if (req.adminCompanyId != null && existingCategory.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu category', 403);
+        }
+        const deletedMenuCategory = await deleteMenuCategoryService(menuCategoryId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu category deleted successfully',
+            data: deletedMenuCategory
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Menu Item Price controllers
+export const createMenuItemPrice = async (req, res, next) => {
+    try {
+        const menuItemPriceData = req.body;
+        
+        // Validate required fields
+        if (!menuItemPriceData.companyId || !menuItemPriceData.menuItemId || !menuItemPriceData.totalPrice) {
+            throw new AppError('Missing required fields: companyId, menuItemId, totalPrice', 400);
+        }
+        if (req.adminCompanyId != null && menuItemPriceData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create menu item prices for your company', 403);
+        }
+
+        const menuItemPrice = await createMenuItemPriceService(menuItemPriceData);
+        
+        res.status(201).json({
+            status: 'success',
+            message: 'Menu item price created successfully',
+            data: menuItemPrice
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const menuItemPriceList = async (req, res, next) => {
+    try {
+        const adminCompanyId = req.adminCompanyId;
+        const menuItemPrices = await menuItemPriceListService(adminCompanyId);
+        res.status(200).json({
+            status: 'success',
+            data: menuItemPrices
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getMenuItemPriceById = async (req, res, next) => {
+    try {
+        const { menuItemPriceId } = req.params;
+        const menuItemPrice = await getMenuItemPriceByIdService(menuItemPriceId);
+        if (req.adminCompanyId != null && menuItemPrice.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item price', 403);
+        }
+        res.status(200).json({
+            status: 'success',
+            data: menuItemPrice
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const updateMenuItemPrice = async (req, res, next) => {
+    try {
+        const { menuItemPriceId } = req.params;
+        const menuItemPriceData = req.body;
+        
+        // Validate required fields
+        if (!menuItemPriceData.companyId || !menuItemPriceData.menuItemId || !menuItemPriceData.totalPrice) {
+            throw new AppError('Missing required fields: companyId, menuItemId, totalPrice', 400);
+        }
+        if (req.adminCompanyId != null && menuItemPriceData.companyId !== req.adminCompanyId) {
+            throw new AppError('You can only update menu item prices for your company', 403);
+        }
+        const existingPrice = await getMenuItemPriceByIdService(menuItemPriceId);
+        if (req.adminCompanyId != null && existingPrice.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item price', 403);
+        }
+
+        const menuItemPrice = await updateMenuItemPriceService(menuItemPriceId, menuItemPriceData);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu item price updated successfully',
+            data: menuItemPrice
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const deleteMenuItemPrice = async (req, res, next) => {
+    try {
+        const { menuItemPriceId } = req.params;
+        const existingPrice = await getMenuItemPriceByIdService(menuItemPriceId);
+        if (req.adminCompanyId != null && existingPrice.companyId !== req.adminCompanyId) {
+            throw new AppError('You do not have access to this menu item price', 403);
+        }
+        const deletedMenuItemPrice = await deleteMenuItemPriceService(menuItemPriceId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Menu item price deleted successfully',
+            data: deletedMenuItemPrice
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Get meals by day of the week
+export const getMealsByDay = async (req, res, next) => {
+    try {
+        const { day } = req.query;
+        
+        
+        // Validate day parameter
+        if (!day) {
+            throw new AppError('Day parameter is required', 400);
+        }
+
+        // Validate day format
+        const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        if (!validDays.includes(day.toLowerCase())) {
+            throw new AppError('Invalid day. Must be one of: monday, tuesday, wednesday, thursday, friday, saturday, sunday', 400);
+        }
+
+        const adminCompanyId = req.adminCompanyId ?? undefined;
+        const mealsData = await getMealsByDayService(day, adminCompanyId);
+        
+        res.status(200).json({
+            status: 'success',
+            data: mealsData
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Get menus with categories and menu items for booking page (filter by companyId for multi-tenant)
+export const getMenusForBooking = async (req, res, next) => {
+    try {
+        const companyId = req.query.companyId || null;
+        const menus = await getMenusForBookingService(companyId);
+
+        res.status(200).json({
+            status: 'success',
+            data: menus
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Admin Order Management
+export const getAllOrders = async (req, res, next) => {
+    try {
+        const { status, startDate, endDate, orderTime, page = 1, limit = 10 } = req.query;
+        
+        const filters = {
+            status,
+            startDate,
+            endDate,
+            orderTime,
+            page: parseInt(page),
+            limit: parseInt(limit)
+        };
+        const adminCompanyId = req.adminCompanyId ?? undefined;
+
+        const orders = await getAllOrdersService(filters, adminCompanyId);
+        
+        res.status(200).json({
+            status: 'success',
+            data: orders
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateOrderStatus = async (req, res, next) => {
+    try {
+        const { orderId } = req.params;
+        const { status } = req.body;
+        
+        if (!status) {
+            throw new AppError('Status is required', 400);
+        }
+
+        const hasAccess = await checkOrderCompanyScopeService(orderId, req.adminCompanyId);
+        if (!hasAccess) {
+            throw new AppError('You do not have access to this order', 403);
+        }
+
+        const order = await updateOrderStatusService(orderId, status);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Order status updated successfully',
+            data: order
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteOrder = async (req, res, next) => {
+    try {
+        const { orderId } = req.params;
+
+        const hasDeleteAccess = await checkOrderCompanyScopeService(orderId, req.adminCompanyId);
+        if (!hasDeleteAccess) {
+            throw new AppError('You do not have access to this order', 403);
+        }
+        
+        const deletedOrder = await deleteOrderService(orderId);
+        
+        res.status(200).json({
+            status: 'success',
+            message: 'Order deleted successfully',
+            data: deletedOrder
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Admin User Management
+export const createAdminUser = async (req, res, next) => {
+    try {
+        const { email, phone, password, role, roles, companyId, contact } = req.body;
+        // Get the admin ID from the authenticated user's JWT token
+        const adminId = req.user.userId;
+        
+        // Validate required fields
+        if (!email || !phone || !password || !companyId) {
+            throw new AppError('All fields are required: email, phone, password, companyId', 400);
+        }
+
+        // Determine roles to assign
+        let rolesToAssign = [];
+        if (roles && Array.isArray(roles) && roles.length > 0) {
+            // Multiple roles provided
+            rolesToAssign = roles;
+        } else if (role) {
+            // Single role provided (backward compatibility)
+            rolesToAssign = [role];
+        } else {
+            throw new AppError('At least one role is required', 400);
+        }
+
+        // Validate roles
+        const validRoles = ['ADMIN', 'SELLER', 'STORE_MANAGER', 'STORE_OPERATOR', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'CEO', 'CFO'];
+        const invalidRoles = rolesToAssign.filter(r => !validRoles.includes(r));
+        if (invalidRoles.length > 0) {
+            throw new AppError(`Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${validRoles.join(', ')}`, 400);
+        }
+
+        // Validate contact information if provided
+        if (contact && (!contact.firstName || !contact.lastName)) {
+            throw new AppError('Contact information requires both firstName and lastName', 400);
+        }
+
+        // Company-scoped admin can only create users for their company
+        if (req.adminCompanyId != null && companyId !== req.adminCompanyId) {
+            throw new AppError('You can only create users for your company', 403);
+        }
+
+        const result = await createAdminUserService({ email, phone, password, rolesToAssign, companyId, contact, adminId });
+
+        res.status(201).json({
+            status: 'success',
+            message: 'User created successfully',
+            data: result
+        });
+        
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getAdminUsers = async (req, res, next) => {
+    try {
+        const transformedUsers = await getAdminUsersService(req.adminCompanyId);
+
+        res.status(200).json({
+            status: 'success',
+            data: transformedUsers,
+            total: transformedUsers.length,
+            message: `Found ${transformedUsers.length} users with valid auth records`
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching admin users', {
+            error: error.message,
+            stack: error.stack
+        });
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch users. Please try again.',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+export const updateUserStatus = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const { status } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ status: 'error', message: 'User ID is required' });
+        }
+        if (!status || !['ACTIVE', 'INACTIVE'].includes(status)) {
+            return res.status(400).json({ status: 'error', message: 'Status must be ACTIVE or INACTIVE' });
+        }
+
+        const updated = await updateUserStatusService(userId, status, req.adminCompanyId);
+        if (!updated) {
+            return res.status(404).json({ status: 'error', message: 'User not found' });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            message: `User ${status === 'ACTIVE' ? 'activated' : 'deactivated'} successfully`,
+            data: { id: updated.id, status: updated.status }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getSellersWithOrders = async (req, res, next) => {
+    try {
+        const companyId = req.adminCompanyId ?? req.companyId;
+        const sellersWithOrders = await getSellersWithOrdersService(companyId);
+
+        res.status(200).json({
+            status: 'success',
+            data: sellersWithOrders,
+            total: sellersWithOrders.length,
+            message: `Found ${sellersWithOrders.length} sellers`
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching sellers with orders', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch sellers with orders. Please try again.',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+export const getDeliveryExecutives = async (req, res, next) => {
+    try {
+        const companyId = req.adminCompanyId ?? req.companyId;
+        const deliveryExecutives = await getDeliveryExecutivesService(companyId);
+
+        res.status(200).json({
+            status: 'success',
+            data: deliveryExecutives,
+            total: deliveryExecutives.length,
+            message: `Found ${deliveryExecutives.length} delivery executives`
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching delivery executives', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch delivery executives. Please try again.',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+export const getDeliveryManagers = async (req, res, next) => {
+    try {
+        const companyId = req.companyId;
+        const deliveryManagers = await getDeliveryManagersService(companyId);
+
+        res.status(200).json({
+            status: 'success',
+            data: deliveryManagers,
+            total: deliveryManagers.length,
+            message: `Found ${deliveryManagers.length} delivery managers`
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching delivery managers', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch delivery managers. Please try again.',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Proxy route planning endpoint
+export const proxyRoutePlanning = async (req, res, next) => {
+    try {
+
+        
+        // Call the external route planning API (include company_id for multi-tenant)
+        const triggerHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) triggerHeaders['X-Company-ID'] = req.adminCompanyId;
+        const response = await fetch(`${process.env.AI_ROUTE_API}/trigger`, {
+            method: 'POST',
+            headers: triggerHeaders,
+            body: JSON.stringify({
+                timestamp: new Date().toISOString(),
+                source: req.body.source || 'delivery-manager-dashboard',
+                userAgent: req.body.userAgent || 'unknown',
+                dashboardVersion: req.body.dashboardVersion || '1.0.0'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        res.status(200).json({
+            success: true,
+            message: 'Route planning initiated successfully',
+            timestamp: new Date().toISOString(),
+            data: {
+                status: 'initiated',
+                requestId: `rp-${Date.now()}`,
+                externalResponse: data,
+                estimatedCompletion: '5 minutes'
+            }
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in route planning proxy', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to initiate route planning',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Proxy executive count endpoint
+export const proxyExecutiveCount = async (req, res, next) => {
+    try {
+
+        
+        const { executiveCount, timestamp, source, userAgent, dashboardVersion } = req.body;
+        
+        if (!executiveCount || executiveCount <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid executive count provided'
+            });
+        }
+        
+        // Send executive count to EC2 instance (include company_id for multi-tenant)
+        const ecHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) ecHeaders['X-Company-ID'] = req.adminCompanyId;
+        await fetch(`${process.env.AI_ROUTE_API}/executive-count`, {
+            method: 'POST',
+            headers: ecHeaders,
+            body: JSON.stringify({
+                executiveCount: executiveCount,
+                timestamp: timestamp || new Date().toISOString(),
+                source: source || 'delivery-manager-dashboard',
+                userAgent: userAgent || 'unknown',
+                dashboardVersion: dashboardVersion || '1.0.0'
+            })
+        });
+        
+        // Don't wait for response, just confirm the request was sent
+        res.status(200).json({
+            success: true,
+            message: 'Executive count sent to EC2 instance',
+            timestamp: new Date().toISOString(),
+            data: {
+                status: 'sent',
+                requestId: `ec-${Date.now()}`,
+                executiveCount: executiveCount,
+                message: 'Count sent to route planning system'
+            }
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in executive count proxy', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send executive count',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Poll for results from external API (companyId for multi-tenant)
+const pollForResults = async (requestId, maxAttempts = 30, intervalMs = 2000, companyId = null) => {
+    const statusHeaders = {
+        'Authorization': 'Bearer mysecretkey123',
+        'Content-Type': 'application/json'
+    };
+    if (companyId) statusHeaders['X-Company-ID'] = companyId;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const statusResponse = await fetch(`${process.env.AI_ROUTE_API}/status/${requestId}`, {
+                method: 'GET',
+                headers: statusHeaders
+            });
+            
+            if (!statusResponse.ok) {
+                if (attempt === maxAttempts) {
+                    throw new Error(`Status check failed after ${maxAttempts} attempts`);
+                }
+                await new Promise(resolve => setTimeout(resolve, intervalMs));
+                continue;
+            }
+            
+            const statusData = await statusResponse.json();
+            
+            // Check if processing is complete
+            if (statusData.status === 'completed' || statusData.status === 'success') {
+                return statusData;
+            }
+            
+            // Check if processing failed
+            if (statusData.status === 'failed' || statusData.status === 'error') {
+                throw new Error(`Processing failed: ${statusData.message || 'Unknown error'}`);
+            }
+            
+            // Still processing, wait and try again
+            if (statusData.status === 'processing' || statusData.status === 'running') {
+                if (attempt === maxAttempts) {
+                    throw new Error(`Processing timeout after ${maxAttempts} attempts`);
+                }
+                await new Promise(resolve => setTimeout(resolve, intervalMs));
+                continue;
+            }
+            
+            // Unknown status
+            if (attempt === maxAttempts) {
+                throw new Error(`Unknown status after ${maxAttempts} attempts: ${statusData.status}`);
+            }
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+            
+        } catch (error) {
+            logError(LOG_CATEGORIES.SYSTEM, `Polling attempt ${attempt} failed`, {
+                attempt: attempt,
+                maxAttempts: maxAttempts,
+                error: error.message,
+                stack: error.stack
+            });
+            if (attempt === maxAttempts) {
+                throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+    }
+    
+    throw new Error(`Polling timeout after ${maxAttempts} attempts`);
+};
+
+// Proxy run script endpoint for program execution
+export const proxyRunScript = async (req, res, next) => {
+    try {
+
+        
+        const { executiveCount, timestamp, source, userAgent, dashboardVersion, session, executive } = req.body;
+        
+        if (!executiveCount || executiveCount <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid executive count provided'
+            });
+        }
+
+        // Prepare the request body with all required fields
+        const requestBody = {
+            num_drivers: executiveCount,
+            session: session ,
+            executive: executive ,
+        };
+        
+        
+        // Call the external run-script API (include company_id for multi-tenant)
+        const runScriptHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) runScriptHeaders['X-Company-ID'] = req.adminCompanyId;
+        const response = await fetch(`${process.env.AI_ROUTE_API}/run-script`, {
+            method: 'POST',
+            headers: runScriptHeaders,
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Check if the program is running in background and needs polling
+        if (data.status === 'processing' && data.requestId) {
+            // Start polling for results (pass company_id for multi-tenant)
+            const finalResult = await pollForResults(data.requestId, 30, 2000, req.adminCompanyId);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Program executed successfully',
+                timestamp: new Date().toISOString(),
+                data: {
+                    status: 'completed',
+                    requestId: data.requestId,
+                    numDrivers: executiveCount,
+                    externalResponse: finalResult,
+                    executionTime: new Date().toISOString()
+                }
+            });
+        } else {
+            // Immediate response (not processing)
+            res.status(200).json({
+                success: true,
+                message: 'Program executed successfully',
+                timestamp: new Date().toISOString(),
+                data: {
+                    status: 'completed',
+                    requestId: `ps-${Date.now()}`,
+                    numDrivers: executiveCount,
+                    externalResponse: data,
+                    executionTime: new Date().toISOString()
+                }
+            });
+        }
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in program execution proxy', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to execute program',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Proxy send routes endpoint for WhatsApp messaging
+export const proxySendRoutes = async (req, res, next) => {
+    try {
+        const { executiveCount, timestamp, source, userAgent, dashboardVersion } = req.body;
+        
+        if (!executiveCount || executiveCount <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid executive count provided for WhatsApp messaging'
+            });
+        }
+        
+        // Call the external send_routes API (include company_id for multi-tenant)
+        const sendReportsHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) sendReportsHeaders['X-Company-ID'] = req.adminCompanyId;
+        const response = await fetch(`${process.env.AI_ROUTE_API}/send-reports`, {
+            method: 'POST',
+            headers: sendReportsHeaders,
+            body: JSON.stringify({
+                executiveCount: executiveCount,
+                timestamp: timestamp || new Date().toISOString(),
+                source: source || 'delivery-manager-dashboard',
+                userAgent: userAgent || 'unknown',
+                dashboardVersion: dashboardVersion || '1.0.0'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        res.status(200).json({
+            success: true,
+            message: 'WhatsApp messages sent successfully',
+            timestamp: new Date().toISOString(),
+            data: {
+                status: 'completed',
+                requestId: `wr-${Date.now()}`,
+                executiveCount: executiveCount,
+                externalResponse: data,
+                executionTime: new Date().toISOString()
+            }
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in send routes proxy', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send WhatsApp messages',
+            error: process.env.NODE_ENV === 'response.env' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Proxy file content endpoint to avoid CORS issues
+export const proxyFileContent = async (req, res, next) => {
+    try {
+        const { url, filename } = req.body;
+        
+        if (!url || !filename) {
+            return res.status(400).json({
+                success: false,
+                message: 'URL and filename are required'
+            });
+        }
+        
+
+        
+        // Fetch the file content from the external URL
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'text/plain,text/html,*/*',
+                'User-Agent': 'JAYSKERALAHM-DeliveryManager/1.0'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+        }
+        
+        // Get the content as text
+        const content = await response.text();
+        
+
+        
+        res.status(200).json({
+            success: true,
+            message: 'File content fetched successfully',
+            filename: filename,
+            content: content,
+            contentLength: content.length,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching file content', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch file content',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+export const proxySessionData = async (req, res, next) => {
+    try {
+        // Call the external delivery_data API (include company_id for multi-tenant)
+        const sessionHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) sessionHeaders['X-Company-ID'] = req.adminCompanyId;
+        const response = await fetch(`${process.env.AI_ROUTE_API}/delivery_data`, {
+            method: 'GET',
+            headers: sessionHeaders
+        });
+        
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        res.status(200).json({
+            success: true,
+            message: 'Delivery data fetched successfully',
+            timestamp: new Date().toISOString(),
+            data: {
+                status: 'completed',
+                requestId: `sd-${Date.now()}`,
+                externalResponse: data,
+                executionTime: new Date().toISOString(),
+                endpoint: 'delivery_data'
+            }
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error in delivery data proxy', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch delivery data',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+
+export const getOrphanedUsers = async (req, res, next) => {
+    try {
+        const orphanedUsers = await getOrphanedUsersService(req.adminCompanyId);
+
+        res.status(200).json({
+            status: 'success',
+            data: orphanedUsers,
+            count: orphanedUsers.length,
+            message: `Found ${orphanedUsers.length} orphaned users without valid auth records`
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching orphaned users', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch orphaned users',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+export const cleanupOrphanedUsers = async (req, res, next) => {
+    try {
+        const { confirm } = req.body;
+        
+        if (confirm !== 'true') {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Confirmation required. Send { "confirm": "true" } to proceed.'
+            });
+        }
+
+        const result = await cleanupOrphanedUsersService(req.adminCompanyId);
+
+        res.status(200).json({
+            status: 'success',
+            message: result.count === 0 ? 'No orphaned users found to clean up' : `Cleaned up ${result.count} orphaned users`,
+            deletedCount: result.count
+        });
+        
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error cleaning up orphaned users', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to clean up orphaned users',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Get product quantities for menus
+export const getProductQuantitiesForMenus = async (req, res, next) => {
+    try {
+        const adminCompanyId = req.adminCompanyId ?? undefined;
+        const productQuantities = await getProductQuantitiesForMenusService(adminCompanyId);
+        
+        res.status(200).json({
+            status: 'success',
+            data: productQuantities
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const addUserRoles = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const { roles } = req.body;
+
+        if (!roles || !Array.isArray(roles) || roles.length === 0) {
+            throw new AppError('Roles array is required', 400);
+        }
+
+        const validRoles = ['ADMIN', 'SELLER', 'STORE_MANAGER', 'STORE_OPERATOR', 'USER', 'DELIVERY_EXECUTIVE', 'DELIVERY_MANAGER', 'DELIVERY_PARTNER', 'PARTNER_MANAGER', 'CEO', 'CFO'];
+        const invalidRoles = roles.filter(r => !validRoles.includes(r));
+        if (invalidRoles.length > 0) {
+            throw new AppError(`Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${validRoles.join(', ')}`, 400);
+        }
+
+        const result = await addUserRolesService(userId, roles, req.adminCompanyId);
+        if (!result) throw new AppError('User not found', 404);
+        if (result.forbidden) throw new AppError('You do not have access to this user', 403);
+
+        if (result.noChange) {
+            return res.status(200).json({
+                status: 'success',
+                message: 'All specified roles already exist for this user',
+                data: { userId: result.userId, existingRoles: result.existingRoles, newRoles: [] }
+            });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            message: `Successfully added ${result.addedRoles.length} new role(s) to user`,
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const removeUserRoles = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const { roles } = req.body;
+
+        if (!roles || !Array.isArray(roles) || roles.length === 0) {
+            throw new AppError('Roles array is required', 400);
+        }
+
+        const result = await removeUserRolesService(userId, roles, req.adminCompanyId);
+        if (!result) throw new AppError('User not found', 404);
+        if (result.forbidden) throw new AppError('You do not have access to this user', 403);
+
+        if (result.noChange) {
+            return res.status(200).json({
+                status: 'success',
+                message: 'None of the specified roles exist for this user',
+                data: { userId: result.userId, existingRoles: result.existingRoles, removedRoles: [] }
+            });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            message: `Successfully removed ${result.removedRoles.length} role(s) from user`,
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Fetch active executives from external API (company-scoped via req.adminCompanyId or req.companyId)
+export const getActiveExecutives = async (req, res, next) => {
+    try {
+        const companyId = req.adminCompanyId ?? req.companyId;
+        const headers = { 'Authorization': 'Bearer mysecretkey123' };
+        if (companyId && typeof companyId === 'string' && companyId.trim()) {
+            headers['X-Company-ID'] = companyId.trim();
+        }
+        logInfo(LOG_CATEGORIES.SYSTEM, 'getActiveExecutives: request to external API', {
+            hasCompanyId: !!companyId,
+            xCompanyId: companyId || '(not set)',
+            url: `${process.env.AI_ROUTE_API}/api/executives`
+        });
+        const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+            method: 'GET',
+            headers
+        });
+        
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Handle different response structures from external API
+        // Structure 1: { success: true, executives: [...], vehicle_choices: [...] }
+        // Structure 2: { executives: [...], vehicle_choices: [...] }
+        // Structure 3: [...] (direct array)
+        let executivesArray = [];
+        let vehicleChoicesArray = [];
+        
+        if (Array.isArray(data)) {
+            executivesArray = data;
+        } else if (Array.isArray(data.executives)) {
+            executivesArray = data.executives;
+            vehicleChoicesArray = data.vehicle_choices || [];
+        } else if (data.data && Array.isArray(data.data)) {
+            executivesArray = data.data;
+            vehicleChoicesArray = data.vehicle_choices || [];
+        } else if (data.success && Array.isArray(data.executives)) {
+            executivesArray = data.executives;
+            vehicleChoicesArray = data.vehicle_choices || [];
+        }
+        
+        if (req.companyId && typeof req.companyId === 'string' && req.companyId.trim()) {
+            const companyId = req.companyId.trim();
+            const executiveUserIds = [...new Set(
+                executivesArray
+                    .map((e) => e.user_id ?? e.id)
+                    .filter(Boolean)
+            )];
+            if (executiveUserIds.length > 0) {
+                const allowedIds = await filterExecutivesByCompanyService(executiveUserIds, companyId);
+                executivesArray = executivesArray.filter((e) => {
+                    const uid = e.user_id ?? e.id;
+                    return uid && allowedIds.has(uid);
+                });
+            } else {
+                executivesArray = [];
+            }
+        }
+        
+        res.status(200).json({
+            success: true,
+            data: {
+                executives: executivesArray,
+                vehicle_choices: vehicleChoicesArray,
+                total: executivesArray.length,
+                timestamp: new Date().toISOString()
+            },
+            message: `Successfully fetched ${executivesArray.length} active executives`
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching active executives', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch active executives from external API',
+            error: error.message
+        });
+    }
+};
+
+// Update executive status via external API
+export const updateExecutiveStatus = async (req, res, next) => {
+    try {
+        const { updates } = req.body;
+        
+        if (!updates || !Array.isArray(updates) || updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Updates array is required and must not be empty'
+            });
+        }
+
+        // Validate each update
+        for (const update of updates) {
+            if (!update.user_id || !update.status) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Each update must include user_id and status'
+                });
+            }
+            
+            if (!['ACTIVE', 'INACTIVE'].includes(update.status)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Status must be either ACTIVE or INACTIVE'
+                });
+            }
+        }
+
+        // Send all updates to external API in a single call
+        try {
+            const requestBody = {
+                updates: updates, // Send all updates as an array
+                date: new Date().toISOString().split('T')[0], // Today's date
+                action: 'bulk_status_update'
+            };
+            
+            const updateExecHeaders = {
+                'Authorization': 'Bearer mysecretkey123',
+                'Content-Type': 'application/json'
+            };
+            if (req.adminCompanyId) updateExecHeaders['X-Company-ID'] = req.adminCompanyId;
+            const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+                method: 'POST',
+                headers: updateExecHeaders,
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errData;
+                try { errData = JSON.parse(errorText); } catch (_) { errData = {}; }
+                const errMsg = errData.error || errData.message || errorText;
+                const hasInProgressMessage = /in progress|inactivate|cannot.*driver/i.test(errMsg);
+                const count = errData.in_progress_count ?? errData.deliveries_count ?? (hasInProgressMessage ? 1 : null);
+                // Forward 400 when driver has deliveries in progress (deactivate blocked)
+                if (response.status === 400 && (count != null || hasInProgressMessage)) {
+                    return res.status(400).json({
+                        success: false,
+                        error: errMsg || 'Cannot inactivate driver: deliveries in progress.',
+                        in_progress_count: count != null ? count : 1,
+                        user_id: errData.user_id || (updates[0]?.user_id)
+                    });
+                }
+                throw new Error(`External API responded with status: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            
+            // All updates succeeded
+            const results = updates.map(update => ({
+                user_id: update.user_id,
+                status: update.status,
+                success: true,
+                response: data
+            }));
+
+            return res.status(200).json({
+                success: true,
+                message: `Successfully updated ${updates.length} executive statuses`,
+                data: {
+                    results,
+                    errors: [],
+                    summary: {
+                        total: updates.length,
+                        successful: updates.length,
+                        failed: 0
+                    },
+                    timestamp: new Date().toISOString(),
+                    externalResponse: data
+                }
+            });
+
+        } catch (error) {
+            // Fallback: Try individual updates
+            const results = [];
+            const errors = [];
+            
+            const fallbackHeaders = {
+                'Authorization': 'Bearer mysecretkey123',
+                'Content-Type': 'application/json'
+            };
+            if (req.adminCompanyId) fallbackHeaders['X-Company-ID'] = req.adminCompanyId;
+            for (const update of updates) {
+                try {
+                    const response = await fetch(`${process.env.AI_ROUTE_API}/api/executives`, {
+                        method: 'POST',
+                        headers: fallbackHeaders,
+                        body: JSON.stringify({
+                            user_id: update.user_id,
+                            date: update.date,
+                            status: update.status
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        let errData;
+                        try { errData = JSON.parse(errorText); } catch (_) { errData = {}; }
+                        const errMsg = errData.error || errData.message || errorText;
+                        const hasInProgressMessage = /in progress|inactivate|cannot.*driver/i.test(errMsg);
+                        const count = errData.in_progress_count ?? errData.deliveries_count ?? (hasInProgressMessage ? 1 : null);
+                        if (response.status === 400 && (count != null || hasInProgressMessage)) {
+                            errors.push({
+                                user_id: update.user_id,
+                                status: update.status,
+                                success: false,
+                                error: errMsg || 'Cannot inactivate driver: deliveries in progress.',
+                                in_progress_count: count != null ? count : 1
+                            });
+                            continue;
+                        }
+                        throw new Error(`External API responded with status: ${response.status} - ${errorText}`);
+                    }
+
+                    const data = await response.json();
+                    results.push({
+                        user_id: update.user_id,
+                        status: update.status,
+                        success: true,
+                        response: data
+                    });
+                } catch (individualError) {
+                    errors.push({
+                        user_id: update.user_id,
+                        status: update.status,
+                        success: false,
+                        error: individualError.message
+                    });
+                }
+            }
+
+            const successCount = results.length;
+            const errorCount = errors.length;
+            const blockedError = errors.find(e => e.in_progress_count != null);
+
+            if (blockedError && errorCount > 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: blockedError.error,
+                    in_progress_count: blockedError.in_progress_count,
+                    user_id: blockedError.user_id,
+                    data: { results, errors, summary: { total: updates.length, successful: successCount, failed: errorCount } }
+                });
+            }
+
+            return res.status(200).json({
+                success: errorCount === 0,
+                message: `Updated ${successCount} executives successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+                data: {
+                    results,
+                    errors,
+                    summary: {
+                        total: updates.length,
+                        successful: successCount,
+                        failed: errorCount
+                    },
+                    timestamp: new Date().toISOString()
+                }
+            });
+        }
+
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error updating executive status', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update executive status',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Save all routes using request ID
+export const saveAllRoutes = async (req, res, next) => {
+    try {
+        const { requestId } = req.body;
+        
+        if (!requestId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Request ID is required'
+            });
+        }
+
+        // Call external API to save routes (include company_id for multi-tenant)
+        const saveRoutesHeaders = {
+            'Authorization': 'Bearer mysecretkey123',
+            'Content-Type': 'application/json'
+        };
+        if (req.adminCompanyId) saveRoutesHeaders['X-Company-ID'] = req.adminCompanyId;
+        const response = await fetch(`${process.env.AI_ROUTE_API}/save-all-routes`, {
+            method: 'POST',
+            headers: saveRoutesHeaders,
+            body: JSON.stringify({
+                requestId: requestId
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`External API responded with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        res.json({
+            success: true,
+            message: 'Routes saved successfully',
+            data: data
+        });
+
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error saving routes', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to save routes',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Get vehicles
+export const getVehicles = async (req, res, next) => {
+    try {
+        const { user_id } = req.query;
+        
+        const vehicles = await getVehiclesService({ user_id });
+        
+        res.status(200).json({
+            success: true,
+            data: vehicles,
+            total: vehicles.length,
+            message: `Found ${vehicles.length} vehicle(s)`
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error fetching vehicles', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch vehicles',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Assign vehicle to executive
+export const assignVehicleToExecutive = async (req, res, next) => {
+    try {
+        const { vehicleId, userId, company_id: bodyCompanyId } = req.body;
+        const companyId = bodyCompanyId ?? req.adminCompanyId;
+        
+        if (!vehicleId || !userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle ID and User ID are required'
+            });
+        }
+        
+        const result = await assignVehicleToExecutiveService(vehicleId, userId, companyId);
+        
+        res.status(200).json({
+            success: result.success,
+            data: result.data,
+            message: result.message || 'Vehicle assigned to executive successfully'
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error assigning vehicle to executive', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to assign vehicle to executive',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Unassign vehicle from executive
+export const unassignVehicleFromExecutive = async (req, res, next) => {
+    try {
+        const { vehicleId, userId, company_id: bodyCompanyId } = req.body;
+        const companyId = bodyCompanyId ?? req.adminCompanyId;
+        
+        if (!vehicleId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle ID is required'
+            });
+        }
+        
+        const result = await unassignVehicleFromExecutiveService(vehicleId, userId, companyId);
+        
+        res.status(200).json({
+            success: result.success,
+            data: result.data,
+            message: result.message || 'Vehicle unassigned from executive successfully'
+        });
+    } catch (error) {
+        logError(LOG_CATEGORIES.SYSTEM, 'Error unassigning vehicle from executive', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to unassign vehicle from executive',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+

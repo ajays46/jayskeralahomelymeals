@@ -1,0 +1,1577 @@
+import {
+  checkApiHealthService,
+  getAvailableDatesService,
+  getDeliveryDataService,
+  planRouteService,
+  savePlanToS3Service,
+  reassignDriverService,
+  moveStopService,
+  predictStartTimeService,
+  startJourneyService,
+  stopReachedService,
+  endJourneyService,
+  getJourneyStatusService,
+  getTrackingStatusService,
+  vehicleTrackingService,
+  getAllVehicleTrackingService,
+  getLiveVehicleTrackingService,
+  getCurrentWeatherService,
+  getWeatherForecastService,
+  getWeatherZonesService,
+  getWeatherPredictionsService,
+  getZonesService,
+  getZoneByIdService,
+  createZoneService,
+  updateZoneService,
+  deleteZoneService,
+  getZoneDeliveriesService,
+  reoptimizeRouteService,
+  getMissingGeoLocationsService,
+  updateGeoLocationService,
+  getDriverNextStopMapsService,
+  getDriverRouteOverviewMapsService,
+  checkTrafficService,
+  getRouteOrderService,
+  getRouteStatusFromActualStopsService,
+  updateDeliveryCommentService,
+  getCoordinatorSettingsService,
+  updateCoordinatorSettingsService,
+  getRouteMapDataService,
+  getRouteMapDataByManagerService,
+  getDriversFromRouteMapDataService,
+  getExecutivePerformanceService,
+  getExecutivePerformanceByDriverService,
+  getManagerExecutiveHierarchyService,
+  findDeliveryItemByOrderService,
+  getUserCompanyIdService
+} from '../services/aiRoute.service.js';
+import { logInfo, logError, LOG_CATEGORIES } from '../../../utils/criticalLogger.js';
+import AppError from '../../../utils/AppError.js';
+
+/**
+ * AI Route Controller
+ * Handles AI route optimization API endpoints
+ * Features: Route planning, delivery data, journey tracking, analytics
+ */
+
+/**
+ * Check API Health
+ */
+export const checkApiHealth = async (req, res, next) => {
+  try {
+    const result = await checkApiHealthService(req.companyId);
+    
+    res.status(200).json({
+      success: result.success,
+      status: result.status,
+      service: result.service,
+      port: result.port,
+      timestamp: result.timestamp,
+      error: result.error,
+      message: result.message
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'API health check failed', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Available Dates
+ */
+export const getAvailableDates = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 30;
+    
+    const result = await getAvailableDatesService(limit, req.companyId);
+    
+    res.status(200).json({
+      success: true,
+      available_dates: result.available_dates
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch available dates', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Delivery Data
+ */
+export const getDeliveryData = async (req, res, next) => {
+  try {
+    const { date, session } = req.query;
+    
+    if (!date || !session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date and session are required'
+      });
+    }
+    
+    const result = await getDeliveryDataService({ date, session }, req.companyId);
+    
+    // Structure response according to documentation
+    const deliveries = result.data || result.deliveries || [];
+    
+    res.status(200).json({
+      success: true,
+      deliveries: deliveries,
+      total: deliveries.length
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch delivery data', {
+      error: error.message,
+      date: req.query.date,
+      session: req.query.session
+    });
+    next(error);
+  }
+};
+
+/**
+ * Plan Route
+ */
+export const planRoute = async (req, res, next) => {
+  try {
+    const { delivery_date, delivery_session, num_drivers, depot_location, user_id: bodyUserId } = req.body;
+    const createdBy = req.headers['x-user-id'] || bodyUserId || req.user?.userId || req.user?.id;
+
+    if (!delivery_date || !delivery_session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Delivery date and session are required'
+      });
+    }
+
+    const result = await planRouteService({
+      delivery_date,
+      delivery_session,
+      num_drivers,
+      depot_location
+    }, req.companyId, createdBy);
+    
+    // Extract routes data according to documentation structure
+    // Documentation shows: data.routes.routes[0].stops[]
+    const routesData = result.routes || {};
+    const routesArray = routesData.routes || [];
+    
+    // Extract route IDs for route_ids array
+    const routeIds = routesArray.map(r => r.route_id).filter(Boolean);
+    
+    // Structure response according to documentation
+    // Ensure all required fields are present
+    const responseData = {
+      success: result.success !== undefined ? result.success : true,
+      created_by: result.created_by ?? createdBy ?? null,
+      route_id: result.route_id,
+      main_route_id: result.main_route_id || result.route_id,
+      route_ids: result.route_ids || routeIds.length > 0 ? routeIds : [result.route_id].filter(Boolean),
+      delivery_date: delivery_date,
+      delivery_session: delivery_session,
+      num_drivers: result.num_drivers,
+      total_deliveries: result.total_deliveries,
+      routes: {
+        routes: routesArray.map((route, index) => {
+          // Build executive object from available data
+          const executiveData = route.executive || {};
+          const executive = {
+            user_id: route.driver_id || executiveData.user_id || `driver_${index + 1}`,
+            name: route.driver_name || executiveData.name || `Driver ${index + 1}`,
+            whatsapp_number: executiveData.whatsapp_number || null,
+            status: executiveData.status || 'ACTIVE',
+            vehicle_number: executiveData.vehicle_number || null
+          };
+          
+          // Process stops to ensure all fields are preserved, including address_id
+          const processedStops = (route.stops || []).map(stop => {
+            // Preserve all existing stop fields, ensuring address_id is included
+            return {
+              ...stop,
+              // Explicitly ensure address_id is preserved (handle different case variations)
+              address_id: stop.address_id || stop.Address_ID || stop.addressId || null
+            };
+          });
+          
+          // Ensure route has all necessary fields
+          return {
+            route_id: route.route_id || `${result.route_id}-${index + 1}`,
+            driver_id: route.driver_id || `driver_${index + 1}`,
+            executive: executive,
+            stops: processedStops,
+            estimated_time_hours: route.estimated_time_hours,
+            total_distance_km: route.total_distance_km || route.distance_km || 0,
+            // Keep additional fields for backward compatibility
+            num_stops: route.num_stops || processedStops.length || 0,
+            confidence: route.confidence,
+            confidence_interval: route.confidence_interval,
+            risk_level: route.risk_level,
+            map_link: route.map_link,
+            location_link: route.location_link
+          };
+        })
+      },
+      route_comparison: result.route_comparison, // Include comparison data if exists
+      // Include warnings and messages from external API if present
+      warnings: result.warnings || result.warning || null,
+      messages: result.messages || result.message || null,
+      message: result.message || null,
+      executives_unavailable_warning: result.executives_unavailable_warning || null,
+      executives_unavailable: result.executives_unavailable || null
+    };
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route planned successfully', {
+      delivery_date,
+      delivery_session,
+      num_drivers: responseData.num_drivers,
+      total_deliveries: responseData.total_deliveries,
+      routesCount: responseData.routes.routes.length,
+      stopsCount: responseData.routes.routes[0]?.stops?.length || 0
+    });
+    
+    res.status(200).json(responseData);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Route planning failed', {
+      error: error.message,
+      delivery_date: req.body?.delivery_date,
+      delivery_session: req.body?.delivery_session
+    });
+    next(error);
+  }
+};
+
+/**
+ * Save planned routes to S3 (Excel + TXT)
+ * Body: { route_ids (required), company_id (optional) }
+ */
+export const savePlanToS3 = async (req, res, next) => {
+  try {
+    const { route_ids: routeIds, company_id: bodyCompanyId } = req.body || {};
+    const companyId = bodyCompanyId ?? req.companyId;
+    if (!routeIds || !Array.isArray(routeIds) || routeIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_ids is required and must be a non-empty array'
+      });
+    }
+    const result = await savePlanToS3Service(companyId, routeIds);
+    return res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Save plan to S3 failed', { error: error.message });
+    const code = error.statusCode || error.status;
+    if (code && code >= 400 && code < 600) {
+      return res.status(code).json({
+        success: false,
+        message: error.message || 'Failed to save plan to S3'
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * Reassign Driver - single: { route_id, new_driver_name } | exchange: { exchange: true, route_id_1, route_id_2 }
+ */
+export const reassignDriver = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (body.exchange) {
+      if (!body.route_id_1 || !body.route_id_2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Exchange requires route_id_1 and route_id_2'
+        });
+      }
+    } else {
+      if (!body.route_id || !body.new_driver_name) {
+        return res.status(400).json({
+          success: false,
+          message: 'Reassign requires route_id and new_driver_name'
+        });
+      }
+    }
+    const result = await reassignDriverService(body, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Reassign driver failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
+ * Move Stop - move one stop from one route to another
+ * Body: { from_route_id, to_route_id, stop_identifier: { delivery_id } or { stop_order }, insert_at_order? }
+ */
+export const moveStop = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (!body.from_route_id || !body.to_route_id || !body.stop_identifier) {
+      return res.status(400).json({
+        success: false,
+        message: 'from_route_id, to_route_id, and stop_identifier (delivery_id or stop_order) are required'
+      });
+    }
+    if (!req.companyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'company_id is required for move-stop. Send X-Company-ID header or ensure your user has a company.'
+      });
+    }
+    const result = await moveStopService(body, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Move stop failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
+ * Predict Start Time
+ * Accepts either route_id OR (delivery_date + delivery_session + depot_location)
+ */
+export const predictStartTime = async (req, res, next) => {
+  try {
+    const { route_id, delivery_date, delivery_session, depot_location } = req.body;
+    
+    // If route_id is provided, use it; otherwise require date and session
+    if (route_id) {
+      const result = await predictStartTimeService({ route_id }, req.companyId);
+      return res.status(200).json(result);
+    }
+    
+    if (!delivery_date || !delivery_session) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either route_id OR (delivery_date and delivery_session) are required'
+      });
+    }
+    
+    const result = await predictStartTimeService({
+      delivery_date,
+      delivery_session,
+      depot_location
+    }, req.companyId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Start time prediction failed', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Start Journey (NEW API: /api/journey/start)
+ * Executive starts journey with route_id and driver_id
+ */
+export const startJourney = async (req, res, next) => {
+  try {
+    const { driver_id, route_id } = req.body;
+    if (!driver_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'driver_id is required'
+      });
+    }
+    
+    const result = await startJourneyService({
+      driver_id,
+      route_id // Include route_id if provided
+    }, req.companyId);
+    // Ensure response matches documentation structure
+    const responseData = {
+      success: result.success !== undefined ? result.success : true,
+      route_id: result.route_id || null,
+      driver_id: result.driver_id || driver_id,
+      executive_name: result.executive_name || result.executive?.name || null,
+      whatsapp_number: result.whatsapp_number || result.executive?.whatsapp_number || null,
+      vehicle_number: result.vehicle_number || result.executive?.vehicle_number || null,
+      start_time: result.start_time || new Date().toISOString(),
+      message: result.message || "Journey started successfully. Vehicle tracking is now active."
+    };
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Journey started successfully', {
+      driver_id,
+      journey_id: result.journey_id,
+      route_id: result.route_id
+    });
+    
+    res.status(200).json(responseData);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Journey start failed', {
+      error: error.message,
+      driver_id: req.body?.driver_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * Stop Reached / Mark Stop (NEW API: /api/journey/mark-stop or /api/journey/stop-reached)
+ * Mark delivery stop as reached/delivered
+ * Supports both old format (user_id, latitude, longitude) and new format (current_location {lat, lng})
+ */
+export const stopReached = async (req, res, next) => {
+  try {
+    const { 
+      route_id, 
+      planned_stop_id,
+      stop_order, // Keep for backward compatibility
+      delivery_id, 
+      driver_id,
+      completed_at,
+      current_location,
+      // Legacy parameters (for backward compatibility)
+      user_id,
+      latitude,
+      longitude,
+      status,
+      packages_delivered,
+      comments // Comments field for delivery notes
+    } = req.body;
+    
+    // Validate required fields - use planned_stop_id if provided, otherwise fallback to stop_order
+    const stopIdentifier = planned_stop_id || stop_order;
+    if (!route_id || stopIdentifier === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_id and planned_stop_id (or stop_order for backward compatibility) are required'
+      });
+    }
+    
+    // Transform to service format
+    // If new format (current_location) is provided, use it
+    // Otherwise, use legacy format (latitude, longitude)
+    let serviceData = {
+      route_id,
+      planned_stop_id: planned_stop_id || undefined,
+      stop_order: stop_order || undefined, // Keep for backward compatibility
+      delivery_id,
+      completed_at: completed_at || new Date().toISOString()
+    };
+    
+    // Add driver_id if provided (required by external API)
+    if (driver_id) {
+      serviceData.driver_id = driver_id;
+    } else if (user_id) {
+      // Fallback to user_id if driver_id not provided
+      serviceData.driver_id = user_id;
+    }
+    
+    // Handle location - prefer new format, fallback to legacy
+    if (current_location && current_location.lat && current_location.lng) {
+      serviceData.current_location = {
+        lat: current_location.lat,
+        lng: current_location.lng
+      };
+    } else if (latitude !== undefined && longitude !== undefined) {
+      // Legacy format - convert to new format
+      serviceData.current_location = {
+        lat: latitude,
+        lng: longitude
+      };
+    }
+    
+    // Legacy parameters (for backward compatibility with external API)
+    if (user_id) serviceData.user_id = user_id;
+    if (status) serviceData.status = status;
+    if (packages_delivered !== undefined) serviceData.packages_delivered = packages_delivered;
+    
+    // Add comments if provided (optional field, max 500 characters)
+    if (comments && typeof comments === 'string' && comments.trim()) {
+      // Validate length
+      if (comments.trim().length > 500) {
+        return res.status(400).json({
+          success: false,
+          message: 'Comments cannot exceed 500 characters'
+        });
+      }
+      serviceData.comments = comments.trim();
+    }
+    
+    const result = await stopReachedService(serviceData, req.companyId);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Stop reached marked successfully', {
+      route_id,
+      planned_stop_id: planned_stop_id || stop_order,
+      completed_at: serviceData.completed_at
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Stop reached failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * End Journey (NEW API: /api/journey/end)
+ * Accepts: POST body { "route_id": "ROUTE_ID_FROM_STARTED_JOURNEY", optional: "session" }
+ * user_id is taken from the authenticated user when not in body.
+ * session (breakfast/lunch/dinner/any) is forwarded to external API so the correct session gets total_journey_duration_minutes and actual_end_time.
+ */
+export const endJourney = async (req, res, next) => {
+  try {
+    const { route_id, user_id: bodyUserId, latitude, longitude, session } = req.body;
+    const user_id = bodyUserId ?? req.user?.userId;
+
+    if (!route_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_id is required in request body'
+      });
+    }
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id is required (from auth or request body)'
+      });
+    }
+
+    const result = await endJourneyService({
+      user_id,
+      route_id,
+      latitude,
+      longitude,
+      session
+    }, req.companyId);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Journey ended successfully', {
+      route_id,
+      total_duration_minutes: result.total_duration_minutes
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Journey end failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Journey Status (NEW API: /api/journey/status/:route_id)
+ */
+export const getJourneyStatus = async (req, res, next) => {
+  try {
+    const { routeId } = req.params;
+    if (!routeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'routeId is required'
+      });
+    }
+    
+    const result = await getJourneyStatusService(routeId, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get journey status failed', {
+      error: error.message,
+      routeId: req.params?.routeId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Tracking Status
+ */
+export const getTrackingStatus = async (req, res, next) => {
+  try {
+    const { routeId } = req.params;
+    
+    if (!routeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'routeId is required'
+      });
+    }
+    
+    const result = await getTrackingStatusService(routeId, req.companyId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch tracking status', {
+      error: error.message,
+      routeId: req.params?.routeId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Vehicle Tracking
+ * Save vehicle GPS tracking points (complete journey tracking)
+ */
+export const vehicleTracking = async (req, res, next) => {
+  try {
+    const { route_id, driver_id, session_id, tracking_points } = req.body;
+    
+    if (!route_id || !tracking_points || !Array.isArray(tracking_points) || tracking_points.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_id and tracking_points are required'
+      });
+    }
+    
+    // Validate tracking points structure
+    for (const point of tracking_points) {
+      if (!point.timestamp || typeof point.latitude !== 'number' || typeof point.longitude !== 'number') {
+        return res.status(400).json({
+          success: false,
+          message: 'Each tracking point must have timestamp, latitude, and longitude'
+        });
+      }
+    }
+    
+    const result = await vehicleTrackingService({
+      route_id,
+      driver_id,
+      session_id,
+      tracking_points
+    }, req.companyId);
+    
+    // Ensure response includes all documented fields
+    const responseData = {
+      success: result.success !== undefined ? result.success : true,
+      points_saved: result.points_saved || tracking_points.length,
+      route_id: result.route_id || route_id,
+      driver_id: result.driver_id || driver_id,
+      vehicle_number: result.vehicle_number || null,
+      start_time: result.start_time || null,
+      total_distance_km: result.total_distance_km || 0,
+      total_time_minutes: result.total_time_minutes || null
+    };
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Vehicle tracking data saved successfully', {
+      route_id,
+      points_saved: responseData.points_saved
+    });
+    
+    res.status(200).json(responseData);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Vehicle tracking failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+export const getAllVehicleTracking = async (req, res, next) => {
+  try {
+    const result = await getAllVehicleTrackingService(req.companyId);
+    logInfo(LOG_CATEGORIES.SYSTEM, 'All vehicle tracking fetched', {
+      data: result
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch all vehicle tracking', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Live Vehicle Tracking
+ * Fetches live vehicle tracking data with optional filters
+ * Query params: active_only (boolean), status (string), driver_id (string)
+ */
+export const getLiveVehicleTracking = async (req, res, next) => {
+  try {
+    const { active_only, status, driver_id } = req.query;
+    
+    const result = await getLiveVehicleTrackingService({
+      active_only,
+      status,
+      driver_id
+    });
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Live vehicle tracking fetched', {
+      active_only,
+      status,
+      driver_id,
+      vehiclesCount: result?.vehicles?.length || result?.data?.length || 0
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch live vehicle tracking', {
+      error: error.message,
+      query: req.query
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Current Weather
+ * Supports both lat/lng (documentation) and latitude/longitude (backward compatibility)
+ */
+export const getCurrentWeather = async (req, res, next) => {
+  try {
+    // Support both formats: lat/lng (doc) and latitude/longitude (current)
+    const lat = req.query.lat || req.query.latitude;
+    const lng = req.query.lng || req.query.longitude;
+    const zone_id = req.query.zone_id;
+    
+    // If zone_id is provided, try to get zone coordinates
+    let finalLat = lat;
+    let finalLng = lng;
+    
+    if (zone_id && (!lat || !lng)) {
+      try {
+        // Fetch zone details to get coordinates
+        const zoneData = await getZoneByIdService(zone_id, req.companyId);
+        if (zoneData?.zone?.boundaries) {
+          // Calculate center point from boundaries
+          const boundaries = zoneData.zone.boundaries;
+          finalLat = (boundaries.north + boundaries.south) / 2;
+          finalLng = (boundaries.east + boundaries.west) / 2;
+        } else if (zoneData?.zone?.center_lat && zoneData?.zone?.center_lng) {
+          // Use center coordinates if available
+          finalLat = zoneData.zone.center_lat;
+          finalLng = zoneData.zone.center_lng;
+        }
+      } catch (zoneError) {
+        // If zone lookup fails, try passing zone_id directly to external API
+        logInfo(LOG_CATEGORIES.SYSTEM, 'Zone lookup failed, passing zone_id to external API', {
+          zone_id,
+          error: zoneError.message
+        });
+      }
+    }
+    
+    // If still no coordinates and no zone_id, return error
+    if (!finalLat || !finalLng) {
+      if (zone_id) {
+        // If zone_id was provided but we couldn't get coordinates, try passing zone_id directly
+        const result = await getCurrentWeatherService({ 
+          zone_id
+        }, req.companyId);
+        return res.status(200).json(result);
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'lat and lng (or latitude and longitude) are required, or provide zone_id'
+        });
+      }
+    }
+    
+    const result = await getCurrentWeatherService({ 
+      zone_id, 
+      latitude: finalLat, 
+      longitude: finalLng 
+    }, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch current weather', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Weather Forecast
+ */
+export const getWeatherForecast = async (req, res, next) => {
+  try {
+    const { zone_id, latitude, longitude, days, session } = req.query;
+    
+    const result = await getWeatherForecastService({ 
+      zone_id, 
+      latitude, 
+      longitude, 
+      days: days ? parseInt(days) : 5,
+      session 
+    }, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch weather forecast', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Weather for All Zones
+ */
+export const getWeatherZones = async (req, res, next) => {
+  try {
+    const { priority, is_active } = req.query;
+    
+    const result = await getWeatherZonesService({ 
+      priority: priority ? parseInt(priority) : undefined,
+      is_active: is_active !== undefined ? parseInt(is_active) : 1
+    }, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zones weather', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Weather Predictions
+ */
+export const getWeatherPredictions = async (req, res, next) => {
+  try {
+    const { latitude, longitude, days, session } = req.query;
+    
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'latitude and longitude are required'
+      });
+    }
+    
+    const result = await getWeatherPredictionsService({
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      days: days ? parseInt(days) : 7,
+      session
+    }, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch weather predictions', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get All Zones
+ */
+export const getZones = async (req, res, next) => {
+  try {
+    const { is_active, zone_type } = req.query;
+    
+    const result = await getZonesService({
+      is_active: is_active !== undefined ? parseInt(is_active) : undefined,
+      zone_type
+    }, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zones', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Zone by ID
+ */
+export const getZoneById = async (req, res, next) => {
+  try {
+    const { zoneId } = req.params;
+    
+    if (!zoneId) {
+      return res.status(400).json({
+        success: false,
+        message: 'zoneId is required'
+      });
+    }
+    
+    const result = await getZoneByIdService(zoneId, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zone', {
+      error: error.message,
+      zoneId: req.params?.zoneId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Create Zone
+ */
+export const createZone = async (req, res, next) => {
+  try {
+    const { id, name, center_latitude, center_longitude, radius_km, priority, zone_type, is_active } = req.body;
+    
+    if (!name || center_latitude === undefined || center_longitude === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'name, center_latitude, and center_longitude are required'
+      });
+    }
+    
+    const result = await createZoneService({
+      id,
+      name,
+      center_latitude,
+      center_longitude,
+      radius_km: radius_km || 2.0,
+      priority: priority || 1,
+      zone_type: zone_type || 'delivery',
+      is_active: is_active !== undefined ? is_active : 1
+    }, req.companyId);
+    
+    res.status(201).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to create zone', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Update Zone
+ */
+export const updateZone = async (req, res, next) => {
+  try {
+    const { zoneId } = req.params;
+    const updateData = req.body;
+    
+    if (!zoneId) {
+      return res.status(400).json({
+        success: false,
+        message: 'zoneId is required'
+      });
+    }
+    
+    const result = await updateZoneService(zoneId, updateData, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update zone', {
+      error: error.message,
+      zoneId: req.params?.zoneId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Delete Zone
+ */
+export const deleteZone = async (req, res, next) => {
+  try {
+    const { zoneId } = req.params;
+    
+    if (!zoneId) {
+      return res.status(400).json({
+        success: false,
+        message: 'zoneId is required'
+      });
+    }
+    
+    const result = await deleteZoneService(zoneId, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to delete zone', {
+      error: error.message,
+      zoneId: req.params?.zoneId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Zone Deliveries
+ */
+export const getZoneDeliveries = async (req, res, next) => {
+  try {
+    const { zoneId } = req.params;
+    const { date, session } = req.query;
+    
+    if (!zoneId) {
+      return res.status(400).json({
+        success: false,
+        message: 'zoneId is required'
+      });
+    }
+    
+    const result = await getZoneDeliveriesService(zoneId, { date, session }, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch zone deliveries', {
+      error: error.message,
+      zoneId: req.params?.zoneId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Re-optimize Route
+ */
+export const reoptimizeRoute = async (req, res, next) => {
+  try {
+    const { route_id, current_location, delay_minutes, traffic_data, weather_data } = req.body;
+
+    if (!route_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_id is required'
+      });
+    }
+    
+    const result = await reoptimizeRouteService({
+      route_id,
+      current_location,
+      delay_minutes,
+      traffic_data,
+      weather_data
+    }, req.companyId);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route reoptimization completed', {
+      route_id,
+      reoptimized: result.reoptimized
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Route reoptimization failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * Check Traffic and Auto-Reoptimize (NEW API: /api/journey/check-traffic)
+ * Checks traffic on remaining route segments and auto-reoptimizes if heavy traffic detected
+ */
+export const checkTraffic = async (req, res, next) => {
+  try {
+    const { route_id, current_location, check_all_segments } = req.body;
+    
+    if (!route_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'route_id is required'
+      });
+    }
+    
+    const result = await checkTrafficService({
+      route_id,
+      current_location,
+      check_all_segments: check_all_segments !== false // default to true
+    }, req.companyId);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Traffic check completed', {
+      route_id,
+      heavy_traffic_detected: result.heavy_traffic_detected,
+      reoptimized: result.reoptimized
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Traffic check failed', {
+      error: error.message,
+      route_id: req.body?.route_id
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Route Order (NEW API: /api/journey/route-order/:route_id)
+ * Get current route order with stop status
+ */
+export const getRouteOrder = async (req, res, next) => {
+  try {
+    const { routeId } = req.params;
+    
+    if (!routeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'routeId is required'
+      });
+    }
+    
+    const result = await getRouteOrderService(routeId, req.companyId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route order failed', {
+      error: error.message,
+      routeId: req.params?.routeId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Missing Geo Locations
+ */
+export const getMissingGeoLocations = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    
+    const result = await getMissingGeoLocationsService(limit, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to fetch missing geo locations', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Update Geo Location
+ */
+export const updateGeoLocation = async (req, res, next) => {
+  try {
+    const { address_id, delivery_item_id, geo_location, order_id, menu_item_id, delivery_date, session } = req.body;
+    
+    if (!geo_location) {
+      return res.status(400).json({
+        success: false,
+        message: 'geo_location is required (format: "lat,lng")'
+      });
+    }
+    
+    // Validate geo_location format
+    const parts = geo_location.split(',');
+    if (parts.length !== 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'geo_location must be in format "latitude,longitude"'
+      });
+    }
+    
+    const lat = parseFloat(parts[0]);
+    const lng = parseFloat(parts[1]);
+    
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid latitude or longitude values'
+      });
+    }
+    
+    let finalAddressId = address_id;
+    let finalDeliveryItemId = delivery_item_id;
+    
+    // If delivery_item_id or address_id not provided, try to find delivery item using order_id and menu_item_id
+    if (!finalAddressId && !finalDeliveryItemId) {
+      if (order_id && menu_item_id) {
+        try {
+          const deliveryItem = await findDeliveryItemByOrderService({ order_id, menu_item_id, delivery_date, session });
+          
+          if (deliveryItem) {
+            finalDeliveryItemId = deliveryItem.id;
+            finalAddressId = deliveryItem.addressId;
+          } else {
+            return res.status(404).json({
+              success: false,
+              message: 'Delivery item not found with the provided order_id, menu_item_id, and optional filters'
+            });
+          }
+        } catch (dbError) {
+          logError(LOG_CATEGORIES.SYSTEM, 'Error finding delivery item', {
+            error: dbError.message,
+            order_id,
+            menu_item_id,
+            delivery_date,
+            session
+          });
+          return res.status(500).json({
+            success: false,
+            message: 'Error finding delivery item: ' + dbError.message
+          });
+        }
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Either (address_id or delivery_item_id) or (order_id and menu_item_id) is required'
+        });
+      }
+    }
+    
+    const result = await updateGeoLocationService({
+      address_id: finalAddressId,
+      delivery_item_id: finalDeliveryItemId,
+      geo_location
+    }, req.companyId);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Geo location updated successfully', {
+      address_id: result.address_id,
+      delivery_item_id: finalDeliveryItemId,
+      geo_location
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update geo location', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Driver Next Stop Maps
+ * Fetch individual stop map links for drivers
+ */
+export const getDriverNextStopMaps = async (req, res, next) => {
+  try {
+    const { date, session } = req.query;
+    
+    if (!date || !session) {
+      return res.status(400).json({
+        success: false,
+        message: 'date and session query parameters are required'
+      });
+    }
+    
+    const result = await getDriverNextStopMapsService({ date, session }, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get driver next stop maps failed', {
+      error: error.message,
+      date: req.query?.date,
+      session: req.query?.session
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Driver Route Overview Maps
+ * Fetch route overview map links for drivers
+ */
+export const getDriverRouteOverviewMaps = async (req, res, next) => {
+  try {
+    const { date, session } = req.query;
+    
+    if (!date || !session) {
+      return res.status(400).json({
+        success: false,
+        message: 'date and session query parameters are required'
+      });
+    }
+    
+    const result = await getDriverRouteOverviewMapsService({ date, session }, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get driver route overview maps failed', {
+      error: error.message,
+      date: req.query?.date,
+      session: req.query?.session
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Route Status from Actual Route Stops
+ * Returns journey status, marked stops, and completed sessions from actual_route_stops table
+ */
+export const getRouteStatusFromActualStops = async (req, res, next) => {
+  try {
+    const { routeId } = req.params;
+    const { driver_id, date } = req.query;
+    
+    if (!routeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'routeId is required'
+      });
+    }
+    
+    const result = await getRouteStatusFromActualStopsService(routeId, driver_id || null, date || null);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Route status retrieved', {
+      route_id: routeId,
+      is_journey_started: result.is_journey_started,
+      marked_stops_count: result.marked_stops?.length || 0,
+      completed_sessions_count: result.completed_sessions?.length || 0
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route status failed', {
+      error: error.message,
+      routeId: req.params?.routeId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Update Delivery Comment
+ * Updates the comment for a specific delivery using delivery_id
+ */
+export const updateDeliveryComment = async (req, res, next) => {
+  try {
+    const { deliveryId } = req.params;
+    const { comments } = req.body;
+    console.log(deliveryId)
+    console.log(comments)
+    
+    if (!deliveryId) {
+      return res.status(400).json({
+        success: false,
+        message: 'deliveryId is required'
+      });
+    }
+    
+    if (comments === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'comments field is required'
+      });
+    }
+    
+    const result = await updateDeliveryCommentService(deliveryId, comments, req.companyId);
+    
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Delivery comment updated successfully', {
+      delivery_id: deliveryId
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Failed to update delivery comment', {
+      error: error.message,
+      deliveryId: req.params?.deliveryId
+    });
+    next(error);
+  }
+};
+
+/**
+ * Resolve company_id for Coordinator (multi-tenant).
+ * Order: X-Company-ID header, query company_id (GET), body company_id, then User lookup by req.user.userId/id.
+ */
+const resolveCoordinatorCompanyId = async (req) => {
+  const header = req.headers['x-company-id'];
+  if (header && typeof header === 'string' && header.trim()) return header.trim();
+  const query = req.query?.company_id;
+  if (query && typeof query === 'string' && query.trim()) return query.trim();
+  const body = req.body?.company_id;
+  if (body && typeof body === 'string' && body.trim()) return body.trim();
+  const userId = req.user?.userId ?? req.user?.id;
+  if (userId) {
+    const companyId = await getUserCompanyIdService(userId);
+    if (companyId) return companyId;
+  }
+  return null;
+};
+
+/**
+ * Get Coordinator Settings
+ * Returns current Coordinator parameter values for the request's company (X-Company-ID or user's company).
+ */
+export const getCoordinatorSettings = async (req, res, next) => {
+  try {
+    const companyId = await resolveCoordinatorCompanyId(req);
+    if (!companyId) {
+      throw new AppError('company_id required (send X-Company-ID header, query company_id, or ensure user has companyId)', 400);
+    }
+    const result = await getCoordinatorSettingsService(companyId);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings retrieved', {
+      company_id: companyId,
+      settings_count: Object.keys(result.settings || {}).length
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get Coordinator settings failed', {
+      error: error.message
+    });
+    next(error);
+  }
+};
+
+/**
+ * Update Coordinator Settings
+ * Updates Coordinator parameter values for the request's company. All body fields optional.
+ */
+export const updateCoordinatorSettings = async (req, res, next) => {
+  try {
+    const companyId = await resolveCoordinatorCompanyId(req);
+    if (!companyId) {
+      throw new AppError('company_id required (send X-Company-ID header, body company_id, or ensure user has companyId)', 400);
+    }
+    const updates = { ...req.body };
+    delete updates.company_id; // avoid sending duplicate
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No updates provided (send at least one of: max_time_hours, max_packages_per_driver, max_distance_km, min_confidence)'
+      });
+    }
+
+    const result = await updateCoordinatorSettingsService(companyId, updates);
+
+    logInfo(LOG_CATEGORIES.SYSTEM, 'Coordinator settings updated successfully', {
+      company_id: companyId,
+      changed_fields: Object.keys(result.changed || {})
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Update Coordinator settings failed', {
+      error: error.message,
+      updates: req.body
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Route Map Data for CXO – Delivery Executive side
+ * Used on Delivery Executive page (CXO view): filter by driver + single date/session.
+ * Params: date, session, route_id, driver_name. No manager_id.
+ * Require at least one of: date or driver_name.
+ */
+export const getRouteMapData = async (req, res, next) => {
+  try {
+    const { date, session, route_id, driver_name } = req.query;
+
+    if (!date && !driver_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either date or driver_name query parameter is required'
+      });
+    }
+
+    const result = await getRouteMapDataService(
+      { date, session, route_id, driver_name },
+      req.companyId
+    );
+
+    res.status(200).json({
+      success: true,
+      ...result.data
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route map data failed', {
+      error: error.message,
+      date: req.query?.date,
+      session: req.query?.session,
+      route_id: req.query?.route_id,
+      driver_name: req.query?.driver_name
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Route Map Data by Manager for CXO – Delivery Manager side
+ * Used on CXO Delivery Managers page: filter routes created by a specific delivery manager.
+ * Params: manager_id (required), start_date, end_date, session, driver_name.
+ * Per guide §3c: X-User-ID required for role check (external API allows manager_id only for CEO/CFO/ADMIN).
+ */
+export const getRouteMapDataByManager = async (req, res, next) => {
+  try {
+    const { manager_id, start_date, end_date, session, driver_name } = req.query;
+
+    if (!manager_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'manager_id query parameter is required'
+      });
+    }
+
+    const callerUserId = req.headers['x-user-id'] || req.user?.userId || req.user?.id;
+
+    const result = await getRouteMapDataByManagerService(
+      { manager_id, start_date, end_date, session, driver_name },
+      req.companyId,
+      callerUserId
+    );
+
+    res.status(200).json({
+      success: true,
+      ...result.data
+    });
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get route map data by manager failed', {
+      error: error.message,
+      manager_id: req.query?.manager_id,
+      start_date: req.query?.start_date,
+      end_date: req.query?.end_date,
+      session: req.query?.session,
+      driver_name: req.query?.driver_name
+    });
+    next(error);
+  }
+};
+
+/**
+ * Get Executive Performance for CXO (all executives)
+ * Optional query: start_date, end_date, days, session, min_routes, driver_name, driver_id
+ */
+export const getExecutivePerformance = async (req, res, next) => {
+  try {
+    const filters = {
+      start_date: req.query.start_date || undefined,
+      end_date: req.query.end_date || undefined,
+      days: req.query.days != null && req.query.days !== '' ? req.query.days : undefined,
+      session: req.query.session || undefined,
+      min_routes: req.query.min_routes != null && req.query.min_routes !== '' ? req.query.min_routes : undefined,
+      driver_name: req.query.driver_name || undefined,
+      driver_id: req.query.driver_id || undefined
+    };
+    const result = await getExecutivePerformanceService(filters, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get executive performance failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
+ * Get Executive Performance by driver name for CXO (single executive)
+ * GET /executive/performance/by-driver?driver_name=...
+ */
+export const getExecutivePerformanceByDriver = async (req, res, next) => {
+  try {
+    const { driver_name } = req.query;
+    if (!driver_name) {
+      return res.status(400).json({ success: false, message: 'driver_name query parameter is required' });
+    }
+    const result = await getExecutivePerformanceByDriverService(driver_name, req.companyId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get executive performance by driver failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
+ * Get Manager–Executive Hierarchy for CXO (CEO, CFO, ADMIN only)
+ * GET /api/cxo/manager-executive-hierarchy?days=30|start_date=&end_date=
+ */
+export const getManagerExecutiveHierarchy = async (req, res, next) => {
+  try {
+    const query = {
+      days: req.query.days != null && req.query.days !== '' ? req.query.days : undefined,
+      start_date: req.query.start_date || undefined,
+      end_date: req.query.end_date || undefined
+    };
+    const userId = req.headers['x-user-id'] || req.user?.userId || req.user?.id;
+    const result = await getManagerExecutiveHierarchyService(query, req.companyId, userId);
+    res.status(200).json(result);
+  } catch (error) {
+    logError(LOG_CATEGORIES.SYSTEM, 'Get manager-executive hierarchy failed', { error: error.message });
+    next(error);
+  }
+};
+

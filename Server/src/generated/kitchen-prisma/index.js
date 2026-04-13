@@ -147,20 +147,21 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "C:\\JAYSKERALAHM\\Server\\prisma\\kitchen\\schema.prisma",
+    "sourceFilePath": "C:\\JAYSKERALAHM\\Server\\src\\modules\\max_kitchen\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
     "rootEnvPath": null,
     "schemaEnvPath": "../../../.env"
   },
-  "relativePath": "../../../prisma/kitchen",
+  "relativePath": "../../modules/max_kitchen/prisma",
   "clientVersion": "6.10.1",
   "engineVersion": "9b628578b3b7cae625e8c927178f15a170e74a9c",
   "datasourceNames": [
     "db"
   ],
   "activeProvider": "mysql",
+  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
@@ -169,8 +170,8 @@ const config = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../../src/generated/kitchen-prisma\"\n}\n\ndatasource db {\n  provider     = \"mysql\"\n  url          = env(\"KITCHEN_DATABASE_URL\")\n  relationMode = \"prisma\"\n}\n\nmodel CustomerPortalToken {\n  id         String    @id @default(uuid()) @db.VarChar(36)\n  shortToken String    @unique @map(\"short_token\") @db.VarChar(20)\n  userId     String    @map(\"user_id\") @db.VarChar(36)\n  expiresAt  DateTime  @map(\"expires_at\") @db.DateTime(0)\n  createdAt  DateTime  @default(now()) @map(\"created_at\")\n  usedAt     DateTime? @map(\"used_at\") @db.DateTime(0)\n\n  @@index([shortToken], map: \"idx_short_token\")\n  @@index([userId], map: \"idx_user_id\")\n  @@index([expiresAt], map: \"idx_expires_at\")\n  @@map(\"customer_portal_tokens\")\n}\n",
-  "inlineSchemaHash": "66c958adf80f1f2c701e153ac545f44893024718854e994a21e1d1f871109fff",
+  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../../../generated/kitchen-prisma\"\n}\n\ndatasource db {\n  provider     = \"mysql\"\n  url          = env(\"KITCHEN_DATABASE_URL\")\n  relationMode = \"prisma\"\n}\n\nmodel CustomerPortalToken {\n  id         String    @id @default(uuid()) @db.VarChar(36)\n  shortToken String    @unique @map(\"short_token\") @db.VarChar(20)\n  userId     String    @map(\"user_id\") @db.VarChar(36)\n  expiresAt  DateTime  @map(\"expires_at\") @db.DateTime(0)\n  createdAt  DateTime  @default(now()) @map(\"created_at\")\n  usedAt     DateTime? @map(\"used_at\") @db.DateTime(0)\n\n  @@index([shortToken], map: \"idx_short_token\")\n  @@index([userId], map: \"idx_user_id\")\n  @@index([expiresAt], map: \"idx_expires_at\")\n  @@map(\"customer_portal_tokens\")\n}\n",
+  "inlineSchemaHash": "323c1547a5acce0cc0249687322e16de2d15f3a12cae093fbe44ef5208d75478",
   "copyEngine": true
 }
 
