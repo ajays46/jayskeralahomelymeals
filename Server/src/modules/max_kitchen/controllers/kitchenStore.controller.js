@@ -16,10 +16,37 @@ import {
   getShoppingListService,
   upsertRecipeLineService,
   listRecipeLinesService,
+  updateRecipeLineService,
+  deleteRecipeLineService,
   generatePlanService,
   getPlanService,
+  listPlansService,
   approvePlanService,
   issuePlanService,
+  submitPlanService,
+  rejectPlanService,
+  patchKitchenPlanLineService,
+  getPlanDemandVsStoreStockService,
+  getDeliveryMealCountsService,
+  getKitchenHoldingService,
+  createMealProgramService,
+  listMealProgramsService,
+  listMealProgramMenuItemMappingsService,
+  postMealProgramMenuItemMappingService,
+  deleteMealProgramMenuItemMappingService,
+  getMealProgramRecipeLinesService,
+  upsertMealProgramRecipeLineService,
+  deleteMealProgramRecipeLineService,
+  getNextDayReadinessService,
+  postPhysicalVsSystemService,
+  createReconciliationSessionService,
+  patchReconciliationSessionService,
+  putReconciliationSessionLinesService,
+  finalizeReconciliationSessionService,
+  listReconciliationSessionsService,
+  getReconciliationSessionService,
+  patchReconciliationSessionLineManagerReviewService,
+  pendingImageUploadUrlService,
   createPurchaseInvoiceUploadUrlService,
   uploadPurchaseReceiptInvoiceService,
   createPurchaseReceiptService,
@@ -40,6 +67,7 @@ import {
   rejectPurchaseRequestService,
   listApprovedPurchaseRequestLinesService,
   downloadApprovedPurchaseRequestLinesTxtService,
+  downloadApprovedPurchaseRequestLinesPdfService,
   getPurchaseRequestComparisonService,
   listOffListPurchaseReviewService,
   reviewPurchaseReceiptLineService,
@@ -63,6 +91,8 @@ import {
   getDailyPurchaseApprovalQueueService,
   getDailyShortageDetectionService,
   getDailyStockReceiptTodayService,
+  quickApproveDailySubmittedService,
+  autoPurchaseFromCountVarianceService,
   postDailyMarkKitchenUsableService,
   getDailyFreshnessAlertsService,
   getDailyPrepReadinessService,
@@ -73,7 +103,11 @@ import {
   postBlockExpiredInventoryService,
   getStockBatchesForItemService,
   getExpiryDashboardService,
-  getReceiptInvoiceTraceabilityService
+  getReceiptInvoiceTraceabilityService,
+  getPurchaseTypeSummaryReportService,
+  getWeeklyGovernanceReportService,
+  getWeeklyGovernancePdfReportService,
+  getWeeklyGovernanceCsvReportService
 } from '../services/kitchenStore.service.js';
 import {
   listInventoryItemImagesService,
@@ -86,6 +120,7 @@ import {
   enrichSinglePurchaseRequestPayload
 } from '../../../utils/purchaseRequestEnrichment.js';
 import { listKitchenCatalogMenus } from '../services/kitchenCatalog.service.js';
+import prisma from '../../../config/prisma.js';
 
 const requireIdParam = (value, name) => {
   if (!value || typeof value !== 'string' || !value.trim()) {
@@ -127,6 +162,61 @@ const kitchenActorUserId = (req) =>
   req.headers?.['x-user-id'] ??
   null;
 
+const userRolesUpper = (req) =>
+  String(req.user?.role || '')
+    .split(',')
+    .map((r) => r.trim().toUpperCase())
+    .filter(Boolean);
+
+/**
+ * Upstream kitchen (ACCESS_TOKEN) requires `user_id` (header / body) and enforces STORE_MANAGER
+ * on that user for plan generate. BFF allows STORE_OPERATOR — proxy as the tenant's manager
+ * user so upstream authorizes; the real caller is still the authenticated JWT on this handler.
+ */
+const resolveUpstreamUserIdForPlanGenerate = async (req) => {
+  const roles = userRolesUpper(req);
+  const actorId = kitchenActorUserId(req);
+  const privileged =
+    roles.includes('STORE_MANAGER') ||
+    roles.includes('ADMIN') ||
+    roles.includes('CEO') ||
+    roles.includes('CFO');
+
+  if (privileged) {
+    if (!actorId) {
+      throw new AppError('Authenticated user id is required for plan generation', 400);
+    }
+    return actorId;
+  }
+
+  const companyId = req.companyId;
+  if (!companyId) {
+    if (!actorId) {
+      throw new AppError('Company context is required for plan generation', 400);
+    }
+    return actorId;
+  }
+
+  const managerUser = await prisma.user.findFirst({
+    where: {
+      companyId,
+      status: 'ACTIVE',
+      userRoles: { some: { name: 'STORE_MANAGER' } }
+    },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' }
+  });
+
+  if (managerUser?.id) {
+    return managerUser.id;
+  }
+
+  throw new AppError(
+    'No STORE_MANAGER user found for this company. Add a store manager, or generate the plan while signed in as one.',
+    403
+  );
+};
+
 export const healthCheck = async (req, res, next) => {
   try {
     const result = await healthCheckService(req.companyId, kitchenActorUserId(req));
@@ -143,20 +233,24 @@ export const createItem = async (req, res, next) => {
       throw new AppError('Request body must be an object', 400);
     }
 
+    /** Only forward allowlisted fields to kitchen inventory upstream (no raw body spread). */
     const payload = {
-      ...body,
       name: requireNonEmptyString(body.name, 'name'),
       unit: requireNonEmptyString(body.unit, 'unit')
     };
 
-    const brandId = optionalTrimmedString(body.brand_id, 'brand_id');
-    const brandName = optionalTrimmedString(body.brand_name, 'brand_name');
+    const category = optionalTrimmedString(body.category, 'category');
+    if (category !== undefined) {
+      payload.category = category;
+    }
 
-    if (brandId !== undefined) payload.brand_id = brandId;
-    else delete payload.brand_id;
-
-    if (brandName !== undefined) payload.brand_name = brandName;
-    else delete payload.brand_name;
+    if (body.min_quantity !== '' && body.min_quantity != null) {
+      const minQ = Number(body.min_quantity);
+      if (!Number.isFinite(minQ) || minQ < 0) {
+        throw new AppError('min_quantity must be a non-negative number', 400);
+      }
+      payload.min_quantity = minQ;
+    }
 
     const result = await createItemService(payload, req.companyId, kitchenActorUserId(req));
     res.status(201).json({ success: true, data: result });
@@ -366,6 +460,9 @@ export const listCatalogMenus = async (req, res, next) => {
 };
 
 const MEAL_SLOTS = new Set(['BREAKFAST', 'LUNCH', 'DINNER']);
+
+/** Filter values for `GET /kitchen/plans?status=` (upstream kitchen inventory API). */
+const PLAN_LIST_STATUSES = new Set(['DRAFT', 'SUBMITTED', 'APPROVED', 'ISSUED']);
 
 /** Path segment for upstream `/v2/menus/by-kind/{seg}/...` (veg | non_veg). */
 const normalizeMenuKindSegment = (raw) => {
@@ -617,8 +714,70 @@ export const listMenuCombos = async (req, res, next) => {
 
 export const generatePlan = async (req, res, next) => {
   try {
-    const result = await generatePlanService(req.body, req.companyId, kitchenActorUserId(req));
+    const body = req.body || {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      throw new AppError('Request body must be an object', 400);
+    }
+
+    const plan_date = requireNonEmptyString(body.plan_date, 'plan_date').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(plan_date)) {
+      throw new AppError('plan_date must be YYYY-MM-DD', 400);
+    }
+
+    let overwrite_existing = false;
+    if (body.overwrite_existing !== undefined && body.overwrite_existing !== null) {
+      if (typeof body.overwrite_existing !== 'boolean') {
+        throw new AppError('overwrite_existing must be a boolean', 400);
+      }
+      overwrite_existing = body.overwrite_existing;
+    }
+
+    const payload = { plan_date, overwrite_existing };
+    const msRaw = body.meal_slot ?? body.mealSlot;
+    if (msRaw != null && String(msRaw).trim() !== '') {
+      const meal_slot = String(msRaw).trim().toUpperCase();
+      if (!MEAL_SLOTS.has(meal_slot)) {
+        throw new AppError('meal_slot must be BREAKFAST, LUNCH, or DINNER', 400);
+      }
+      payload.meal_slot = meal_slot;
+    }
+
+    const upstreamUserId = await resolveUpstreamUserIdForPlanGenerate(req);
+    const result = await generatePlanService(payload, req.companyId, upstreamUserId);
     res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listPlans = async (req, res, next) => {
+  try {
+    const query = {};
+    const statusRaw = req.query?.status;
+    if (statusRaw != null && String(statusRaw).trim() !== '') {
+      const status = String(statusRaw).trim().toUpperCase();
+      if (!PLAN_LIST_STATUSES.has(status)) {
+        throw new AppError('status must be DRAFT, SUBMITTED, APPROVED, or ISSUED', 400);
+      }
+      query.status = status;
+    }
+    const pdRaw = req.query?.plan_date;
+    if (pdRaw != null && String(pdRaw).trim() !== '') {
+      const plan_date = String(pdRaw).trim().slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(plan_date)) {
+        throw new AppError('plan_date must be YYYY-MM-DD', 400);
+      }
+      query.plan_date = plan_date;
+    }
+    if (req.query?.limit != null && String(req.query.limit).trim() !== '') {
+      const lim = Number(req.query.limit);
+      if (!Number.isFinite(lim) || lim < 1 || lim > 500) {
+        throw new AppError('limit must be between 1 and 500', 400);
+      }
+      query.limit = Math.floor(lim);
+    }
+    const result = await listPlansService(query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
@@ -645,6 +804,322 @@ export const approvePlan = async (req, res, next) => {
 export const issuePlan = async (req, res, next) => {
   try {
     const result = await issuePlanService(req.params.plan_id, req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const submitPlan = async (req, res, next) => {
+  try {
+    const result = await submitPlanService(req.params.plan_id, req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rejectPlan = async (req, res, next) => {
+  try {
+    const result = await rejectPlanService(req.params.plan_id, req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const patchKitchenPlanLine = async (req, res, next) => {
+  try {
+    const result = await patchKitchenPlanLineService(
+      req.params.plan_id,
+      req.params.line_id,
+      req.body,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPlanDemandVsStoreStock = async (req, res, next) => {
+  try {
+    const result = await getPlanDemandVsStoreStockService(req.params.plan_id, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDeliveryMealCounts = async (req, res, next) => {
+  try {
+    const raw = req.query?.plan_date;
+    if (raw == null || String(raw).trim() === '') {
+      throw new AppError('plan_date query parameter is required (YYYY-MM-DD)', 400);
+    }
+    const query = { plan_date: String(raw).trim() };
+    const slot = req.query?.meal_slot;
+    if (slot != null && String(slot).trim() !== '') {
+      query.meal_slot = String(slot).trim();
+    }
+    const result = await getDeliveryMealCountsService(query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getKitchenHolding = async (req, res, next) => {
+  try {
+    const result = await getKitchenHoldingService(req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createMealProgram = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const code = typeof body.code === 'string' ? body.code.trim() : '';
+    if (!code) {
+      throw new AppError('code is required', 400);
+    }
+    const displayName = optionalTrimmedString(body.display_name, 'display_name');
+    const result = await createMealProgramService(
+      { code, ...(displayName != null ? { display_name: displayName } : {}) },
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listMealPrograms = async (req, res, next) => {
+  try {
+    const result = await listMealProgramsService(req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listMealProgramMenuItemMappings = async (req, res, next) => {
+  try {
+    const query = {};
+    const pid = req.query?.program_id;
+    if (pid != null && String(pid).trim() !== '') {
+      query.program_id = requireIdParam(String(pid), 'program_id');
+    }
+    const result = await listMealProgramMenuItemMappingsService(query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const postMealProgramMenuItemMapping = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const menuItemId = requireIdParam(body.menu_item_id, 'menu_item_id');
+    const programId = requireIdParam(body.program_id, 'program_id');
+    const result = await postMealProgramMenuItemMappingService(
+      { menu_item_id: menuItemId, program_id: programId },
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMealProgramMenuItemMapping = async (req, res, next) => {
+  try {
+    const mappingId = requireIdParam(req.params.mapping_id, 'mapping_id');
+    const result = await deleteMealProgramMenuItemMappingService(mappingId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMealProgramRecipeLines = async (req, res, next) => {
+  try {
+    const programId = requireIdParam(req.params.program_id, 'program_id');
+    const result = await getMealProgramRecipeLinesService(programId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const upsertMealProgramRecipeLine = async (req, res, next) => {
+  try {
+    const programId = requireIdParam(req.params.program_id, 'program_id');
+    const body = req.body || {};
+    const inventoryItemId = requireIdParam(body.inventory_item_id, 'inventory_item_id');
+    requirePositiveNumber(body.quantity_per_unit, 'quantity_per_unit');
+    const unit =
+      body.unit != null && typeof body.unit === 'string' && body.unit.trim() !== '' ? body.unit.trim() : 'unit';
+    const result = await upsertMealProgramRecipeLineService(
+      programId,
+      { inventory_item_id: inventoryItemId, quantity_per_unit: body.quantity_per_unit, unit },
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMealProgramRecipeLine = async (req, res, next) => {
+  try {
+    const programId = requireIdParam(req.params.program_id, 'program_id');
+    const lineId = requireIdParam(req.params.line_id, 'line_id');
+    const result = await deleteMealProgramRecipeLineService(programId, lineId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getNextDayReadiness = async (req, res, next) => {
+  try {
+    const result = await getNextDayReadinessService(req.query || {}, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const postPhysicalVsSystem = async (req, res, next) => {
+  try {
+    const result = await postPhysicalVsSystemService(req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createReconciliationSession = async (req, res, next) => {
+  try {
+    const result = await createReconciliationSessionService(req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const patchReconciliationSession = async (req, res, next) => {
+  try {
+    const sessionId = requireIdParam(req.params.session_id, 'session_id');
+    const result = await patchReconciliationSessionService(sessionId, req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const putReconciliationSessionLines = async (req, res, next) => {
+  try {
+    const sessionId = requireIdParam(req.params.session_id, 'session_id');
+    const result = await putReconciliationSessionLinesService(sessionId, req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const finalizeReconciliationSession = async (req, res, next) => {
+  try {
+    const sessionId = requireIdParam(req.params.session_id, 'session_id');
+    const result = await finalizeReconciliationSessionService(sessionId, req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listReconciliationSessions = async (req, res, next) => {
+  try {
+    const result = await listReconciliationSessionsService(req.query || {}, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getReconciliationSession = async (req, res, next) => {
+  try {
+    const sessionId = requireIdParam(req.params.session_id, 'session_id');
+    const result = await getReconciliationSessionService(sessionId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const patchReconciliationSessionLineManagerReview = async (req, res, next) => {
+  try {
+    const sessionId = requireIdParam(req.params.session_id, 'session_id');
+    const lineId = requireIdParam(req.params.line_id, 'line_id');
+    const result = await patchReconciliationSessionLineManagerReviewService(
+      sessionId,
+      lineId,
+      req.body,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const pendingImageUploadUrl = async (req, res, next) => {
+  try {
+    const result = await pendingImageUploadUrlService(req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateRecipeLine = async (req, res, next) => {
+  try {
+    const result = await updateRecipeLineService(req.params.line_id, req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteRecipeLine = async (req, res, next) => {
+  try {
+    const result = await deleteRecipeLineService(req.params.line_id, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const quickApproveDailySubmitted = async (req, res, next) => {
+  try {
+    const result = await quickApproveDailySubmittedService(req.body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const autoPurchaseFromCountVariance = async (req, res, next) => {
+  try {
+    const result = await autoPurchaseFromCountVarianceService(req.body, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -1017,6 +1492,24 @@ export const downloadApprovedPurchaseRequestLinesTxt = async (req, res, next) =>
   }
 };
 
+export const downloadApprovedPurchaseRequestLinesPdf = async (req, res, next) => {
+  try {
+    const requestId = requireIdParam(req.params.request_id, 'request_id');
+    const result = await downloadApprovedPurchaseRequestLinesPdfService(requestId, req.companyId, kitchenActorUserId(req));
+    if (result?.headers?.contentType) {
+      res.setHeader('Content-Type', result.headers.contentType);
+    } else {
+      res.setHeader('Content-Type', 'application/pdf');
+    }
+    if (result?.headers?.contentDisposition) {
+      res.setHeader('Content-Disposition', result.headers.contentDisposition);
+    }
+    res.status(200).send(result.data);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getPurchaseRequestComparison = async (req, res, next) => {
   try {
     const requestId = requireIdParam(req.params.request_id, 'request_id');
@@ -1311,6 +1804,80 @@ export const getReceiptInvoiceTraceability = async (req, res, next) => {
     const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
     const result = await getReceiptInvoiceTraceabilityService(receiptId, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const assertOptionalReportDateQuery = (query) => {
+  const q = query || {};
+  for (const key of ['week_start', 'week_end', 'from', 'to', 'as_of']) {
+    const raw = q[key];
+    if (raw == null || raw === '') continue;
+    const s = typeof raw === 'string' ? raw.trim() : String(raw);
+    if (!ISO_DATE_RE.test(s)) {
+      throw new AppError(`${key} must be a calendar date in YYYY-MM-DD format`, 400);
+    }
+  }
+};
+
+export const getPurchaseTypeSummaryReport = async (req, res, next) => {
+  try {
+    assertOptionalReportDateQuery(req.query);
+    const result = await getPurchaseTypeSummaryReportService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getWeeklyGovernanceReport = async (req, res, next) => {
+  try {
+    assertOptionalReportDateQuery(req.query);
+    const result = await getWeeklyGovernanceReportService(req.query, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const downloadWeeklyGovernancePdf = async (req, res, next) => {
+  try {
+    assertOptionalReportDateQuery(req.query);
+    const result = await getWeeklyGovernancePdfReportService(req.query, req.companyId, kitchenActorUserId(req));
+    if (result?.headers?.contentType) {
+      res.setHeader('Content-Type', result.headers.contentType);
+    } else {
+      res.setHeader('Content-Type', 'application/pdf');
+    }
+    if (result?.headers?.contentDisposition) {
+      res.setHeader('Content-Disposition', result.headers.contentDisposition);
+    } else {
+      res.setHeader('Content-Disposition', 'attachment; filename="weekly-governance.pdf"');
+    }
+    res.status(200).send(Buffer.from(result.data));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const downloadWeeklyGovernanceCsv = async (req, res, next) => {
+  try {
+    assertOptionalReportDateQuery(req.query);
+    const result = await getWeeklyGovernanceCsvReportService(req.query, req.companyId, kitchenActorUserId(req));
+    if (result?.headers?.contentType) {
+      res.setHeader('Content-Type', result.headers.contentType);
+    } else {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    }
+    if (result?.headers?.contentDisposition) {
+      res.setHeader('Content-Disposition', result.headers.contentDisposition);
+    } else {
+      res.setHeader('Content-Disposition', 'attachment; filename="weekly-governance.csv"');
+    }
+    res.status(200).send(Buffer.from(result.data));
   } catch (error) {
     next(error);
   }

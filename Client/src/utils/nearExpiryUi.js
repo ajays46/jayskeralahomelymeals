@@ -32,6 +32,41 @@ export function compareNearExpiryInfo(a, b) {
  * @param {unknown[]} rows
  * @returns {Record<string, { status: string, days_until_expiry: number|null, expiry_date: string, batch_count: number }>}
  */
+/**
+ * Normalize API near-expiry batch rows for display (one list entry per batch).
+ * Sorted worst-first like the table aggregate.
+ * @param {unknown[]} rows
+ * @returns {Array<{ batch_id: string, inventory_item_id: string, item_name: string, remaining_quantity: string, days_until_expiry: number|null, status: string, expiry_date: string }>}
+ */
+export function normalizeNearExpiryBatchRows(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  return list
+    .map((raw) => {
+      const batch_id = String(raw?.batch_id ?? '').trim();
+      const inventory_item_id = String(raw?.inventory_item_id ?? raw?.item_id ?? '').trim();
+      const status = String(raw?.status || 'APPROACHING').toUpperCase();
+      const n = raw?.days_until_expiry != null ? Number(raw.days_until_expiry) : NaN;
+      const days_until_expiry = Number.isFinite(n) ? n : null;
+      const expiry_date = raw?.expiry_date != null ? String(raw.expiry_date) : '';
+      const item_name = String(raw?.item_name ?? '').trim() || 'Unknown item';
+      const remaining_quantity =
+        raw?.remaining_quantity != null ? String(raw.remaining_quantity).trim() : '';
+      return {
+        batch_id,
+        inventory_item_id,
+        item_name,
+        remaining_quantity,
+        days_until_expiry,
+        status,
+        expiry_date,
+        ui_color_hint: raw?.ui_color_hint != null ? String(raw.ui_color_hint).toLowerCase() : '',
+        ui_severity_rank: raw?.ui_severity_rank != null && Number.isFinite(Number(raw.ui_severity_rank)) ? Number(raw.ui_severity_rank) : null
+      };
+    })
+    .filter((r) => r.batch_id || r.inventory_item_id)
+    .sort((a, b) => compareNearExpiryInfo(a, b));
+}
+
 export function mergeNearExpiryRowsIntoMap(rows) {
   const map = {};
   const list = Array.isArray(rows) ? rows : [];
@@ -69,6 +104,10 @@ export function mergeNearExpiryRowsIntoMap(rows) {
 /** Tailwind classes for table row background + left accent (stock listing). */
 export function nearExpiryRowClassName(info) {
   if (!info) return '';
+  const hint = String(info.ui_color_hint || '').toLowerCase();
+  if (hint === 'danger' || hint === 'critical') return 'bg-red-50/95 border-l-4 border-l-red-600';
+  if (hint === 'warning') return 'bg-amber-50/85 border-l-4 border-l-amber-500';
+  if (hint === 'caution') return 'bg-yellow-50/80 border-l-4 border-l-yellow-400';
   const s = String(info.status || '').toUpperCase();
   if (s === 'EXPIRED') return 'bg-red-50/95 border-l-4 border-l-red-600';
   if (s === 'CRITICAL') return 'bg-orange-50/90 border-l-4 border-l-orange-500';

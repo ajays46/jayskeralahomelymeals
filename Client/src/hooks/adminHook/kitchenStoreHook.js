@@ -1,12 +1,124 @@
 /**
- * @feature kitchen-store — React hooks and `/kitchen-store` API wiring for store manager/operator UIs.
+ * @feature kitchen-store — React hooks for store manager/operator UIs.
+ * Kitchen plans use guide path `/max_kitchen/v1/kitchen/plans/…` (POST generate, GET list|detail, demand-vs-store, POST submit/issue).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../../api/axios';
-import { API } from '../../api/endpoints';
-import { mergeNearExpiryRowsIntoMap } from '../../utils/nearExpiryUi.js';
+import { API, readMaxKitchenClientEnvelope } from '../../api/endpoints';
+import { mergeNearExpiryRowsIntoMap, normalizeNearExpiryBatchRows } from '../../utils/nearExpiryUi.js';
+
+const KitchenStoreContext = React.createContext(null);
+
+/** Guide §9.5 — BFF `GET|POST /max_kitchen/v1/kitchen/plans/…` (same controllers as kitchen-store `/v2/plans`). */
+const KITCHEN_PLANS_V1 = `${API.MAX_KITCHEN_KITCHEN}/plans`;
+
+/** `GET /kitchen/plans` may return an array or `{ items|plans|results|rows }`. */
+const extractPlanListPayload = (data) => {
+  if (data == null) return [];
+  if (Array.isArray(data)) return data;
+  if (typeof data !== 'object') return [];
+  if (Array.isArray(data.items)) return data.items;
+  if (Array.isArray(data.plans)) return data.plans;
+  if (Array.isArray(data.results)) return data.results;
+  if (Array.isArray(data.rows)) return data.rows;
+  return [];
+};
+
+const planIdFromListRow = (row) => {
+  if (!row || typeof row !== 'object') return '';
+  const id = row.id ?? row.plan_id ?? row.planId;
+  return id != null && String(id).trim() !== '' ? String(id).trim() : '';
+};
 
 const toNum = (value) => Number(Number(value || 0).toFixed(4));
+
+/**
+ * Parse `data` from `GET /purchase/purchases/recommendations`.
+ * Supports `{ forecast_date, items: [] }` (inventory_purchase_recommendations) and legacy array / `{ recommendations }`.
+ */
+const parsePurchaseRecommendationsPayload = (recData) => {
+  if (!recData || typeof recData !== 'object') {
+    return { batchForecastDate: null, rawItems: [] };
+  }
+  if (Array.isArray(recData.items)) {
+    return {
+      batchForecastDate: recData.forecast_date != null && recData.forecast_date !== '' ? recData.forecast_date : null,
+      rawItems: recData.items
+    };
+  }
+  if (Array.isArray(recData)) {
+    return { batchForecastDate: null, rawItems: recData };
+  }
+  if (Array.isArray(recData.recommendations)) {
+    return {
+      batchForecastDate: recData.forecast_date != null && recData.forecast_date !== '' ? recData.forecast_date : null,
+      rawItems: recData.recommendations
+    };
+  }
+  return {
+    batchForecastDate: recData.forecast_date != null && recData.forecast_date !== '' ? recData.forecast_date : null,
+    rawItems: []
+  };
+};
+
+/** `GET /inventory/forecasts/inventory` — `{ forecast_date, items[] }` or legacy array / `{ forecasts }`. */
+const parseInventoryDemandForecastsPayload = (raw) => {
+  if (raw == null || typeof raw !== 'object') return { batchForecastDate: null, items: [] };
+  if (Array.isArray(raw)) return { batchForecastDate: null, items: raw };
+  const batchForecastDate =
+    raw.forecast_date != null && raw.forecast_date !== '' ? String(raw.forecast_date) : null;
+  if (Array.isArray(raw.items)) return { batchForecastDate, items: raw.items };
+  if (Array.isArray(raw.forecasts)) return { batchForecastDate, items: raw.forecasts };
+  return { batchForecastDate, items: [] };
+};
+
+const normalizeInventoryDemandForecastRow = (row, batchForecastDate = null) => ({
+  forecast_date:
+    row.forecast_date != null && row.forecast_date !== ''
+      ? String(row.forecast_date)
+      : batchForecastDate,
+  meal_slot: row.meal_slot != null ? String(row.meal_slot) : '',
+  inventory_item_name: String(row.inventory_item_name || row.item || row.inventory_item || ''),
+  forecast_quantity: toNum(row.forecast_quantity),
+  model_name: row.model_name != null ? String(row.model_name) : '',
+  created_at: row.created_at != null ? String(row.created_at) : ''
+});
+
+/** `GET /inventory/forecasts/financial` — `{ forecast_date, items[] }` or legacy shapes. */
+const parseFinancialForecastsPayload = (raw) => {
+  if (raw == null || typeof raw !== 'object') return { batchForecastDate: null, items: [] };
+  if (Array.isArray(raw)) return { batchForecastDate: null, items: raw };
+  const batchForecastDate =
+    raw.forecast_date != null && raw.forecast_date !== '' ? String(raw.forecast_date) : null;
+  if (Array.isArray(raw.items)) return { batchForecastDate, items: raw.items };
+  if (Array.isArray(raw.forecasts)) return { batchForecastDate, items: raw.forecasts };
+  return { batchForecastDate, items: [] };
+};
+
+const normalizeFinancialForecastRow = (row, batchForecastDate = null) => ({
+  forecast_date:
+    row.forecast_date != null && row.forecast_date !== ''
+      ? String(row.forecast_date)
+      : batchForecastDate,
+  forecast_revenue: toNum(row.forecast_revenue ?? row.revenue),
+  forecast_ingredient_cost: toNum(row.forecast_ingredient_cost ?? row.ingredient_cost ?? row.cost),
+  forecast_gross_margin: toNum(row.forecast_gross_margin ?? row.margin ?? row.gross_margin),
+  model_name: row.model_name != null ? String(row.model_name) : '',
+  created_at: row.created_at != null ? String(row.created_at) : ''
+});
+
+/** Normalize one recommendation row; `batchForecastDate` is used when rows omit per-line `forecast_date`. */
+const normalizePurchaseRecommendationRow = (row, batchForecastDate = null) => ({
+  forecast_date: row.forecast_date != null && row.forecast_date !== '' ? row.forecast_date : batchForecastDate,
+  meal_slot: row.meal_slot || 'ALL',
+  item: row.item || row.inventory_item_name || row.inventory_item || '',
+  forecast_quantity: toNum(row.forecast_quantity),
+  current_quantity: toNum(row.current_quantity),
+  safety_buffer: toNum(row.safety_buffer),
+  recommended_purchase_quantity: toNum(row.recommended_purchase_quantity),
+  model_name: row.model_name != null ? String(row.model_name) : '',
+  created_at: row.created_at != null ? String(row.created_at) : ''
+});
 
 const normalizeItems = (itemsRaw) => {
   const arr = Array.isArray(itemsRaw) ? itemsRaw : [];
@@ -137,6 +249,87 @@ export const KITCHEN_MENU_KIND = {
   NON_VEG: 'non_veg'
 };
 
+/** Meal slots for `plan_date` + demand / delivery counts UIs (guide §2.1). */
+export const KITCHEN_DEMAND_MEAL_SLOTS = Object.freeze(['BREAKFAST', 'LUNCH', 'DINNER']);
+
+/**
+ * Default `plan_date` for kitchen flows: next calendar day in local time as `YYYY-MM-DD`.
+ * Used when operators/managers plan for “tomorrow’s” service.
+ */
+export function kitchenNextServiceDateIso() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const truthyFlag = (v) => v === true || v === 'true' || v === 1 || v === '1';
+
+/**
+ * Whether `GET …/plans/:id/demand-vs-store-stock` (or equivalent) indicates store cannot cover demand.
+ * Accepts several upstream payload shapes: root/summary flags, shortfall arrays, per-line gaps.
+ */
+export function demandPayloadHasStoreShortfall(payload) {
+  if (payload == null || typeof payload !== 'object') return false;
+
+  const flagsTrue = (obj) => {
+    if (!obj || typeof obj !== 'object') return false;
+    for (const k of [
+      'has_store_shortfall',
+      'store_shortfall',
+      'has_shortfall',
+      'shortfall',
+      'hasShortfall',
+      'any_shortfall'
+    ]) {
+      if (k in obj && truthyFlag(obj[k])) return true;
+    }
+    return false;
+  };
+
+  if (flagsTrue(payload) || flagsTrue(payload.summary)) return true;
+
+  for (const k of ['shortfalls', 'shortfall_items', 'gaps', 'store_gaps', 'deficits']) {
+    const arr = payload[k];
+    if (Array.isArray(arr) && arr.length > 0) return true;
+  }
+
+  const lines = Array.isArray(payload.lines) ? payload.lines : [];
+  for (const row of lines) {
+    if (!row || typeof row !== 'object') continue;
+    if (row.store_can_cover_remaining_issue === false) return true;
+    const sfr = toNum(row.store_shortfall_for_remaining ?? 0);
+    if (sfr > 0) return true;
+    if (truthyFlag(row.shortfall) || truthyFlag(row.has_shortfall) || truthyFlag(row.store_shortfall)) {
+      return true;
+    }
+    const gap = toNum(row.gap ?? row.shortfall_quantity ?? row.deficit ?? row.quantity_gap ?? 0);
+    if (gap > 0) return true;
+
+    const need = toNum(
+      row.required_quantity ??
+        row.demand_quantity ??
+        row.planned_quantity ??
+        row.remaining_to_issue ??
+        row.needed ??
+        0
+    );
+    const have = toNum(
+      row.store_quantity ??
+        row.available_quantity ??
+        row.on_hand ??
+        row.current_quantity ??
+        row.inventory_available ??
+        0
+    );
+    if (need > 0 && have < need) return true;
+  }
+
+  return false;
+}
+
 /** @feature kitchen-store — Plan DTO normalization (generate / get / approve / issue). */
 const normalizePlanDetail = (planRaw, itemNameMap) => {
   if (!planRaw) return null;
@@ -149,18 +342,24 @@ const normalizePlanDetail = (planRaw, itemNameMap) => {
   const rawLines = planRaw.lines || planRaw.plan_lines || planRaw.kitchen_daily_plan_lines || [];
   const linesArr = Array.isArray(rawLines) ? rawLines : [];
 
-  const lines = linesArr.map((line) => ({
-    inventory_item_id: String(line.inventory_item_id ?? line.item_id ?? ''),
-    item:
-      line.inventory_item_name ||
-      line.item_name ||
-      itemNameMap[String(line.inventory_item_id ?? line.item_id ?? '')] ||
-      '',
-    required_quantity: toNum(line.required_quantity ?? 0),
-    planned_issue_quantity: toNum(line.planned_issue_quantity ?? line.required_quantity ?? 0),
-    issued_quantity: toNum(line.issued_quantity ?? 0),
-    unit: line.unit || ''
-  }));
+  const lines = linesArr.map((line) => {
+    const inventory_item_id = String(line.inventory_item_id ?? line.item_id ?? '');
+    const lineId = line.id != null && line.id !== '' ? String(line.id) : String(line.line_id ?? '');
+    return {
+      line_id: lineId,
+      inventory_item_id,
+      item:
+        line.inventory_item_name ||
+        line.item_name ||
+        itemNameMap[inventory_item_id] ||
+        '',
+      required_quantity: toNum(line.required_quantity ?? 0),
+      planned_issue_quantity: toNum(line.planned_issue_quantity ?? line.required_quantity ?? 0),
+      issued_quantity: toNum(line.issued_quantity ?? 0),
+      unit: line.unit || '',
+      variance_note: line.variance_note != null ? String(line.variance_note) : ''
+    };
+  });
 
   return {
     id: planId || 'unknown',
@@ -171,19 +370,40 @@ const normalizePlanDetail = (planRaw, itemNameMap) => {
   };
 };
 
-function useKitchenStoreData() {
+/** Normalize kitchen holding API payload to UI rows. */
+const normalizeKitchenHoldingRows = (raw) => {
+  if (!raw || typeof raw !== 'object') return [];
+  const arr = Array.isArray(raw.items)
+    ? raw.items
+    : Array.isArray(raw.lines)
+      ? raw.lines
+      : Array.isArray(raw)
+        ? raw
+        : [];
+  return arr.map((row, idx) => ({
+    key: String(row.inventory_item_id ?? row.item_id ?? row.id ?? idx),
+    inventory_item_id: String(row.inventory_item_id ?? row.item_id ?? ''),
+    inventory_item_name: String(row.inventory_item_name ?? row.item_name ?? row.name ?? ''),
+    quantity: toNum(row.quantity ?? row.on_hand ?? row.holding_quantity ?? 0),
+    updated_at: row.updated_at || row.updatedAt || row.last_moved_at || ''
+  }));
+};
+
+function useKitchenStoreDataInternal() {
   const [items, setItems] = useState([]);
   const [brands, setBrands] = useState([]);
   const [lowStockItems, setLowStockItems] = useState([]);
   const [movements, setMovements] = useState([]);
   const [plans, setPlans] = useState([]);
   const [recipeLines, setRecipeLines] = useState([]);
+  const [kitchenHoldingItems, setKitchenHoldingItems] = useState([]);
 
   const [pipelineRuns, setPipelineRuns] = useState([]);
   const [demandForecasts, setDemandForecasts] = useState([]);
   const [financialForecasts, setFinancialForecasts] = useState([]);
   const [purchaseSuggestions, setPurchaseSuggestions] = useState([]);
   const [nearExpiryByItemId, setNearExpiryByItemId] = useState({});
+  const [nearExpiryBatches, setNearExpiryBatches] = useState([]);
   const [nearExpiryMeta, setNearExpiryMeta] = useState({ total_count: 0, days_threshold: 7 });
 
   const [apiAvailable, setApiAvailable] = useState(false);
@@ -224,12 +444,14 @@ function useKitchenStoreData() {
       const nearData = nearRes.data?.data || {};
       const rows = Array.isArray(nearData.items) ? nearData.items : [];
       setNearExpiryByItemId(mergeNearExpiryRowsIntoMap(rows));
+      setNearExpiryBatches(normalizeNearExpiryBatchRows(rows));
       setNearExpiryMeta({
         total_count: Number(nearData.total_count ?? rows.length) || 0,
         days_threshold: Number(nearData.days_threshold ?? 7) || 7
       });
     } catch {
       setNearExpiryByItemId({});
+      setNearExpiryBatches([]);
       setNearExpiryMeta({ total_count: 0, days_threshold: 7 });
     }
   }, []);
@@ -313,7 +535,7 @@ function useKitchenStoreData() {
           if (planId) {
             const today = new Date().toISOString().slice(0, 10);
             try {
-              const pRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/plans/${planId}`);
+              const pRes = await api.get(`${KITCHEN_PLANS_V1}/${planId}`);
               const pData = pRes.data?.data;
               const mapped = normalizePlanDetail(pData, localItemNameMap);
               if (!cancelled && mapped) {
@@ -331,16 +553,16 @@ function useKitchenStoreData() {
           if (!planLoaded && !cancelled) {
             const today = new Date().toISOString().slice(0, 10);
             try {
-              const genRes = await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/plans/generate`, {
+              const genRes = await api.post(`${KITCHEN_PLANS_V1}/generate`, {
                 plan_date: today,
-                meal_slot: 'ALL',
+                meal_slot: 'LUNCH',
                 overwrite_existing: false
               });
               const genData = genRes.data?.data || {};
               const newPlanId = String(genData.plan_id || genData.planId || '');
               if (newPlanId) {
                 localStorage.setItem('kitchen_store_latest_plan_id', newPlanId);
-                const pRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/plans/${newPlanId}`);
+                const pRes = await api.get(`${KITCHEN_PLANS_V1}/${newPlanId}`);
                 const pData = pRes.data?.data;
                 const mapped = normalizePlanDetail(pData, localItemNameMap);
                 if (!cancelled && mapped) setPlans([mapped]);
@@ -388,16 +610,8 @@ function useKitchenStoreData() {
         try {
           const recRes = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchases/recommendations`);
           const recData = recRes.data?.data || {};
-          const recArr = recData || [];
-          const mapped = (Array.isArray(recArr) ? recArr : recData?.recommendations || []).map((row) => ({
-            forecast_date: row.forecast_date,
-            meal_slot: row.meal_slot || 'ALL',
-            item: row.item || row.inventory_item_name || row.inventory_item || '',
-            forecast_quantity: toNum(row.forecast_quantity),
-            current_quantity: toNum(row.current_quantity),
-            safety_buffer: toNum(row.safety_buffer),
-            recommended_purchase_quantity: toNum(row.recommended_purchase_quantity)
-          }));
+          const { batchForecastDate, rawItems } = parsePurchaseRecommendationsPayload(recData);
+          const mapped = rawItems.map((row) => normalizePurchaseRecommendationRow(row, batchForecastDate));
           if (!cancelled && mapped.length > 0) setPurchaseSuggestions(mapped);
         } catch {
           // keep mock
@@ -593,13 +807,46 @@ function useKitchenStoreData() {
     }
   };
 
-  // @feature kitchen-store — approvePlan / issuePlan / refreshPlan
-  const refreshPlan = async (planId) => {
-    const pRes = await api.get(`${API.MAX_KITCHEN}/kitchen-store/v2/plans/${planId}`);
-    const pData = pRes.data?.data;
+  // @feature kitchen-store — GET /kitchen/plans/:plan_id (BFF: `${KITCHEN_PLANS_V1}/:id`) → approve/issue/refresh
+  const refreshPlan = useCallback(async (planId) => {
+    const raw = String(planId || '').trim();
+    if (!raw) return null;
+    const id = encodeURIComponent(raw);
+    const pRes = await api.get(`${KITCHEN_PLANS_V1}/${id}`);
+    const pData = readMaxKitchenClientEnvelope(pRes);
     const mapped = normalizePlanDetail(pData, itemNameMap);
-    if (mapped) setPlans([mapped]);
-  };
+    if (!mapped || !mapped.id || mapped.id === 'unknown') {
+      const msg =
+        (pRes?.data && typeof pRes.data === 'object' && (pRes.data.message || pRes.data.detail)) ||
+        'Plan not found or invalid response.';
+      throw new Error(String(msg));
+    }
+    setPlans((prev) => {
+      const list = Array.isArray(prev) ? prev : [];
+      const idx = list.findIndex((p) => String(p.id) === String(mapped.id));
+      if (idx === -1) return [...list, mapped];
+      const next = [...list];
+      next[idx] = mapped;
+      return next;
+    });
+    return mapped;
+  }, [itemNameMap]);
+
+  /** `GET /kitchen/plans` — optional `status`, `plan_date`, `limit` (e.g. manager inbox: `status=SUBMITTED`). */
+  const listKitchenPlans = useCallback(async (params = {}) => {
+    if (!apiAvailable) {
+      return { ok: false, message: 'Kitchen Store API unavailable', rows: [], ids: [] };
+    }
+    try {
+      const res = await api.get(KITCHEN_PLANS_V1, { params });
+      const data = readMaxKitchenClientEnvelope(res);
+      const rows = extractPlanListPayload(data);
+      const ids = [...new Set(rows.map(planIdFromListRow).filter(Boolean))];
+      return { ok: true, rows, ids, raw: data };
+    } catch (e) {
+      return { ok: false, message: getApiErrorMessage(e, 'List plans failed'), rows: [], ids: [] };
+    }
+  }, [apiAvailable]);
 
   const approvePlan = async (planId, approver = 'Store Manager') => {
     if (!apiAvailable) {
@@ -607,11 +854,21 @@ function useKitchenStoreData() {
     }
 
     try {
-      await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/plans/${planId}/approve`, { note: `Approved by ${approver}` });
+      await api.post(`${KITCHEN_PLANS_V1}/${encodeURIComponent(planId)}/approve`, { note: `Approved by ${approver}` });
+    } catch (e) {
+      return { ok: false, message: getApiErrorMessage(e, 'Approve failed') };
+    }
+    try {
       await refreshPlan(planId);
     } catch {
-      // fallback: keep UX flow
-      setPlans((prev) => prev.map((p) => (p.id === planId && p.status === 'DRAFT' ? { ...p, status: 'APPROVED', approved_by: approver } : p)));
+      // Approve succeeded; GET /plans/:id failed — optimistically sync status for list UI
+      setPlans((prev) =>
+        prev.map((p) =>
+          String(p.id) === String(planId) && String(p.status || '').toUpperCase() === 'DRAFT'
+            ? { ...p, status: 'APPROVED', approved_by: approver }
+            : p
+        )
+      );
     }
   };
 
@@ -621,8 +878,7 @@ function useKitchenStoreData() {
     }
 
     try {
-      await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/plans/${planId}/issue`, { note: `Issued by ${operator}` });
-      // refresh plan and items
+      await api.post(`${KITCHEN_PLANS_V1}/${encodeURIComponent(planId)}/issue`, { note: `Issued by ${operator}` });
       await refreshPlan(planId);
       try {
         const itemsRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, {
@@ -634,23 +890,165 @@ function useKitchenStoreData() {
       } catch {
         // ignore
       }
+      return { ok: true };
     } catch (e) {
       const detail = e?.response?.data?.detail || e?.response?.data?.message || '';
-      const mightBeApprovalIssue = (detail || '').toLowerCase().includes('approve') || (detail || '').toLowerCase().includes('approved');
-
-      if (mightBeApprovalIssue) {
-        try {
-          // Try to keep the Plan -> Approve -> Issue UX working even if the approval endpoint exists
-          await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/plans/${planId}/approve`, { note: `Auto-approved by ${operator} (retry)` });
-          await api.post(`${API.MAX_KITCHEN}/kitchen-store/v2/plans/${planId}/issue`, { note: `Issued by ${operator}` });
-          await refreshPlan(planId);
-          return { ok: true, message: `Plan ${planId} issued after approval retry.` };
-        } catch {
-          // fallthrough
-        }
-      }
-
       return { ok: false, message: detail || e?.message || 'Issue failed' };
+    }
+  };
+
+  const appendPlanIdForDate = (planDate, planId) => {
+    if (typeof localStorage === 'undefined' || !planDate || !planId) return;
+    const key = `kitchen_store_plan_ids_${String(planDate).trim()}`;
+    let ids = [];
+    try {
+      ids = JSON.parse(localStorage.getItem(key) || '[]');
+    } catch {
+      ids = [];
+    }
+    if (!Array.isArray(ids)) ids = [];
+    const s = String(planId);
+    if (!ids.includes(s)) {
+      ids.push(s);
+      localStorage.setItem(key, JSON.stringify(ids));
+    }
+  };
+
+  const refreshKitchenHolding = useCallback(async () => {
+    try {
+      const res = await api.get(`${API.MAX_KITCHEN_KITCHEN}/kitchen-holding`);
+      const data = res.data?.data;
+      setKitchenHoldingItems(normalizeKitchenHoldingRows(data));
+    } catch {
+      setKitchenHoldingItems([]);
+    }
+  }, []);
+
+  const generatePlanForSlot = async ({ plan_date, meal_slot, overwrite_existing }) => {
+    if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
+    const pd = String(plan_date || '').trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(pd)) {
+      return { ok: false, message: 'plan_date must be YYYY-MM-DD' };
+    }
+    try {
+      const body = {
+        plan_date: pd,
+        overwrite_existing: Boolean(overwrite_existing)
+      };
+      const slot = meal_slot != null && String(meal_slot).trim() !== '' ? String(meal_slot).trim().toUpperCase() : '';
+      if (slot) {
+        body.meal_slot = slot;
+      }
+      const genRes = await api.post(`${KITCHEN_PLANS_V1}/generate`, body);
+      const data = genRes.data?.data ?? {};
+      const pid = String(data.plan_id || data.planId || '');
+      if (!pid) return { ok: false, message: 'No plan_id in response' };
+      localStorage.setItem('kitchen_store_latest_plan_id', pid);
+      appendPlanIdForDate(pd, pid);
+      await refreshPlan(pid);
+      return {
+        ok: true,
+        message: 'Plan generated',
+        planId: pid,
+        data: {
+          status: data.status,
+          plan_date: data.plan_date ?? pd,
+          meal_slot: data.meal_slot ?? (slot || null),
+          line_count: data.line_count ?? data.lineCount
+        }
+      };
+    } catch (e) {
+      const status = e?.response?.status;
+      const message = getApiErrorMessage(e, 'Generate failed');
+      return { ok: false, status, message };
+    }
+  };
+
+  const syncPlansFromServerForDate = async (planDate) => {
+    const pd = String(planDate || '').trim();
+    if (!pd) return { ok: false, message: 'plan_date required', loadedCount: 0, hintCount: 0 };
+
+    let ids = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(`kitchen_store_plan_ids_${pd}`) || '[]');
+      if (Array.isArray(parsed)) ids = parsed.map(String).filter(Boolean);
+    } catch {
+      ids = [];
+    }
+    const latest = typeof localStorage !== 'undefined' ? localStorage.getItem('kitchen_store_latest_plan_id') : '';
+    if (latest && !ids.includes(latest)) ids = [latest, ...ids];
+    ids = [...new Set(ids)];
+
+    const loaded = [];
+    let hintCount = 0;
+    for (const pid of ids) {
+      try {
+        const pRes = await api.get(`${KITCHEN_PLANS_V1}/${encodeURIComponent(pid)}`);
+        const mapped = normalizePlanDetail(readMaxKitchenClientEnvelope(pRes), itemNameMap);
+        if (mapped) {
+          const rowDate = mapped.plan_date ? String(mapped.plan_date).slice(0, 10) : '';
+          if (!rowDate || rowDate === pd) loaded.push(mapped);
+        }
+      } catch {
+        hintCount += 1;
+      }
+    }
+
+    if (loaded.length > 0) {
+      const byId = new Map();
+      loaded.forEach((p) => byId.set(p.id, p));
+      setPlans([...byId.values()]);
+    }
+
+    return { ok: true, loadedCount: loaded.length, hintCount };
+  };
+
+  const submitPlan = async (planId, note = '') => {
+    if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
+    try {
+      await api.post(`${KITCHEN_PLANS_V1}/${encodeURIComponent(planId)}/submit`, {
+        ...(String(note || '').trim() ? { note: String(note).trim() } : {})
+      });
+      await refreshPlan(planId);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, message: getApiErrorMessage(e, 'Submit failed') };
+    }
+  };
+
+  const fetchPlanDemandVsStore = async (planId) => {
+    try {
+      const res = await api.get(`${KITCHEN_PLANS_V1}/${encodeURIComponent(planId)}/demand-vs-store-stock`);
+      return { ok: true, data: res.data?.data ?? res.data ?? {} };
+    } catch (e) {
+      return { ok: false, message: getApiErrorMessage(e, 'Demand vs store failed'), data: null };
+    }
+  };
+
+  const rejectPlan = async (planId, note = '') => {
+    if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
+    try {
+      await api.post(`${KITCHEN_PLANS_V1}/${encodeURIComponent(planId)}/reject`, {
+        note: note || ''
+      });
+      await refreshPlan(planId);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, message: getApiErrorMessage(e, 'Reject failed') };
+    }
+  };
+
+  const patchPlanLine = async (planId, lineId, body) => {
+    if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
+    try {
+      await api.patch(
+        `${KITCHEN_PLANS_V1}/${encodeURIComponent(planId)}/lines/${encodeURIComponent(lineId)}`,
+        body
+      );
+      await refreshPlan(planId);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, message: getApiErrorMessage(e, 'Patch line failed') };
     }
   };
 
@@ -701,6 +1099,16 @@ function useKitchenStoreData() {
     expireStock,
     approvePlan,
     issuePlan,
+    refreshPlan,
+    submitPlan,
+    fetchPlanDemandVsStore,
+    generatePlanForSlot,
+    syncPlansFromServerForDate,
+    listKitchenPlans,
+    rejectPlan,
+    patchPlanLine,
+    kitchenHoldingItems,
+    refreshKitchenHolding,
     addRecipeLine: upsertRecipeLine,
     deleteRecipeLine,
     createItem,
@@ -718,9 +1126,26 @@ function useKitchenStoreData() {
     financialForecasts,
     purchaseSuggestions,
     nearExpiryByItemId,
+    nearExpiryBatches,
     nearExpiryMeta,
     refreshNearExpiry
   };
+}
+
+function useKitchenStoreData() {
+  const ctx = useContext(KitchenStoreContext);
+  if (ctx == null) {
+    throw new Error(
+      'Kitchen store hooks require <KitchenStoreProvider>. Wrap store routes (see App.jsx).'
+    );
+  }
+  return ctx;
+}
+
+/** Single shared inventory / plans / recipe bootstrap for nested store-manager and store-operator routes. */
+export function KitchenStoreProvider({ children }) {
+  const value = useKitchenStoreDataInternal();
+  return React.createElement(KitchenStoreContext.Provider, { value }, children);
 }
 
 export const useKitchenInventoryMock = () => {
@@ -742,6 +1167,7 @@ export const useKitchenInventoryMock = () => {
     removeStock: data.removeStock,
     expireStock: data.expireStock,
     nearExpiryByItemId: data.nearExpiryByItemId,
+    nearExpiryBatches: data.nearExpiryBatches,
     nearExpiryMeta: data.nearExpiryMeta,
     refreshNearExpiry: data.refreshNearExpiry
   };
@@ -750,13 +1176,33 @@ export const useKitchenInventoryMock = () => {
 /** @feature kitchen-store */
 export const useKitchenPlansMock = () => {
   const data = useKitchenStoreData();
-  return { plans: data.plans, approvePlan: data.approvePlan };
+  return {
+    plans: data.plans,
+    approvePlan: data.approvePlan,
+    rejectPlan: data.rejectPlan,
+    patchPlanLine: data.patchPlanLine,
+    refreshPlan: data.refreshPlan,
+    generatePlanForSlot: data.generatePlanForSlot,
+    syncPlansFromServerForDate: data.syncPlansFromServerForDate,
+    listKitchenPlans: data.listKitchenPlans
+  };
 };
 
 /** @feature kitchen-store */
 export const useKitchenIssueMock = () => {
   const data = useKitchenStoreData();
-  return { plans: data.plans, issued: data.plans?.some((p) => p.status === 'ISSUED'), issuedBy: data.plans?.find((p) => p.status === 'ISSUED')?.issued_by, issuePlan: data.issuePlan };
+  return {
+    plans: data.plans,
+    issued: data.plans?.some((p) => p.status === 'ISSUED'),
+    issuedBy: data.plans?.find((p) => p.status === 'ISSUED')?.issued_by,
+    issuePlan: data.issuePlan,
+    submitPlan: data.submitPlan,
+    fetchPlanDemandVsStore: data.fetchPlanDemandVsStore,
+    refreshPlan: data.refreshPlan,
+    syncPlansFromServerForDate: data.syncPlansFromServerForDate,
+    kitchenHoldingItems: Array.isArray(data.kitchenHoldingItems) ? data.kitchenHoldingItems : [],
+    refreshKitchenHolding: data.refreshKitchenHolding
+  };
 };
 
 export const useKitchenReportsMock = () => {
@@ -1059,6 +1505,42 @@ export const useKitchenWeeklyRecipeBom = ({
     }
   }, [fetchRecipeLinesForMenuItem]);
 
+  const recipeLinesV2Base = `${API.MAX_KITCHEN}/kitchen-store/v2/recipes/lines`;
+
+  const updateRecipeLineForMenuItem = useCallback(
+    async ({ id, menu_item_id: menuItemId, quantity_per_unit: qty, unit }) => {
+      try {
+        await api.put(`${recipeLinesV2Base}/${encodeURIComponent(String(id))}`, {
+          menu_item_id: menuItemId,
+          quantity_per_unit: qty,
+          unit
+        });
+        await fetchRecipeLinesForMenuItem(menuItemId);
+        return { ok: true };
+      } catch (e) {
+        const msg =
+          e?.response?.data?.message || e?.response?.data?.detail || e?.message || 'Failed to update recipe line';
+        return { ok: false, message: msg };
+      }
+    },
+    [fetchRecipeLinesForMenuItem, recipeLinesV2Base]
+  );
+
+  const deleteRecipeLineForMenuItem = useCallback(
+    async (lineId, menuItemId) => {
+      try {
+        await api.delete(`${recipeLinesV2Base}/${encodeURIComponent(String(lineId))}`);
+        await fetchRecipeLinesForMenuItem(menuItemId);
+        return { ok: true };
+      } catch (e) {
+        const msg =
+          e?.response?.data?.message || e?.response?.data?.detail || e?.message || 'Failed to delete recipe line';
+        return { ok: false, message: msg };
+      }
+    },
+    [fetchRecipeLinesForMenuItem, recipeLinesV2Base]
+  );
+
   const searchInventoryItems = useCallback(async (q) => {
     try {
       const res = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, {
@@ -1085,9 +1567,74 @@ export const useKitchenWeeklyRecipeBom = ({
     searchMenuCombos,
     fetchRecipeLinesForMenuItem,
     upsertRecipeLineForMenuItem,
+    updateRecipeLineForMenuItem,
+    deleteRecipeLineForMenuItem,
     searchInventoryItems
   };
 };
+
+/** BFF `GET|POST /kitchen/meal-programs` — program BOM + dish mappings (see FRONTEND_MEAL_PROGRAMS_API). */
+const KITCHEN_MEAL_PROGRAMS = `${API.MAX_KITCHEN_KITCHEN}/meal-programs`;
+
+const unwrapMealProgramsEnvelope = (res) => readMaxKitchenClientEnvelope(res);
+
+export async function kitchenListMealPrograms() {
+  const res = await api.get(KITCHEN_MEAL_PROGRAMS);
+  const data = unwrapMealProgramsEnvelope(res);
+  if (!data || typeof data !== 'object') return [];
+  return Array.isArray(data.items) ? data.items : [];
+}
+
+export async function kitchenCreateMealProgram({ code, display_name: displayName }) {
+  const res = await api.post(KITCHEN_MEAL_PROGRAMS, {
+    code,
+    ...(displayName != null && String(displayName).trim() !== '' ? { display_name: String(displayName).trim() } : {})
+  });
+  return unwrapMealProgramsEnvelope(res);
+}
+
+export async function kitchenListMealProgramMappings(params = {}) {
+  const res = await api.get(`${KITCHEN_MEAL_PROGRAMS}/menu-item-mappings`, { params });
+  return unwrapMealProgramsEnvelope(res);
+}
+
+export async function kitchenAttachMealProgramMapping({ menu_item_id: menuItemId, program_id: programId }) {
+  const res = await api.post(`${KITCHEN_MEAL_PROGRAMS}/menu-item-mappings`, {
+    menu_item_id: menuItemId,
+    program_id: programId
+  });
+  return unwrapMealProgramsEnvelope(res);
+}
+
+export async function kitchenDeleteMealProgramMapping(mappingId) {
+  const res = await api.delete(
+    `${KITCHEN_MEAL_PROGRAMS}/menu-item-mappings/${encodeURIComponent(String(mappingId))}`
+  );
+  return unwrapMealProgramsEnvelope(res);
+}
+
+export async function kitchenGetMealProgramRecipeLines(programId) {
+  const res = await api.get(
+    `${KITCHEN_MEAL_PROGRAMS}/${encodeURIComponent(String(programId))}/recipe-lines`
+  );
+  return unwrapMealProgramsEnvelope(res);
+}
+
+export async function kitchenUpsertMealProgramRecipeLine(programId, { inventory_item_id: invId, quantity_per_unit: qty, unit }) {
+  const res = await api.post(`${KITCHEN_MEAL_PROGRAMS}/${encodeURIComponent(String(programId))}/recipe-lines`, {
+    inventory_item_id: invId,
+    quantity_per_unit: qty,
+    unit: unit != null && String(unit).trim() !== '' ? String(unit).trim() : 'unit'
+  });
+  return unwrapMealProgramsEnvelope(res);
+}
+
+export async function kitchenDeleteMealProgramRecipeLine(programId, lineId) {
+  const res = await api.delete(
+    `${KITCHEN_MEAL_PROGRAMS}/${encodeURIComponent(String(programId))}/recipe-lines/${encodeURIComponent(String(lineId))}`
+  );
+  return unwrapMealProgramsEnvelope(res);
+}
 
 export const useKitchenForecastMock = () => {
   const data = useKitchenStoreData();
@@ -1141,6 +1688,173 @@ function getApiErrorMessage(error, fallback) {
 /** Use in UI catch blocks for kitchen-store proxy errors (handles FastAPI `detail` shapes). */
 export function formatKitchenStoreApiError(error, fallback = '') {
   return getApiErrorMessage(error, fallback);
+}
+
+/**
+ * `GET /purchase/purchases/recommendations` — precomputed rows (`forecast_date`, `meal_slot`, optional query filters).
+ * @param {object} filters — `{ forecast_date?, meal_slot?, top? }` (omit empty strings; `top` clamped 1..5000).
+ */
+export const useKitchenPurchaseRecommendationsApi = (filters = {}) => {
+  const forecast_date = filters.forecast_date;
+  const meal_slot = filters.meal_slot;
+  const top = filters.top;
+
+  const [suggestions, setSuggestions] = useState([]);
+  const [batchForecastDate, setBatchForecastDate] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = {};
+      const fd = typeof forecast_date === 'string' ? forecast_date.trim() : '';
+      const ms = typeof meal_slot === 'string' ? meal_slot.trim() : '';
+      if (fd) params.forecast_date = fd;
+      if (ms) params.meal_slot = ms;
+      if (top != null && String(top).trim() !== '') {
+        const n = Number(String(top).trim());
+        if (Number.isFinite(n)) params.top = Math.min(5000, Math.max(1, Math.floor(n)));
+      }
+      const recRes = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchases/recommendations`, { params });
+      const recData = recRes.data?.data || {};
+      const { batchForecastDate: batchFd, rawItems } = parsePurchaseRecommendationsPayload(recData);
+      const mapped = rawItems.map((row) => normalizePurchaseRecommendationRow(row, batchFd));
+      setBatchForecastDate(batchFd);
+      setSuggestions(mapped);
+      setLoading(false);
+      return { ok: true, count: mapped.length, batchForecastDate: batchFd };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to load purchase recommendations.');
+      setError(message);
+      setSuggestions([]);
+      setBatchForecastDate(null);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, [forecast_date, meal_slot, top]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return { suggestions, batchForecastDate, loading, error, refresh };
+};
+
+/**
+ * `GET /inventory/forecasts/inventory` + `GET /inventory/forecasts/financial`.
+ * Query: `forecast_date`, `meal_slot`, `top` (1–20000; omit for server default) for inventory; `forecast_date` for financial.
+ */
+export const useKitchenForecastDashboardApi = (filters = {}) => {
+  const forecast_date = filters.forecast_date;
+  const meal_slot = filters.meal_slot;
+  const top = filters.top;
+
+  const [inventoryRows, setInventoryRows] = useState([]);
+  const [inventoryForecastDate, setInventoryForecastDate] = useState(null);
+  const [financialRows, setFinancialRows] = useState([]);
+  const [financialForecastDate, setFinancialForecastDate] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [inventoryError, setInventoryError] = useState('');
+  const [financialError, setFinancialError] = useState('');
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setInventoryError('');
+    setFinancialError('');
+
+    const invParams = {};
+    const fd = typeof forecast_date === 'string' ? forecast_date.trim() : '';
+    const ms = typeof meal_slot === 'string' ? meal_slot.trim() : '';
+    if (fd) invParams.forecast_date = fd;
+    if (ms) invParams.meal_slot = ms;
+    if (top != null && String(top).trim() !== '') {
+      const n = Number(String(top).trim());
+      if (Number.isFinite(n)) invParams.top = Math.min(20000, Math.max(1, Math.floor(n)));
+    }
+
+    const finParams = {};
+    if (fd) finParams.forecast_date = fd;
+
+    try {
+      const [invRes, finRes] = await Promise.allSettled([
+        api.get(`${API.MAX_KITCHEN_INVENTORY}/forecasts/inventory`, { params: invParams }),
+        api.get(`${API.MAX_KITCHEN_INVENTORY}/forecasts/financial`, { params: finParams })
+      ]);
+
+      if (invRes.status === 'fulfilled') {
+        const invData =
+          readMaxKitchenClientEnvelope(invRes.value) ?? invRes.value?.data?.data ?? {};
+        const parsed = parseInventoryDemandForecastsPayload(invData);
+        const mapped = parsed.items.map((row) =>
+          normalizeInventoryDemandForecastRow(row, parsed.batchForecastDate)
+        );
+        setInventoryRows(mapped);
+        setInventoryForecastDate(
+          parsed.batchForecastDate ?? (mapped[0]?.forecast_date ? String(mapped[0].forecast_date) : null)
+        );
+      } else {
+        setInventoryRows([]);
+        setInventoryForecastDate(null);
+        setInventoryError(
+          getApiErrorMessage(invRes.reason, 'Failed to load inventory demand forecasts.')
+        );
+      }
+
+      if (finRes.status === 'fulfilled') {
+        const finData =
+          readMaxKitchenClientEnvelope(finRes.value) ?? finRes.value?.data?.data ?? {};
+        const parsed = parseFinancialForecastsPayload(finData);
+        const mapped = parsed.items.map((row) =>
+          normalizeFinancialForecastRow(row, parsed.batchForecastDate)
+        );
+        setFinancialRows(mapped);
+        setFinancialForecastDate(
+          parsed.batchForecastDate ?? (mapped[0]?.forecast_date ? String(mapped[0].forecast_date) : null)
+        );
+      } else {
+        setFinancialRows([]);
+        setFinancialForecastDate(null);
+        setFinancialError(getApiErrorMessage(finRes.reason, 'Failed to load financial forecasts.'));
+      }
+    } catch (err) {
+      setInventoryError(getApiErrorMessage(err, 'Failed to load inventory demand forecasts.'));
+      setFinancialError(getApiErrorMessage(err, 'Failed to load financial forecasts.'));
+    } finally {
+      setLoading(false);
+    }
+  }, [forecast_date, meal_slot, top]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return {
+    inventoryRows,
+    inventoryForecastDate,
+    financialRows,
+    financialForecastDate,
+    loading,
+    inventoryError,
+    financialError,
+    refresh
+  };
+};
+
+/** GET `/kitchen/orders/delivery-meal-counts` — `params`: `{ plan_date, meal_slot? }`. */
+export async function fetchKitchenDeliveryMealCounts(params = {}) {
+  try {
+    const res = await api.get(`${API.MAX_KITCHEN_KITCHEN}/orders/delivery-meal-counts`, { params });
+    const data = res.data?.data ?? res.data ?? {};
+    return { ok: true, data };
+  } catch (err) {
+    return {
+      ok: false,
+      data: null,
+      message: getApiErrorMessage(err, 'Failed to load delivery meal counts.')
+    };
+  }
 }
 
 const ITEMS_PAGE_SIZE_CATALOG = 50;
@@ -1327,9 +2041,12 @@ const normalizePurchaseRequestHeader = (raw, index = 0) => {
 const normalizePurchaseReceiptLine = (raw, index = 0) => ({
   id: String(raw?.receipt_line_id ?? raw?.id ?? raw?.line_id ?? `receipt-line-${index}`),
   receipt_id: String(raw?.receipt_id ?? raw?.purchase_receipt_id ?? ''),
+  purchase_request_id: raw?.purchase_request_id ? String(raw.purchase_request_id) : '',
   inventory_item_id: raw?.inventory_item_id ? String(raw.inventory_item_id) : '',
   inventory_item_name: raw?.inventory_item_name || raw?.item_name || '',
   item_primary_image_url: (raw?.item_primary_image_url || '').trim(),
+  image_s3_url: (raw?.image_s3_url || '').trim(),
+  image_uploaded_at: raw?.image_uploaded_at || '',
   brand_id: raw?.brand_id != null && String(raw.brand_id).trim() !== '' ? String(raw.brand_id) : '',
   brand_name: (raw?.brand_name || '').trim(),
   brand_logo_s3_url: (raw?.brand_logo_s3_url || '').trim(),
@@ -1364,9 +2081,14 @@ const normalizePurchaseReceiptHeader = (raw, index = 0) => ({
   created_at: raw?.created_at || ''
 });
 
-const normalizePurchaseComparisonRow = (raw, index = 0) => ({
-  id: String(raw?.id ?? raw?.line_id ?? `comparison-${index}`),
+const normalizePurchaseComparisonRow = (raw, index = 0, rowKind = 'line') => ({
+  id: String(raw?.id ?? raw?.line_id ?? raw?.receipt_line_id ?? `comparison-${index}`),
+  row_kind: rowKind,
+  inventory_item_id: raw?.inventory_item_id != null && String(raw.inventory_item_id).trim() !== '' ? String(raw.inventory_item_id) : '',
   inventory_item_name: raw?.inventory_item_name || raw?.requested_item_name || raw?.item_name || '',
+  item_primary_image_url: (raw?.item_primary_image_url || '').trim(),
+  image_s3_url: (raw?.image_s3_url || '').trim(),
+  image_uploaded_at: raw?.image_uploaded_at || '',
   requested_unit: raw?.requested_unit || raw?.purchase_unit || raw?.unit || '',
   requested_quantity: toNum(raw?.requested_quantity ?? 0),
   approved_quantity: toNum(raw?.approved_quantity ?? raw?.requested_quantity ?? 0),
@@ -1386,14 +2108,19 @@ const normalizePurchaseComparisonRow = (raw, index = 0) => ({
 const normalizePurchaseExceptionRow = (raw, index = 0) => ({
   id: String(raw?.receipt_line_id ?? raw?.line_id ?? raw?.id ?? `exception-${index}`),
   receipt_id: String(raw?.receipt_id ?? raw?.purchase_receipt_id ?? ''),
+  purchase_request_id: raw?.purchase_request_id ? String(raw.purchase_request_id) : '',
   purchase_request_line_id: raw?.purchase_request_line_id ? String(raw.purchase_request_line_id) : '',
   inventory_item_id: raw?.inventory_item_id ? String(raw.inventory_item_id) : '',
   inventory_item_name: raw?.inventory_item_name || raw?.item_name || raw?.requested_item_name || '',
-  brand_id: raw?.brand_id != null ? String(raw.brand_id) : '',
+  item_primary_image_url: (typeof raw?.item_primary_image_url === 'string' ? raw.item_primary_image_url : '').trim(),
+  image_s3_url: (typeof raw?.image_s3_url === 'string' ? raw.image_s3_url : '').trim(),
+  image_uploaded_at: raw?.image_uploaded_at || '',
+  brand_id: raw?.brand_id != null && String(raw.brand_id).trim() !== '' ? String(raw.brand_id) : '',
   brand_name: (raw?.brand_name || '').trim(),
   brand_logo_s3_url: (raw?.brand_logo_s3_url || '').trim(),
   purchased_qty: toNum(raw?.purchased_qty ?? 0),
   purchase_unit: raw?.purchase_unit || raw?.unit || '',
+  unit_price_in_base: toNum(raw?.unit_price_in_base ?? 0),
   line_total: toNum(raw?.line_total ?? 0),
   off_list_purchase_reason: raw?.off_list_purchase_reason || '',
   comparison_status: raw?.comparison_status || '',
@@ -1401,8 +2128,10 @@ const normalizePurchaseExceptionRow = (raw, index = 0) => ({
   manager_action: raw?.manager_action || '',
   manager_action_note: raw?.manager_action_note || '',
   stock_applied: Boolean(raw?.stock_applied),
+  stock_applied_at: raw?.stock_applied_at || '',
   note: raw?.note || '',
   purchase_date: raw?.purchase_date || '',
+  created_at: raw?.created_at || '',
   manufacturing_date: raw?.manufacturing_date || raw?.mfg_date || '',
   expiry_date: raw?.expiry_date || raw?.expires_on || '',
   invoice_s3_key: raw?.invoice_s3_key || '',
@@ -1422,6 +2151,144 @@ const parseFilenameFromDisposition = (contentDisposition, fallback) => {
   } catch {
     return match[1].replace(/"/g, '').trim();
   }
+};
+
+/**
+ * Guide §6.6 — `GET /purchase/reports/purchase-type-summary`, `weekly-governance`, PDF/CSV exports (STORE_MANAGER + STORE_OPERATOR).
+ */
+export const usePurchaseGovernanceReports = () => {
+  const [purchaseTypeSummary, setPurchaseTypeSummary] = useState(null);
+  const [weeklyGovernance, setWeeklyGovernance] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(null);
+  const [error, setError] = useState('');
+
+  const loadReports = useCallback(async (params = {}) => {
+    setLoading(true);
+    setError('');
+    try {
+      const base = `${API.MAX_KITCHEN_PURCHASE}/reports`;
+      const [sumRes, govRes] = await Promise.all([
+        api.get(`${base}/purchase-type-summary`, { params }),
+        api.get(`${base}/weekly-governance`, { params })
+      ]);
+      setPurchaseTypeSummary(readMaxKitchenClientEnvelope(sumRes) ?? null);
+      setWeeklyGovernance(readMaxKitchenClientEnvelope(govRes) ?? null);
+      setLoading(false);
+      return { ok: true };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to load purchase reports.');
+      setError(message);
+      setPurchaseTypeSummary(null);
+      setWeeklyGovernance(null);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  const downloadGovernanceExport = useCallback(async (format, params = {}) => {
+    const path = format === 'pdf' ? 'weekly-governance.pdf' : 'weekly-governance.csv';
+    const fallbackName = format === 'pdf' ? 'weekly-governance.pdf' : 'weekly-governance.csv';
+    setExportLoading(format);
+    setError('');
+    try {
+      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/reports/${path}`, {
+        params,
+        responseType: 'blob'
+      });
+      const filename = parseFilenameFromDisposition(
+        res.headers?.['content-disposition'],
+        fallbackName
+      );
+      const blob = new Blob([res.data], {
+        type: res.headers?.['content-type'] || (format === 'pdf' ? 'application/pdf' : 'text/csv')
+      });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      setExportLoading(null);
+      return { ok: true };
+    } catch (err) {
+      const message = getApiErrorMessage(err, `Failed to download ${format.toUpperCase()} export.`);
+      setError(message);
+      setExportLoading(null);
+      return { ok: false, message };
+    }
+  }, []);
+
+  return {
+    purchaseTypeSummary,
+    weeklyGovernance,
+    loading,
+    exportLoading,
+    error,
+    setError,
+    loadReports,
+    downloadGovernanceExport
+  };
+};
+
+/**
+ * `GET /inventory/reports/expiry-estimated-loss`, `variance-snapshot`, `executive-dashboard` (STORE_MANAGER + STORE_OPERATOR).
+ */
+export const useInventoryManagementReports = () => {
+  const [expiryEstimatedLoss, setExpiryEstimatedLoss] = useState(null);
+  const [varianceSnapshot, setVarianceSnapshot] = useState(null);
+  const [executiveDashboard, setExecutiveDashboard] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const loadReports = useCallback(async (params = {}) => {
+    setLoading(true);
+    setError('');
+    const base = `${API.MAX_KITCHEN_INVENTORY}/reports`;
+    const labels = ['Expiry estimated loss', 'Variance snapshot', 'Executive dashboard'];
+    try {
+      const settled = await Promise.allSettled([
+        api.get(`${base}/expiry-estimated-loss`, { params }),
+        api.get(`${base}/variance-snapshot`, { params }),
+        api.get(`${base}/executive-dashboard`, { params })
+      ]);
+      const payloads = [null, null, null];
+      const errs = [];
+      settled.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          payloads[i] = readMaxKitchenClientEnvelope(r.value) ?? null;
+        } else {
+          errs.push(`${labels[i]}: ${getApiErrorMessage(r.reason, 'Request failed')}`);
+        }
+      });
+      setExpiryEstimatedLoss(payloads[0]);
+      setVarianceSnapshot(payloads[1]);
+      setExecutiveDashboard(payloads[2]);
+      setError(errs.length ? errs.join(' · ') : '');
+      setLoading(false);
+      return { ok: errs.length === 0, message: errs.length ? errs.join(' · ') : '' };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to load inventory reports.');
+      setError(message);
+      setExpiryEstimatedLoss(null);
+      setVarianceSnapshot(null);
+      setExecutiveDashboard(null);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  return {
+    expiryEstimatedLoss,
+    varianceSnapshot,
+    executiveDashboard,
+    loading,
+    error,
+    setError,
+    loadReports
+  };
 };
 
 const extractCreatedItemIdFromResponse = (raw) => {
@@ -1639,7 +2506,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     setDownloadLoading(true);
     setError('');
     try {
-      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/approved-lines.txt`, {
+      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/approved-lines.pdf`, {
         responseType: 'blob'
       });
       const filename = parseFilenameFromDisposition(
@@ -1680,6 +2547,188 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     fetchApprovedLines,
     fetchRequestDetail,
     downloadApprovedLinesPdf
+  };
+};
+
+/**
+ * Guide §9.5 — `GET /kitchen/reconciliation/next-day-readiness` (STORE_MANAGER / STORE_OPERATOR).
+ */
+export const useKitchenReconciliationApi = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [readiness, setReadiness] = useState(null);
+
+  const fetchNextDayReadiness = useCallback(async (params = {}) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.get(`${API.MAX_KITCHEN_KITCHEN}/reconciliation/next-day-readiness`, {
+        params
+      });
+      const data = readMaxKitchenClientEnvelope(res) ?? null;
+      setReadiness(data);
+      setLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to load next-day readiness.');
+      setError(message);
+      setReadiness(null);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  return { loading, error, readiness, fetchNextDayReadiness };
+};
+
+const RECON_SESSIONS_BASE = `${API.MAX_KITCHEN_KITCHEN}/reconciliation/sessions`;
+
+/**
+ * Guide §9.5 — persisted count sessions: create, lines, finalize, list/detail, manager line review.
+ */
+export const useKitchenReconciliationSessionsApi = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [sessionsList, setSessionsList] = useState(null);
+  const [sessionDetail, setSessionDetail] = useState(null);
+
+  const listSessions = useCallback(async (params = {}) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.get(RECON_SESSIONS_BASE, { params });
+      const data = readMaxKitchenClientEnvelope(res) ?? null;
+      setSessionsList(data);
+      setLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to list reconciliation sessions.');
+      setError(message);
+      setSessionsList(null);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  const createSession = useCallback(async (body = {}) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.post(RECON_SESSIONS_BASE, body);
+      const data = readMaxKitchenClientEnvelope(res) ?? null;
+      setLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to create reconciliation session.');
+      setError(message);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  const getSession = useCallback(async (sessionId) => {
+    if (!sessionId) return { ok: false, message: 'session_id is required.' };
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.get(`${RECON_SESSIONS_BASE}/${encodeURIComponent(sessionId)}`);
+      const data = readMaxKitchenClientEnvelope(res) ?? null;
+      setSessionDetail(data);
+      setLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to load reconciliation session.');
+      setError(message);
+      setSessionDetail(null);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  const patchSession = useCallback(async (sessionId, body = {}) => {
+    if (!sessionId) return { ok: false, message: 'session_id is required.' };
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.patch(`${RECON_SESSIONS_BASE}/${encodeURIComponent(sessionId)}`, body);
+      const data = readMaxKitchenClientEnvelope(res) ?? null;
+      setLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to update reconciliation session.');
+      setError(message);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  const putSessionLines = useCallback(async (sessionId, body = {}) => {
+    if (!sessionId) return { ok: false, message: 'session_id is required.' };
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.put(`${RECON_SESSIONS_BASE}/${encodeURIComponent(sessionId)}/lines`, body);
+      const data = readMaxKitchenClientEnvelope(res) ?? null;
+      setLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to save session lines.');
+      setError(message);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  const finalizeSession = useCallback(async (sessionId, body = {}) => {
+    if (!sessionId) return { ok: false, message: 'session_id is required.' };
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.post(`${RECON_SESSIONS_BASE}/${encodeURIComponent(sessionId)}/finalize`, body);
+      const data = readMaxKitchenClientEnvelope(res) ?? null;
+      setLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to finalize reconciliation session.');
+      setError(message);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  const managerReviewLine = useCallback(async (sessionId, lineId, body = {}) => {
+    if (!sessionId || !lineId) return { ok: false, message: 'session_id and line_id are required.' };
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.patch(
+        `${RECON_SESSIONS_BASE}/${encodeURIComponent(sessionId)}/lines/${encodeURIComponent(lineId)}/manager-review`,
+        body
+      );
+      const data = readMaxKitchenClientEnvelope(res) ?? null;
+      setLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Manager review failed.');
+      setError(message);
+      setLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  return {
+    loading,
+    error,
+    sessionsList,
+    sessionDetail,
+    setSessionDetail,
+    listSessions,
+    createSession,
+    getSession,
+    patchSession,
+    putSessionLines,
+    finalizeSession,
+    managerReviewLine
   };
 };
 
@@ -1924,6 +2973,40 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     }
   }, []);
 
+  /** POST `/purchase/daily/quick-approve-submitted` — bulk approve submitted DAILY requests for a date (store manager). */
+  const quickApproveDailySubmitted = useCallback(async (payload = {}) => {
+    setActionLoading(true);
+    setError('');
+    try {
+      const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/daily/quick-approve-submitted`, payload);
+      const data = readMaxKitchenClientEnvelope(res) ?? res.data?.data ?? {};
+      setActionLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Quick approve failed.');
+      setError(message);
+      setActionLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
+  /** POST `/purchase/purchase-requests/auto-from-count-variance` — `{}` uses latest FINALIZED count session; or `{ finalized_session_id }` / `{ session_id }`. */
+  const autoPurchaseFromCountVariance = useCallback(async (payload = {}) => {
+    setActionLoading(true);
+    setError('');
+    try {
+      const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/auto-from-count-variance`, payload);
+      const data = readMaxKitchenClientEnvelope(res) ?? res.data?.data ?? {};
+      setActionLoading(false);
+      return { ok: true, data };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Auto purchase from count variance failed.');
+      setError(message);
+      setActionLoading(false);
+      return { ok: false, message };
+    }
+  }, []);
+
   return {
     listLoading,
     detailLoading,
@@ -1937,7 +3020,9 @@ export const useKitchenPurchaseRequestManagerApi = () => {
     resolveRequestLineItem,
     updateRequestLineManager,
     approveRequest,
-    rejectRequest
+    rejectRequest,
+    quickApproveDailySubmitted,
+    autoPurchaseFromCountVariance
   };
 };
 
@@ -2070,13 +3155,6 @@ export const useKitchenReceiptsApi = () => {
     window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
   }, []);
 
-  const getReceiptInvoiceTraceability = useCallback(async (receiptId) => {
-    const res = await api.get(
-      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/invoice-traceability`
-    );
-    return res.data?.data ?? res.data ?? {};
-  }, []);
-
   const getPurchaseComparison = useCallback(async (requestId) => {
     const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${requestId}/purchase-comparison`);
     const raw = res.data?.data;
@@ -2115,8 +3193,7 @@ export const useKitchenReceiptsApi = () => {
     listReceiptLines,
     getReceiptInvoiceViewUrl,
     viewReceiptInvoiceInNewTab,
-    getPurchaseComparison,
-    getReceiptInvoiceTraceability
+    getPurchaseComparison
   };
 };
 

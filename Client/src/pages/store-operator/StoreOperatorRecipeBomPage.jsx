@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 import Skeleton from '../../components/Skeleton';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
+import StoreOperatorMealProgramsSection from './StoreOperatorMealProgramsSection.jsx';
 
 /** @feature kitchen-store — By-kind weekly schedule + local day/session filter + recipe BOM. */
 const MEAL_SLOTS = ['BREAKFAST', 'LUNCH', 'DINNER'];
@@ -24,12 +25,27 @@ const weekdayLabel = (dow) => {
   return names[dow] || '';
 };
 
+const RECIPE_LINE_ID_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const recipeLineHasServerId = (line) => RECIPE_LINE_ID_UUID.test(String(line?.id || ''));
+
+const qtyUnitRoughlyEqual = (a, b) => Math.abs(Number(a || 0) - Number(b || 0)) < 1e-6;
+
 const StoreOperatorRecipeBomPage = () => {
   const { user } = useAuthStore();
   const roleString = String(user?.role || '').toUpperCase();
   const roles = (Array.isArray(user?.roles) ? user.roles : roleString ? [roleString] : []).map((r) =>
     String(r).toUpperCase()
   );
+  /** Full recipe/BOM edit UI for both store roles (matches max_kitchen recipe routes). */
+  const canEditRecipeBom =
+    roles.includes('STORE_MANAGER') ||
+    roleString === 'STORE_MANAGER' ||
+    roles.includes('STORE_OPERATOR') ||
+    roleString === 'STORE_OPERATOR';
+
+  /** Meal programs: create program + dish→program mappings are manager-only (API). */
   const isStoreManager = roles.includes('STORE_MANAGER') || roleString === 'STORE_MANAGER';
 
   const [menuKind, setMenuKind] = useState(KITCHEN_MENU_KIND.VEG);
@@ -38,6 +54,8 @@ const StoreOperatorRecipeBomPage = () => {
   const [scheduleReloadKey, setScheduleReloadKey] = useState(0);
   const [vegMenuDraft, setVegMenuDraft] = useState(() => getConfiguredKitchenMenuIds().vegMenuId);
   const [nonVegMenuDraft, setNonVegMenuDraft] = useState(() => getConfiguredKitchenMenuIds().nonVegMenuId);
+  /** `weekly` = legacy per–menu-item recipe + weekly slot; `meal-programs` = program BOM + dish mappings. */
+  const [recipeBomTab, setRecipeBomTab] = useState('weekly');
 
   const rawRoutesEnv =
     String(import.meta.env.VITE_KITCHEN_USE_RAW_MENU_ROUTES || '').toLowerCase() === 'true';
@@ -59,7 +77,6 @@ const StoreOperatorRecipeBomPage = () => {
     scheduleStatus,
     scheduleError,
     schedulePayload,
-    scheduleApiMode,
     recipeLines,
     recipeStatus,
     recipeError,
@@ -67,6 +84,8 @@ const StoreOperatorRecipeBomPage = () => {
     searchMenuCombos,
     fetchRecipeLinesForMenuItem,
     upsertRecipeLineForMenuItem,
+    updateRecipeLineForMenuItem,
+    deleteRecipeLineForMenuItem,
     searchInventoryItems
   } = useKitchenWeeklyRecipeBom({
     menuKind,
@@ -106,7 +125,6 @@ const StoreOperatorRecipeBomPage = () => {
   const [pickerResults, setPickerResults] = useState([]);
   const [pickerLoading, setPickerLoading] = useState(false);
 
-  const [invSearch, setInvSearch] = useState('');
   const [invOptions, setInvOptions] = useState([]);
   const [addInvId, setAddInvId] = useState('');
   const [addQty, setAddQty] = useState('0.1');
@@ -157,15 +175,18 @@ const StoreOperatorRecipeBomPage = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const t = setTimeout(async () => {
-      const list = await searchInventoryItems(invSearch.trim() || undefined);
+    if (!canEditRecipeBom) {
+      setInvOptions([]);
+      return () => {};
+    }
+    void (async () => {
+      const list = await searchInventoryItems(undefined);
       if (!cancelled) setInvOptions(list);
-    }, 250);
+    })();
     return () => {
       cancelled = true;
-      clearTimeout(t);
     };
-  }, [invSearch, searchInventoryItems]);
+  }, [canEditRecipeBom, searchInventoryItems]);
 
   const onAssignCombo = async (combo) => {
     if (!combo?.id) return;
@@ -183,31 +204,63 @@ const StoreOperatorRecipeBomPage = () => {
     await fetchRecipeLinesForMenuItem(combo.id);
   };
 
-  const onSaveRow = async (line) => {
-    if (!isStoreManager || !menuItemId) return;
+  const onSaveRow = async (line, options = {}) => {
+    const { silent = false } = options;
+    if (!canEditRecipeBom || !menuItemId) return;
     const draft = rowDrafts[line.id];
     if (!draft) return;
     const qty = Number(draft.quantity_per_unit);
     if (!Number.isFinite(qty) || qty < 0) {
-      showStoreError('Enter a valid quantity.');
+      if (!silent) showStoreError('Enter a valid quantity.');
       return;
     }
-    const out = await upsertRecipeLineForMenuItem({
-      menu_item_id: menuItemId,
-      inventory_item_id: line.inventory_item_id,
-      quantity_per_unit: qty,
-      unit: (draft.unit || '').trim() || line.unit
-    });
+    const unit = (draft.unit || '').trim() || line.unit;
+    const hasId = recipeLineHasServerId(line);
+    if (
+      hasId &&
+      qtyUnitRoughlyEqual(qty, line.quantity_per_unit) &&
+      String(unit).trim() === String(line.unit || '').trim()
+    ) {
+      return;
+    }
+    const out = hasId
+      ? await updateRecipeLineForMenuItem({
+          id: line.id,
+          menu_item_id: menuItemId,
+          quantity_per_unit: qty,
+          unit
+        })
+      : await upsertRecipeLineForMenuItem({
+          menu_item_id: menuItemId,
+          inventory_item_id: line.inventory_item_id,
+          quantity_per_unit: qty,
+          unit
+        });
     if (!out.ok) {
       showStoreError(out.message || 'Save failed');
       return;
     }
-    showStoreSuccess('Recipe line saved.');
+    if (!silent) showStoreSuccess('Recipe line saved.');
+  };
+
+  const onDeleteRow = async (line) => {
+    if (!canEditRecipeBom || !menuItemId) return;
+    if (!recipeLineHasServerId(line)) {
+      showStoreError('Cannot remove this row until the server assigns a line id.');
+      return;
+    }
+    if (typeof window !== 'undefined' && !window.confirm(`Remove ${line.inventory_item_name || 'this ingredient'} from the recipe?`)) return;
+    const out = await deleteRecipeLineForMenuItem(line.id, menuItemId);
+    if (!out.ok) {
+      showStoreError(out.message || 'Delete failed');
+      return;
+    }
+    showStoreSuccess('Recipe line removed.');
   };
 
   const onAddLine = async (e) => {
     e.preventDefault();
-    if (!isStoreManager || !menuItemId) return;
+    if (!canEditRecipeBom || !menuItemId) return;
     const item = invOptions.find((x) => x.id === addInvId);
     if (!item) {
       showStoreError('Pick an inventory item.');
@@ -236,118 +289,65 @@ const StoreOperatorRecipeBomPage = () => {
   const scheduleLoadError = scheduleStatus === 'error';
   const recipeLoading = recipeStatus === 'loading';
 
-  const resolvedMenuLabel =
-    schedulePayload?.menu_kind === 'NON_VEG' || schedulePayload?.menu_kind === 'NONVEG'
-      ? 'Non-veg'
-      : schedulePayload?.menu_kind === 'VEG'
-        ? 'Veg'
-        : '';
-
   return (
     <StorePageShell>
       <StorePageHeader
-        title={isStoreManager ? 'Recipe / BOM by week & session' : 'Meals & ingredients by week'}
-        description={
-          isStoreManager
-            ? 'Pick a menu from your company catalog (below), or use veg / non-veg by-kind mode. We load the weekly schedule for that menu, then match your date’s weekday and session to show the combo and recipe.'
-            : 'Choose the date, meal time (breakfast, lunch, or dinner), and veg or non-veg if needed. You can set which dish is on the schedule for that slot. Ingredient amounts are view-only—ask a store manager to change quantities or add items.'
-        }
+        title={canEditRecipeBom ? 'Recipe / BOM by week & session' : 'Meals & ingredients by week'}
       />
 
-      {isStoreManager ? (
-        <StoreSection
-          title="How schedule and recipe work"
-          description="Two separate things: the weekly slot (which combo) vs the BOM (ingredients) for that combo."
-          compact
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3 mb-6">
+        <button
+          type="button"
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            recipeBomTab === 'weekly'
+              ? 'bg-teal-600 text-white shadow-sm'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          }`}
+          onClick={() => setRecipeBomTab('weekly')}
         >
-          <details className="group rounded-lg border border-slate-200/80 bg-slate-50/60 px-3 py-2">
-            <summary className="cursor-pointer list-none text-sm font-medium text-slate-800 [&::-webkit-details-marker]:hidden">
-              <span className="inline-flex items-center gap-2">
-                <span
-                  className="inline-block transition-transform group-open:rotate-90 text-slate-500"
-                  aria-hidden
-                >
-                  ›
-                </span>
-                Full guide (roles, data flow, API routes)
-              </span>
-            </summary>
-            <div className="mt-3 space-y-4 text-sm text-slate-600 border-t border-slate-200/80 pt-3">
-              <p>
-                <strong className="text-slate-800">Weekly schedule</strong> stores which{' '}
-                <code className="text-xs bg-white px-1 rounded border border-slate-200/80">menu_item_id</code> (combo) is assigned
-                for each weekday + session. <strong className="text-slate-800">Recipe lines</strong> are the BOM for that combo.
-                Changing the meal only updates the schedule; each combo has its own ingredients.
-              </p>
-              <div>
-                <p className="font-medium text-slate-800 mb-2">Roles</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>
-                    <strong>Operator or manager:</strong> view recipe lines, read/update weekly schedule, pick a combo (
-                    <code className="text-xs bg-white px-1 rounded border border-slate-200/80">GET/PUT …/weekly-slot</code>,{' '}
-                    <code className="text-xs bg-white px-1 rounded border border-slate-200/80">GET …/menu-items</code>).
-                  </li>
-                  <li>
-                    <strong>Manager only:</strong> create/update recipe lines (
-                    <code className="text-xs bg-white px-1 rounded border border-slate-200/80">
-                      POST /kitchen-store/v2/recipes/lines
-                    </code>
-                    ).
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <p className="font-medium text-slate-800 mb-2">This app (kitchen-store proxy)</p>
-                <ul className="list-disc pl-5 space-y-1 font-mono text-xs text-slate-700">
-                  <li>GET /kitchen-store/v2/menus/by-kind/veg|non_veg/weekly-schedule — or GET …/menus/&#123;menu_id&#125;/weekly-schedule</li>
-                  <li>PUT /kitchen-store/v2/menus/…/weekly-slot — body: day_of_week, meal_slot, menu_item_id</li>
-                  <li>GET /kitchen-store/v2/menus/…/menu-items?q= — combo picker</li>
-                  <li>GET /kitchen-store/v2/recipes/lines?menu_item_id=…</li>
-                  <li>POST /kitchen-store/v2/recipes/lines — manager only</li>
-                  <li>GET /kitchen-store/v1/items — search SKUs when adding an ingredient</li>
-                </ul>
-              </div>
-              <p className="text-slate-600">
-                <strong className="text-slate-800">Date → weekday:</strong> the schedule uses Monday = 1 … Sunday = 7 (same as
-                the label under Date).
-              </p>
-              <p className="text-amber-900/90 bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2">
-                Removing a recipe row is not supported until a delete API exists; quantities and new lines use POST upsert only.
-              </p>
-            </div>
-          </details>
-        </StoreSection>
-      ) : (
+          Weekly recipe / BOM
+        </button>
+        <button
+          type="button"
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            recipeBomTab === 'meal-programs'
+              ? 'bg-teal-600 text-white shadow-sm'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          }`}
+          onClick={() => setRecipeBomTab('meal-programs')}
+        >
+          Kitchen meal creation
+        </button>
+      </div>
+
+      {recipeBomTab === 'meal-programs' ? (
+        <StoreOperatorMealProgramsSection
+          canEditBomLines={canEditRecipeBom}
+          canCreateMealSets={isStoreManager}
+          searchMenuCombos={searchMenuCombos}
+          searchInventoryItems={searchInventoryItems}
+        />
+      ) : null}
+
+      {recipeBomTab === 'weekly' ? (
+        <>
+      {!canEditRecipeBom ? (
         <StoreSection
           title="What you can do"
-          description="Operators update the scheduled dish; ingredient edits stay with managers."
+          description="You need the store operator or store manager role to edit schedules and recipes here."
           compact
         >
           <ul className="text-sm text-slate-600 list-disc pl-5 space-y-1.5 max-w-3xl">
             <li>Set which combo is planned for the chosen weekday and meal time (choose / change meal).</li>
-            <li>See the ingredient list for that dish (read-only).</li>
+            <li>View ingredient lines for the selected dish.</li>
             <li>
               Optional: select a company menu below so the schedule follows that menu; otherwise use veg / non-veg.
             </li>
           </ul>
         </StoreSection>
-      )}
+      ) : null}
 
-      <StoreSection title="Company menus (this tenant)">
-        <p className="text-sm text-slate-600 mb-3 max-w-3xl">
-          {isStoreManager ? (
-            <>
-              Rows from your <code className="text-xs bg-slate-100 px-1 rounded">menus</code> table. Select one to drive kitchen
-              inventory weekly schedule and combo search for that <code className="text-xs bg-slate-100 px-1 rounded">menu_id</code>.
-              Clear the selection to use veg / non-veg by-kind instead.
-            </>
-          ) : (
-            <>
-              Optional: choose your company menu so schedules and the dish picker use that menu. Clear the selection to use the
-              veg / non-veg options in filters instead.
-            </>
-          )}
-        </p>
+      <StoreSection title="Company menus">
         {catalogStatus === 'loading' ? (
           <p className="text-sm text-slate-500">Loading menus…</p>
         ) : catalogStatus === 'error' ? (
@@ -362,7 +362,6 @@ const StoreOperatorRecipeBomPage = () => {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">ID</TableHead>
                     <TableHead className="text-right w-[140px]">Use for schedule</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -374,7 +373,6 @@ const StoreOperatorRecipeBomPage = () => {
                       <TableRow key={id} className={selected ? 'bg-teal-50/80' : ''}>
                         <TableCell className="font-medium text-slate-900">{m.name || '—'}</TableCell>
                         <TableCell className="text-slate-600">{m.status ?? '—'}</TableCell>
-                        <TableCell className="hidden md:table-cell font-mono text-xs text-slate-500">{id}</TableCell>
                         <TableCell className="text-right">
                           {selected ? (
                             <Button type="button" size="sm" variant="secondary" onClick={() => setSelectedCatalogMenuId('')}>
@@ -392,18 +390,11 @@ const StoreOperatorRecipeBomPage = () => {
                 </TableBody>
               </Table>
             </div>
-            {selectedCatalogMenuId ? (
-              <p className="mt-3 text-sm text-teal-800">
-                {isStoreManager
-                  ? 'Schedule + combo picker use this menu’s UUID. Veg / non-veg toggles are ignored until you clear.'
-                  : 'Schedule and dish picker use this menu. Veg / non-veg toggles stay off until you clear.'}
-              </p>
-            ) : null}
           </>
         )}
       </StoreSection>
 
-      {isStoreManager && rawRoutesEnv ? (
+      {canEditRecipeBom && rawRoutesEnv ? (
         <StoreSection title="Raw menu UUIDs (this browser)">
           <p className="text-sm text-slate-600 mb-3 max-w-3xl">
             Used only when <code className="text-xs bg-slate-100 px-1 rounded">VITE_KITCHEN_USE_RAW_MENU_ROUTES</code> is enabled.
@@ -449,7 +440,7 @@ const StoreOperatorRecipeBomPage = () => {
       <StoreSection
         title="Pick date, menu & session"
         description={
-          isStoreManager
+          canEditRecipeBom
             ? 'The calendar date sets weekday (1–7) for the schedule row; session is BREAKFAST, LUNCH, or DINNER.'
             : 'Pick the day, then breakfast, lunch, or dinner. We use that day’s weekday to find the right slot on the schedule.'
         }
@@ -466,7 +457,7 @@ const StoreOperatorRecipeBomPage = () => {
           </label>
           <p className="text-sm text-slate-600 pb-2">
             Weekday: <span className="font-medium text-slate-800">{weekdayLabel(dayOfWeek)}</span>
-            {isStoreManager ? (
+            {canEditRecipeBom ? (
               <>
                 {' '}
                 (day {dayOfWeek} in DB)
@@ -507,42 +498,12 @@ const StoreOperatorRecipeBomPage = () => {
             </select>
           </label>
         </div>
-        {scheduleStatus === 'ok' && (resolvedMenuLabel || scheduleApiMode === 'company_catalog') ? (
-          <p className="mt-3 text-sm text-slate-600">
-            {isStoreManager ? (
-              <>
-                <span className="font-medium text-slate-700">
-                  {scheduleApiMode === 'company_catalog'
-                    ? 'API mode: menu from company catalog'
-                    : scheduleApiMode === 'raw_uuid'
-                      ? 'API mode: stored menu UUID'
-                      : 'API mode: by-kind'}
-                </span>
-                {' · '}
-                Loaded schedule for <span className="font-medium">{resolvedMenuLabel}</span>
-                {schedulePayload?.menu_id ? (
-                  <>
-                    {' '}
-                    (menu <code className="text-xs bg-slate-50 px-1 rounded">{String(schedulePayload.menu_id).slice(0, 8)}…</code>)
-                  </>
-                ) : null}
-                . Slots in cache: {schedulePayload?.items?.length ?? 0}.
-              </>
-            ) : resolvedMenuLabel ? (
-              <>
-                Schedule loaded for <span className="font-medium text-slate-800">{resolvedMenuLabel}</span> menu.
-              </>
-            ) : scheduleApiMode === 'company_catalog' ? (
-              <>Schedule loaded for the selected company menu.</>
-            ) : null}
-          </p>
-        ) : null}
       </StoreSection>
 
       <StoreSection
         title="Meal for this slot"
         description={
-          isStoreManager
+          canEditRecipeBom
             ? 'Weekly schedule: which combo is assigned for the selected weekday and session.'
             : 'The dish planned for this weekday and meal time. Use choose / change meal to update it.'
         }
@@ -573,23 +534,13 @@ const StoreOperatorRecipeBomPage = () => {
         )}
       </StoreSection>
 
-      <StoreSection
-        title={comboLabel ? `Ingredients for: ${comboLabel}` : isStoreManager ? 'Recipe (BOM)' : 'Ingredients'}
-        description={
-          isStoreManager
-            ? 'BOM for the selected combo (kitchen_recipe_lines). Edits apply wherever this combo is used.'
-            : 'Ingredient amounts for the selected dish. Ask a store manager to change quantities or add items.'
-        }
-      >
-        {isStoreManager ? (
-          <p className="text-sm text-slate-600 mb-3">
-            Recipe quantity and add-ingredient changes use manager permissions.
-          </p>
-        ) : (
+      <StoreSection title={comboLabel ? `Ingredients for: ${comboLabel}` : canEditRecipeBom ? 'Recipe (BOM)' : 'Ingredients'}>
+        {!canEditRecipeBom ? (
           <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-3">
-            View-only for operators. You can still change which dish is scheduled above.
+            Sign in with a store operator or store manager account to edit the BOM. You can still change which dish is scheduled
+            above if your role allows it.
           </p>
-        )}
+        ) : null}
         {scheduleLoadError || slotNotFound || !menuItemId ? (
           <p className="text-sm text-slate-500">Assign a combo for this slot to load its recipe.</p>
         ) : recipeLoading ? (
@@ -603,85 +554,98 @@ const StoreOperatorRecipeBomPage = () => {
           <p className="text-sm text-red-600">{recipeError}</p>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ingredient</TableHead>
-                  <TableHead>Qty / unit</TableHead>
-                  {isStoreManager ? <TableHead className="text-right">Action</TableHead> : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recipeLines.length === 0 ? (
+            {/* ~10 visible ingredient rows; scroll when there are more */}
+            <div className="max-h-[min(28rem,70vh)] overflow-y-auto overflow-x-auto rounded-lg border border-slate-200">
+              <Table>
+                <TableHeader className="sticky top-0 z-[1] bg-slate-100 shadow-[0_1px_0_0_rgb(226_232_240)]">
                   <TableRow>
-                    <TableCell colSpan={isStoreManager ? 3 : 2} className="text-slate-500 text-sm">
-                      {isStoreManager
-                        ? 'No ingredients yet. Add one below.'
-                        : 'No ingredients listed for this combo yet.'}
-                    </TableCell>
+                    <TableHead>Ingredient</TableHead>
+                    <TableHead>Qty / unit</TableHead>
+                    {canEditRecipeBom ? <TableHead className="text-right">Actions</TableHead> : null}
                   </TableRow>
-                ) : (
-                  recipeLines.map((line) => (
-                    <TableRow key={line.id}>
-                      <TableCell className="font-medium">{line.inventory_item_name}</TableCell>
-                      <TableCell>
-                        {isStoreManager ? (
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <input
-                              className="border rounded px-2 py-1 text-sm w-24"
-                              value={rowDrafts[line.id]?.quantity_per_unit ?? ''}
-                              onChange={(e) =>
-                                setRowDrafts((prev) => ({
-                                  ...prev,
-                                  [line.id]: { ...prev[line.id], quantity_per_unit: e.target.value }
-                                }))
-                              }
-                            />
-                            <input
-                              className="border rounded px-2 py-1 text-sm w-20"
-                              value={rowDrafts[line.id]?.unit ?? ''}
-                              onChange={(e) =>
-                                setRowDrafts((prev) => ({
-                                  ...prev,
-                                  [line.id]: { ...prev[line.id], unit: e.target.value }
-                                }))
-                              }
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-sm">
-                            {line.quantity_per_unit} {line.unit}
-                          </span>
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {recipeLines.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={canEditRecipeBom ? 3 : 2} className="text-slate-500 text-sm">
+                        {canEditRecipeBom
+                          ? 'No ingredients yet. Add one below.'
+                          : 'No ingredients listed for this combo yet.'}
                       </TableCell>
-                      {isStoreManager ? (
-                        <TableCell className="text-right">
-                          <Button type="button" size="sm" variant="secondary" onClick={() => onSaveRow(line)}>
-                            Save
-                          </Button>
-                        </TableCell>
-                      ) : null}
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    recipeLines.map((line) => (
+                      <TableRow key={line.id}>
+                        <TableCell className="font-medium">{line.inventory_item_name}</TableCell>
+                        <TableCell>
+                          {canEditRecipeBom ? (
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <input
+                                className="border rounded px-2 py-1 text-sm w-24"
+                                value={rowDrafts[line.id]?.quantity_per_unit ?? ''}
+                                onChange={(e) =>
+                                  setRowDrafts((prev) => ({
+                                    ...prev,
+                                    [line.id]: { ...prev[line.id], quantity_per_unit: e.target.value }
+                                  }))
+                                }
+                                onBlur={() => {
+                                  if (recipeLineHasServerId(line)) void onSaveRow(line, { silent: true });
+                                }}
+                              />
+                              <input
+                                className="border rounded px-2 py-1 text-sm w-20"
+                                value={rowDrafts[line.id]?.unit ?? ''}
+                                onChange={(e) =>
+                                  setRowDrafts((prev) => ({
+                                    ...prev,
+                                    [line.id]: { ...prev[line.id], unit: e.target.value }
+                                  }))
+                                }
+                                onBlur={() => {
+                                  if (recipeLineHasServerId(line)) void onSaveRow(line, { silent: true });
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-sm">
+                              {line.quantity_per_unit} {line.unit}
+                            </span>
+                          )}
+                        </TableCell>
+                        {canEditRecipeBom ? (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2 flex-wrap">
+                              {!recipeLineHasServerId(line) ? (
+                                <Button type="button" size="sm" variant="secondary" onClick={() => onSaveRow(line)}>
+                                  Save
+                                </Button>
+                              ) : null}
+                              <Button type="button" size="sm" variant="outline" onClick={() => onDeleteRow(line)}>
+                                Remove
+                              </Button>
+                            </div>
+                          </TableCell>
+                        ) : null}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
-            {isStoreManager ? (
-              <form onSubmit={onAddLine} className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                <label className="text-sm font-medium text-slate-700 md:col-span-2">
-                  Search inventory
-                  <input
-                    className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
-                    value={invSearch}
-                    onChange={(e) => setInvSearch(e.target.value)}
-                    placeholder="Type to search SKUs"
-                  />
-                </label>
-                <label className="text-sm font-medium text-slate-700">
-                  Item
+            {canEditRecipeBom ? (
+              <form
+                onSubmit={onAddLine}
+                className="mt-6 max-w-2xl space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
+              >
+                <div>
+                  <label className="text-sm font-medium text-slate-700" htmlFor="recipe-bom-add-item">
+                    Item
+                  </label>
                   <select
-                    className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+                    id="recipe-bom-add-item"
+                    className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white min-h-[42px]"
                     value={addInvId}
                     onChange={(e) => {
                       const id = e.target.value;
@@ -697,22 +661,36 @@ const StoreOperatorRecipeBomPage = () => {
                       </option>
                     ))}
                   </select>
-                </label>
-                <input
-                  className="border rounded-lg px-3 py-2 text-sm"
-                  value={addQty}
-                  onChange={(e) => setAddQty(e.target.value)}
-                  placeholder="Qty"
-                />
-                <div className="flex gap-2">
-                  <input
-                    className="border rounded-lg px-3 py-2 text-sm flex-1"
-                    value={addUnit}
-                    onChange={(e) => setAddUnit(e.target.value)}
-                    placeholder="Unit"
-                  />
-                  <Button type="submit">Add</Button>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-slate-700" htmlFor="recipe-bom-add-qty">
+                      Quantity
+                    </label>
+                    <input
+                      id="recipe-bom-add-qty"
+                      className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
+                      value={addQty}
+                      onChange={(e) => setAddQty(e.target.value)}
+                      placeholder="e.g. 500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700" htmlFor="recipe-bom-add-unit">
+                      Unit
+                    </label>
+                    <input
+                      id="recipe-bom-add-unit"
+                      className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
+                      value={addUnit}
+                      onChange={(e) => setAddUnit(e.target.value)}
+                      placeholder="e.g. gram"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full sm:w-auto min-h-[42px]">
+                  Add ingredient
+                </Button>
               </form>
             ) : null}
           </>
@@ -766,6 +744,8 @@ const StoreOperatorRecipeBomPage = () => {
             </div>
           </div>
         </div>
+      ) : null}
+        </>
       ) : null}
     </StorePageShell>
   );

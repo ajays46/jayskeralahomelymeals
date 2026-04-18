@@ -7,6 +7,7 @@ import { resolveCompanyId } from '../../../../middleware/resolveCompanyId.js';
 import {
   listItems,
   createItem,
+  pendingImageUploadUrl,
   getItem,
   listItemImages,
   uploadItemImage,
@@ -37,6 +38,7 @@ const smSo = checkRole('STORE_MANAGER', 'STORE_OPERATOR');
 const smOnly = checkRole('STORE_MANAGER');
 
 router.get('/items', smSo, listItems);
+router.post('/items/pending-image-upload-url', smSo, pendingImageUploadUrl);
 router.post('/items', smSo, createItem);
 router.get('/items/:item_id', smSo, getItem);
 router.get('/items/:item_id/images', smSo, listItemImages);
@@ -65,6 +67,6 @@ router.get('/expiry/dashboard', smSo, getExpiryDashboard);
 router.get('/stock-batches/:item_id', smSo, getStockBatchesForItem);
 
 router.get('/forecasts/inventory', smSo, listInventoryForecasts);
-router.get('/forecasts/financial', smSo, listFinancialForecasts);
+router.get('/forecasts/financial', smOnly, listFinancialForecasts);
 
 export default router;

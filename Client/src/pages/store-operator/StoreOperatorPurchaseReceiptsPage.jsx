@@ -74,8 +74,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     uploadReceiptLineImage,
     listReceipts,
     listReceiptLines,
-    viewReceiptInvoiceInNewTab,
-    getReceiptInvoiceTraceability
+    viewReceiptInvoiceInNewTab
   } = useKitchenReceiptsApi();
 
   const [selectedRequestId, setSelectedRequestId] = useState(searchParams.get('requestId') || '');
@@ -84,8 +83,6 @@ const StoreOperatorPurchaseReceiptsPage = () => {
   const [history, setHistory] = useState([]);
   const [selectedLines, setSelectedLines] = useState([]);
   const [status, setStatus] = useState('');
-  const [traceabilityJson, setTraceabilityJson] = useState('');
-  const [traceabilityLoading, setTraceabilityLoading] = useState(false);
   const [approvedPurchaseForm, setApprovedPurchaseForm] = useState({
     purchase_request_line_id: '',
     purchased_qty: '',
@@ -99,6 +96,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     expiry_date: '',
     note: ''
   });
+  const [addApprovedPurchaseLinesOpen, setAddApprovedPurchaseLinesOpen] = useState(true);
   const [offListForm, setOffListForm] = useState({
     inventory_item_id: '',
     purchased_qty: '',
@@ -274,7 +272,6 @@ const StoreOperatorPurchaseReceiptsPage = () => {
 
   const openReceiptLines = async (receiptId) => {
     setActiveReceiptId(receiptId);
-    setTraceabilityJson('');
     setStatus('');
     try {
       const rows = await listReceiptLines(receiptId);
@@ -283,28 +280,6 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt lines.';
       setStatus(msg);
       showStoreError(msg, 'Could not load receipt lines');
-    }
-  };
-
-  const loadInvoiceTraceability = async () => {
-    if (!activeReceiptId) {
-      const msg = 'Open a receipt from the register first.';
-      setStatus(msg);
-      showStoreError(msg, 'No receipt');
-      return;
-    }
-    setTraceabilityLoading(true);
-    setTraceabilityJson('');
-    setStatus('');
-    try {
-      const data = await getReceiptInvoiceTraceability(activeReceiptId);
-      setTraceabilityJson(JSON.stringify(data, null, 2));
-    } catch (err) {
-      const msg = formatKitchenStoreApiError(err, 'Could not load invoice traceability.');
-      setStatus(msg);
-      showStoreError(msg, 'Traceability');
-    } finally {
-      setTraceabilityLoading(false);
     }
   };
 
@@ -390,7 +365,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       setActiveReceiptId(receiptId);
       setSelectedLines([]);
       setStatus(
-        'Receipt created. Expand "Add approved purchase lines" if needed, or use off-list — then add lines to this receipt.'
+        'Receipt created. Add approved purchase lines or off-list items, then continue with this receipt.'
       );
       showStoreSuccess('Receipt created. Add receipt lines when ready.', 'Receipt created');
       clearPurchaseProof();
@@ -545,11 +520,6 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       {error ? <StoreNotice tone="rose">{error}</StoreNotice> : null}
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
 
-      <StoreNotice tone="amber">
-        Inventory quantities do not increase until a store manager reviews each receipt line with KEEP (including
-        items that match the approved list).
-      </StoreNotice>
-
       <StoreSection title="Approved Request for Purchase" tone="emerald">
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <select
@@ -636,7 +606,11 @@ const StoreOperatorPurchaseReceiptsPage = () => {
           </Button>
         </div>
 
-        <details className="mt-4 rounded-lg border border-slate-200/80 bg-slate-50/40 px-3 py-2">
+        <details
+          className="mt-4 rounded-lg border border-slate-200/80 bg-slate-50/40 px-3 py-2"
+          open={addApprovedPurchaseLinesOpen}
+          onToggle={(e) => setAddApprovedPurchaseLinesOpen(e.currentTarget.open)}
+        >
           <summary className="cursor-pointer select-none text-sm font-medium text-slate-800">
             Add approved purchase lines
           </summary>
@@ -1064,22 +1038,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         </div>
       </StoreSection>
 
-      <StoreSection
-        title="Received Item "
-        tone="amber"
-        headerActions={
-          activeReceiptId ? (
-            <Button type="button" variant="outline" size="sm" disabled={traceabilityLoading} onClick={loadInvoiceTraceability}>
-              {traceabilityLoading ? 'Loading…' : 'Invoice traceability'}
-            </Button>
-          ) : null
-        }
-      >
-        {traceabilityJson ? (
-          <pre className="mb-4 max-h-64 overflow-auto rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
-            {traceabilityJson}
-          </pre>
-        ) : null}
+      <StoreSection title="Received Item " tone="amber">
         {selectedLines.length === 0 ? (
           <StoreNotice tone="amber">Open a receipt to view received item lines.</StoreNotice>
         ) : (

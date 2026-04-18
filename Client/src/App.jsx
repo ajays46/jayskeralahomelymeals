@@ -40,9 +40,9 @@ import StoreManagerReportsPage from './pages/store-manager/StoreManagerReportsPa
 import StoreManagerInventoryViewPage from './pages/store-manager/StoreManagerInventoryViewPage';
 import StoreManagerStockLogsPage from './pages/store-manager/StoreManagerStockLogsPage';
 import StoreOperatorRecipeBomPage from './pages/store-operator/StoreOperatorRecipeBomPage';
-import StoreManagerPlanListPage from './pages/store-manager/StoreManagerPlanListPage';
 import StoreManagerForecastDashboardPage from './pages/store-manager/StoreManagerForecastDashboardPage';
 import StoreManagerPurchaseSuggestionsPage from './pages/store-manager/StoreManagerPurchaseSuggestionsPage';
+import StoreManagerMealProgramsPage from './pages/store-manager/StoreManagerMealProgramsPage';
 import StoreManagerPurchaseRequestInboxPage from './pages/store-manager/StoreManagerPurchaseRequestInboxPage';
 import StoreManagerPurchaseRhythmRedirect from './pages/store-manager/StoreManagerPurchaseRhythmRedirect';
 import StoreManagerPurchaseRequestDetailPage from './pages/store-manager/StoreManagerPurchaseRequestDetailPage';
@@ -51,6 +51,7 @@ import StoreManagerPurchaseReceiptsPage from './pages/store-manager/StoreManager
 import StoreManagerPurchaseComparisonPage from './pages/store-manager/StoreManagerPurchaseComparisonPage';
 import StoreOperatorInventoryPage from './pages/store-operator/StoreOperatorInventoryPage';
 import StoreOperatorIssuePage from './pages/store-operator/StoreOperatorIssuePage';
+import StoreOperatorDeliveryMealCountsPage from './pages/store-operator/StoreOperatorDeliveryMealCountsPage';
 import StoreOperatorAdjustmentsPage from './pages/store-operator/StoreOperatorAdjustmentsPage';
 import StoreOperatorItemDetailPage from './pages/store-operator/StoreOperatorItemDetailPage';
 import StoreOperatorPurchaseReceiptsPage from './pages/store-operator/StoreOperatorPurchaseReceiptsPage';
@@ -60,6 +61,8 @@ import StoreOperatorBrandMasterPage from './pages/store-operator/StoreOperatorBr
 import StoreOperatorPurchaseRequestPage from './pages/store-operator/StoreOperatorPurchaseRequestPage';
 import StoreOperatorApprovedRequestsPage from './pages/store-operator/StoreOperatorApprovedRequestsPage';
 import StoreModuleLayout from './pages/store-common/StoreModuleLayout';
+import { KitchenStoreProvider } from './hooks/adminHook/kitchenStoreHook';
+import StoreKitchenStockReconciliationPage from './pages/store-common/StoreKitchenStockReconciliationPage';
 import ManagementDashboardPage from './pages/ManagementDashboardPage';
 import FinancialDashboardPage from './pages/FinancialDashboardPage';
 import DeliveryDashboardPage from './pages/DeliveryDashboardPage';
@@ -266,13 +269,19 @@ const App = () => {
               <Route path="admin/menu-items-table" element={<MenuItemsTablePage />} />
               <Route path="admin/users" element={<UsersPage />} />
               {/* @feature kitchen-store — tenant store module (manager + operator) */}
-              <Route element={<StoreModuleLayout />}>
+              <Route
+                element={
+                  <KitchenStoreProvider>
+                    <StoreModuleLayout />
+                  </KitchenStoreProvider>
+                }
+              >
                 <Route path="store-manager/kitchen-dashboard" element={<StoreManagerKitchenDashboard />} />
+                <Route path="store-manager/meal-programs" element={<StoreManagerMealProgramsPage />} />
                 <Route path="store-manager/plan-approval" element={<StoreManagerPlanApprovalPage />} />
                 <Route path="store-manager/reports" element={<StoreManagerReportsPage />} />
                 <Route path="store-manager/inventory" element={<StoreManagerInventoryViewPage />} />
                 <Route path="store-manager/stock-logs" element={<StoreManagerStockLogsPage />} />
-                <Route path="store-manager/plan-list" element={<StoreManagerPlanListPage />} />
                 <Route path="store-manager/forecast" element={<StoreManagerForecastDashboardPage />} />
                 <Route path="store-manager/purchase-suggestions" element={<StoreManagerPurchaseSuggestionsPage />} />
                 <Route path="store-manager/purchase-rhythm" element={<StoreManagerPurchaseRhythmRedirect />} />
@@ -286,13 +295,15 @@ const App = () => {
                 <Route path="store-operator/brand-master" element={<StoreOperatorBrandMasterPage />} />
                 <Route path="store-operator/purchase-requests" element={<StoreOperatorPurchaseRequestPage />} />
                 <Route path="store-operator/approved-requests" element={<StoreOperatorApprovedRequestsPage />} />
+                <Route path="store-operator/delivery-meal-counts" element={<StoreOperatorDeliveryMealCountsPage />} />
                 <Route path="store-operator/issue" element={<StoreOperatorIssuePage />} />
                 <Route path="store-operator/adjustments" element={<StoreOperatorAdjustmentsPage />} />
                 <Route path="store-operator/item/:itemId" element={<StoreOperatorItemDetailPage />} />
                 <Route path="store-operator/purchases" element={<StoreOperatorPurchaseReceiptsPage />} />
                 <Route path="store-operator/meal-report" element={<StoreOperatorMealReportPage />} />
                 <Route path="store-operator/recipe-bom" element={<StoreOperatorRecipeBomPage />} />
-                <Route path="store-manager/recipe-bom" element={<StoreOperatorRecipeBomPage />} />
+                <Route path="store-operator/stock-reconciliation" element={<StoreKitchenStockReconciliationPage />} />
+                <Route path="store-manager/stock-reconciliation" element={<StoreKitchenStockReconciliationPage />} />
               </Route>
               <Route path="seller" element={<SellerPage />} />
               <Route path="seller/customers" element={<CustomersListPage />} />

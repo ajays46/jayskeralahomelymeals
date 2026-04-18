@@ -42,13 +42,24 @@ axiosInstance.interceptors.request.use(
     const isMlTripsApi = url.includes('ml-trips');
     const isShiftApi = url.includes('shift');
     const isMlAssistantApi = url.includes('ml-assistant');
-    // @feature kitchen-store — attach X-Company-ID / X-User-ID for BFF (legacy prefix + guide `/inventory` & `/purchase`)
-    const isKitchenStoreApi =
+    // @feature max_kitchen — tenant + actor headers per FRONTEND_GUIDE_FULL.md §2/§5 (all max_kitchen except token-based customer portal).
+    const isMaxKitchenTenantApi =
       url.includes('kitchen-store') ||
-      (url.includes('max_kitchen') && (url.includes('/inventory/') || url.includes('/purchase/')));
-    const isCompanyScoped = url.includes('sellers-with-orders') || url.includes('delivery-managers') || url.includes('active-executives') || isAiApi || isCxoApi || isDeliveryExecutiveApi || isDriverMapsApi || isMlTripsApi || isShiftApi || isMlAssistantApi || isKitchenStoreApi;
+      (url.includes('max_kitchen') && !url.includes('customer-portal'));
+    const isCompanyScoped =
+      url.includes('sellers-with-orders') ||
+      url.includes('delivery-managers') ||
+      url.includes('active-executives') ||
+      isAiApi ||
+      isCxoApi ||
+      isDeliveryExecutiveApi ||
+      isDriverMapsApi ||
+      isMlTripsApi ||
+      isShiftApi ||
+      isMlAssistantApi ||
+      isMaxKitchenTenantApi;
     const needsUserId =
-      isAiApi || isCxoApi || isDriverMapsApi || isMlAssistantApi || isKitchenStoreApi;
+      isAiApi || isCxoApi || isDriverMapsApi || isMlAssistantApi || isMaxKitchenTenantApi;
     if (isCompanyScoped) {
       const companyId = store.user?.companyId || store.user?.company_id || localStorage.getItem('company_id');
       if (companyId) {

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
+import { PurchaseReceiptLineImages } from '@/components/store/PurchaseReceiptLineImages';
 import { cn } from '@/lib/utils';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import {
@@ -17,8 +18,8 @@ import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 const ACTION_OPTIONS = ['KEEP', 'RETURN', 'INVESTIGATE', 'REJECT'];
 
-/** Columns without Off-list reason: Item, Brand, Receipt, Qty, Price, Status, Action, Note, Approve. */
-const BASE_PENDING_TABLE_COLS = 9;
+/** Columns without Off-list reason: Image, Item, Brand, Receipt, Qty, Price, Status, Action, Note, Approve. */
+const BASE_PENDING_TABLE_COLS = 10;
 
 function shortId(id) {
   const s = String(id || '');
@@ -106,6 +107,14 @@ function PendingReviewRow({
 
   return (
     <TableRow className="align-top">
+      <TableCell className="w-[1%] align-middle">
+        <PurchaseReceiptLineImages
+          catalogUrl={row.item_primary_image_url}
+          dockUrl={row.image_s3_url}
+          dockUploadedAt={row.image_uploaded_at}
+          size="sm"
+        />
+      </TableCell>
       <TableCell className="max-w-[14rem] font-medium">{row.inventory_item_name || '—'}</TableCell>
       <TableCell>
         <ExceptionLineBrandCell row={row} />
@@ -354,6 +363,7 @@ const StoreManagerOffListPurchaseReviewPage = () => {
                 )}
               >
                 <TableRow>
+                  <TableHead className="w-[1%] whitespace-nowrap">SKU image</TableHead>
                   <TableHead>Item</TableHead>
                   <TableHead>Brand</TableHead>
                   <TableHead>Receipt</TableHead>

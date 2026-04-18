@@ -2,12 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
-import {
-  compareNearExpiryInfo,
-  nearExpiryChipClassName,
-  nearExpiryCountdownLabel,
-  nearExpiryRowClassName
-} from '../../utils/nearExpiryUi.js';
+import { nearExpiryChipClassName, nearExpiryCountdownLabel, nearExpiryRowClassName } from '../../utils/nearExpiryUi.js';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -48,7 +43,8 @@ const InventoryBrandCell = ({ item }) => {
 
 const StoreManagerInventoryViewPage = () => {
   const basePath = useCompanyBasePath();
-  const { items, lowStockItems, nearExpiryByItemId, nearExpiryMeta, refreshNearExpiry } = useKitchenInventoryMock();
+  const { items, lowStockItems, nearExpiryByItemId, nearExpiryBatches, nearExpiryMeta, refreshNearExpiry } =
+    useKitchenInventoryMock();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [unitFilter, setUnitFilter] = useState('all');
@@ -109,67 +105,55 @@ const StoreManagerInventoryViewPage = () => {
     ? `Showing ${filteredItems.length} of ${items.length} items.`
     : 'Live inventory item list.';
 
-  const nearExpirySummaryRows = useMemo(() => {
-    return Object.entries(nearExpiryByItemId)
-      .map(([id, info]) => {
-        const it = items.find((i) => i.id === id);
-        return { id, name: it?.name || 'Unknown item', ...info };
-      })
-      .sort((a, b) => compareNearExpiryInfo(a, b));
-  }, [nearExpiryByItemId, items]);
-
   return (
     <StorePageShell>
       <StoreStatGrid>
         <StoreStatCard label="Inventory Items" value={items.length} />
         <StoreStatCard label="Low Stock Items" value={lowStockItems.length} />
-        <StoreStatCard
-          label={`Near expiry (≤${nearExpiryMeta.days_threshold}d)`}
-          value={nearExpiryMeta.total_count}
-          tone="rose"
-        />
+        <StoreStatCard label="Near expiry" value={nearExpiryMeta.total_count} tone="rose" />
         <StoreStatCard label="Units Tracked" value={new Set(items.map((item) => item.unit)).size} />
       </StoreStatGrid>
       <StoreSection
         title="Near-expiry focus"
-        description={`Catalog items with batches expiring within ${nearExpiryMeta.days_threshold} days. Row colors match severity (expired → critical → warning → approaching).`}
         headerActions={
           <Button type="button" variant="outline" size="sm" onClick={() => void refreshNearExpiry()}>
             Refresh
           </Button>
         }
       >
-        {nearExpirySummaryRows.length === 0 ? (
-          <p className="text-sm text-slate-500">No near-expiry batches in the current window.</p>
+        {nearExpiryBatches.length === 0 ? (
+          <p className="text-sm text-slate-500">No near-expiry batches.</p>
         ) : (
           <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
-            {nearExpirySummaryRows.slice(0, 16).map((row) => (
+            {nearExpiryBatches.slice(0, 16).map((row) => (
               <li
-                key={row.id}
-                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/80 px-3 py-2 ${nearExpiryRowClassName(row)}`}
+                key={row.batch_id || `${row.inventory_item_id}-${row.expiry_date}`}
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200/80 px-3 py-2 text-sm ${nearExpiryRowClassName(row)}`}
               >
-                <Link
-                  to={`${basePath}/store-operator/item/${row.id}`}
-                  className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900 hover:underline"
-                >
-                  {row.name}
-                </Link>
-                <div className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${nearExpiryChipClassName(row)}`}
-                  >
-                    {nearExpiryCountdownLabel(row)}
-                  </span>
-                  {row.expiry_date ? (
-                    <span className="text-[11px] text-slate-600 sm:text-xs">{row.expiry_date}</span>
-                  ) : null}
+                <div className="min-w-0 flex-1">
+                  {row.inventory_item_id ? (
+                    <Link
+                      to={`${basePath}/store-operator/item/${row.inventory_item_id}`}
+                      className="block truncate font-medium text-slate-900 hover:underline"
+                    >
+                      {row.item_name}
+                    </Link>
+                  ) : (
+                    <span className="block truncate font-medium text-slate-900">{row.item_name}</span>
+                  )}
+                  <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600">
+                    <span>Qty {row.remaining_quantity || '—'}</span>
+                    <span>{row.days_until_expiry != null ? `${row.days_until_expiry} days` : '—'}</span>
+                  </div>
                 </div>
               </li>
             ))}
           </ul>
         )}
-        {nearExpirySummaryRows.length > 16 ? (
-          <p className="mt-2 text-xs text-slate-500">Showing 16 of {nearExpirySummaryRows.length}. Use the table below with filter &quot;Near expiry&quot; for the full set.</p>
+        {nearExpiryBatches.length > 16 ? (
+          <p className="mt-2 text-xs text-slate-500">
+            Showing 16 of {nearExpiryBatches.length}. Use the table below with filter &quot;Near expiry&quot; for the full set.
+          </p>
         ) : null}
       </StoreSection>
       <StoreSection

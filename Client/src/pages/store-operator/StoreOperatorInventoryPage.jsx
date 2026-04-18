@@ -170,7 +170,7 @@ const StoreOperatorInventoryPage = () => {
         <StoreStatCard label="Items" value={items.length} tone="sky" />
         <StoreStatCard label="Low Stock Alerts" value={lowStockItems.length} tone="amber" />
         <StoreStatCard
-          label={`Near expiry (≤${nearExpiryMeta.days_threshold}d)`}
+          label="Near expiry"
           value={nearExpiryMeta.total_count}
           tone="rose"
         />

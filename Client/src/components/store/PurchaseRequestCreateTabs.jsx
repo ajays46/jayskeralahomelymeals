@@ -46,6 +46,15 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
 
   const [status, setStatus] = useState('');
   const [submitPopup, setSubmitPopup] = useState(null);
+  /** `${kind}:${sectionKey}` → search string for low stock / shopping list tables */
+  const [sourceFilters, setSourceFilters] = useState({});
+
+  const sourceFilterKey = (k, sectionKey) => `${k}:${sectionKey}`;
+  const getSourceFilter = (k, sectionKey) => sourceFilters[sourceFilterKey(k, sectionKey)] ?? '';
+  const setSourceFilter = (k, sectionKey, value) => {
+    const key = sourceFilterKey(k, sectionKey);
+    setSourceFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   const patchBucket = useCallback((kind, updater) => {
     setBuckets((prev) => ({
@@ -293,7 +302,16 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
   const renderSourceGrid = (kind) => (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       {SOURCE_SECTIONS.map((section) => {
-        const rows = sectionData[section.key];
+        const allRows = sectionData[section.key];
+        const q = getSourceFilter(kind, section.key).trim().toLowerCase();
+        const rows =
+          !q || !allRows.length
+            ? allRows
+            : allRows.filter((item) => {
+                const name = String(item.name || '').toLowerCase();
+                const brand = String(item.brand_name || '').toLowerCase();
+                return name.includes(q) || brand.includes(q);
+              });
         const scrollableTable = SOURCE_TABLE_SCROLLABLE_KEYS.has(section.key);
         const tableEl = (
           <Table
@@ -345,8 +363,18 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
             key={`${kind}-${section.key}`}
             title={section.title}
             tone={section.key === 'shoppingList' ? 'amber' : 'emerald'}
-            headerActions={
+            headerActions={[
+              <input
+                key="filter"
+                type="search"
+                className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm sm:max-w-[11rem]"
+                placeholder="Search by name…"
+                value={getSourceFilter(kind, section.key)}
+                onChange={(e) => setSourceFilter(kind, section.key, e.target.value)}
+                aria-label={`Filter ${section.title} by item or brand name`}
+              />,
               <Button
+                key="refresh"
                 type="button"
                 variant="outline"
                 size="sm"
@@ -355,10 +383,12 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
               >
                 {bootstrapLoading ? 'Refreshing...' : 'Refresh'}
               </Button>
-            }
+            ]}
           >
-            {rows.length === 0 ? (
+            {allRows.length === 0 ? (
               <StoreNotice tone="amber">{section.empty}</StoreNotice>
+            ) : rows.length === 0 ? (
+              <StoreNotice tone="amber">No items match this search.</StoreNotice>
             ) : scrollableTable ? (
               <div
                 className="overflow-y-auto overscroll-y-contain rounded-md border border-slate-200"
@@ -384,11 +414,20 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
       <div className="space-y-4">
         <p className="text-sm text-slate-600">{meta.blurb}</p>
         {renderSourceGrid(kind)}
-        <CreateInventoryItemSection
-          idPrefix={`purchase-request-${kind}`}
-          description="Create the catalog item here first, then it is added to the active tab's purchase request with quantity 1 (edit qty in the table below)."
-          onItemCreated={(payload) => onInventoryItemCreated(kind, payload)}
-        />
+        <details className="rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2">
+          <summary className="cursor-pointer select-none text-sm font-medium text-slate-800">
+            Create inventory item
+          </summary>
+          <div className="mt-3 border-t border-slate-200/70 pt-3">
+            <CreateInventoryItemSection
+              embedded
+              idPrefix={`purchase-request-${kind}`}
+              description="Create the catalog item here first, then it is added to the active tab's purchase request with quantity 1 (edit qty in the table below)."
+              onItemCreated={(payload) => onInventoryItemCreated(kind, payload)}
+              showPrimaryImage={false}
+            />
+          </div>
+        </details>
         <StoreSection title="" tone={meta.formSectionTone}>
           <form onSubmit={(e) => onSubmit(e, kind)} className="space-y-4">
             <div>
@@ -618,18 +657,51 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
         <div className="w-full">{renderKindPanel(locked)}</div>
       ) : (
         <Tabs defaultValue={PURCHASE_KIND.WEEKLY} className="w-full">
-          <TabsList className="grid h-auto w-full max-w-xl grid-cols-2 gap-1 p-1 sm:inline-flex sm:w-auto">
-            <TabsTrigger value={PURCHASE_KIND.WEEKLY} className="flex-1 sm:flex-initial">
-              {PURCHASE_KIND_META[PURCHASE_KIND.WEEKLY].label}
-            </TabsTrigger>
-            <TabsTrigger value={PURCHASE_KIND.DAILY} className="flex-1 sm:flex-initial">
-              {PURCHASE_KIND_META[PURCHASE_KIND.DAILY].label}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value={PURCHASE_KIND.WEEKLY} className="mt-4 space-y-4 focus-visible:ring-offset-0">
+          <div
+            className="mb-6 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50 via-white to-white p-4 shadow-sm ring-1 ring-slate-900/5 sm:p-5"
+            role="group"
+            aria-labelledby="purchase-type-heading"
+          >
+            <div className="mb-4 max-w-2xl">
+              <h2
+                id="purchase-type-heading"
+                className="text-base font-semibold tracking-tight text-slate-900 sm:text-lg"
+              >
+                Purchase type
+              </h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+                Choose weekly or daily before adding items. Each type is a separate request for manager review.
+              </p>
+            </div>
+            <TabsList className="grid h-auto w-full grid-cols-1 gap-3 rounded-none bg-transparent p-0 sm:grid-cols-2">
+              <TabsTrigger
+                value={PURCHASE_KIND.WEEKLY}
+                className="flex h-auto min-h-[5.25rem] flex-col items-start justify-center gap-1 rounded-xl border-2 border-slate-200 bg-white px-4 py-3.5 text-left text-sm font-medium shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50/90 focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-2 data-[state=active]:border-emerald-600 data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-950 data-[state=active]:shadow-md data-[state=active]:hover:bg-emerald-50 sm:min-h-[4.75rem] sm:px-5 sm:py-4"
+              >
+                <span className="text-base font-semibold sm:text-[1.0625rem]">
+                  {PURCHASE_KIND_META[PURCHASE_KIND.WEEKLY].label}
+                </span>
+                <span className="text-xs font-normal leading-snug text-slate-600">
+                  Planned or bulk replenishment for the week.
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value={PURCHASE_KIND.DAILY}
+                className="flex h-auto min-h-[5.25rem] flex-col items-start justify-center gap-1 rounded-xl border-2 border-slate-200 bg-white px-4 py-3.5 text-left text-sm font-medium shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50/90 focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 data-[state=active]:border-violet-600 data-[state=active]:bg-violet-50 data-[state=active]:text-violet-950 data-[state=active]:shadow-md data-[state=active]:hover:bg-violet-50 sm:min-h-[4.75rem] sm:px-5 sm:py-4"
+              >
+                <span className="text-base font-semibold sm:text-[1.0625rem]">
+                  {PURCHASE_KIND_META[PURCHASE_KIND.DAILY].label}
+                </span>
+                <span className="text-xs font-normal leading-snug text-slate-600">
+                  Same-day or short-cycle needs; freshness can be set per line.
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value={PURCHASE_KIND.WEEKLY} className="mt-3 space-y-4 focus-visible:ring-offset-0">
             {renderKindPanel(PURCHASE_KIND.WEEKLY)}
           </TabsContent>
-          <TabsContent value={PURCHASE_KIND.DAILY} className="mt-4 space-y-4 focus-visible:ring-offset-0">
+          <TabsContent value={PURCHASE_KIND.DAILY} className="mt-3 space-y-4 focus-visible:ring-offset-0">
             {renderKindPanel(PURCHASE_KIND.DAILY)}
           </TabsContent>
         </Tabs>

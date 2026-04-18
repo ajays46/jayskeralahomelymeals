@@ -8,9 +8,10 @@
  *
  * Feature modules:
  *
- *  store        (/kitchen-store)        Inventory, brands, recipes, purchase requests,
- *                                       meal reports, forecasting (BFF for store-operator
- *                                       and store-manager UIs)
+ *  store        (/kitchen-store)        Legacy BFF mount (v1 items, v2 purchase dupes, meal-report, catalog).
+ *  store        (/store)               Guide brands surface (§9.2).
+ *  recipe       (/recipe)              Guide recipe/BOM lines (§9.4).
+ *  kitchen      (/kitchen)             Guide menus, plans, reconciliation (§9.5).
  *  orders       (/orders)               Order creation, status, pricing calculations
  *  payments     (/payments)             Payment processing, receipt uploads
  *  seller       (/seller)               Seller profile, customer management,
@@ -34,6 +35,9 @@ import deliveryItemRoutes from './deliveryItem.routes.js';
 import deliveryManagerRoutes from './deliveryManager.routes.js';
 import driverMapsRoutes from './driverMaps.routes.js';
 import kitchenStoreRoutes from './kitchenStore.routes.js';
+import storeRestRoutes from './storeRest.routes.js';
+import recipeRestRoutes from './recipeRest.routes.js';
+import kitchenRestRoutes from './kitchenRest.routes.js';
 import inventoryRestRoutes from './inventoryRest.routes.js';
 import purchaseRestRoutes from './purchaseRest.routes.js';
 import orderRoutes from './order.routes.js';
@@ -48,6 +52,11 @@ router.use(extractApiVersion);
 
 // @feature store — inventory, brands, recipes, purchase, forecasting
 router.use('/kitchen-store', kitchenStoreRoutes);
+
+// Guide-aligned namespaces (FRONTEND_GUIDE_FULL.md §9.2–§9.5; same controllers/services as kitchen-store)
+router.use('/store', storeRestRoutes);
+router.use('/recipe', recipeRestRoutes);
+router.use('/kitchen', kitchenRestRoutes);
 
 // Guide-aligned REST prefixes (same BFF → upstream as kitchen-store)
 router.use('/inventory', inventoryRestRoutes);

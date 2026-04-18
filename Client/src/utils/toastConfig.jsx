@@ -199,6 +199,10 @@ export const showStoreError = (message, title = 'Something went wrong') => {
   showErrorToast(message, title);
 };
 
+export const showStoreWarning = (message, title = 'Warning') => {
+  showWarningToast(message, title);
+};
+
 // Success actions
 export const showCopiedToClipboard = (item = "text") => {
   showSuccessToast(`${item} copied to clipboard!`, "Copied!");

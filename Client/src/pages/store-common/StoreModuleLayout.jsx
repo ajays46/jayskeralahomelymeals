@@ -7,18 +7,18 @@ import { useLogout } from '../../hooks/userHooks/useLogin';
 /** @feature kitchen-store — Tenant layout: store manager / store operator navigation shell. */
 const managerLinks = [
   { to: 'store-manager/kitchen-dashboard', label: 'Manager Dashboard' },
-  { to: 'store-manager/recipe-bom', label: 'Recipe / BOM' },
   { to: 'store-manager/purchase-requests', label: 'Purchase requests' },
   { to: 'store-manager/purchase-receipts', label: 'Purchase Receipts' },
   { to: 'store-manager/purchase-comparison', label: 'Purchase Comparison' },
   { to: 'store-manager/off-list-review', label: 'Purchase Manager Review' },
   { to: 'store-manager/inventory', label: 'Inventory View' },
   { to: 'store-manager/stock-logs', label: 'Stock Logs' },
-  { to: 'store-manager/plan-list', label: 'Plan List' },
   { to: 'store-manager/plan-approval', label: 'Plan Approval' },
+  { to: 'store-manager/meal-programs', label: 'Kitchen meal creation' },
   { to: 'store-manager/reports', label: 'Reports' },
   { to: 'store-manager/forecast', label: 'Forecast' },
-  { to: 'store-manager/purchase-suggestions', label: 'Purchase Suggestions' }
+  { to: 'store-manager/purchase-suggestions', label: 'Purchase Suggestions' },
+  { to: 'store-manager/stock-reconciliation', label: 'Stock count & readiness' }
 ];
 
 const operatorLinks = [
@@ -28,10 +28,12 @@ const operatorLinks = [
   { to: 'store-operator/purchase-requests', label: 'Create Purchase Request' },
   { to: 'store-operator/approved-requests', label: 'Approved Requests' },
   { to: 'store-operator/purchases', label: 'Purchase Receipts' },
-  { to: 'store-operator/issue', label: 'Issue to Kitchen' },
+  { to: 'store-operator/delivery-meal-counts', label: 'Delivery meal counts' },
+  { to: 'store-operator/issue', label: 'Issue to Kitchen (plan list)' },
   { to: 'store-operator/adjustments', label: 'Adjustments' },
   { to: 'store-operator/meal-report', label: 'Meal Report' },
-  { to: 'store-operator/recipe-bom', label: 'Recipe / BOM' }
+  { to: 'store-operator/recipe-bom', label: 'Recipe / BOM' },
+  { to: 'store-operator/stock-reconciliation', label: 'Stock count & readiness' }
 ];
 
 const linkClassName = ({ isActive }) =>

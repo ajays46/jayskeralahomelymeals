@@ -153,6 +153,7 @@ const StoreOperatorItemMasterPage = () => {
         idPrefix="item-master"
         selectedItemId={selectedId}
         reloadItemImages={reloadDetailImages}
+        showPrimaryImage={false}
       />
 
       <StoreSection

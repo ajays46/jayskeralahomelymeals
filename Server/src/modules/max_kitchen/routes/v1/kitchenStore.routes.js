@@ -22,10 +22,26 @@ import {
   getShoppingList,
   upsertRecipeLine,
   listRecipeLines,
+  updateRecipeLine,
+  deleteRecipeLine,
   generatePlan,
+  listPlans,
   getPlan,
+  getPlanDemandVsStoreStock,
+  patchKitchenPlanLine,
   approvePlan,
   issuePlan,
+  submitPlan,
+  rejectPlan,
+  getNextDayReadiness,
+  postPhysicalVsSystem,
+  createReconciliationSession,
+  listReconciliationSessions,
+  getReconciliationSession,
+  patchReconciliationSession,
+  putReconciliationSessionLines,
+  finalizeReconciliationSession,
+  patchReconciliationSessionLineManagerReview,
   createPurchaseInvoiceUploadUrl,
   uploadPurchaseReceiptInvoice,
   createPurchaseReceipt,
@@ -46,6 +62,7 @@ import {
   rejectPurchaseRequest,
   listApprovedPurchaseRequestLines,
   downloadApprovedPurchaseRequestLinesTxt,
+  downloadApprovedPurchaseRequestLinesPdf,
   getPurchaseRequestComparison,
   listOffListPurchaseReview,
   reviewPurchaseReceiptLine,
@@ -115,6 +132,8 @@ router.get('/v1/catalog/menus', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), li
 // v2: Recipes
 router.post('/v2/recipes/lines', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), upsertRecipeLine);
 router.get('/v2/recipes/lines', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listRecipeLines);
+router.put('/v2/recipes/lines/:line_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), updateRecipeLine);
+router.delete('/v2/recipes/lines/:line_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), deleteRecipeLine);
 
 // v2: Menus — by-kind (no menu UUID; register before :menu_id)
 router.get(
@@ -145,10 +164,34 @@ router.put('/v2/menus/:menu_id/weekly-slot', checkRole('STORE_MANAGER', 'STORE_O
 router.get('/v2/menus/:menu_id/menu-items', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listMenuCombos);
 
 // v2: Plans (generate, detail, approve, issue)
-router.post('/v2/plans/generate', checkRole('STORE_MANAGER'), generatePlan);
+router.post('/v2/plans/generate', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), generatePlan);
+router.get('/v2/plans', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPlans);
+router.get(
+  '/v2/plans/:plan_id/demand-vs-store-stock',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  getPlanDemandVsStoreStock
+);
+router.patch('/v2/plans/:plan_id/lines/:line_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), patchKitchenPlanLine);
+router.post('/v2/plans/:plan_id/submit', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), submitPlan);
+router.post('/v2/plans/:plan_id/reject', checkRole('STORE_MANAGER'), rejectPlan);
 router.get('/v2/plans/:plan_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getPlan);
 router.post('/v2/plans/:plan_id/approve', checkRole('STORE_MANAGER'), approvePlan);
 router.post('/v2/plans/:plan_id/issue', checkRole('STORE_OPERATOR'), issuePlan);
+
+// v2: Reconciliation (proxy to upstream kitchen inventory service)
+router.get('/v2/reconciliation/next-day-readiness', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getNextDayReadiness);
+router.post('/v2/reconciliation/physical-vs-system', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), postPhysicalVsSystem);
+router.get('/v2/reconciliation/sessions', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listReconciliationSessions);
+router.post('/v2/reconciliation/sessions', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), createReconciliationSession);
+router.get('/v2/reconciliation/sessions/:session_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), getReconciliationSession);
+router.patch('/v2/reconciliation/sessions/:session_id', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), patchReconciliationSession);
+router.put('/v2/reconciliation/sessions/:session_id/lines', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), putReconciliationSessionLines);
+router.post('/v2/reconciliation/sessions/:session_id/finalize', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), finalizeReconciliationSession);
+router.patch(
+  '/v2/reconciliation/sessions/:session_id/lines/:line_id/manager-review',
+  checkRole('STORE_MANAGER'),
+  patchReconciliationSessionLineManagerReview
+);
 
 // v2: Purchase receipts
 router.post('/v2/purchases/invoice-upload-url', checkRole('STORE_OPERATOR'), createPurchaseInvoiceUploadUrl);
@@ -206,6 +249,11 @@ router.get(
   '/v2/purchase-requests/:request_id/approved-lines.txt',
   checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
   downloadApprovedPurchaseRequestLinesTxt
+);
+router.get(
+  '/v2/purchase-requests/:request_id/approved-lines.pdf',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  downloadApprovedPurchaseRequestLinesPdf
 );
 router.get(
   '/v2/purchase-requests/:request_id/purchase-comparison',
