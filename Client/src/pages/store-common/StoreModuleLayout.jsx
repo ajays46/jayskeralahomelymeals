@@ -14,7 +14,7 @@ const managerLinks = [
   { to: 'store-manager/inventory', label: 'Inventory View' },
   { to: 'store-manager/stock-logs', label: 'Stock Logs' },
   { to: 'store-manager/plan-approval', label: 'Plan Approval' },
-  { to: 'store-manager/meal-programs', label: 'Kitchen meal creation' },
+  { to: 'store-manager/meal-programs', label: 'Menu item creation' },
   { to: 'store-manager/reports', label: 'Reports' },
   { to: 'store-manager/forecast', label: 'Forecast' },
   { to: 'store-manager/purchase-suggestions', label: 'Purchase Suggestions' },

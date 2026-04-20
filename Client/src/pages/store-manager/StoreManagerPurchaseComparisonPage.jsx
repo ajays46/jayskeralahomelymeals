@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ReceiptLineBrandCell } from '@/components/store/ReceiptLineBrandCell';
 import { StoreNotice, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import {
@@ -16,7 +17,7 @@ import { showStoreError } from '../../utils/toastConfig.jsx';
 const StoreManagerPurchaseComparisonPage = () => {
   const basePath = useCompanyBasePath();
   const { approvedRequests, bootstrapLoading, error, listApprovedRequests } = useKitchenPurchaseRequestOperatorApi();
-  const { getPurchaseComparison } = useKitchenReceiptsApi();
+  const { getPurchaseComparison, getBrandLogoViewUrl } = useKitchenReceiptsApi();
   const [selectedRequestId, setSelectedRequestId] = useState('');
   const [comparisonRows, setComparisonRows] = useState([]);
   const [comparisonSummary, setComparisonSummary] = useState({});
@@ -144,6 +145,7 @@ const StoreManagerPurchaseComparisonPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Item</TableHead>
+                <TableHead>Brand</TableHead>
                 <TableHead>Requested</TableHead>
                 <TableHead>Approved</TableHead>
                 <TableHead>Purchased</TableHead>
@@ -162,6 +164,9 @@ const StoreManagerPurchaseComparisonPage = () => {
                       {row.operator_note ? <div className="text-xs text-muted-foreground">Op: {row.operator_note}</div> : null}
                       {row.manager_note ? <div className="text-xs text-muted-foreground">Mgr: {row.manager_note}</div> : null}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <ReceiptLineBrandCell row={row} getBrandLogoViewUrl={getBrandLogoViewUrl} />
                   </TableCell>
                   <TableCell>{row.requested_quantity} {row.requested_unit}</TableCell>
                   <TableCell>{row.approved_quantity} {row.requested_unit}</TableCell>

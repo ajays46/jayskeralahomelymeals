@@ -34,7 +34,7 @@ const StoreManagerMealProgramsPage = () => {
   if (!canUseStoreKitchen) {
     return (
       <StorePageShell>
-        <StorePageHeader title="Kitchen meal creation" />
+        <StorePageHeader title="Menu item creation" />
         <StoreSection title="Access" compact>
           <p className="text-sm text-slate-600">You need a store operator or store manager role to use kitchen meal creation.</p>
         </StoreSection>
@@ -44,7 +44,7 @@ const StoreManagerMealProgramsPage = () => {
 
   return (
     <StorePageShell>
-      <StorePageHeader title="Kitchen meal creation" />
+      <StorePageHeader title="Menu item creation" />
 
       <StoreOperatorMealProgramsSection
         canEditBomLines={canUseStoreKitchen}

@@ -50,6 +50,12 @@ import {
   listPurchaseReceipts,
   listPurchaseReceiptLines,
   getPurchaseReceiptInvoiceUrl,
+  uploadPurchaseReceiptItemsPhoto,
+  getPurchaseReceiptItemsPhotoUrl,
+  uploadPurchaseReceiptMaterialPhotos,
+  listReceiptMaterialPhotos,
+  getMaterialPhotoViewUrl,
+  deleteReceiptMaterialPhoto,
   streamPurchaseReceiptInvoice,
   createPurchaseRequest,
   addPurchaseRequestLine,
@@ -87,6 +93,11 @@ const router = express.Router();
 const itemImageUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }
+});
+
+const materialPhotosUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 25 }
 });
 
 // Auth + tenant scope for all kitchen store calls
@@ -201,6 +212,18 @@ router.post(
   itemImageUpload.single('file'),
   uploadPurchaseReceiptInvoice
 );
+router.post(
+  '/v2/purchases/receipts/:receipt_id/items-photo/upload',
+  checkRole('STORE_OPERATOR'),
+  itemImageUpload.single('file'),
+  uploadPurchaseReceiptItemsPhoto
+);
+router.post(
+  '/v2/purchases/receipts/:receipt_id/material-photos/upload',
+  checkRole('STORE_OPERATOR'),
+  materialPhotosUpload.array('files', 25),
+  uploadPurchaseReceiptMaterialPhotos
+);
 router.post('/v2/purchases/receipts', checkRole('STORE_OPERATOR'), createPurchaseReceipt);
 router.post('/v2/purchases/receipts/:receipt_id/lines', checkRole('STORE_OPERATOR'), addPurchaseReceiptLine);
 router.post(
@@ -219,6 +242,26 @@ router.get(
   '/v2/purchases/receipts/:receipt_id/invoice/view',
   checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
   streamPurchaseReceiptInvoice
+);
+router.get(
+  '/v2/purchases/receipts/:receipt_id/items-photo/url',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  getPurchaseReceiptItemsPhotoUrl
+);
+router.get(
+  '/v2/purchases/receipts/:receipt_id/material-photos',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  listReceiptMaterialPhotos
+);
+router.get(
+  '/v2/purchases/receipts/:receipt_id/material-photos/:photo_id/url',
+  checkRole('STORE_MANAGER', 'STORE_OPERATOR'),
+  getMaterialPhotoViewUrl
+);
+router.delete(
+  '/v2/purchases/receipts/:receipt_id/material-photos/:photo_id',
+  checkRole('STORE_OPERATOR'),
+  deleteReceiptMaterialPhoto
 );
 router.get('/v2/purchases/receipts/:receipt_id/lines', checkRole('STORE_MANAGER', 'STORE_OPERATOR'), listPurchaseReceiptLines);
 

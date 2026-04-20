@@ -1159,6 +1159,170 @@ export const getPurchaseReceiptInvoiceUrlService = async (receiptId, companyId, 
   }
 };
 
+export const uploadPurchaseReceiptItemsPhotoService = async (receiptId, file, companyId, userId = null) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file.buffer, {
+      filename: file.originalname || 'items-photo',
+      contentType: file.mimetype || 'application/octet-stream',
+      knownLength: file.size
+    });
+    const contextConfig = withKitchenContext(companyId, userId, {
+      headers: {
+        ...formData.getHeaders()
+      },
+      maxBodyLength: Infinity
+    });
+    const response = await apiClient.post(
+      `${K}/purchase/purchases/receipts/${encodeURIComponent(receiptId)}/items-photo/upload`,
+      formData,
+      contextConfig
+    );
+    logKitchenSuccess('uploadPurchaseReceiptItemsPhoto', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/items-photo/upload',
+      companyId: companyId || null,
+      receiptId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('uploadPurchaseReceiptItemsPhoto', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/items-photo/upload',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getPurchaseReceiptItemsPhotoUrlService = async (receiptId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchases/receipts/${encodeURIComponent(receiptId)}/items-photo/url`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('getPurchaseReceiptItemsPhotoUrl', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/items-photo/url',
+      companyId: companyId || null,
+      receiptId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getPurchaseReceiptItemsPhotoUrl', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/items-photo/url',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const uploadPurchaseReceiptMaterialPhotosService = async (receiptId, files, companyId, userId = null) => {
+  try {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append('files', file.buffer, {
+        filename: file.originalname || 'photo',
+        contentType: file.mimetype || 'application/octet-stream',
+        knownLength: file.size
+      });
+    }
+    const contextConfig = withKitchenContext(companyId, userId, {
+      headers: {
+        ...formData.getHeaders()
+      },
+      maxBodyLength: Infinity
+    });
+    const response = await apiClient.post(
+      `${K}/purchase/purchases/receipts/${encodeURIComponent(receiptId)}/material-photos/upload`,
+      formData,
+      contextConfig
+    );
+    logKitchenSuccess('uploadPurchaseReceiptMaterialPhotos', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/material-photos/upload',
+      companyId: companyId || null,
+      receiptId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('uploadPurchaseReceiptMaterialPhotos', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/material-photos/upload',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const listReceiptMaterialPhotosService = async (receiptId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchases/receipts/${encodeURIComponent(receiptId)}/material-photos`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('listReceiptMaterialPhotos', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/material-photos',
+      companyId: companyId || null,
+      receiptId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listReceiptMaterialPhotos', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/material-photos',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getMaterialPhotoViewUrlService = async (receiptId, photoId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchases/receipts/${encodeURIComponent(receiptId)}/material-photos/${encodeURIComponent(photoId)}/url`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('getMaterialPhotoViewUrl', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/material-photos/:photo_id/url',
+      companyId: companyId || null,
+      receiptId,
+      photoId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getMaterialPhotoViewUrl', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/material-photos/:photo_id/url',
+      companyId: companyId || null,
+      receiptId,
+      photoId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const deleteReceiptMaterialPhotoService = async (receiptId, photoId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.delete(
+      `${K}/purchase/purchases/receipts/${encodeURIComponent(receiptId)}/material-photos/${encodeURIComponent(photoId)}`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('deleteReceiptMaterialPhoto', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/material-photos/:photo_id',
+      companyId: companyId || null,
+      receiptId,
+      photoId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('deleteReceiptMaterialPhoto', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/material-photos/:photo_id',
+      companyId: companyId || null,
+      receiptId,
+      photoId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
 const inferInvoiceContentTypeFromUrl = (urlString) => {
   try {
     const path = new URL(urlString).pathname.toLowerCase();

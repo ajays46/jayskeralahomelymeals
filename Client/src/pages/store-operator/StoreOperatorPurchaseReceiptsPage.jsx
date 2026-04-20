@@ -4,9 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
+import { ReceiptLineBrandCell } from '@/components/store/ReceiptLineBrandCell';
 import {
   formatKitchenStoreApiError,
   purchaseReceiptHasInvoice,
+  purchaseReceiptHasItemsPhoto,
   useKitchenInventoryMock,
   useKitchenPurchaseRequestOperatorApi,
   useKitchenReceiptsApi
@@ -23,27 +25,33 @@ const optionalLineDate = (value) => {
   return s || undefined;
 };
 
-/** Renders brand logo + name from a normalized receipt line (null-safe). */
-function ReceiptLineBrandCell({ row }) {
-  const logoSrc = (row.item_primary_image_url || row.brand_logo_s3_url || '').trim();
-  const brandLabel = (row.brand_name || '').trim();
-  if (!brandLabel && !logoSrc) {
-    return <span className="text-sm text-slate-400">—</span>;
+/**
+ * API datetime → display in India Standard Time using Indian conventions:
+ * day-first numeric date (dd/MM/yyyy), 12-hour clock.
+ */
+function formatDateTimeIST(iso) {
+  if (iso == null || iso === '') return '—';
+  const raw = String(iso).trim();
+  if (!raw) return '—';
+  let d = new Date(raw);
+  // Space-separated "YYYY-MM-DD HH:mm:ss" from some APIs parses inconsistently; normalize to ISO-local.
+  if (Number.isNaN(d.getTime()) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(raw)) {
+    d = new Date(raw.replace(' ', 'T'));
   }
-  return (
-    <div className="flex min-w-0 max-w-[12rem] items-center gap-2">
-      {logoSrc ? (
-        <img
-          src={logoSrc}
-          alt={brandLabel ? `${brandLabel} logo` : ''}
-          className="h-7 w-7 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
-        />
-      ) : null}
-      <span className="min-w-0 truncate text-sm text-slate-800" title={brandLabel || undefined}>
-        {brandLabel || '—'}
-      </span>
-    </div>
-  );
+  if (Number.isNaN(d.getTime())) return '—';
+  const datePart = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(d);
+  const timePart = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(d);
+  return `${datePart}, ${timePart}`;
 }
 
 const previewBaseQtyAndUnitPrice = (purchasedQty, conversionToBase, lineTotal) => {
@@ -70,11 +78,14 @@ const StoreOperatorPurchaseReceiptsPage = () => {
   const {
     createReceipt,
     uploadReceiptInvoice,
+    uploadReceiptItemsPhoto,
     addReceiptLine,
     uploadReceiptLineImage,
     listReceipts,
     listReceiptLines,
-    viewReceiptInvoiceInNewTab
+    viewReceiptInvoiceInNewTab,
+    openReceiptItemsPhotoInNewTab,
+    getBrandLogoViewUrl
   } = useKitchenReceiptsApi();
 
   const [selectedRequestId, setSelectedRequestId] = useState(searchParams.get('requestId') || '');
@@ -99,6 +110,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
   const [addApprovedPurchaseLinesOpen, setAddApprovedPurchaseLinesOpen] = useState(true);
   const [offListForm, setOffListForm] = useState({
     inventory_item_id: '',
+    brand_id: '',
+    brand: '',
     purchased_qty: '',
     purchase_unit: 'kg',
     conversion_to_base: '1',
@@ -110,12 +123,19 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     note: ''
   });
   const [purchaseProofFile, setPurchaseProofFile] = useState(null);
+  const [itemsPhotoFile, setItemsPhotoFile] = useState(null);
   const [invoiceUploadLoading, setInvoiceUploadLoading] = useState(false);
   const [invoiceUrlLoadingId, setInvoiceUrlLoadingId] = useState('');
+  const [itemsPhotoUrlLoadingId, setItemsPhotoUrlLoadingId] = useState('');
   const purchaseProofInputRef = useRef(null);
+  const itemsPhotoInputRef = useRef(null);
   const purchaseProofPreviewUrl = useMemo(
     () => (purchaseProofFile ? URL.createObjectURL(purchaseProofFile) : null),
     [purchaseProofFile]
+  );
+  const itemsPhotoPreviewUrl = useMemo(
+    () => (itemsPhotoFile ? URL.createObjectURL(itemsPhotoFile) : null),
+    [itemsPhotoFile]
   );
 
   const [approvedLineImageFile, setApprovedLineImageFile] = useState(null);
@@ -140,6 +160,12 @@ const StoreOperatorPurchaseReceiptsPage = () => {
 
   useEffect(() => {
     return () => {
+      if (itemsPhotoPreviewUrl) URL.revokeObjectURL(itemsPhotoPreviewUrl);
+    };
+  }, [itemsPhotoPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
       if (approvedLineImagePreviewUrl) URL.revokeObjectURL(approvedLineImagePreviewUrl);
     };
   }, [approvedLineImagePreviewUrl]);
@@ -158,6 +184,16 @@ const StoreOperatorPurchaseReceiptsPage = () => {
   const clearPurchaseProof = () => {
     setPurchaseProofFile(null);
     if (purchaseProofInputRef.current) purchaseProofInputRef.current.value = '';
+  };
+
+  const onItemsPhotoFileChange = (e) => {
+    const f = e.target.files?.[0] ?? null;
+    setItemsPhotoFile(f);
+  };
+
+  const clearItemsPhoto = () => {
+    setItemsPhotoFile(null);
+    if (itemsPhotoInputRef.current) itemsPhotoInputRef.current.value = '';
   };
 
   const clearApprovedLineImage = () => {
@@ -345,11 +381,20 @@ const StoreOperatorPurchaseReceiptsPage = () => {
           return;
         }
       }
+      if (itemsPhotoFile) {
+        const ct = itemsPhotoFile.type || 'application/octet-stream';
+        if (!['image/jpeg', 'image/png'].includes(ct)) {
+          const msg = 'Purchased-items photo must be JPG or PNG.';
+          setStatus(msg);
+          showStoreError(msg, 'Invalid file type');
+          return;
+        }
+      }
       // Create receipt first, then upload invoice via our API (kitchen → S3). Avoids browser → presigned S3 PUT and S3 CORS.
       const out = await createReceipt({
         purchase_request_id: selectedRequestId,
         reference_invoice: referenceInvoice.trim() || undefined,
-        ...(purchaseProofFile ? { received_at: new Date().toISOString() } : {})
+        ...(purchaseProofFile || itemsPhotoFile ? { received_at: new Date().toISOString() } : {})
       });
       const receiptId = String(out?.receipt_id ?? out?.id ?? '');
       if (!receiptId) {
@@ -362,6 +407,9 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       if (purchaseProofFile) {
         await uploadReceiptInvoice(receiptId, purchaseProofFile);
       }
+      if (itemsPhotoFile) {
+        await uploadReceiptItemsPhoto(receiptId, itemsPhotoFile);
+      }
       setActiveReceiptId(receiptId);
       setSelectedLines([]);
       setStatus(
@@ -369,17 +417,18 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       );
       showStoreSuccess('Receipt created. Add receipt lines when ready.', 'Receipt created');
       clearPurchaseProof();
+      clearItemsPhoto();
       await loadReceiptHistory();
       await openReceiptLines(receiptId);
     } catch (err) {
       const msg = formatKitchenStoreApiError(
         err,
         createdReceiptId
-          ? 'Receipt was created but the invoice file could not be uploaded.'
+          ? 'Receipt was created but a file upload did not complete.'
           : 'Failed to create receipt.'
       );
       setStatus(msg);
-      showStoreError(msg, createdReceiptId ? 'Invoice upload failed' : 'Could not create receipt');
+      showStoreError(msg, createdReceiptId ? 'Upload failed' : 'Could not create receipt');
     } finally {
       setInvoiceUploadLoading(false);
     }
@@ -397,6 +446,21 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       showStoreError(msg, status === 404 ? 'No invoice attached' : 'View invoice failed');
     } finally {
       setInvoiceUrlLoadingId('');
+    }
+  };
+
+  const openReceiptItemsPhoto = async (receiptId) => {
+    if (!receiptId) return;
+    setItemsPhotoUrlLoadingId(receiptId);
+    try {
+      await openReceiptItemsPhotoInNewTab(receiptId);
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg = formatKitchenStoreApiError(err, 'Could not open purchased-items photo.');
+      setStatus(msg);
+      showStoreError(msg, status === 404 ? 'No items photo' : 'View items photo failed');
+    } finally {
+      setItemsPhotoUrlLoadingId('');
     }
   };
 
@@ -470,6 +534,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     try {
       const mfg = optionalLineDate(offListForm.manufacturing_date);
       const exp = optionalLineDate(offListForm.expiry_date);
+      const obid = String(offListForm.brand_id || '').trim();
+      const obname = String(offListForm.brand || '').trim();
       const lineResult = await addReceiptLine(activeReceiptId, {
         inventory_item_id: offListForm.inventory_item_id,
         purchased_qty: pq,
@@ -478,6 +544,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
         line_total: lt,
         purchase_date: offListForm.purchase_date,
         off_list_purchase_reason: offListForm.off_list_purchase_reason.trim(),
+        ...(obid ? { brand_id: obid } : {}),
+        ...(obname ? { brand_name: obname } : {}),
         ...(mfg ? { manufacturing_date: mfg } : {}),
         ...(exp ? { expiry_date: exp } : {}),
         note: offListForm.note.trim() || 'Bought outside approved list'
@@ -497,6 +565,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       showStoreSuccess('Off-list line added to the receipt.', 'Line added');
       setOffListForm({
         inventory_item_id: '',
+        brand_id: '',
+        brand: '',
         purchased_qty: '',
         purchase_unit: 'kg',
         conversion_to_base: '1',
@@ -556,53 +626,109 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             placeholder="Reference invoice"
           />
         </div>
-        <div className="mt-3 rounded-lg border border-slate-200/90 bg-slate-50/70 p-2.5">
-          <div className="text-xs font-medium text-slate-800">Purchase image</div>
-          <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <input
-              ref={purchaseProofInputRef}
-              id="purchase-proof-image"
-              type="file"
-              accept="image/*,application/pdf"
-              className="sr-only"
-              aria-label="Choose purchase receipt image"
-              onChange={onPurchaseProofFileChange}
-            />
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => purchaseProofInputRef.current?.click()}>
-                Choose image
-              </Button>
-              {purchaseProofFile ? (
-                <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-slate-600" onClick={clearPurchaseProof}>
-                  Remove
+        <div className="mt-3 grid min-w-0 gap-3 md:grid-cols-2">
+          <div className="min-w-0 rounded-lg border border-slate-200/90 bg-slate-50/70 p-2.5">
+            <div className="text-xs font-medium text-slate-800">Upload invoice</div>
+            <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <input
+                ref={purchaseProofInputRef}
+                id="purchase-proof-image"
+                type="file"
+                accept="image/*,application/pdf"
+                className="sr-only"
+                aria-label="Choose purchase receipt image"
+                onChange={onPurchaseProofFileChange}
+              />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => purchaseProofInputRef.current?.click()}>
+                  Choose image
                 </Button>
-              ) : null}
+                {purchaseProofFile ? (
+                  <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-slate-600" onClick={clearPurchaseProof}>
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+              {purchaseProofPreviewUrl ? (
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-md border border-dashed border-slate-200 bg-white p-1.5 sm:max-w-[11rem] md:max-w-none">
+                  {purchaseProofFile?.type === 'application/pdf' ? (
+                    <p className="py-2 text-center text-[11px] text-slate-600">PDF selected</p>
+                  ) : (
+                    <img
+                      src={purchaseProofPreviewUrl}
+                      alt="Selected purchase receipt preview"
+                      className="max-h-24 w-full rounded object-contain"
+                    />
+                  )}
+                  <span className="truncate text-[10px] text-slate-500" title={purchaseProofFile?.name || ''}>
+                    {purchaseProofFile?.name}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex h-16 min-w-0 flex-1 items-center justify-center rounded-md border border-dashed border-slate-200 bg-white/80 px-2 text-center text-[11px] text-slate-400 sm:max-w-[11rem] md:max-w-none">
+                  No image
+                </div>
+              )}
             </div>
-            {purchaseProofPreviewUrl ? (
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-md border border-dashed border-slate-200 bg-white p-1.5 sm:max-w-[11rem]">
-                {purchaseProofFile?.type === 'application/pdf' ? (
-                  <p className="py-2 text-center text-[11px] text-slate-600">PDF selected</p>
-                ) : (
+          </div>
+          <div className="min-w-0 rounded-lg border border-slate-200/90 bg-slate-50/70 p-2.5">
+            <div className="text-xs font-medium text-slate-800">Purchased-items photo (optional)</div>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              One image of all bought goods together (JPEG or PNG). Uploads after the receipt is created.
+            </p>
+            <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <input
+                ref={itemsPhotoInputRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                className="sr-only"
+                aria-label="Choose purchased-items photo"
+                onChange={onItemsPhotoFileChange}
+              />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => itemsPhotoInputRef.current?.click()}
+                >
+                  Choose photo
+                </Button>
+                {itemsPhotoFile ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-slate-600"
+                    onClick={clearItemsPhoto}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+              {itemsPhotoPreviewUrl ? (
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-md border border-dashed border-slate-200 bg-white p-1.5 sm:max-w-[11rem] md:max-w-none">
                   <img
-                    src={purchaseProofPreviewUrl}
-                    alt="Selected purchase receipt preview"
+                    src={itemsPhotoPreviewUrl}
+                    alt="Purchased items preview"
                     className="max-h-24 w-full rounded object-contain"
                   />
-                )}
-                <span className="truncate text-[10px] text-slate-500" title={purchaseProofFile?.name || ''}>
-                  {purchaseProofFile?.name}
-                </span>
-              </div>
-            ) : (
-              <div className="flex h-16 min-w-0 flex-1 items-center justify-center rounded-md border border-dashed border-slate-200 bg-white/80 px-2 text-center text-[11px] text-slate-400 sm:max-w-[11rem]">
-                No image
-              </div>
-            )}
+                  <span className="truncate text-[10px] text-slate-500" title={itemsPhotoFile?.name || ''}>
+                    {itemsPhotoFile?.name}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex h-16 min-w-0 flex-1 items-center justify-center rounded-md border border-dashed border-slate-200 bg-white/80 px-2 text-center text-[11px] text-slate-400 sm:max-w-[11rem] md:max-w-none">
+                  No photo
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="mt-4 flex justify-end">
           <Button type="button" onClick={onCreateReceipt} disabled={!selectedRequestId || invoiceUploadLoading}>
-            {invoiceUploadLoading ? 'Uploading invoice...' : 'Create receipt'}
+            {invoiceUploadLoading ? 'Saving receipt…' : 'Create receipt'}
           </Button>
         </div>
 
@@ -848,7 +974,16 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             <select
               className="rounded border px-2 py-1.5 text-sm"
               value={offListForm.inventory_item_id}
-              onChange={(e) => setOffListForm((prev) => ({ ...prev, inventory_item_id: e.target.value }))}
+              onChange={(e) => {
+                const nextId = e.target.value;
+                const item = items.find((it) => it.id === nextId);
+                setOffListForm((prev) => ({
+                  ...prev,
+                  inventory_item_id: nextId,
+                  brand_id: item?.brand_id ? String(item.brand_id) : '',
+                  brand: item?.brand_name ? String(item.brand_name) : ''
+                }));
+              }}
             >
               <option value="">Select item</option>
               {items.map((item) => (
@@ -857,6 +992,32 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                 </option>
               ))}
             </select>
+            <select
+              className="rounded border px-2 py-1.5 text-sm"
+              value={offListForm.brand_id}
+              onChange={(e) => {
+                const b = brands.find((x) => x.id === e.target.value);
+                setOffListForm((prev) => ({
+                  ...prev,
+                  brand_id: e.target.value,
+                  brand: b?.name || ''
+                }));
+              }}
+            >
+              <option value="">Brand (optional)</option>
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
+            <input
+              className="rounded border px-2 py-1.5 text-sm"
+              value={offListForm.brand}
+              onChange={(e) => setOffListForm((prev) => ({ ...prev, brand: e.target.value }))}
+              placeholder="Brand name (optional)"
+              aria-label="Off-list brand name"
+            />
             <input
               className="rounded border px-2 py-1.5 text-sm"
               value={offListForm.purchased_qty}
@@ -994,11 +1155,10 @@ const StoreOperatorPurchaseReceiptsPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Receipt ID</TableHead>
-                <TableHead>Request ID</TableHead>
+                <TableHead>Invoice ref</TableHead>
                 <TableHead>Invoice</TableHead>
-                <TableHead>Invoice file</TableHead>
-                <TableHead>Uploaded At</TableHead>
+                <TableHead>Items photo</TableHead>
+                <TableHead>Invoice uploaded</TableHead>
                 <TableHead>Received At</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -1006,10 +1166,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
             <TableBody>
               {history.map((row) => (
                 <TableRow key={row.id || row.receipt_id}>
-                  <TableCell className="font-medium">{row.id || row.receipt_id}</TableCell>
-                  <TableCell>{row.purchase_request_id || '-'}</TableCell>
                   <TableCell>{row.reference_invoice || '-'}</TableCell>
-                  <TableCell className="max-w-44">
+                  <TableCell className="max-w-36">
                     {purchaseReceiptHasInvoice(row) ? (
                       <Button
                         type="button"
@@ -1018,14 +1176,31 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                         disabled={invoiceUrlLoadingId === (row.id || row.receipt_id)}
                         onClick={() => openReceiptInvoice(row.id || row.receipt_id)}
                       >
-                        {invoiceUrlLoadingId === (row.id || row.receipt_id) ? 'Opening…' : 'View invoice'}
+                        {invoiceUrlLoadingId === (row.id || row.receipt_id) ? 'Opening…' : 'View'}
                       </Button>
                     ) : (
-                      '-'
+                      '—'
                     )}
                   </TableCell>
-                  <TableCell>{row.invoice_uploaded_at || '-'}</TableCell>
-                  <TableCell>{row.received_at || row.created_at || '-'}</TableCell>
+                  <TableCell className="max-w-36">
+                    {purchaseReceiptHasItemsPhoto(row) ? (
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto px-0 text-teal-700"
+                        disabled={itemsPhotoUrlLoadingId === (row.id || row.receipt_id)}
+                        onClick={() => openReceiptItemsPhoto(row.id || row.receipt_id)}
+                      >
+                        {itemsPhotoUrlLoadingId === (row.id || row.receipt_id) ? 'Opening…' : 'View'}
+                      </Button>
+                    ) : (
+                      '—'
+                    )}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">{formatDateTimeIST(row.invoice_uploaded_at)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {formatDateTimeIST(row.received_at || row.created_at)}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button type="button" variant="outline" size="sm" onClick={() => openReceiptLines(row.id || row.receipt_id)}>
                       Open
@@ -1064,7 +1239,7 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.inventory_item_name || '—'}</TableCell>
                   <TableCell>
-                    <ReceiptLineBrandCell row={row} />
+                    <ReceiptLineBrandCell row={row} getBrandLogoViewUrl={getBrandLogoViewUrl} />
                   </TableCell>
                   <TableCell>{row.purchased_qty} {row.purchase_unit}</TableCell>
                   <TableCell>{row.received_qty_in_base_unit}</TableCell>

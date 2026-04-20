@@ -2068,6 +2068,13 @@ const normalizePurchaseReceiptLine = (raw, index = 0) => ({
   expiry_date: raw?.expiry_date || raw?.expires_on || ''
 });
 
+const normalizeMaterialPhoto = (raw) => ({
+  photo_id: String(raw?.photo_id ?? raw?.id ?? ''),
+  s3_key: raw?.s3_key || '',
+  s3_url: raw?.s3_url || '',
+  uploaded_at: raw?.uploaded_at || ''
+});
+
 const normalizePurchaseReceiptHeader = (raw, index = 0) => ({
   id: String(raw?.id ?? raw?.receipt_id ?? `receipt-${index}`),
   receipt_id: String(raw?.receipt_id ?? raw?.id ?? `receipt-${index}`),
@@ -2076,6 +2083,12 @@ const normalizePurchaseReceiptHeader = (raw, index = 0) => ({
   invoice_s3_key: raw?.invoice_s3_key || '',
   invoice_s3_url: raw?.invoice_s3_url || '',
   invoice_uploaded_at: raw?.invoice_uploaded_at || '',
+  items_photo_s3_key: raw?.items_photo_s3_key || '',
+  items_photo_s3_url: raw?.items_photo_s3_url || '',
+  items_photo_uploaded_at: raw?.items_photo_uploaded_at || '',
+  material_photos: Array.isArray(raw?.material_photos)
+    ? raw.material_photos.map((p) => normalizeMaterialPhoto(p))
+    : [],
   received_at: raw?.received_at || '',
   created_by: raw?.created_by || '',
   created_at: raw?.created_at || ''
@@ -2089,6 +2102,9 @@ const normalizePurchaseComparisonRow = (raw, index = 0, rowKind = 'line') => ({
   item_primary_image_url: (raw?.item_primary_image_url || '').trim(),
   image_s3_url: (raw?.image_s3_url || '').trim(),
   image_uploaded_at: raw?.image_uploaded_at || '',
+  brand_id: raw?.brand_id != null && String(raw.brand_id).trim() !== '' ? String(raw.brand_id) : '',
+  brand_name: (raw?.brand_name || '').trim(),
+  brand_logo_s3_url: (raw?.brand_logo_s3_url || '').trim(),
   requested_unit: raw?.requested_unit || raw?.purchase_unit || raw?.unit || '',
   requested_quantity: toNum(raw?.requested_quantity ?? 0),
   approved_quantity: toNum(raw?.approved_quantity ?? raw?.requested_quantity ?? 0),
@@ -2136,12 +2152,22 @@ const normalizePurchaseExceptionRow = (raw, index = 0) => ({
   expiry_date: raw?.expiry_date || raw?.expires_on || '',
   invoice_s3_key: raw?.invoice_s3_key || '',
   invoice_s3_url: raw?.invoice_s3_url || '',
-  invoice_uploaded_at: raw?.invoice_uploaded_at || ''
+  invoice_uploaded_at: raw?.invoice_uploaded_at || '',
+  items_photo_s3_key: raw?.items_photo_s3_key || '',
+  items_photo_s3_url: raw?.items_photo_s3_url || '',
+  items_photo_uploaded_at: raw?.items_photo_uploaded_at || '',
+  material_photos: Array.isArray(raw?.material_photos)
+    ? raw.material_photos.map((p) => normalizeMaterialPhoto(p))
+    : []
 });
 
 /** True when list/detail row indicates an invoice file exists (use presigned GET to open; do not link to invoice_s3_url). */
 export const purchaseReceiptHasInvoice = (row) =>
   Boolean(row?.invoice_s3_key || row?.invoice_s3_url || row?.invoice_uploaded_at);
+
+/** Single “all items in one shot” photo on the receipt row (JPEG/PNG). */
+export const purchaseReceiptHasItemsPhoto = (row) =>
+  Boolean(row?.items_photo_s3_key || row?.items_photo_s3_url || row?.items_photo_uploaded_at);
 
 const parseFilenameFromDisposition = (contentDisposition, fallback) => {
   const match = /filename\*?=(?:UTF-8''|")?([^";\n]+)/i.exec(contentDisposition || '');
@@ -3027,13 +3053,24 @@ export const useKitchenPurchaseRequestManagerApi = () => {
 };
 
 // v2: Purchase receipts (action-only hook; UI can be added later)
+/** Per-tab cache for presigned brand logo URLs (see FRONTEND_RECEIPT_LINE_BRAND_FIELDS.md). */
+const brandLogoViewUrlCache = new Map();
+
+const parseBrandLogoViewUrlBody = (raw) => {
+  if (!raw || typeof raw !== 'object') return { url: '', expires_in_seconds: 0 };
+  const url = String(raw.url ?? raw.view_url ?? raw.presigned_url ?? '').trim();
+  const expires_in_seconds = Number(raw.expires_in_seconds ?? raw.expiresInSeconds ?? raw.ttl_seconds ?? 0) || 0;
+  return { url, expires_in_seconds };
+};
+
 export const useKitchenReceiptsApi = () => {
   /** Presigned PUT to S3 from the browser — requires CORS on the target bucket. Prefer {@link uploadReceiptInvoice} when you already have a receipt id. */
-  const getInvoiceUploadUrl = useCallback(async ({ filename, content_type, purchase_request_id }) => {
+  const getInvoiceUploadUrl = useCallback(async ({ filename, content_type, purchase_request_id, upload_kind = 'invoice' }) => {
     const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchases/invoice-upload-url`, {
       filename,
       content_type,
-      purchase_request_id
+      purchase_request_id,
+      upload_kind
     });
     return res.data?.data || {};
   }, []);
@@ -3061,6 +3098,17 @@ export const useKitchenReceiptsApi = () => {
     formData.append('file', file);
     const res = await api.post(
       `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${receiptId}/invoice/upload`,
+      formData
+    );
+    return res.data?.data || {};
+  }, []);
+
+  /** JPEG/PNG purchased-items photo (same multipart shape as invoice upload). */
+  const uploadReceiptItemsPhoto = useCallback(async (receiptId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post(
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/items-photo/upload`,
       formData
     );
     return res.data?.data || {};
@@ -3106,6 +3154,35 @@ export const useKitchenReceiptsApi = () => {
     return rows.map((row, index) => normalizePurchaseReceiptLine(row, index));
   }, []);
 
+  const getBrandLogoViewUrl = useCallback(async (brandId) => {
+    const id = String(brandId || '').trim();
+    if (!id) {
+      throw new Error('brand_id is required');
+    }
+    const now = Date.now();
+    const cached = brandLogoViewUrlCache.get(id);
+    if (cached && cached.expiresAtMs > now + 15_000) {
+      return { url: cached.url, expires_in_seconds: cached.expiresInSeconds };
+    }
+    const res = await api.get(
+      `${API.MAX_KITCHEN_STORE_REST}/brands/${encodeURIComponent(id)}/logo/view-url`
+    );
+    const raw = res.data?.data ?? res.data;
+    const { url, expires_in_seconds } = parseBrandLogoViewUrlBody(raw);
+    if (!url) {
+      const msg = typeof raw?.message === 'string' ? raw.message : typeof raw?.detail === 'string' ? raw.detail : '';
+      throw new Error(msg.trim() || 'No brand logo view URL returned.');
+    }
+    const ttlSec = expires_in_seconds > 0 ? expires_in_seconds : 3600;
+    const cacheMs = Math.min(Math.max((ttlSec - 120) * 1000, 60_000), 86_400_000);
+    brandLogoViewUrlCache.set(id, {
+      url,
+      expiresAtMs: now + cacheMs,
+      expiresInSeconds: ttlSec
+    });
+    return { url, expires_in_seconds: ttlSec };
+  }, []);
+
   const getReceiptInvoiceViewUrl = useCallback(async (receiptId) => {
     const res = await api.get(
       `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/invoice/url`
@@ -3117,6 +3194,82 @@ export const useKitchenReceiptsApi = () => {
     }
     return { url, expires_in_seconds: raw?.expires_in_seconds };
   }, []);
+
+  const getReceiptItemsPhotoUrl = useCallback(async (receiptId) => {
+    const res = await api.get(
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/items-photo/url`
+    );
+    const raw = res.data?.data ?? res.data;
+    const url = raw?.url;
+    if (!url || typeof url !== 'string') {
+      throw new Error(raw?.detail || raw?.message || 'No items photo view URL returned.');
+    }
+    return { url, expires_in_seconds: raw?.expires_in_seconds };
+  }, []);
+
+  const openReceiptItemsPhotoInNewTab = useCallback(async (receiptId) => {
+    const { url } = await getReceiptItemsPhotoUrl(receiptId);
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      throw new Error('Popup blocked. Allow popups to view the items photo.');
+    }
+  }, [getReceiptItemsPhotoUrl]);
+
+  /** One request; form field `files` repeated per file (multipart). */
+  const uploadReceiptMaterialPhotos = useCallback(async (receiptId, files) => {
+    const formData = new FormData();
+    const list = Array.isArray(files) ? files : [files];
+    for (const f of list) {
+      if (f) formData.append('files', f);
+    }
+    const res = await api.post(
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/material-photos/upload`,
+      formData
+    );
+    return res.data?.data || {};
+  }, []);
+
+  const listReceiptMaterialPhotos = useCallback(async (receiptId) => {
+    const res = await api.get(
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/material-photos`
+    );
+    const raw = res.data?.data ?? {};
+    const photos = Array.isArray(raw?.material_photos) ? raw.material_photos : [];
+    return {
+      receipt_id: raw?.receipt_id,
+      material_photos: photos.map((p) => normalizeMaterialPhoto(p))
+    };
+  }, []);
+
+  const getMaterialPhotoViewUrl = useCallback(async (receiptId, photoId) => {
+    const res = await api.get(
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/material-photos/${encodeURIComponent(photoId)}/url`
+    );
+    const raw = res.data?.data ?? res.data;
+    const url = raw?.url;
+    if (!url || typeof url !== 'string') {
+      throw new Error(raw?.detail || raw?.message || 'No material photo URL returned.');
+    }
+    return { url, expires_in_seconds: raw?.expires_in_seconds };
+  }, []);
+
+  const deleteReceiptMaterialPhoto = useCallback(async (receiptId, photoId) => {
+    const res = await api.delete(
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/material-photos/${encodeURIComponent(photoId)}`
+    );
+    return res.data?.data || {};
+  }, []);
+
+  const openMaterialPhotoInNewTab = useCallback(
+    async (receiptId, photoId) => {
+      const { url } = await getMaterialPhotoViewUrl(receiptId, photoId);
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        throw new Error('Popup blocked. Allow popups to view the photo.');
+      }
+    },
+    [getMaterialPhotoViewUrl]
+  );
 
   /**
    * Opens invoice in a new tab via proxied GET (correct Content-Type for S3 presigned URLs).
@@ -3186,14 +3339,23 @@ export const useKitchenReceiptsApi = () => {
     getInvoiceUploadUrl,
     uploadInvoiceToS3,
     uploadReceiptInvoice,
+    uploadReceiptItemsPhoto,
     createReceipt,
     addReceiptLine,
     uploadReceiptLineImage,
     listReceipts,
     listReceiptLines,
     getReceiptInvoiceViewUrl,
+    getReceiptItemsPhotoUrl,
+    openReceiptItemsPhotoInNewTab,
+    uploadReceiptMaterialPhotos,
+    listReceiptMaterialPhotos,
+    getMaterialPhotoViewUrl,
+    deleteReceiptMaterialPhoto,
+    openMaterialPhotoInNewTab,
     viewReceiptInvoiceInNewTab,
-    getPurchaseComparison
+    getPurchaseComparison,
+    getBrandLogoViewUrl
   };
 };
 

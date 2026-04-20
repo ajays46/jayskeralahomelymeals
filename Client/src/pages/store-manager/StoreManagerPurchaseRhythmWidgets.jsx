@@ -22,6 +22,7 @@ function collectRowKeys(rows, maxCols) {
 
 function stringifyCell(value) {
   if (value === null || value === undefined) return '';
+  if (typeof value === 'number' && !Number.isFinite(value)) return '—';
   if (typeof value === 'object') {
     try {
       return JSON.stringify(value);
@@ -32,7 +33,15 @@ function stringifyCell(value) {
   return String(value);
 }
 
-export const DynamicObjectTable = ({ rows, emptyMessage }) => {
+/** Approximate thead + N tbody row heights for a compact scroll viewport. */
+function maxHeightRemForVisibleDataRows(n) {
+  const headerRem = 2.875;
+  const rowRem = 2.625;
+  return headerRem + Math.max(0, n) * rowRem;
+}
+
+/** @param {{ rows: unknown[], emptyMessage?: string, maxVisibleDataRows?: number }} props */
+export const DynamicObjectTable = ({ rows, emptyMessage, maxVisibleDataRows }) => {
   const keys = useMemo(() => collectRowKeys(rows || [], 10), [rows]);
   const list = Array.isArray(rows) ? rows : [];
 
@@ -40,8 +49,17 @@ export const DynamicObjectTable = ({ rows, emptyMessage }) => {
     return <StoreNotice tone="amber">{emptyMessage || 'No rows returned.'}</StoreNotice>;
   }
 
+  const scrollMax =
+    maxVisibleDataRows != null && Number.isFinite(maxVisibleDataRows) && maxVisibleDataRows > 0
+      ? { maxHeight: `${maxHeightRemForVisibleDataRows(maxVisibleDataRows)}rem` }
+      : undefined;
+  const scrollClass =
+    scrollMax != null
+      ? 'overflow-auto rounded-md border'
+      : 'max-h-[20rem] overflow-auto rounded-md border';
+
   return (
-    <div className="max-h-[20rem] overflow-auto rounded-md border">
+    <div className={scrollClass} style={scrollMax}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -97,11 +115,16 @@ export const StoreManagerShortageReceiptPanels = ({ loadingDaily, dailyShortage,
       {loadingDaily ? (
         <StoreNotice tone="sky">Loading…</StoreNotice>
       ) : Array.isArray(dailyReceiptsToday) ? (
-        <DynamicObjectTable rows={dailyReceiptsToday} emptyMessage="No receipt rows for today." />
+        <DynamicObjectTable
+          rows={dailyReceiptsToday}
+          emptyMessage="No receipt rows for today."
+          maxVisibleDataRows={3}
+        />
       ) : dailyReceiptsToday && typeof dailyReceiptsToday === 'object' ? (
         <DynamicObjectTable
           rows={extractPurchaseRhythmListLocal(dailyReceiptsToday)}
           emptyMessage="No receipt rows for today."
+          maxVisibleDataRows={3}
         />
       ) : (
         <StoreNotice tone="amber">No stock receipt data returned.</StoreNotice>

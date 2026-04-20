@@ -354,7 +354,7 @@ const StoreOperatorMealProgramsSection = ({ canEditBomLines, canCreateMealSets, 
   return (
     <div className="space-y-6">
       <StoreSection
-        title="Kitchen meal creation"
+        title="Menu item creation"
         description="A meal set is one shared ingredient list (per portion) for several menu dishes—like a fixed veg lunch or dinner combo. Pick a set below to edit ingredients or attach dishes."
       >
         {canEditBomLines && !canCreateMealSets ? (

@@ -580,7 +580,7 @@ const StoreKitchenStockReconciliationPage = () => {
     <StorePageShell>
       {isOperatorStockReconRoute ? (
         <>
-          <StorePageHeader title="Stock reconciliation" />
+          <StorePageHeader title="Stocktake" />
 
       <StoreSection title="Physical count vs system">
             <p className="text-sm font-medium text-slate-800 mb-2">Inventory catalog (paginated)</p>

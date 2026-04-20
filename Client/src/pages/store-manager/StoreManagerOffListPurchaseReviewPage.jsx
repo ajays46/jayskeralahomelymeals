@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageHeader, StorePageShell, StoreSection } from '@/components/store/StorePageShell';
 import { PurchaseReceiptLineImages } from '@/components/store/PurchaseReceiptLineImages';
+import { ReceiptLineBrandCell } from '@/components/store/ReceiptLineBrandCell';
 import { cn } from '@/lib/utils';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import {
   purchaseReceiptHasInvoice,
+  purchaseReceiptHasItemsPhoto,
   useKitchenPurchaseExceptionManagerApi,
   useKitchenReceiptsApi
 } from '../../hooks/adminHook/kitchenStoreHook';
@@ -31,28 +33,6 @@ function formatPrice(value) {
   const n = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
   if (!Number.isFinite(n)) return '—';
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function ExceptionLineBrandCell({ row }) {
-  const logoSrc = (row.brand_logo_s3_url || '').trim();
-  const brandLabel = (row.brand_name || '').trim();
-  if (!brandLabel && !logoSrc) {
-    return <span className="text-sm text-slate-400">—</span>;
-  }
-  return (
-    <div className="flex min-w-0 max-w-[12rem] items-center gap-2">
-      {logoSrc ? (
-        <img
-          src={logoSrc}
-          alt={brandLabel ? `${brandLabel} logo` : ''}
-          className="h-7 w-7 shrink-0 rounded-md border border-slate-200 bg-white object-contain"
-        />
-      ) : null}
-      <span className="min-w-0 truncate text-sm text-slate-800" title={brandLabel || undefined}>
-        {brandLabel || '—'}
-      </span>
-    </div>
-  );
 }
 
 /** Group lines by receipt; preserve receipt order as first seen in the list. */
@@ -78,7 +58,8 @@ function PendingReviewRow({
   busyKey,
   setBusyKey,
   submitManagerReview,
-  onRefreshed
+  onRefreshed,
+  getBrandLogoViewUrl
 }) {
   const [action, setAction] = useState('KEEP');
   const [note, setNote] = useState('');
@@ -117,7 +98,7 @@ function PendingReviewRow({
       </TableCell>
       <TableCell className="max-w-[14rem] font-medium">{row.inventory_item_name || '—'}</TableCell>
       <TableCell>
-        <ExceptionLineBrandCell row={row} />
+        <ReceiptLineBrandCell row={row} getBrandLogoViewUrl={getBrandLogoViewUrl} />
       </TableCell>
       <TableCell className="whitespace-nowrap font-mono text-xs text-slate-600" title={row.receipt_id}>
         {shortId(row.receipt_id)}
@@ -260,11 +241,12 @@ const StoreManagerOffListPurchaseReviewPage = () => {
     submitManagerReview,
     submitManagerReviewBulk
   } = useKitchenPurchaseExceptionManagerApi();
-  const { viewReceiptInvoiceInNewTab } = useKitchenReceiptsApi();
+  const { viewReceiptInvoiceInNewTab, openReceiptItemsPhotoInNewTab, getBrandLogoViewUrl } = useKitchenReceiptsApi();
   const [status, setStatus] = useState('');
   const [pendingScope, setPendingScope] = useState('all');
   const [busyKey, setBusyKey] = useState('');
   const [invoiceUrlLoadingId, setInvoiceUrlLoadingId] = useState('');
+  const [itemsPhotoUrlLoadingId, setItemsPhotoUrlLoadingId] = useState('');
 
   useEffect(() => {
     listPendingExceptions({ pending_scope: pendingScope });
@@ -303,6 +285,25 @@ const StoreManagerOffListPurchaseReviewPage = () => {
       showStoreError(msg, status === 404 ? 'No invoice attached' : 'View invoice failed');
     } finally {
       setInvoiceUrlLoadingId('');
+    }
+  };
+
+  const openReceiptItemsPhoto = async (receiptId) => {
+    if (!receiptId) return;
+    setItemsPhotoUrlLoadingId(receiptId);
+    try {
+      await openReceiptItemsPhotoInNewTab(receiptId);
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Could not open purchased-items photo.';
+      setStatus(msg);
+      showStoreError(msg, status === 404 ? 'No items photo' : 'View items photo failed');
+    } finally {
+      setItemsPhotoUrlLoadingId('');
     }
   };
 
@@ -363,7 +364,7 @@ const StoreManagerOffListPurchaseReviewPage = () => {
                 )}
               >
                 <TableRow>
-                  <TableHead className="w-[1%] whitespace-nowrap">SKU image</TableHead>
+                  <TableHead className="w-[1%] whitespace-nowrap">Image</TableHead>
                   <TableHead>Item</TableHead>
                   <TableHead>Brand</TableHead>
                   <TableHead>Receipt</TableHead>
@@ -379,7 +380,9 @@ const StoreManagerOffListPurchaseReviewPage = () => {
               <TableBody>
                 {segments.map(({ receiptId, rows }) => (
                   <React.Fragment key={receiptId || 'no-receipt'}>
-                    {receiptId && rows.some((r) => purchaseReceiptHasInvoice(r)) ? (
+                    {receiptId &&
+                    (rows.some((r) => purchaseReceiptHasInvoice(r)) ||
+                      rows.some((r) => purchaseReceiptHasItemsPhoto(r))) ? (
                       <TableRow className="bg-slate-50/90">
                         <TableCell colSpan={pendingTableColCount} className="py-2">
                           <div className="flex flex-wrap items-center gap-2">
@@ -389,15 +392,28 @@ const StoreManagerOffListPurchaseReviewPage = () => {
                                 {shortId(receiptId)}
                               </span>
                             </span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={invoiceUrlLoadingId === receiptId}
-                              onClick={() => openReceiptInvoice(receiptId)}
-                            >
-                              {invoiceUrlLoadingId === receiptId ? 'Opening…' : 'View invoice'}
-                            </Button>
+                            {rows.some((r) => purchaseReceiptHasInvoice(r)) ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={invoiceUrlLoadingId === receiptId}
+                                onClick={() => openReceiptInvoice(receiptId)}
+                              >
+                                {invoiceUrlLoadingId === receiptId ? 'Opening…' : 'View invoice'}
+                              </Button>
+                            ) : null}
+                            {rows.some((r) => purchaseReceiptHasItemsPhoto(r)) ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={itemsPhotoUrlLoadingId === receiptId}
+                                onClick={() => openReceiptItemsPhoto(receiptId)}
+                              >
+                                {itemsPhotoUrlLoadingId === receiptId ? 'Opening…' : 'View items photo'}
+                              </Button>
+                            ) : null}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -412,6 +428,7 @@ const StoreManagerOffListPurchaseReviewPage = () => {
                         setBusyKey={setBusyKey}
                         submitManagerReview={submitManagerReview}
                         onRefreshed={refresh}
+                        getBrandLogoViewUrl={getBrandLogoViewUrl}
                       />
                     ))}
                     {receiptId && rows.length > 1 ? (

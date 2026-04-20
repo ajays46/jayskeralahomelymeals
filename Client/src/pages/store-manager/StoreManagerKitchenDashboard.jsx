@@ -166,7 +166,7 @@ const StoreManagerKitchenDashboard = () => {
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/inventory`}>Inventory Table</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/stock-logs`}>Stock Logs</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-operator/recipe-bom`}>Recipe/BOM</Link></Button>
-            <Button asChild variant="outline"><Link to={`${basePath}/store-manager/meal-programs`}>Kitchen meal creation</Link></Button>
+            <Button asChild variant="outline"><Link to={`${basePath}/store-manager/meal-programs`}>Menu item creation</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/reports`}>Reports</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/stock-reconciliation`}>Stock count & readiness</Link></Button>
             <Button asChild variant="outline"><Link to={`${basePath}/store-manager/forecast`}>Forecast Dashboard</Link></Button>

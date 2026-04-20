@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ReceiptLineBrandCell } from '@/components/store/ReceiptLineBrandCell';
 import { StoreNotice, StorePageShell, StoreSection, StoreTableFrame } from '@/components/store/StorePageShell';
 import {
   purchaseReceiptHasInvoice,
+  purchaseReceiptHasItemsPhoto,
   useKitchenReceiptsApi,
   useKitchenPurchaseExceptionManagerApi
 } from '../../hooks/adminHook/kitchenStoreHook';
@@ -44,7 +46,15 @@ const receiptControlClass =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
 
 const StoreManagerPurchaseReceiptsPage = () => {
-  const { listReceipts, listReceiptLines, viewReceiptInvoiceInNewTab } = useKitchenReceiptsApi();
+  const {
+    listReceipts,
+    listReceiptLines,
+    viewReceiptInvoiceInNewTab,
+    openReceiptItemsPhotoInNewTab,
+    listReceiptMaterialPhotos,
+    openMaterialPhotoInNewTab,
+    getBrandLogoViewUrl
+  } = useKitchenReceiptsApi();
   const { submitManagerReview, actionLoading: reviewLoading, error: reviewError } =
     useKitchenPurchaseExceptionManagerApi();
   const [history, setHistory] = useState([]);
@@ -60,6 +70,8 @@ const StoreManagerPurchaseReceiptsPage = () => {
   const [reviewAction, setReviewAction] = useState('KEEP');
   const [reviewNote, setReviewNote] = useState('');
   const [invoiceUrlLoadingId, setInvoiceUrlLoadingId] = useState('');
+  const [itemsPhotoUrlLoadingId, setItemsPhotoUrlLoadingId] = useState('');
+  const [materialPhotos, setMaterialPhotos] = useState([]);
 
   const loadReceiptHistory = async () => {
     setStatus('');
@@ -111,12 +123,19 @@ const StoreManagerPurchaseReceiptsPage = () => {
     setSelectedReviewLineId('');
     setReviewNote('');
     setStatus('');
+    setMaterialPhotos([]);
     setLoadingLines(true);
     try {
       const rows = await listReceiptLines(receiptId);
       setSelectedLines(rows);
       if (rows.length === 0) {
         setStatus('No lines found for this receipt.');
+      }
+      try {
+        const mp = await listReceiptMaterialPhotos(receiptId);
+        setMaterialPhotos(Array.isArray(mp?.material_photos) ? mp.material_photos : []);
+      } catch {
+        setMaterialPhotos([]);
       }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt lines.';
@@ -145,6 +164,37 @@ const StoreManagerPurchaseReceiptsPage = () => {
       setStatus(msg);
     } finally {
       setInvoiceUrlLoadingId('');
+    }
+  };
+
+  const openReceiptItemsPhoto = async (receiptId) => {
+    if (!receiptId) return;
+    setItemsPhotoUrlLoadingId(receiptId);
+    try {
+      await openReceiptItemsPhotoInNewTab(receiptId);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Could not open purchased-items photo.';
+      setStatus(msg);
+    } finally {
+      setItemsPhotoUrlLoadingId('');
+    }
+  };
+
+  const onOpenMaterialPhoto = async (photoId) => {
+    if (!activeReceiptId || !photoId) return;
+    try {
+      await openMaterialPhotoInNewTab(activeReceiptId, photoId);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Could not open delivery photo.';
+      setStatus(msg);
     }
   };
 
@@ -235,8 +285,10 @@ const StoreManagerPurchaseReceiptsPage = () => {
               <TableRow>
                 <TableHead>Receipt date</TableHead>
                 <TableHead>Request ID</TableHead>
+                <TableHead>Invoice ref</TableHead>
                 <TableHead>Invoice</TableHead>
-                <TableHead>Image</TableHead>
+                <TableHead>Items photo</TableHead>
+                <TableHead>Delivery</TableHead>
                 <TableHead>Uploaded At</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -244,7 +296,7 @@ const StoreManagerPurchaseReceiptsPage = () => {
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-sm text-slate-500">
+                  <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
                     {history.length === 0
                       ? 'No receipts loaded. Refresh the register.'
                       : 'No receipts match the current filters.'}
@@ -259,7 +311,7 @@ const StoreManagerPurchaseReceiptsPage = () => {
                       <TableCell className="font-medium">{formatReceiptDateOnly(receiptDateRaw)}</TableCell>
                       <TableCell>{row.purchase_request_id || '-'}</TableCell>
                       <TableCell>{row.reference_invoice || '-'}</TableCell>
-                      <TableCell className="max-w-44">
+                      <TableCell className="max-w-36">
                         {purchaseReceiptHasInvoice(row) ? (
                           <Button
                             type="button"
@@ -268,11 +320,29 @@ const StoreManagerPurchaseReceiptsPage = () => {
                             disabled={invoiceUrlLoadingId === receiptId}
                             onClick={() => openReceiptInvoice(receiptId)}
                           >
-                            {invoiceUrlLoadingId === receiptId ? 'Opening…' : 'View image'}
+                            {invoiceUrlLoadingId === receiptId ? 'Opening…' : 'View'}
                           </Button>
                         ) : (
-                          '-'
+                          '—'
                         )}
+                      </TableCell>
+                      <TableCell className="max-w-36">
+                        {purchaseReceiptHasItemsPhoto(row) ? (
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="h-auto px-0 text-teal-700"
+                            disabled={itemsPhotoUrlLoadingId === receiptId}
+                            onClick={() => openReceiptItemsPhoto(receiptId)}
+                          >
+                            {itemsPhotoUrlLoadingId === receiptId ? 'Opening…' : 'View'}
+                          </Button>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {Array.isArray(row.material_photos) ? row.material_photos.length : 0}
                       </TableCell>
                       <TableCell>{row.invoice_uploaded_at || '-'}</TableCell>
                       <TableCell className="text-right">
@@ -292,10 +362,42 @@ const StoreManagerPurchaseReceiptsPage = () => {
       <StoreSection title="Receipt details" tone="amber">
         {!activeReceiptId ? <StoreNotice tone="amber">Open a receipt to view receipt details.</StoreNotice> : null}
         {activeReceiptId ? (
-          <div className="mb-3 flex items-center gap-2 text-sm text-slate-700">
-            <span>Receipt:</span>
-            <Badge variant="outline">{activeReceiptId}</Badge>
-            {loadingLines ? <span className="text-slate-500">Loading lines...</span> : null}
+          <div className="mb-3 space-y-2">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+              <span>Receipt:</span>
+              <Badge variant="outline">{activeReceiptId}</Badge>
+              {loadingLines ? <span className="text-slate-500">Loading lines...</span> : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {purchaseReceiptHasItemsPhoto(history.find((h) => (h.id || h.receipt_id) === activeReceiptId) || {}) ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={itemsPhotoUrlLoadingId === activeReceiptId}
+                  onClick={() => openReceiptItemsPhoto(activeReceiptId)}
+                >
+                  {itemsPhotoUrlLoadingId === activeReceiptId ? 'Opening…' : 'View purchased-items photo'}
+                </Button>
+              ) : null}
+              {materialPhotos.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+                  <span>Delivery photos:</span>
+                  {materialPhotos.map((p, i) => (
+                    <Button
+                      key={p.photo_id}
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => onOpenMaterialPhoto(p.photo_id)}
+                    >
+                      #{i + 1}
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
         {selectedLines.length > 0 ? (
@@ -305,6 +407,7 @@ const StoreManagerPurchaseReceiptsPage = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Item</TableHead>
+                    <TableHead>Brand</TableHead>
                     <TableHead>Purchased Qty</TableHead>
                     <TableHead>Base Qty</TableHead>
                     <TableHead>Unit price (base)</TableHead>
@@ -325,6 +428,9 @@ const StoreManagerPurchaseReceiptsPage = () => {
                     return (
                       <TableRow key={row.id}>
                         <TableCell className="font-medium">{row.inventory_item_name || '—'}</TableCell>
+                        <TableCell>
+                          <ReceiptLineBrandCell row={row} getBrandLogoViewUrl={getBrandLogoViewUrl} />
+                        </TableCell>
                         <TableCell>
                           {row.purchased_qty} {row.purchase_unit}
                         </TableCell>

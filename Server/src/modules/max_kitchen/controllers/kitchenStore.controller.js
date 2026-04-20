@@ -55,6 +55,12 @@ import {
   listPurchaseReceiptsService,
   listPurchaseReceiptLinesService,
   getPurchaseReceiptInvoiceUrlService,
+  uploadPurchaseReceiptItemsPhotoService,
+  getPurchaseReceiptItemsPhotoUrlService,
+  uploadPurchaseReceiptMaterialPhotosService,
+  listReceiptMaterialPhotosService,
+  getMaterialPhotoViewUrlService,
+  deleteReceiptMaterialPhotoService,
   streamPurchaseReceiptInvoiceService,
   createPurchaseRequestService,
   addPurchaseRequestLineService,
@@ -1295,6 +1301,106 @@ export const getPurchaseReceiptInvoiceUrl = async (req, res, next) => {
   try {
     const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
     const result = await getPurchaseReceiptInvoiceUrlService(receiptId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadPurchaseReceiptItemsPhoto = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const file = req.file;
+    if (!file) {
+      throw new AppError('Items photo file is required (multipart field: file)', 400);
+    }
+    const allowedMime = new Set(['image/jpeg', 'image/png']);
+    if (!allowedMime.has(file.mimetype)) {
+      throw new AppError('Items photo must be JPG or PNG', 400);
+    }
+    const result = await uploadPurchaseReceiptItemsPhotoService(
+      receiptId,
+      file,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPurchaseReceiptItemsPhotoUrl = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const result = await getPurchaseReceiptItemsPhotoUrlService(receiptId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadPurchaseReceiptMaterialPhotos = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const files = req.files;
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      throw new AppError('At least one image is required (multipart field: files)', 400);
+    }
+    const allowedMime = new Set(['image/jpeg', 'image/png']);
+    for (const f of files) {
+      if (!allowedMime.has(f.mimetype)) {
+        throw new AppError('Each delivery photo must be JPG or PNG', 400);
+      }
+    }
+    const result = await uploadPurchaseReceiptMaterialPhotosService(
+      receiptId,
+      files,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listReceiptMaterialPhotos = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const result = await listReceiptMaterialPhotosService(receiptId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMaterialPhotoViewUrl = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const photoId = requireIdParam(req.params.photo_id, 'photo_id');
+    const result = await getMaterialPhotoViewUrlService(
+      receiptId,
+      photoId,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteReceiptMaterialPhoto = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const photoId = requireIdParam(req.params.photo_id, 'photo_id');
+    const result = await deleteReceiptMaterialPhotoService(
+      receiptId,
+      photoId,
+      req.companyId,
+      kitchenActorUserId(req)
+    );
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);

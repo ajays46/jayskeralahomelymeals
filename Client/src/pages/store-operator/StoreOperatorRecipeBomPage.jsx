@@ -316,7 +316,7 @@ const StoreOperatorRecipeBomPage = () => {
           }`}
           onClick={() => setRecipeBomTab('meal-programs')}
         >
-          Kitchen meal creation
+          Menu item creation
         </button>
       </div>
 
