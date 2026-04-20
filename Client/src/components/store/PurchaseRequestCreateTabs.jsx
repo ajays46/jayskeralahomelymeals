@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useCompanyBasePath } from '../../context/TenantContext';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { useKitchenPurchaseRequestOperatorApi } from '../../hooks/adminHook/kitchenStoreHook';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StoreNotice, StorePageHeader, StoreSection } from '@/components/store/StorePageShell';
@@ -16,19 +15,36 @@ import {
   SOURCE_SECTIONS,
   SOURCE_TABLE_SCROLLABLE_KEYS,
   SOURCE_TABLE_SCROLL_MAX_HEIGHT,
+  clearPurchaseRequestDraftFromStorage,
   createLocalLineId,
+  currentBucketsHaveDraftableContent,
+  draftPayloadHasContent,
   emptyKindBucket,
   formatRequestReference,
+  hydrateBucketsFromDraftPayload,
   purchaseTypeApi,
-  toDisplayQuantity
+  readPurchaseRequestDraftPayload,
+  stripPurchaseRequestDraftKindFromStorage,
+  toDisplayQuantity,
+  writePurchaseRequestDraftToStorage
 } from '@/components/store/purchaseRequestShared';
+import { LINE_FRESHNESS_PRIORITY_OPTIONS } from '../../constants/kitchenInventoryMeta.js';
 
 /**
  * @feature kitchen-store — Weekly/daily purchase request composer (low stock + shopping list + submit).
- * @param {{ showOperatorHeader?: boolean; singleKind?: 'weekly'|'daily'|null; onSubmitted?: () => void }} props
+ * @param {{ showOperatorHeader?: boolean; singleKind?: 'weekly'|'daily'|null; onSubmitted?: () => void; showCreateInventoryItem?: boolean; showPurchaseRequestDraftUi?: boolean }} props
  */
-const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = null, onSubmitted }) => {
+const PurchaseRequestCreateTabs = ({
+  showOperatorHeader = false,
+  singleKind = null,
+  onSubmitted,
+  showCreateInventoryItem = true,
+  showPurchaseRequestDraftUi = true
+}) => {
   const basePath = useCompanyBasePath();
+  const { companyPath } = useTenant() || {};
+  const [searchParams] = useSearchParams();
+  const [purchaseTypeTab, setPurchaseTypeTab] = useState(PURCHASE_KIND.WEEKLY);
   const {
     bootstrapLoading,
     submitLoading,
@@ -68,6 +84,21 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
   }, [loadRequestSources]);
 
   useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t === PURCHASE_KIND.DAILY) setPurchaseTypeTab(PURCHASE_KIND.DAILY);
+    else if (t === PURCHASE_KIND.WEEKLY) setPurchaseTypeTab(PURCHASE_KIND.WEEKLY);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!showPurchaseRequestDraftUi || !companyPath) return;
+    const payload = readPurchaseRequestDraftPayload(companyPath);
+    if (!payload || !draftPayloadHasContent({ buckets: payload.buckets })) {
+      return;
+    }
+    setBuckets(hydrateBucketsFromDraftPayload(payload));
+  }, [companyPath, showPurchaseRequestDraftUi]);
+
+  useEffect(() => {
     if (!submitPopup) return undefined;
 
     const timer = window.setTimeout(() => {
@@ -105,9 +136,14 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
         next[existingIndex] = {
           ...next[existingIndex],
           requested_quantity: toDisplayQuantity(item.suggested_quantity) || next[existingIndex].requested_quantity,
-          operator_note: next[existingIndex].operator_note || item.note || `${item.source} source`,
+          operator_note: next[existingIndex].operator_note ?? '',
           brand_name: next[existingIndex].brand_name || item.brand_name || '',
           brand_logo_s3_url: next[existingIndex].brand_logo_s3_url || item.brand_logo_s3_url || '',
+          item_primary_image_url:
+            next[existingIndex].item_primary_image_url ||
+            item.item_primary_image_url ||
+            item.primary_image_url ||
+            '',
           freshness_priority:
             kind === PURCHASE_KIND.DAILY
               ? next[existingIndex].freshness_priority || 'NORMAL'
@@ -127,9 +163,10 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
             requested_unit: item.unit || 'pcs',
             requested_quantity: toDisplayQuantity(item.suggested_quantity),
             is_new_item: false,
-            operator_note: item.note || `${item.source} source`,
+            operator_note: '',
             brand_name: item.brand_name || '',
             brand_logo_s3_url: item.brand_logo_s3_url || '',
+            item_primary_image_url: item.item_primary_image_url || item.primary_image_url || '',
             freshness_priority: kind === PURCHASE_KIND.DAILY ? 'NORMAL' : ''
           }
         ]
@@ -157,9 +194,8 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
           requested_item_name: name || next[existingIndex].requested_item_name,
           requested_unit: unit || next[existingIndex].requested_unit,
           requested_quantity: next[existingIndex].requested_quantity || '1',
-          operator_note: next[existingIndex].operator_note?.trim()
-            ? next[existingIndex].operator_note
-            : 'Added after creating catalog item',
+          operator_note: next[existingIndex].operator_note ?? '',
+          item_primary_image_url: next[existingIndex].item_primary_image_url || '',
           freshness_priority:
             kind === PURCHASE_KIND.DAILY
               ? next[existingIndex].freshness_priority || 'NORMAL'
@@ -178,7 +214,8 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
             requested_unit: unit || 'pcs',
             requested_quantity: '1',
             is_new_item: false,
-            operator_note: 'Added after creating catalog item',
+            operator_note: '',
+            item_primary_image_url: '',
             freshness_priority: kind === PURCHASE_KIND.DAILY ? 'NORMAL' : ''
           }
         ]
@@ -204,24 +241,26 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
   const removeLine = (kind, localId) => {
     patchBucket(kind, (bucket) => ({
       ...bucket,
-      selectedLines: bucket.selectedLines.filter((line) => line.local_id !== localId),
-      expandedLineNotes: (() => {
-        const next = { ...bucket.expandedLineNotes };
-        delete next[localId];
-        return next;
-      })()
+      selectedLines: bucket.selectedLines.filter((line) => line.local_id !== localId)
     }));
   };
 
-  const toggleLineNote = (kind, localId) => {
-    patchBucket(kind, (bucket) => ({
-      ...bucket,
-      expandedLineNotes: {
-        ...bucket.expandedLineNotes,
-        [localId]: !bucket.expandedLineNotes[localId]
-      }
-    }));
-  };
+  const handleSaveDraft = useCallback(() => {
+    if (!companyPath) {
+      showStoreError('Company context is still loading. Try again in a moment.', 'Cannot save draft');
+      return;
+    }
+    if (!currentBucketsHaveDraftableContent(buckets)) {
+      clearPurchaseRequestDraftFromStorage(companyPath);
+      showStoreError('Add at least one line or a manager note before saving a draft.', 'Nothing to save');
+      return;
+    }
+    writePurchaseRequestDraftToStorage(companyPath, buckets);
+    showStoreSuccess(
+      'Draft saved on this device. You can leave and return anytime; your work is restored when you open this page again.',
+      'Draft saved'
+    );
+  }, [buckets, companyPath]);
 
   const onSubmit = async (e, kind) => {
     e.preventDefault();
@@ -285,6 +324,9 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
         'Request submitted'
       );
       patchBucket(kind, () => emptyKindBucket());
+      if (companyPath && showPurchaseRequestDraftUi) {
+        stripPurchaseRequestDraftKindFromStorage(companyPath, kind);
+      }
       await loadRequestSources();
       try {
         await onSubmitted?.();
@@ -310,7 +352,8 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
             : allRows.filter((item) => {
                 const name = String(item.name || '').toLowerCase();
                 const brand = String(item.brand_name || '').toLowerCase();
-                return name.includes(q) || brand.includes(q);
+                const category = String(item.category || '').toLowerCase();
+                return name.includes(q) || brand.includes(q) || category.includes(q);
               });
         const scrollableTable = SOURCE_TABLE_SCROLLABLE_KEYS.has(section.key);
         const tableEl = (
@@ -322,6 +365,7 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
             <TableHeader>
               <TableRow>
                 <TableHead>Item</TableHead>
+                <TableHead className="min-w-[6.5rem]">Category</TableHead>
                 <TableHead>Suggested</TableHead>
                 <TableHead>Current / Min</TableHead>
                 <TableHead className="text-right">Action</TableHead>
@@ -333,9 +377,15 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
                   <TableCell>
                     <PurchaseSourceItemCell
                       name={item.name}
-                      brandName={item.brand_name}
-                      logoUrl={item.brand_logo_s3_url}
+                      brandName=""
+                      catalogImageUrl={item.item_primary_image_url}
+                      logoUrl=""
                     />
+                  </TableCell>
+                  <TableCell className="max-w-[10rem] text-sm text-slate-600">
+                    <span className="line-clamp-2 break-words" title={item.category || undefined}>
+                      {item.category?.trim() ? item.category : '—'}
+                    </span>
                   </TableCell>
                   <TableCell>
                     {item.suggested_quantity || 0} {item.unit || '-'}
@@ -368,10 +418,10 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
                 key="filter"
                 type="search"
                 className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm sm:max-w-[11rem]"
-                placeholder="Search by name…"
+                placeholder="Search name or category…"
                 value={getSourceFilter(kind, section.key)}
                 onChange={(e) => setSourceFilter(kind, section.key, e.target.value)}
-                aria-label={`Filter ${section.title} by item or brand name`}
+                aria-label={`Filter ${section.title} by name or category`}
               />,
               <Button
                 key="refresh"
@@ -408,26 +458,28 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
   const renderKindPanel = (kind) => {
     const meta = PURCHASE_KIND_META[kind];
     const bucket = buckets[kind];
-    const { requestedNote, selectedLines, expandedLineNotes, forDate, urgency } = bucket;
+    const { requestedNote, selectedLines, forDate, urgency } = bucket;
 
     return (
       <div className="space-y-4">
         <p className="text-sm text-slate-600">{meta.blurb}</p>
         {renderSourceGrid(kind)}
-        <details className="rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2">
-          <summary className="cursor-pointer select-none text-sm font-medium text-slate-800">
-            Create inventory item
-          </summary>
-          <div className="mt-3 border-t border-slate-200/70 pt-3">
-            <CreateInventoryItemSection
-              embedded
-              idPrefix={`purchase-request-${kind}`}
-              description="Create the catalog item here first, then it is added to the active tab's purchase request with quantity 1 (edit qty in the table below)."
-              onItemCreated={(payload) => onInventoryItemCreated(kind, payload)}
-              showPrimaryImage={false}
-            />
-          </div>
-        </details>
+        {showCreateInventoryItem ? (
+          <details className="rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2">
+            <summary className="cursor-pointer select-none text-sm font-medium text-slate-800">
+              Create inventory item
+            </summary>
+            <div className="mt-3 border-t border-slate-200/70 pt-3">
+              <CreateInventoryItemSection
+                embedded
+                idPrefix={`purchase-request-${kind}`}
+                description="Create the catalog item here first, then it is added to the active tab's purchase request with quantity 1 (edit qty in the table below)."
+                onItemCreated={(payload) => onInventoryItemCreated(kind, payload)}
+                showPrimaryImage={false}
+              />
+            </div>
+          </details>
+        ) : null}
         <StoreSection title="" tone={meta.formSectionTone}>
           <form onSubmit={(e) => onSubmit(e, kind)} className="space-y-4">
             <div>
@@ -457,20 +509,22 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
                   onChange={(e) => patchBucket(kind, { urgency: e.target.value })}
                 >
                   <option value="NORMAL">NORMAL</option>
-                  <option value="URGENT">URGENT</option>
-                  <option value="CRITICAL">CRITICAL</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
                 </select>
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">Selected request lines</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Selected request items</h2>
                 <span className="text-sm text-gray-500">{selectedLines.length} line(s)</span>
               </div>
               {selectedLines.length === 0 ? (
                 <p className="mt-3 text-sm text-gray-500">
-                  Add lines from the lists above for this tab, or create a catalog item and it will appear here.
+                  {showCreateInventoryItem
+                    ? 'Add lines from the lists above for this tab, or create a catalog item and it will appear here.'
+                    : 'Add lines from the lists above for this tab.'}
                 </p>
               ) : (
                 <Table>
@@ -480,7 +534,6 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
                       <TableHead>Unit</TableHead>
                       <TableHead>Qty</TableHead>
                       {kind === PURCHASE_KIND.DAILY ? <TableHead>Freshness</TableHead> : null}
-                      <TableHead>Type</TableHead>
                       <TableHead>Operator Note</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
@@ -489,36 +542,21 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
                     {selectedLines.map((line) => (
                       <TableRow key={line.local_id} className="align-top">
                         <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-start gap-2">
-                              {line.brand_logo_s3_url ? (
-                                <img
-                                  src={line.brand_logo_s3_url}
-                                  alt=""
-                                  className="mt-0.5 h-8 w-8 shrink-0 rounded border border-slate-200 bg-white object-contain"
-                                />
-                              ) : null}
-                              <input
-                                className="min-w-0 flex-1 rounded border px-2 py-1"
-                                value={line.requested_item_name}
-                                onChange={(e) =>
-                                  updateLine(kind, line.local_id, 'requested_item_name', e.target.value)
-                                }
+                          <div className="flex items-start gap-2">
+                            {line.item_primary_image_url ? (
+                              <img
+                                src={line.item_primary_image_url}
+                                alt=""
+                                className="mt-0.5 h-8 w-8 shrink-0 rounded border border-slate-200 bg-white object-cover"
                               />
-                            </div>
-                            {line.brand_name ? (
-                              <div className="text-xs text-slate-500">{line.brand_name}</div>
                             ) : null}
+                            <span className="min-w-0 flex-1 text-sm font-medium text-slate-900">
+                              {line.requested_item_name || '—'}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <input
-                            className="w-24 rounded border px-2 py-1"
-                            value={line.requested_unit}
-                            onChange={(e) =>
-                              updateLine(kind, line.local_id, 'requested_unit', e.target.value)
-                            }
-                          />
+                          <span className="text-sm text-slate-700">{line.requested_unit || '—'}</span>
                         </TableCell>
                         <TableCell>
                           <input
@@ -535,48 +573,31 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
                         {kind === PURCHASE_KIND.DAILY ? (
                           <TableCell>
                             <select
-                              className="w-full min-w-[7rem] rounded border px-2 py-1 text-sm"
+                              className="w-full min-w-[7rem] rounded border border-slate-200 bg-white px-2 py-1 text-sm"
                               value={line.freshness_priority || 'NORMAL'}
                               onChange={(e) =>
                                 updateLine(kind, line.local_id, 'freshness_priority', e.target.value)
                               }
                             >
-                              <option value="NORMAL">NORMAL</option>
-                              <option value="URGENT">URGENT</option>
-                              <option value="CRITICAL">CRITICAL</option>
+                              {LINE_FRESHNESS_PRIORITY_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
                             </select>
                           </TableCell>
                         ) : null}
-                        <TableCell>
-                          <Badge variant={line.is_new_item ? 'warning' : 'secondary'}>
-                            {line.is_new_item ? 'New item' : 'Existing item'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => toggleLineNote(kind, line.local_id)}
-                            >
-                              {expandedLineNotes[line.local_id]
-                                ? 'Hide Note'
-                                : line.operator_note?.trim()
-                                  ? 'Edit Note'
-                                  : 'Add Note'}
-                            </Button>
-                            {expandedLineNotes[line.local_id] ? (
-                              <textarea
-                                className="min-h-16 w-full rounded border px-2 py-1 text-sm"
-                                value={line.operator_note}
-                                onChange={(e) =>
-                                  updateLine(kind, line.local_id, 'operator_note', e.target.value)
-                                }
-                                placeholder="Operator note"
-                              />
-                            ) : null}
-                          </div>
+                        <TableCell className="min-w-[12rem]">
+                          <input
+                            type="text"
+                            className="w-full min-w-0 rounded border border-slate-200 bg-white px-2 py-1.5 text-sm"
+                            value={line.operator_note}
+                            onChange={(e) =>
+                              updateLine(kind, line.local_id, 'operator_note', e.target.value)
+                            }
+                            placeholder="Operator note"
+                            aria-label="Operator note"
+                          />
                         </TableCell>
                         <TableCell className="text-right">
                           <Button type="button" variant="link" onClick={() => removeLine(kind, line.local_id)}>
@@ -590,7 +611,12 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
               )}
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {showPurchaseRequestDraftUi ? (
+                <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={!companyPath}>
+                  Save draft
+                </Button>
+              ) : null}
               <Button type="submit" disabled={submitLoading}>
                 {submitLoading ? 'Submitting...' : `Submit ${meta.label}`}
               </Button>
@@ -640,6 +666,13 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
           title="Create Purchase Request"
           description="Weekly vs daily requests send purchase type, for date, and urgency to the API. Daily lines can set freshness priority."
           actions={[
+            ...(showPurchaseRequestDraftUi
+              ? [
+                  <Button key="drafts" asChild variant="secondary">
+                    <Link to={`${basePath}/store-operator/purchase-request-drafts`}>Draft inbox</Link>
+                  </Button>
+                ]
+              : []),
             <Button key="approved" asChild>
               <Link to={`${basePath}/store-operator/approved-requests`}>Approved Requests</Link>
             </Button>,
@@ -656,7 +689,7 @@ const PurchaseRequestCreateTabs = ({ showOperatorHeader = false, singleKind = nu
       {locked ? (
         <div className="w-full">{renderKindPanel(locked)}</div>
       ) : (
-        <Tabs defaultValue={PURCHASE_KIND.WEEKLY} className="w-full">
+        <Tabs value={purchaseTypeTab} onValueChange={setPurchaseTypeTab} className="w-full">
           <div
             className="mb-6 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50 via-white to-white p-4 shadow-sm ring-1 ring-slate-900/5 sm:p-5"
             role="group"

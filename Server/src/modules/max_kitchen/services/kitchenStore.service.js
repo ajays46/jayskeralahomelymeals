@@ -148,6 +148,17 @@ export const listItemsService = async (query = {}, companyId, userId = null) => 
   }
 };
 
+export const listInventoryUnitsService = async (companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/units`, withKitchenContext(companyId, userId));
+    logKitchenSuccess('listInventoryUnits', { endpoint: `/inventory/units`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listInventoryUnits', error, { endpoint: `/inventory/units`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
 export const getItemService = async (itemId, companyId, userId = null) => {
   try {
     const response = await apiClient.get(`${K}/inventory/items/${itemId}`, withKitchenContext(companyId, userId));
@@ -155,6 +166,21 @@ export const getItemService = async (itemId, companyId, userId = null) => {
     return parseKitchenJsonResponse(response);
   } catch (error) {
     logKitchenError('getItem', error, { endpoint: '/inventory/items/:item_id', companyId: companyId || null, itemId });
+    throw mapAxiosError(error);
+  }
+};
+
+export const updateItemService = async (itemId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.put(
+      `${K}/inventory/items/${itemId}`,
+      body,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('updateItem', { endpoint: '/inventory/items/:item_id', companyId: companyId || null, itemId });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('updateItem', error, { endpoint: '/inventory/items/:item_id', companyId: companyId || null, itemId });
     throw mapAxiosError(error);
   }
 };

@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StoreNotice, StoreSection } from '@/components/store/StorePageShell';
 import api from '../../api/axios';
 import { API, readMaxKitchenClientEnvelope } from '../../api/endpoints';
 import { kitchenInventoryRequireItemImage } from '../../config/kitchenFeatureFlags.js';
+import { fetchInventoryUnitsList } from '../../hooks/adminHook/kitchenStoreHook';
 
 /** @feature kitchen-store — Operator form: create inventory item (`POST .../inventory/items`). */
 const initialForm = {
@@ -62,8 +63,20 @@ export const CreateInventoryItemSection = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState({ tone: 'sky', message: '' });
   const [primaryFile, setPrimaryFile] = useState(null);
+  const [catalogUnits, setCatalogUnits] = useState([]);
 
   const strictImage = kitchenInventoryRequireItemImage();
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const list = await fetchInventoryUnitsList();
+      if (!cancelled) setCatalogUnits(list);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const inputId = useMemo(
     () => ({
@@ -194,15 +207,35 @@ export const CreateInventoryItemSection = ({
           <label htmlFor={inputId.unit} className="text-sm font-medium">
             Unit
           </label>
-          <input
-            id={inputId.unit}
-            type="text"
-            value={form.unit}
-            onChange={onChange('unit')}
-            className="w-full rounded-md border px-3 py-2 text-sm"
-            placeholder="e.g., kg"
-            required
-          />
+          {catalogUnits.length > 0 ? (
+            <select
+              id={inputId.unit}
+              value={form.unit}
+              onChange={onChange('unit')}
+              className="w-full rounded-md border px-3 py-2 text-sm"
+              required
+            >
+              <option value="">Select unit…</option>
+              {catalogUnits.map((u) => (
+                <option key={u.id || u.abbreviation} value={u.abbreviation}>
+                  {u.name} ({u.abbreviation})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <>
+              <input
+                id={inputId.unit}
+                type="text"
+                value={form.unit}
+                onChange={onChange('unit')}
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                placeholder="e.g., kg (load /inventory/units for dropdown)"
+                required
+              />
+              <p className="text-xs text-slate-500">Standard units list unavailable; enter abbreviation manually.</p>
+            </>
+          )}
         </div>
 
         <div className="space-y-1">

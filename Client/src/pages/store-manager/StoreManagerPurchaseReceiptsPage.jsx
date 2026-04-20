@@ -288,7 +288,6 @@ const StoreManagerPurchaseReceiptsPage = () => {
                 <TableHead>Invoice ref</TableHead>
                 <TableHead>Invoice</TableHead>
                 <TableHead>Items photo</TableHead>
-                <TableHead>Delivery</TableHead>
                 <TableHead>Uploaded At</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -296,7 +295,7 @@ const StoreManagerPurchaseReceiptsPage = () => {
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
+                  <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
                     {history.length === 0
                       ? 'No receipts loaded. Refresh the register.'
                       : 'No receipts match the current filters.'}
@@ -340,9 +339,6 @@ const StoreManagerPurchaseReceiptsPage = () => {
                         ) : (
                           '—'
                         )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {Array.isArray(row.material_photos) ? row.material_photos.length : 0}
                       </TableCell>
                       <TableCell>{row.invoice_uploaded_at || '-'}</TableCell>
                       <TableCell className="text-right">

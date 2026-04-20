@@ -6,7 +6,7 @@ import { StorePageShell } from '@/components/store/StorePageShell';
 
 const StoreOperatorPurchaseRequestPage = () => (
   <StorePageShell className="max-w-7xl">
-    <PurchaseRequestCreateTabs showOperatorHeader singleKind={null} />
+    <PurchaseRequestCreateTabs showOperatorHeader singleKind={null} showCreateInventoryItem={false} />
   </StorePageShell>
 );
 

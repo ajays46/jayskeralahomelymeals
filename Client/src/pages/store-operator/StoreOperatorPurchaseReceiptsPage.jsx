@@ -85,7 +85,8 @@ const StoreOperatorPurchaseReceiptsPage = () => {
     listReceiptLines,
     viewReceiptInvoiceInNewTab,
     openReceiptItemsPhotoInNewTab,
-    getBrandLogoViewUrl
+    getBrandLogoViewUrl,
+    getReceiptInvoiceTraceability
   } = useKitchenReceiptsApi();
 
   const [selectedRequestId, setSelectedRequestId] = useState(searchParams.get('requestId') || '');
@@ -93,6 +94,10 @@ const StoreOperatorPurchaseReceiptsPage = () => {
   const [activeReceiptId, setActiveReceiptId] = useState('');
   const [history, setHistory] = useState([]);
   const [selectedLines, setSelectedLines] = useState([]);
+  const [traceOpen, setTraceOpen] = useState(false);
+  const [traceLoadingId, setTraceLoadingId] = useState('');
+  const [tracePayload, setTracePayload] = useState(null);
+  const [traceReceiptLabel, setTraceReceiptLabel] = useState('');
   const [status, setStatus] = useState('');
   const [approvedPurchaseForm, setApprovedPurchaseForm] = useState({
     purchase_request_line_id: '',
@@ -316,6 +321,25 @@ const StoreOperatorPurchaseReceiptsPage = () => {
       const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Failed to load receipt lines.';
       setStatus(msg);
       showStoreError(msg, 'Could not load receipt lines');
+    }
+  };
+
+  const openInvoiceTraceability = async (receiptId) => {
+    const rid = String(receiptId || '').trim();
+    if (!rid) return;
+    setTraceLoadingId(rid);
+    setStatus('');
+    try {
+      const data = await getReceiptInvoiceTraceability(rid);
+      setTracePayload(data);
+      setTraceReceiptLabel(rid);
+      setTraceOpen(true);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Traceability request failed.';
+      setStatus(msg);
+      showStoreError(msg, 'Traceability');
+    } finally {
+      setTraceLoadingId('');
     }
   };
 
@@ -1202,9 +1226,20 @@ const StoreOperatorPurchaseReceiptsPage = () => {
                     {formatDateTimeIST(row.received_at || row.created_at)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button type="button" variant="outline" size="sm" onClick={() => openReceiptLines(row.id || row.receipt_id)}>
-                      Open
-                    </Button>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      <Button type="button" variant="outline" size="sm" onClick={() => openReceiptLines(row.id || row.receipt_id)}>
+                        Open
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={traceLoadingId === (row.id || row.receipt_id)}
+                        onClick={() => openInvoiceTraceability(row.id || row.receipt_id)}
+                      >
+                        {traceLoadingId === (row.id || row.receipt_id) ? '…' : 'Trace'}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1265,6 +1300,31 @@ const StoreOperatorPurchaseReceiptsPage = () => {
           </Table>
         )}
       </StoreSection>
+
+      {traceOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="receipt-trace-title"
+        >
+          <div className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h2 id="receipt-trace-title" className="text-base font-semibold text-slate-900">
+                Invoice traceability · {traceReceiptLabel}
+              </h2>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setTraceOpen(false)}>
+                Close
+              </Button>
+            </div>
+            <div className="max-h-[calc(85vh-3.5rem)] overflow-auto p-4">
+              <pre className="whitespace-pre-wrap break-words text-xs text-slate-800">
+                {tracePayload ? JSON.stringify(tracePayload, null, 2) : 'No data.'}
+              </pre>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </StorePageShell>
   );
 };

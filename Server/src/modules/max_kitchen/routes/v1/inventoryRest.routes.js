@@ -6,7 +6,9 @@ import { checkRole } from '../../../../middleware/checkRole.js';
 import { resolveCompanyId } from '../../../../middleware/resolveCompanyId.js';
 import {
   listItems,
+  listInventoryUnits,
   createItem,
+  updateItem,
   pendingImageUploadUrl,
   getItem,
   listItemImages,
@@ -37,9 +39,11 @@ router.use(resolveCompanyId);
 const smSo = checkRole('STORE_MANAGER', 'STORE_OPERATOR');
 const smOnly = checkRole('STORE_MANAGER');
 
+router.get('/units', smSo, listInventoryUnits);
 router.get('/items', smSo, listItems);
 router.post('/items/pending-image-upload-url', smSo, pendingImageUploadUrl);
 router.post('/items', smSo, createItem);
+router.put('/items/:item_id', smSo, updateItem);
 router.get('/items/:item_id', smSo, getItem);
 router.get('/items/:item_id/images', smSo, listItemImages);
 router.post(

@@ -38,6 +38,7 @@ import StoreManagerKitchenDashboard from './pages/store-manager/StoreManagerKitc
 import StoreManagerPlanApprovalPage from './pages/store-manager/StoreManagerPlanApprovalPage';
 import StoreManagerReportsPage from './pages/store-manager/StoreManagerReportsPage';
 import StoreManagerInventoryViewPage from './pages/store-manager/StoreManagerInventoryViewPage';
+import StoreManagerExpiryDashboardPage from './pages/store-manager/StoreManagerExpiryDashboardPage';
 import StoreManagerStockLogsPage from './pages/store-manager/StoreManagerStockLogsPage';
 import StoreOperatorRecipeBomPage from './pages/store-operator/StoreOperatorRecipeBomPage';
 import StoreManagerForecastDashboardPage from './pages/store-manager/StoreManagerForecastDashboardPage';
@@ -59,6 +60,7 @@ import StoreOperatorMealReportPage from './pages/store-operator/StoreOperatorMea
 import StoreOperatorItemMasterPage from './pages/store-operator/StoreOperatorItemMasterPage';
 import StoreOperatorBrandMasterPage from './pages/store-operator/StoreOperatorBrandMasterPage';
 import StoreOperatorPurchaseRequestPage from './pages/store-operator/StoreOperatorPurchaseRequestPage';
+import StoreOperatorPurchaseRequestDraftInboxPage from './pages/store-operator/StoreOperatorPurchaseRequestDraftInboxPage';
 import StoreOperatorApprovedRequestsPage from './pages/store-operator/StoreOperatorApprovedRequestsPage';
 import StoreModuleLayout from './pages/store-common/StoreModuleLayout';
 import { KitchenStoreProvider } from './hooks/adminHook/kitchenStoreHook';
@@ -281,6 +283,7 @@ const App = () => {
                 <Route path="store-manager/plan-approval" element={<StoreManagerPlanApprovalPage />} />
                 <Route path="store-manager/reports" element={<StoreManagerReportsPage />} />
                 <Route path="store-manager/inventory" element={<StoreManagerInventoryViewPage />} />
+                <Route path="store-manager/expiry-dashboard" element={<StoreManagerExpiryDashboardPage />} />
                 <Route path="store-manager/stock-logs" element={<StoreManagerStockLogsPage />} />
                 <Route path="store-manager/forecast" element={<StoreManagerForecastDashboardPage />} />
                 <Route path="store-manager/purchase-suggestions" element={<StoreManagerPurchaseSuggestionsPage />} />
@@ -294,6 +297,7 @@ const App = () => {
                 <Route path="store-operator/item-master" element={<StoreOperatorItemMasterPage />} />
                 <Route path="store-operator/brand-master" element={<StoreOperatorBrandMasterPage />} />
                 <Route path="store-operator/purchase-requests" element={<StoreOperatorPurchaseRequestPage />} />
+                <Route path="store-operator/purchase-request-drafts" element={<StoreOperatorPurchaseRequestDraftInboxPage />} />
                 <Route path="store-operator/approved-requests" element={<StoreOperatorApprovedRequestsPage />} />
                 <Route path="store-operator/delivery-meal-counts" element={<StoreOperatorDeliveryMealCountsPage />} />
                 <Route path="store-operator/issue" element={<StoreOperatorIssuePage />} />

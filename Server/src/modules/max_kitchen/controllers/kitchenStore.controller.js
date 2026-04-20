@@ -5,7 +5,9 @@ import {
   healthCheckService,
   createItemService,
   listItemsService,
+  listInventoryUnitsService,
   getItemService,
+  updateItemService,
   listBrandsService,
   createBrandService,
   uploadBrandLogoService,
@@ -334,9 +336,61 @@ export const listItems = async (req, res, next) => {
   }
 };
 
+export const listInventoryUnits = async (req, res, next) => {
+  try {
+    const result = await listInventoryUnitsService(req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getItem = async (req, res, next) => {
   try {
     const result = await getItemService(req.params.item_id, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateItem = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      throw new AppError('Request body must be an object', 400);
+    }
+
+    const payload = {
+      name: requireNonEmptyString(body.name, 'name'),
+      unit: requireNonEmptyString(body.unit, 'unit')
+    };
+
+    if (body.category !== undefined) {
+      if (typeof body.category !== 'string') {
+        throw new AppError('category must be a string', 400);
+      }
+      payload.category = body.category.trim();
+    }
+
+    if (body.min_quantity !== '' && body.min_quantity != null) {
+      const minQ = Number(body.min_quantity);
+      if (!Number.isFinite(minQ) || minQ < 0) {
+        throw new AppError('min_quantity must be a non-negative number', 400);
+      }
+      payload.min_quantity = minQ;
+    }
+
+    if (body.brand_id !== undefined) {
+      if (body.brand_id === null || body.brand_id === '') {
+        payload.brand_id = null;
+      } else {
+        payload.brand_id = requireNonEmptyString(String(body.brand_id), 'brand_id');
+      }
+    }
+
+    const itemId = requireIdParam(req.params.item_id, 'item_id');
+    const result = await updateItemService(itemId, payload, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);

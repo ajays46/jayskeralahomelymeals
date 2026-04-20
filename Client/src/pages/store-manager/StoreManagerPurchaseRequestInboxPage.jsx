@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   StoreNotice,
-  StorePageHeader,
   StorePageShell,
   StoreSection,
   StoreStatCard,
@@ -21,7 +20,7 @@ import {
 import { PURCHASE_KIND, PURCHASE_KIND_META } from '@/components/store/purchaseRequestShared';
 import { StoreManagerShortageReceiptPanels } from './StoreManagerPurchaseRhythmWidgets';
 
-/** @feature kitchen-store — STORE_MANAGER: submitted purchase request inbox + daily shortage/receipt snapshot. */
+/** @feature kitchen-store — STORE_MANAGER: purchase request inbox (all statuses) + optional daily shortage/receipt snapshot. */
 
 function submittedDayKey(value) {
   if (value == null || value === '') return '';
@@ -54,11 +53,23 @@ function purchaseTypeLabel(request) {
   return raw || '-';
 }
 
+/** Badge variant for purchase request status: green approved, red rejected. */
+function requestStatusBadgeVariant(status) {
+  const s = String(status || '').trim().toUpperCase();
+  if (s === 'APPROVED') return 'success';
+  if (s === 'REJECTED') return 'destructive';
+  if (s === 'SUBMITTED') return 'warning';
+  return 'secondary';
+}
+
 const inboxControlClass =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
 
 /** Set to `true` to show “Bulk approve daily purchase requests” again. */
 const SHOW_BULK_APPROVE_DAILY_PURCHASE_REQUESTS = false;
+
+/** Set to `true` to show Shortage detection + Stock receipt today panels again. */
+const SHOW_SHORTAGE_RECEIPT_PANELS = false;
 
 const StoreManagerPurchaseRequestInboxPage = () => {
   const basePath = useCompanyBasePath();
@@ -97,7 +108,7 @@ const StoreManagerPurchaseRequestInboxPage = () => {
   }, [listSubmittedRequests]);
 
   useEffect(() => {
-    refreshDaily();
+    if (SHOW_SHORTAGE_RECEIPT_PANELS) void refreshDaily();
   }, [refreshDaily]);
 
   const statusOptions = useMemo(() => {
@@ -148,17 +159,6 @@ const StoreManagerPurchaseRequestInboxPage = () => {
 
   return (
     <StorePageShell className="max-w-7xl">
-      <StorePageHeader
-        title="Purchase requests"
-        description="Review submitted requests, filter by weekly or daily purchase type, and monitor today’s shortage signal and stock receipts."
-        actions={[
-          <Button key="receipts" asChild variant="outline">
-            <Link to={`${basePath}/store-manager/purchase-receipts`}>Purchase Receipts</Link>
-          </Button>
-        ]}
-        tone="violet"
-      />
-
       {isStoreManager && SHOW_BULK_APPROVE_DAILY_PURCHASE_REQUESTS ? (
         <StoreSection
           title="Bulk approve daily purchase requests"
@@ -214,17 +214,21 @@ const StoreManagerPurchaseRequestInboxPage = () => {
       ) : null}
 
       <div className="space-y-4">
-        <StoreManagerShortageReceiptPanels
-          loadingDaily={loadingDaily}
-          dailyShortage={dailyShortage}
-          dailyReceiptsToday={dailyReceiptsToday}
-        />
+        {SHOW_SHORTAGE_RECEIPT_PANELS ? (
+          <StoreManagerShortageReceiptPanels
+            loadingDaily={loadingDaily}
+            dailyShortage={dailyShortage}
+            dailyReceiptsToday={dailyReceiptsToday}
+          />
+        ) : null}
 
         <div className="space-y-3">
           <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => refreshDaily()} disabled={loadingDaily}>
-              {loadingDaily ? 'Refreshing snapshot…' : 'Refresh shortage & receipts'}
-            </Button>
+            {SHOW_SHORTAGE_RECEIPT_PANELS ? (
+              <Button type="button" variant="outline" onClick={() => refreshDaily()} disabled={loadingDaily}>
+                {loadingDaily ? 'Refreshing snapshot…' : 'Refresh shortage & receipts'}
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" onClick={listSubmittedRequests} disabled={listLoading}>
               {listLoading ? 'Refreshing...' : 'Refresh inbox'}
             </Button>
@@ -232,9 +236,9 @@ const StoreManagerPurchaseRequestInboxPage = () => {
           {listError ? <StoreNotice tone="rose">{listError}</StoreNotice> : null}
           {rhythmError ? <StoreNotice tone="rose">{rhythmError}</StoreNotice> : null}
           <StoreStatGrid className="xl:grid-cols-3">
-            <StoreStatCard label="Submitted Requests" value={submittedRequests.length} tone="violet" />
+            <StoreStatCard label="Total requests" value={submittedRequests.length} tone="violet" />
             <StoreStatCard
-              label="Total Submitted Lines"
+              label="Total lines"
               value={submittedRequests.reduce((sum, request) => sum + request.total_lines, 0)}
               tone="sky"
             />
@@ -247,7 +251,7 @@ const StoreManagerPurchaseRequestInboxPage = () => {
         </div>
 
         <StoreSection
-          title="Submitted Request List"
+          title="Purchase requests"
           description={
             inboxFiltersActive
               ? `Showing ${filteredRequests.length} of ${submittedRequests.length} requests.`
@@ -256,7 +260,7 @@ const StoreManagerPurchaseRequestInboxPage = () => {
           tone="violet"
         >
           {submittedRequests.length === 0 ? (
-            <StoreNotice tone="amber">No submitted purchase requests are waiting for manager action.</StoreNotice>
+            <StoreNotice tone="amber">No purchase requests loaded.</StoreNotice>
           ) : (
             <>
               <div className="mb-3 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -394,7 +398,7 @@ const StoreManagerPurchaseRequestInboxPage = () => {
                           </TableCell>
                           <TableCell className="text-sm text-slate-700">{purchaseTypeLabel(request)}</TableCell>
                           <TableCell>
-                            <Badge variant={request.status === 'SUBMITTED' ? 'warning' : 'secondary'}>
+                            <Badge variant={requestStatusBadgeVariant(request.status)}>
                               {request.status || '-'}
                             </Badge>
                           </TableCell>

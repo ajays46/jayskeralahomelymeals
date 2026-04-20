@@ -101,6 +101,29 @@ export function mergeNearExpiryRowsIntoMap(rows) {
   return map;
 }
 
+/**
+ * Table row highlight when the item has an EXPIRE stock movement (manual expiry write-off from adjustments).
+ * Stronger visual than near-expiry warnings so teams see “stock removed as expired” at a glance.
+ */
+export const expireMovementRowClassName =
+  'bg-red-50/95 border-l-4 border-l-red-600 hover:bg-red-50/85';
+
+/** Compact badge for the expiry column when an EXPIRE movement exists. */
+export const expireMovementChipClassName =
+  'bg-red-100 text-red-900 border border-red-200';
+
+/**
+ * @param {string} itemId
+ * @param {Record<string, unknown>} nearExpiryByItemId
+ * @param {boolean} hasExpireMovement — true if movements include EXPIRE for this item
+ * @returns {string|undefined}
+ */
+export function inventoryStockTableRowClassName(itemId, nearExpiryByItemId, hasExpireMovement) {
+  if (hasExpireMovement) return expireMovementRowClassName;
+  const exp = nearExpiryByItemId[itemId];
+  return exp ? nearExpiryRowClassName(exp) : undefined;
+}
+
 /** Tailwind classes for table row background + left accent (stock listing). */
 export function nearExpiryRowClassName(info) {
   if (!info) return '';

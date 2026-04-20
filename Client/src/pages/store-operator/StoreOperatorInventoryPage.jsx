@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
 import {
+  expireMovementChipClassName,
+  inventoryStockTableRowClassName,
   nearExpiryChipClassName,
   nearExpiryCountdownLabel,
   nearExpiryRowClassName
@@ -28,6 +30,49 @@ const stockFilterControlClass =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
 
 const isLowStock = (item) => Number(item.current_quantity) <= Number(item.min_quantity);
+
+/** ISO / API datetime → India Standard Time (en-IN, Asia/Kolkata), matching item master & purchase receipts. */
+function formatDateTimeIST(iso) {
+  if (iso == null || iso === '') return '—';
+  const raw = String(iso).trim();
+  if (!raw) return '—';
+  let d = new Date(raw);
+  if (Number.isNaN(d.getTime()) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(raw)) {
+    d = new Date(raw.replace(' ', 'T'));
+  }
+  if (Number.isNaN(d.getTime())) return '—';
+  const datePart = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(d);
+  const timePart = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(d);
+  return `${datePart}, ${timePart}`;
+}
+
+const InventoryItemThumbName = ({ item }) => {
+  const u = (item.primary_image_url || '').trim();
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {u ? (
+        <img
+          src={u}
+          alt=""
+          className="h-8 w-8 shrink-0 rounded-md border border-slate-200 bg-white object-cover"
+        />
+      ) : (
+        <div className="h-8 w-8 shrink-0 rounded-md border border-dashed border-slate-200 bg-slate-50" aria-hidden />
+      )}
+      <span className="min-w-0 truncate font-medium text-slate-900">{item.name}</span>
+    </div>
+  );
+};
 
 /** Use `brand_logo_s3_url` from items API. */
 const InventoryBrandCell = ({ item }) => {
@@ -56,8 +101,16 @@ const InventoryBrandCell = ({ item }) => {
 
 const StoreOperatorInventoryPage = () => {
   const basePath = useCompanyBasePath();
-  const { items, lowStockItems, addStock, movements, nearExpiryByItemId, nearExpiryMeta, refreshNearExpiry } =
-    useKitchenInventoryMock();
+  const {
+    items,
+    lowStockItems,
+    addStock,
+    movements,
+    nearExpiryByItemId,
+    nearExpiryBatches,
+    nearExpiryMeta,
+    refreshNearExpiry
+  } = useKitchenInventoryMock();
   const [stockInputs, setStockInputs] = useState({});
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
@@ -88,7 +141,8 @@ const StoreOperatorInventoryPage = () => {
       if (q) {
         const inName = item.name.toLowerCase().includes(q);
         const inBrand = (item.brand_name || '').toLowerCase().includes(q);
-        if (!inName && !inBrand) return false;
+        const inCat = (item.category || '').toLowerCase().includes(q);
+        if (!inName && !inBrand && !inCat) return false;
       }
       if (categoryFilter !== 'all') {
         if (categoryFilter === UNCATEGORIZED) {
@@ -118,6 +172,21 @@ const StoreOperatorInventoryPage = () => {
     setUnitFilter('all');
     setStatusFilter('all');
   };
+
+  useEffect(() => {
+    void refreshNearExpiry();
+  }, [refreshNearExpiry]);
+
+  /** Items that have at least one EXPIRE movement (stock written off as expired). */
+  const itemIdsWithExpireMovement = useMemo(() => {
+    const set = new Set();
+    for (const m of movements) {
+      if (String(m.movement_type || '').toUpperCase() === 'EXPIRE' && m.item_id != null && m.item_id !== '') {
+        set.add(String(m.item_id));
+      }
+    }
+    return set;
+  }, [movements]);
 
   const updateStockInput = (itemId, patch) => {
     setStockInputs((prev) => ({
@@ -177,6 +246,42 @@ const StoreOperatorInventoryPage = () => {
         <StoreStatCard label="Recent Movements" value={movements.slice(0, 8).length} tone="slate" />
       </StoreStatGrid>
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
+      <StoreSection title="Near expiry" tone="rose">
+        {nearExpiryBatches.length === 0 ? (
+          <p className="text-sm text-slate-500">No near-expiry batches.</p>
+        ) : (
+          <ul className="max-h-60 space-y-2 overflow-y-auto pr-1">
+            {nearExpiryBatches.slice(0, 12).map((row) => (
+              <li
+                key={row.batch_id || `${row.inventory_item_id}-${row.expiry_date}`}
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200/80 px-3 py-2 text-sm ${nearExpiryRowClassName(row)}`}
+              >
+                <div className="min-w-0 flex-1">
+                  {row.inventory_item_id ? (
+                    <Link
+                      to={`${basePath}/store-operator/item/${row.inventory_item_id}`}
+                      className="block truncate font-medium text-slate-900 hover:underline"
+                    >
+                      {row.item_name}
+                    </Link>
+                  ) : (
+                    <span className="block truncate font-medium text-slate-900">{row.item_name}</span>
+                  )}
+                  <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600">
+                    <span>Qty {row.remaining_quantity ?? '—'}</span>
+                    <span>{row.days_until_expiry != null ? `${row.days_until_expiry} days` : '—'}</span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {nearExpiryBatches.length > 12 ? (
+          <p className="mt-2 text-xs text-slate-500">
+            Showing 12 of {nearExpiryBatches.length}. Use the current stock table below for the full list and filters.
+          </p>
+        ) : null}
+      </StoreSection>
       <StoreSection
         title="Current Stock"
         description={stockFiltersActive ? `Showing ${filteredItems.length} of ${items.length} items.` : undefined}
@@ -270,6 +375,7 @@ const StoreOperatorInventoryPage = () => {
               <TableHead className="text-center">Current Qty</TableHead>
               <TableHead className="text-center">Min Qty</TableHead>
               <TableHead className="text-center">Status</TableHead>
+              <TableHead className="whitespace-nowrap">Created</TableHead>
               <TableHead>Expiry</TableHead>
               <TableHead className="w-[220px]">Add Stock</TableHead>
               <TableHead className="text-right">Detail</TableHead>
@@ -278,7 +384,7 @@ const StoreOperatorInventoryPage = () => {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center text-sm text-slate-500">
+                <TableCell colSpan={10} className="py-10 text-center text-sm text-slate-500">
                   {items.length === 0 ? 'No inventory items loaded.' : 'No items match the current filters.'}
                 </TableCell>
               </TableRow>
@@ -286,9 +392,15 @@ const StoreOperatorInventoryPage = () => {
               filteredItems.map((item) => {
                 const isLow = isLowStock(item);
                 const exp = nearExpiryByItemId[item.id];
+                const hasExpireMovement = itemIdsWithExpireMovement.has(String(item.id));
                 return (
-                  <TableRow key={item.id} className={exp ? nearExpiryRowClassName(exp) : undefined}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableRow
+                    key={item.id}
+                    className={inventoryStockTableRowClassName(item.id, nearExpiryByItemId, hasExpireMovement)}
+                  >
+                    <TableCell>
+                      <InventoryItemThumbName item={item} />
+                    </TableCell>
                     <TableCell>
                       <InventoryBrandCell item={item} />
                     </TableCell>
@@ -296,26 +408,46 @@ const StoreOperatorInventoryPage = () => {
                     <TableCell className="text-center font-medium">{item.current_quantity}</TableCell>
                     <TableCell className="text-center">{item.min_quantity}</TableCell>
                     <TableCell className="text-center">
-                      <Badge variant={isLow ? 'warningSoft' : 'successSoft'}>{isLow ? 'Low' : 'OK'}</Badge>
+                      {hasExpireMovement ? (
+                        <span className="text-sm text-slate-400" title="Expiry write-off recorded — see Expiry column">
+                          —
+                        </span>
+                      ) : (
+                        <Badge variant={isLow ? 'warningSoft' : 'successSoft'}>{isLow ? 'Low' : 'OK'}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm text-slate-700">
+                      {formatDateTimeIST(item.created_at)}
                     </TableCell>
                     <TableCell className="align-top">
-                      {exp ? (
-                        <div className="flex max-w-[10rem] flex-col gap-0.5">
+                      <div className="flex max-w-[10rem] flex-col gap-0.5">
+                        {hasExpireMovement ? (
                           <span
-                            className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${nearExpiryChipClassName(exp)}`}
+                            className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${expireMovementChipClassName}`}
+                            title="Same as Recent Stock Movement Log — EXPIRE movement for this item"
                           >
-                            {nearExpiryCountdownLabel(exp)}
+                            EXPIRE
                           </span>
-                          {exp.expiry_date ? (
-                            <span className="text-[11px] leading-tight text-slate-500">{exp.expiry_date}</span>
-                          ) : null}
-                          {exp.batch_count > 1 ? (
-                            <span className="text-[11px] text-slate-400">{exp.batch_count} batches</span>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-slate-400">—</span>
-                      )}
+                        ) : null}
+                        {exp ? (
+                          <>
+                            <span
+                              className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${nearExpiryChipClassName(exp)}`}
+                            >
+                              {nearExpiryCountdownLabel(exp)}
+                            </span>
+                            {exp.expiry_date ? (
+                              <span className="text-[11px] leading-tight text-slate-500">{exp.expiry_date}</span>
+                            ) : null}
+                            {exp.batch_count > 1 ? (
+                              <span className="text-[11px] text-slate-400">{exp.batch_count} batches</span>
+                            ) : null}
+                          </>
+                        ) : null}
+                        {!hasExpireMovement && !exp ? (
+                          <span className="text-sm text-slate-400">—</span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/90 px-2 py-1 shadow-sm">
@@ -363,7 +495,9 @@ const StoreOperatorInventoryPage = () => {
               <TableBody>
                 {lowStockItems.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>
+                      <InventoryItemThumbName item={item} />
+                    </TableCell>
                     <TableCell>
                       <InventoryBrandCell item={item} />
                     </TableCell>
@@ -382,6 +516,7 @@ const StoreOperatorInventoryPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Type</TableHead>
+                <TableHead className="w-12"> </TableHead>
                 <TableHead>Item</TableHead>
                 <TableHead>Qty</TableHead>
                 <TableHead>Delta</TableHead>
@@ -392,6 +527,17 @@ const StoreOperatorInventoryPage = () => {
               {movements.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell><Badge variant="outline">{row.movement_type}</Badge></TableCell>
+                  <TableCell>
+                    {(row.item_primary_image_url || '').trim() ? (
+                      <img
+                        src={row.item_primary_image_url}
+                        alt=""
+                        className="h-7 w-7 rounded border border-slate-200 bg-white object-cover"
+                      />
+                    ) : (
+                      <span className="text-slate-300">·</span>
+                    )}
+                  </TableCell>
                   <TableCell className="font-medium">{row.item_name}</TableCell>
                   <TableCell>{row.quantity}</TableCell>
                   <TableCell className={row.delta >= 0 ? 'text-emerald-600' : 'text-red-600'}>{row.delta}</TableCell>

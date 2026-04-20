@@ -2,7 +2,13 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
-import { nearExpiryChipClassName, nearExpiryCountdownLabel, nearExpiryRowClassName } from '../../utils/nearExpiryUi.js';
+import {
+  expireMovementChipClassName,
+  inventoryStockTableRowClassName,
+  nearExpiryChipClassName,
+  nearExpiryCountdownLabel,
+  nearExpiryRowClassName
+} from '../../utils/nearExpiryUi.js';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -16,6 +22,30 @@ const controlClass =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
 
 const isLowStock = (item) => Number(item.current_quantity) <= Number(item.min_quantity);
+
+/** Catalog photo from `GET /inventory/items` (`primary_image_url`). */
+const InventoryItemCatalogCell = ({ item }) => {
+  const u = (item.primary_image_url || '').trim();
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {u ? (
+        <img
+          src={u}
+          alt=""
+          className="h-9 w-9 shrink-0 rounded-md border border-slate-200 bg-white object-cover"
+        />
+      ) : (
+        <div
+          className="h-9 w-9 shrink-0 rounded-md border border-dashed border-slate-200 bg-slate-50"
+          aria-hidden
+        />
+      )}
+      <span className="min-w-0 truncate font-medium text-slate-900" title={item.name}>
+        {item.name}
+      </span>
+    </div>
+  );
+};
 
 const InventoryBrandCell = ({ item }) => {
   const logoSrc = (item.brand_logo_s3_url || '').trim();
@@ -43,8 +73,15 @@ const InventoryBrandCell = ({ item }) => {
 
 const StoreManagerInventoryViewPage = () => {
   const basePath = useCompanyBasePath();
-  const { items, lowStockItems, nearExpiryByItemId, nearExpiryBatches, nearExpiryMeta, refreshNearExpiry } =
-    useKitchenInventoryMock();
+  const {
+    items,
+    lowStockItems,
+    movements,
+    nearExpiryByItemId,
+    nearExpiryBatches,
+    nearExpiryMeta,
+    refreshNearExpiry
+  } = useKitchenInventoryMock();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [unitFilter, setUnitFilter] = useState('all');
@@ -101,6 +138,16 @@ const StoreManagerInventoryViewPage = () => {
     setStatusFilter('all');
   };
 
+  const itemIdsWithExpireMovement = useMemo(() => {
+    const set = new Set();
+    for (const m of movements) {
+      if (String(m.movement_type || '').toUpperCase() === 'EXPIRE' && m.item_id != null && m.item_id !== '') {
+        set.add(String(m.item_id));
+      }
+    }
+    return set;
+  }, [movements]);
+
   const tableDescription = filtersActive
     ? `Showing ${filteredItems.length} of ${items.length} items.`
     : 'Live inventory item list.';
@@ -125,12 +172,27 @@ const StoreManagerInventoryViewPage = () => {
           <p className="text-sm text-slate-500">No near-expiry batches.</p>
         ) : (
           <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
-            {nearExpiryBatches.slice(0, 16).map((row) => (
+            {nearExpiryBatches.slice(0, 16).map((row) => {
+              const catalogItem = row.inventory_item_id
+                ? items.find((it) => String(it.id) === String(row.inventory_item_id))
+                : null;
+              const thumb = (catalogItem?.primary_image_url || '').trim();
+              return (
               <li
                 key={row.batch_id || `${row.inventory_item_id}-${row.expiry_date}`}
                 className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200/80 px-3 py-2 text-sm ${nearExpiryRowClassName(row)}`}
               >
-                <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-start gap-2">
+                  {thumb ? (
+                    <img
+                      src={thumb}
+                      alt=""
+                      className="mt-0.5 h-9 w-9 shrink-0 rounded-md border border-slate-200 bg-white object-cover"
+                    />
+                  ) : (
+                    <div className="mt-0.5 h-9 w-9 shrink-0 rounded-md border border-dashed border-slate-200 bg-slate-50" aria-hidden />
+                  )}
+                  <div className="min-w-0 flex-1">
                   {row.inventory_item_id ? (
                     <Link
                       to={`${basePath}/store-operator/item/${row.inventory_item_id}`}
@@ -145,9 +207,11 @@ const StoreManagerInventoryViewPage = () => {
                     <span>Qty {row.remaining_quantity || '—'}</span>
                     <span>{row.days_until_expiry != null ? `${row.days_until_expiry} days` : '—'}</span>
                   </div>
+                  </div>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
         {nearExpiryBatches.length > 16 ? (
@@ -243,7 +307,7 @@ const StoreManagerInventoryViewPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Item</TableHead>
                 <TableHead>Brand</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Unit</TableHead>
@@ -265,9 +329,15 @@ const StoreManagerInventoryViewPage = () => {
                 filteredItems.map((item) => {
                   const isLow = isLowStock(item);
                   const exp = nearExpiryByItemId[item.id];
+                  const hasExpireMovement = itemIdsWithExpireMovement.has(String(item.id));
                   return (
-                    <TableRow key={item.id} className={exp ? nearExpiryRowClassName(exp) : undefined}>
-                      <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableRow
+                      key={item.id}
+                      className={inventoryStockTableRowClassName(item.id, nearExpiryByItemId, hasExpireMovement)}
+                    >
+                      <TableCell>
+                        <InventoryItemCatalogCell item={item} />
+                      </TableCell>
                       <TableCell>
                         <InventoryBrandCell item={item} />
                       </TableCell>
@@ -276,28 +346,45 @@ const StoreManagerInventoryViewPage = () => {
                       <TableCell>{item.current_quantity}</TableCell>
                       <TableCell>{item.min_quantity}</TableCell>
                       <TableCell>
-                        <Badge variant={isLow ? 'warning' : 'secondary'}>
-                          {isLow ? 'Low stock' : 'Healthy'}
-                        </Badge>
+                        {hasExpireMovement ? (
+                          <span className="text-sm text-slate-400" title="Expiry write-off recorded — see Expiry column">
+                            —
+                          </span>
+                        ) : (
+                          <Badge variant={isLow ? 'warning' : 'secondary'}>
+                            {isLow ? 'Low stock' : 'Healthy'}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="align-top">
-                        {exp ? (
-                          <div className="flex max-w-[10rem] flex-col gap-0.5">
+                        <div className="flex max-w-[10rem] flex-col gap-0.5">
+                          {hasExpireMovement ? (
                             <span
-                              className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${nearExpiryChipClassName(exp)}`}
+                              className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${expireMovementChipClassName}`}
+                              title="Same as movement log — EXPIRE movement for this item"
                             >
-                              {nearExpiryCountdownLabel(exp)}
+                              EXPIRE
                             </span>
-                            {exp.expiry_date ? (
-                              <span className="text-[11px] leading-tight text-slate-500">{exp.expiry_date}</span>
-                            ) : null}
-                            {exp.batch_count > 1 ? (
-                              <span className="text-[11px] text-slate-400">{exp.batch_count} batches</span>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-sm text-slate-400">—</span>
-                        )}
+                          ) : null}
+                          {exp ? (
+                            <>
+                              <span
+                                className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${nearExpiryChipClassName(exp)}`}
+                              >
+                                {nearExpiryCountdownLabel(exp)}
+                              </span>
+                              {exp.expiry_date ? (
+                                <span className="text-[11px] leading-tight text-slate-500">{exp.expiry_date}</span>
+                              ) : null}
+                              {exp.batch_count > 1 ? (
+                                <span className="text-[11px] text-slate-400">{exp.batch_count} batches</span>
+                              ) : null}
+                            </>
+                          ) : null}
+                          {!hasExpireMovement && !exp ? (
+                            <span className="text-sm text-slate-400">—</span>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button asChild variant="outline" size="sm">

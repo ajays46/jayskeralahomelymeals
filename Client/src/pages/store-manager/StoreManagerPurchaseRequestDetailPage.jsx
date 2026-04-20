@@ -29,25 +29,11 @@ const StoreManagerPurchaseRequestDetailPage = () => {
   const [lineDecisions, setLineDecisions] = useState({});
   const [lineManagerNotes, setLineManagerNotes] = useState({});
   const [lineApprovedQuantities, setLineApprovedQuantities] = useState({});
-  const [managerNoteModalLineId, setManagerNoteModalLineId] = useState(null);
 
   useEffect(() => {
     if (!requestId) return;
     getPurchaseRequestDetail(requestId);
   }, [getPurchaseRequestDetail, requestId]);
-
-  useEffect(() => {
-    setManagerNoteModalLineId(null);
-  }, [requestId]);
-
-  useEffect(() => {
-    if (!managerNoteModalLineId) return;
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') setManagerNoteModalLineId(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [managerNoteModalLineId]);
 
   useEffect(() => {
     if (!activeRequest) return;
@@ -78,14 +64,6 @@ const StoreManagerPurchaseRequestDetailPage = () => {
 
   const updateLineManagerNote = (lineId, value) => {
     setLineManagerNotes((prev) => ({ ...prev, [lineId]: value }));
-  };
-
-  const openManagerNoteModal = (lineId) => {
-    setManagerNoteModalLineId(lineId);
-  };
-
-  const closeManagerNoteModal = () => {
-    setManagerNoteModalLineId(null);
   };
 
   const updateLineApprovedQuantity = (lineId, value) => {
@@ -160,11 +138,6 @@ const StoreManagerPurchaseRequestDetailPage = () => {
     await reloadDetail();
   };
 
-  const managerNoteModalLine =
-    managerNoteModalLineId && activeRequest
-      ? activeRequest.lines.find((l) => l.id === managerNoteModalLineId) ?? null
-      : null;
-
   return (
     <StorePageShell>
       <StorePageHeader
@@ -207,7 +180,7 @@ const StoreManagerPurchaseRequestDetailPage = () => {
 
           <StoreSection
             title="Request Items"
-            description="Set approved quantity, Approve or Reject per row. Add note / Open for manager notes."
+            description="Set approved quantity and optional manager note per row, then Approve or Reject."
             tone="sky"
           >
             <Table
@@ -228,15 +201,13 @@ const StoreManagerPurchaseRequestDetailPage = () => {
                   <TableHead>Item</TableHead>
                   <TableHead>Requested Qty</TableHead>
                   <TableHead>Approved Qty</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="min-w-[200px]">Manager Note</TableHead>
+                  <TableHead className="min-w-[14rem]">Manager note</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activeRequest.lines.map((line) => {
                   const decision = lineDecisions[line.id] || 'APPROVE';
-                  const notePreview = (lineManagerNotes[line.id] || '').trim();
                   return (
                     <TableRow key={line.id}>
                         <TableCell className="font-medium">
@@ -264,30 +235,15 @@ const StoreManagerPurchaseRequestDetailPage = () => {
                             <span className="text-sm text-muted-foreground whitespace-nowrap">{line.requested_unit}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={line.is_new_item ? 'warning' : 'secondary'}>
-                            {line.is_new_item ? 'New item' : 'Existing item'}
-                          </Badge>
-                        </TableCell>
                         <TableCell className="align-top">
-                          <div className="flex flex-col gap-2 py-1">
-                            {notePreview ? (
-                              <span className="text-sm text-muted-foreground line-clamp-2 max-w-xs">
-                                {notePreview}
-                              </span>
-                            ) : null}
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openManagerNoteModal(line.id);
-                              }}
-                            >
-                              {notePreview ? 'Open' : 'Add note'}
-                            </Button>
-                          </div>
+                          <textarea
+                            className="min-h-[2.75rem] w-full max-w-xs rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm shadow-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                            rows={2}
+                            value={lineManagerNotes[line.id] ?? ''}
+                            onChange={(e) => updateLineManagerNote(line.id, e.target.value)}
+                            placeholder="Manager note (optional)"
+                            aria-label={`Manager note for ${line.requested_item_name || line.inventory_item_name || 'line'}`}
+                          />
                         </TableCell>
                         <TableCell className="align-top text-right">
                           <div className="flex flex-wrap justify-end gap-2 py-1">
@@ -354,48 +310,6 @@ const StoreManagerPurchaseRequestDetailPage = () => {
           <StoreNotice tone="amber">No purchase request detail was returned.</StoreNotice>
         </StoreSection>
       )}
-
-      {managerNoteModalLine ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/50"
-            aria-label="Close dialog"
-            onClick={closeManagerNoteModal}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="manager-note-dialog-title"
-            className="relative z-10 w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg"
-          >
-            <h2 id="manager-note-dialog-title" className="text-lg font-semibold">
-              Manager note
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {managerNoteModalLine.requested_item_name ||
-                managerNoteModalLine.inventory_item_name ||
-                'Line item'}
-            </p>
-            <textarea
-              className="mt-4 min-h-[120px] w-full rounded-md border px-3 py-2 text-sm"
-              value={lineManagerNotes[managerNoteModalLineId] || ''}
-              onChange={(e) => updateLineManagerNote(managerNoteModalLineId, e.target.value)}
-              placeholder="Write a note for this line…"
-              aria-label="Manager note"
-              autoFocus
-            />
-            <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <Button type="button" variant="outline" onClick={closeManagerNoteModal}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={closeManagerNoteModal}>
-                Done
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </StorePageShell>
   );
 };

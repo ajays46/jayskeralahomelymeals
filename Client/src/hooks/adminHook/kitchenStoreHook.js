@@ -33,6 +33,28 @@ const planIdFromListRow = (row) => {
 const toNum = (value) => Number(Number(value || 0).toFixed(4));
 
 /**
+ * Task 3 (rev.) — `GET /inventory/units`: fixed catalog; store `abbreviation` on items (e.g. kg, grams, ltr).
+ * @returns {Promise<Array<{ id: string, abbreviation: string, name: string, unit_type: string }>>}
+ */
+export const fetchInventoryUnitsList = async () => {
+  try {
+    const res = await api.get(`${API.MAX_KITCHEN_INVENTORY}/units`);
+    const raw = res.data?.data;
+    const list = Array.isArray(raw) ? raw : raw?.units || [];
+    return list
+      .map((u) => ({
+        id: String(u?.id ?? ''),
+        abbreviation: String(u?.abbreviation ?? u?.unit ?? '').trim(),
+        name: String(u?.name ?? u?.abbreviation ?? '').trim(),
+        unit_type: u?.unit_type != null ? String(u.unit_type) : ''
+      }))
+      .filter((u) => u.abbreviation);
+  } catch {
+    return [];
+  }
+};
+
+/**
  * Parse `data` from `GET /purchase/purchases/recommendations`.
  * Supports `{ forecast_date, items: [] }` (inventory_purchase_recommendations) and legacy array / `{ recommendations }`.
  */
@@ -120,6 +142,14 @@ const normalizePurchaseRecommendationRow = (row, batchForecastDate = null) => ({
   created_at: row.created_at != null ? String(row.created_at) : ''
 });
 
+const catalogPrimaryImageUrl = (i) => {
+  const u =
+    (typeof i?.primary_image_url === 'string' && i.primary_image_url.trim()) ||
+    (typeof i?.item_primary_image_url === 'string' && i.item_primary_image_url.trim()) ||
+    '';
+  return u;
+};
+
 const normalizeItems = (itemsRaw) => {
   const arr = Array.isArray(itemsRaw) ? itemsRaw : [];
   return arr.map((i) => ({
@@ -129,6 +159,7 @@ const normalizeItems = (itemsRaw) => {
     category: i.category ?? '',
     min_quantity: toNum(i.min_quantity ?? 0),
     current_quantity: toNum(i.current_quantity ?? 0),
+    primary_image_url: catalogPrimaryImageUrl(i),
     brand_id: i.brand_id != null && i.brand_id !== '' ? String(i.brand_id) : '',
     brand_name: i.brand_name != null ? String(i.brand_name) : '',
     brand_logo_s3_url: i.brand_logo_s3_url ? String(i.brand_logo_s3_url) : '',
@@ -136,7 +167,8 @@ const normalizeItems = (itemsRaw) => {
     brand_logo_view_expires_in_seconds:
       i.brand_logo_view_expires_in_seconds != null && i.brand_logo_view_expires_in_seconds !== ''
         ? Number(i.brand_logo_view_expires_in_seconds)
-        : null
+        : null,
+    created_at: i.created_at != null && i.created_at !== '' ? String(i.created_at) : ''
   }));
 };
 
@@ -175,20 +207,39 @@ const normalizeAlertListItems = (itemsRaw) => {
     brand_logo_view_expires_in_seconds:
       i.brand_logo_view_expires_in_seconds != null && i.brand_logo_view_expires_in_seconds !== ''
         ? Number(i.brand_logo_view_expires_in_seconds)
-        : null
+        : null,
+    primary_image_url: catalogPrimaryImageUrl(i)
   }));
 };
 
-const normalizeMovement = (m, itemNameMap) => ({
-  id: String(m.id ?? `m-${Date.now()}`),
-  item_id: m.item_id != null && m.item_id !== '' ? String(m.item_id) : '',
-  item_name: m.item_name || (m.item_id != null ? itemNameMap[String(m.item_id)] : '') || '',
-  movement_type: m.movement_type,
-  quantity: toNum(m.quantity ?? 0),
-  delta: toNum(m.delta ?? (m.movement_type === 'ADD' ? m.quantity : -m.quantity)),
-  occurred_at: m.occurred_at || m.created_at || new Date().toISOString(),
-  note: m.note || ''
-});
+/**
+ * @param {Record<string, unknown>} m — raw movement row from API
+ * @param {Record<string, string>} itemNameMap — id → display name
+ * @param {string|number|undefined} fallbackItemId — when API omits item id (common for `GET …/items/:id/movements`)
+ */
+const normalizeMovement = (m, itemNameMap, fallbackItemId) => {
+  const fromPayload =
+    m.item_id != null && m.item_id !== ''
+      ? String(m.item_id)
+      : m.inventory_item_id != null && m.inventory_item_id !== ''
+        ? String(m.inventory_item_id)
+        : '';
+  const item_id = fromPayload || (fallbackItemId != null && fallbackItemId !== '' ? String(fallbackItemId) : '');
+  return {
+    id: String(m.id ?? `m-${Date.now()}`),
+    item_id,
+    item_name: m.item_name || (item_id ? itemNameMap[item_id] : '') || '',
+    item_primary_image_url:
+      (typeof m?.item_primary_image_url === 'string' && m.item_primary_image_url.trim()) ||
+      (typeof m?.primary_image_url === 'string' && m.primary_image_url.trim()) ||
+      '',
+    movement_type: m.movement_type,
+    quantity: toNum(m.quantity ?? 0),
+    delta: toNum(m.delta ?? (m.movement_type === 'ADD' ? m.quantity : -m.quantity)),
+    occurred_at: m.occurred_at || m.created_at || new Date().toISOString(),
+    note: m.note || ''
+  };
+};
 
 const normalizeRecipeLines = (linesRaw) => {
   const arr = Array.isArray(linesRaw) ? linesRaw : [];
@@ -416,10 +467,12 @@ function useKitchenStoreDataInternal() {
     return map;
   }, [items]);
 
-  const refreshItems = async () => {
-    const itemsRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, {
-      params: { page: 1, page_size: 50 }
+  const refreshItems = async (query = {}) => {
+    const params = { page: 1, page_size: 50, ...query };
+    Object.keys(params).forEach((k) => {
+      if (params[k] === undefined || params[k] === null || params[k] === '') delete params[k];
     });
+    const itemsRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, { params });
     const itemsData = itemsRes.data?.data || {};
     const fetchedItems = normalizeItems(itemsData.items || itemsData || []);
     setItems(fetchedItems);
@@ -510,7 +563,7 @@ function useKitchenStoreDataInternal() {
             });
             const movRaw = movRes.data?.data || [];
             const arr = Array.isArray(movRaw) ? movRaw : movRaw.movements || [];
-            return arr.map((m) => normalizeMovement(m, localItemNameMap));
+            return arr.map((m) => normalizeMovement(m, localItemNameMap, it.id));
           })
         );
         const flatMovements = movementLists.flat();
@@ -679,6 +732,28 @@ function useKitchenStoreDataInternal() {
     }
   };
 
+  const updateItem = async (itemId, payload) => {
+    if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
+    try {
+      await api.put(`${API.MAX_KITCHEN_INVENTORY}/items/${encodeURIComponent(itemId)}`, payload);
+      await refreshItems();
+      try {
+        const lowRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/alerts/low-stock`);
+        const lowData = lowRes.data?.data || {};
+        setLowStockItems(normalizeAlertListItems(lowData.items || []));
+      } catch {
+        // ignore low stock refresh failure
+      }
+      void refreshNearExpiry();
+      return { ok: true };
+    } catch (e) {
+      return {
+        ok: false,
+        message: e?.response?.data?.detail || e?.response?.data?.message || e.message || 'Failed to update item'
+      };
+    }
+  };
+
   const createBrand = async ({ name }) => {
     if (!apiAvailable) return { ok: false, message: 'Kitchen Store API unavailable' };
     try {
@@ -751,9 +826,10 @@ function useKitchenStoreDataInternal() {
     });
     const movRaw = movRes.data?.data || [];
     const arr = Array.isArray(movRaw) ? movRaw : movRaw.movements || [];
-    const list = arr.map((m) => normalizeMovement(m, itemNameMap));
+    const list = arr.map((m) => normalizeMovement(m, itemNameMap, itemId));
     list.sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
-    setMovements((prev) => [...list.filter((x) => x.item_id === itemId), ...prev.filter((x) => x.item_id !== itemId)]);
+    const idKey = String(itemId);
+    setMovements((prev) => [...list.filter((x) => String(x.item_id) === idKey), ...prev.filter((x) => String(x.item_id) !== idKey)]);
   };
 
   const addStock = async (itemId, quantity, note = 'Manual stock add') => {
@@ -1112,6 +1188,7 @@ function useKitchenStoreDataInternal() {
     addRecipeLine: upsertRecipeLine,
     deleteRecipeLine,
     createItem,
+    updateItem,
     brands,
     refreshBrands,
     createBrand,
@@ -1156,6 +1233,7 @@ export const useKitchenInventoryMock = () => {
     lowStockItems: data.lowStockItems,
     movements: data.movements,
     createItem: data.createItem,
+    updateItem: data.updateItem,
     refreshBrands: data.refreshBrands,
     createBrand: data.createBrand,
     uploadBrandLogo: data.uploadBrandLogo,
@@ -1904,6 +1982,32 @@ export const formatKitchenDateTime = (value) => {
   return d.toLocaleDateString(undefined, { dateStyle: 'medium' });
 };
 
+/** Flatten category from low-stock / shopping-list rows (string or nested object). */
+const purchaseSourceCategoryLabel = (raw) => {
+  if (!raw || typeof raw !== 'object') return '';
+  const inv = raw.inventory_item && typeof raw.inventory_item === 'object' ? raw.inventory_item : null;
+  const candidates = [
+    raw.category,
+    raw.category_name,
+    raw.item_category,
+    raw.inventory_category,
+    raw.inventory_item_category,
+    inv?.category,
+    inv?.category_name
+  ];
+  for (const c of candidates) {
+    if (c == null) continue;
+    if (typeof c === 'string' && c.trim()) return c.trim();
+    if (typeof c === 'object' && c !== null) {
+      const n = c.name != null ? String(c.name).trim() : '';
+      if (n) return n;
+      const t = c.title != null ? String(c.title).trim() : '';
+      if (t) return t;
+    }
+  }
+  return '';
+};
+
 const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
   const inventoryItemId =
     raw?.inventory_item_id ?? raw?.item_id ?? raw?.inventoryItemId ?? raw?.inventoryId ?? '';
@@ -1931,7 +2035,7 @@ const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
     inventory_item_id: inventoryItemId ? String(inventoryItemId) : '',
     name,
     unit,
-    category: raw?.category || '',
+    category: purchaseSourceCategoryLabel(raw),
     current_quantity: toNum(raw?.current_quantity ?? 0),
     min_quantity: toNum(raw?.min_quantity ?? raw?.target_quantity ?? 0),
     suggested_quantity: toNum(suggestedQuantity),
@@ -1940,7 +2044,8 @@ const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
     note: raw?.operator_note || raw?.note || '',
     brand_id: raw?.brand_id != null && raw.brand_id !== '' ? String(raw.brand_id) : '',
     brand_name: brandName ? String(brandName) : '',
-    brand_logo_s3_url: itemImage || (brandLogo ? String(brandLogo) : '')
+    brand_logo_s3_url: brandLogo ? String(brandLogo) : '',
+    item_primary_image_url: itemImage || ''
   };
 };
 
@@ -2441,15 +2546,50 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     }
   }, [addPurchaseRequestLine, createPurchaseRequest, submitPurchaseRequest]);
 
+  /**
+   * Approved/rejected headers for operator UIs.
+   * - `options.weekly === true` — guide §4.2: `GET /purchase/purchase-requests?purchase_type=WEEKLY` with optional
+   *   `status`, `urgency` (NORMAL|MEDIUM|HIGH), `for_date_from`, `for_date_to`, `mine`.
+   * - Otherwise — merge `GET /purchase-requests?status=APPROVED|REJECTED` (weekly + daily) for receipts/comparison.
+   */
   const listApprovedRequests = useCallback(async (options = {}) => {
     const mine = options?.mine ?? true;
+    const useWeekly = Boolean(options?.weekly);
     setBootstrapLoading(true);
     setError('');
     const normalizeList = (raw) => {
       const list = Array.isArray(raw) ? raw : raw?.requests || raw?.items || [];
       return list.map((request, index) => normalizePurchaseRequestHeader(request, index));
     };
+    const sortRecentFirst = (rows) =>
+      [...rows].sort((a, b) => {
+        const ka = String(a.submitted_at || a.updated_at || a.created_at || '');
+        const kb = String(b.submitted_at || b.updated_at || b.created_at || '');
+        return kb.localeCompare(ka);
+      });
     try {
+      if (useWeekly) {
+        const params = { purchase_type: 'WEEKLY' };
+        if (mine) params.mine = true;
+        const rawStatus = options?.status != null ? String(options.status).trim() : '';
+        if (rawStatus !== '' && rawStatus.toUpperCase() !== 'ALL') {
+          params.status = rawStatus;
+        }
+        if (options?.for_date_from) params.for_date_from = options.for_date_from;
+        if (options?.for_date_to) params.for_date_to = options.for_date_to;
+        const rawUrgency = options?.urgency != null ? String(options.urgency).trim() : '';
+        if (rawUrgency !== '' && rawUrgency.toUpperCase() !== 'ALL') {
+          params.urgency = rawUrgency.toUpperCase();
+        }
+
+        const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests`, { params });
+        const merged = sortRecentFirst(normalizeList(res.data?.data));
+        setApprovedRequests(merged);
+        setBootstrapLoading(false);
+        setError('');
+        return merged;
+      }
+
       const [approvedSettled, rejectedSettled] = await Promise.allSettled([
         api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests`, { params: { status: 'APPROVED', mine } }),
         api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests`, { params: { status: 'REJECTED', mine } })
@@ -2461,11 +2601,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
       if (rejectedSettled.status === 'fulfilled') {
         normalizeList(rejectedSettled.value.data?.data).forEach((r) => byId.set(r.id, r));
       }
-      const merged = [...byId.values()].sort((a, b) => {
-        const sa = String(a.submitted_at || a.updated_at || '');
-        const sb = String(b.submitted_at || b.updated_at || '');
-        return sb.localeCompare(sa);
-      });
+      const merged = sortRecentFirst([...byId.values()]);
       setApprovedRequests(merged);
       setBootstrapLoading(false);
       if (approvedSettled.status === 'rejected' && rejectedSettled.status === 'rejected') {
@@ -2478,12 +2614,20 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
       setError('');
       return merged;
     } catch (err) {
-      const message = getApiErrorMessage(err, 'Failed to load purchase requests.');
+      const message = getApiErrorMessage(
+        err,
+        useWeekly ? 'Failed to load weekly purchase requests.' : 'Failed to load purchase requests.'
+      );
       setError(message);
       setApprovedRequests([]);
       setBootstrapLoading(false);
       return [];
     }
+  }, []);
+
+  /** Clear approved-lines table when nothing is selected or when request is not APPROVED (does not clear list/detail errors). */
+  const clearApprovedRequestPreview = useCallback(() => {
+    setApprovedLines([]);
   }, []);
 
   const fetchApprovedLines = useCallback(async (requestId) => {
@@ -2504,6 +2648,14 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
       setBootstrapLoading(false);
       return normalized;
     } catch (err) {
+      const httpStatus = err?.response?.status;
+      // Rejected / not-yet-approved requests may not expose this collection — treat as empty, no banner.
+      if (httpStatus === 404 || httpStatus === 400 || httpStatus === 403) {
+        setApprovedLines([]);
+        setError('');
+        setBootstrapLoading(false);
+        return [];
+      }
       const message = getApiErrorMessage(err, 'Failed to load approved request lines.');
       setError(message);
       setApprovedLines([]);
@@ -2570,6 +2722,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     loadRequestSources,
     createAndSubmitPurchaseRequest,
     listApprovedRequests,
+    clearApprovedRequestPreview,
     fetchApprovedLines,
     fetchRequestDetail,
     downloadApprovedLinesPdf
@@ -2876,13 +3029,12 @@ export const useKitchenPurchaseRequestManagerApi = () => {
   const [submittedRequests, setSubmittedRequests] = useState([]);
   const [activeRequest, setActiveRequest] = useState(null);
 
+  /** Lists all purchase requests for the company (any status). Guide: omit `status` to include every status. */
   const listSubmittedRequests = useCallback(async () => {
     setListLoading(true);
     setError('');
     try {
-      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests`, {
-        params: { status: 'SUBMITTED' }
-      });
+      const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchase-requests`);
       const raw = res.data?.data;
       const list = Array.isArray(raw) ? raw : raw?.requests || raw?.items || [];
       const normalized = list.map((request, index) => normalizePurchaseRequestHeader(request, index));
@@ -2890,7 +3042,7 @@ export const useKitchenPurchaseRequestManagerApi = () => {
       setListLoading(false);
       return normalized;
     } catch (err) {
-      const message = getApiErrorMessage(err, 'Failed to load submitted purchase requests.');
+      const message = getApiErrorMessage(err, 'Failed to load purchase requests.');
       setError(message);
       setSubmittedRequests([]);
       setListLoading(false);
@@ -3154,6 +3306,13 @@ export const useKitchenReceiptsApi = () => {
     return rows.map((row, index) => normalizePurchaseReceiptLine(row, index));
   }, []);
 
+  const getReceiptInvoiceTraceability = useCallback(async (receiptId) => {
+    const res = await api.get(
+      `${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receiptId)}/invoice-traceability`
+    );
+    return res.data?.data ?? res.data ?? null;
+  }, []);
+
   const getBrandLogoViewUrl = useCallback(async (brandId) => {
     const id = String(brandId || '').trim();
     if (!id) {
@@ -3355,7 +3514,8 @@ export const useKitchenReceiptsApi = () => {
     openMaterialPhotoInNewTab,
     viewReceiptInvoiceInNewTab,
     getPurchaseComparison,
-    getBrandLogoViewUrl
+    getBrandLogoViewUrl,
+    getReceiptInvoiceTraceability
   };
 };
 
