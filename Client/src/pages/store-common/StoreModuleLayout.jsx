@@ -30,6 +30,7 @@ const operatorLinks = [
   { to: 'store-operator/purchase-request-drafts', label: 'Purchase request drafts' },
   { to: 'store-operator/approved-requests', label: 'Approved Requests' },
   { to: 'store-operator/purchases', label: 'Purchase Receipts' },
+  { to: 'store-operator/receipt-register', label: 'Receipt register & items' },
   { to: 'store-operator/delivery-meal-counts', label: 'Delivery meal counts' },
   { to: 'store-operator/issue', label: 'Issue to Kitchen (plan list)' },
   { to: 'store-operator/adjustments', label: 'Adjustments' },

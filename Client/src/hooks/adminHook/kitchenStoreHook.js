@@ -55,6 +55,28 @@ export const fetchInventoryUnitsList = async () => {
 };
 
 /**
+ * `GET /inventory/categories` — rows in `inventory_categories` (scoped by company).
+ * @returns {Promise<Array<{ id: string, name: string, display_order: number }>>}
+ */
+export const fetchInventoryCategoriesList = async () => {
+  try {
+    const res = await api.get(`${API.MAX_KITCHEN_INVENTORY}/categories`);
+    const raw = res.data?.data;
+    const list = Array.isArray(raw) ? raw : raw?.categories || [];
+    return list
+      .map((c) => ({
+        id: String(c?.id ?? '').trim(),
+        name: String(c?.name ?? '').trim(),
+        display_order: Number(c?.display_order ?? 0) || 0
+      }))
+      .filter((c) => c.id && c.name)
+      .sort((a, b) => a.display_order - b.display_order || a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+};
+
+/**
  * Parse `data` from `GET /purchase/purchases/recommendations`.
  * Supports `{ forecast_date, items: [] }` (inventory_purchase_recommendations) and legacy array / `{ recommendations }`.
  */
@@ -2008,6 +2030,30 @@ const purchaseSourceCategoryLabel = (raw) => {
   return '';
 };
 
+/** Primary catalog image for low-stock / shopping-list rows (root, camelCase, or nested `inventory_item`). */
+const purchaseSourceItemPrimaryImageUrl = (raw) => {
+  if (!raw || typeof raw !== 'object') return '';
+  const inv = raw.inventory_item && typeof raw.inventory_item === 'object' ? raw.inventory_item : null;
+  const candidates = [
+    raw.item_primary_image_url,
+    raw.primary_image_url,
+    raw.itemPrimaryImageUrl,
+    raw.primaryImageUrl,
+    raw.catalog_image_url,
+    raw.image_s3_url,
+    inv?.item_primary_image_url,
+    inv?.primary_image_url,
+    inv?.itemPrimaryImageUrl,
+    inv?.primaryImageUrl,
+    inv?.catalog_image_url,
+    inv?.image_s3_url
+  ];
+  for (const u of candidates) {
+    if (typeof u === 'string' && u.trim()) return u.trim();
+  }
+  return '';
+};
+
 const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
   const inventoryItemId =
     raw?.inventory_item_id ?? raw?.item_id ?? raw?.inventoryItemId ?? raw?.inventoryId ?? '';
@@ -2025,10 +2071,7 @@ const normalizePurchaseSourceItem = (raw, index = 0, source = 'UNKNOWN') => {
   const brandName = raw?.brand_name ?? raw?.brand?.name ?? '';
   const brandLogo =
     raw?.brand_logo_s3_url ?? raw?.brand_logo_url ?? raw?.brand?.logo_s3_url ?? raw?.brand?.brand_logo_s3_url ?? '';
-  const itemImage =
-    (typeof raw?.primary_image_url === 'string' && raw.primary_image_url.trim()) ||
-    (typeof raw?.item_primary_image_url === 'string' && raw.item_primary_image_url.trim()) ||
-    '';
+  const itemImage = purchaseSourceItemPrimaryImageUrl(raw);
 
   return {
     id: String(raw?.id ?? raw?.line_id ?? `${source}-${index}-${name || 'row'}`),
@@ -2113,7 +2156,8 @@ const normalizePurchaseRequestLine = (raw, index = 0) => {
   brand_name: brandName ? String(brandName) : '',
   brand_logo_s3_url: lineItemImage || (brandLogo ? String(brandLogo) : ''),
   brand: brandField,
-  freshness_priority: raw?.freshness_priority != null ? String(raw.freshness_priority) : ''
+  freshness_priority: raw?.freshness_priority != null ? String(raw.freshness_priority) : '',
+  line_updated_at: raw?.line_updated_at != null ? String(raw.line_updated_at) : ''
   };
 };
 
@@ -2139,6 +2183,9 @@ const normalizePurchaseRequestHeader = (raw, index = 0) => {
     purchase_type: raw?.purchase_type != null ? String(raw.purchase_type) : '',
     for_date: raw?.for_date != null ? String(raw.for_date) : '',
     urgency: raw?.urgency != null ? String(raw.urgency) : '',
+    content_revision_at: raw?.content_revision_at != null ? String(raw.content_revision_at) : '',
+    operator_notification: raw?.operator_notification != null ? String(raw.operator_notification) : '',
+    has_unseen_changes: Boolean(raw?.has_unseen_changes),
     lines
   };
 };
@@ -2440,6 +2487,11 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
   const [shoppingList, setShoppingList] = useState([]);
   const [approvedRequests, setApprovedRequests] = useState([]);
   const [approvedLines, setApprovedLines] = useState([]);
+  const [operatorReceivingMeta, setOperatorReceivingMeta] = useState({
+    has_unseen_changes: false,
+    operator_notification: '',
+    content_revision_at: ''
+  });
 
   const loadRequestSources = useCallback(async () => {
     setBootstrapLoading(true);
@@ -2628,6 +2680,7 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
   /** Clear approved-lines table when nothing is selected or when request is not APPROVED (does not clear list/detail errors). */
   const clearApprovedRequestPreview = useCallback(() => {
     setApprovedLines([]);
+    setOperatorReceivingMeta({ has_unseen_changes: false, operator_notification: '', content_revision_at: '' });
   }, []);
 
   const fetchApprovedLines = useCallback(async (requestId) => {
@@ -2710,6 +2763,79 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     }
   }, []);
 
+  /**
+   * Hub: `GET /purchase/purchase-requests/{id}/operator-receiving-view` — approved lines + receipts metadata.
+   * Falls back to {@link fetchApprovedLines} when the upstream route is unavailable (404).
+   */
+  const loadOperatorReceivingView = useCallback(async (requestId) => {
+    if (!requestId) {
+      setOperatorReceivingMeta({ has_unseen_changes: false, operator_notification: '', content_revision_at: '' });
+      setApprovedLines([]);
+      return [];
+    }
+    setBootstrapLoading(true);
+    setError('');
+    try {
+      const res = await api.get(
+        `${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${encodeURIComponent(requestId)}/operator-receiving-view`
+      );
+      const raw = res.data?.data ?? {};
+      const linesRaw = raw.approved_lines ?? raw.lines ?? [];
+      let normalized = (Array.isArray(linesRaw) ? linesRaw : []).map((line, index) =>
+        normalizePurchaseRequestLine(line, index)
+      );
+      try {
+        const nameToId = await buildKitchenCatalogNameToIdMap();
+        normalized = enrichPurchaseRequestLinesByCatalogName(normalized, nameToId);
+      } catch {
+        // Catalog enrich is optional
+      }
+      const nested = raw.purchase_request && typeof raw.purchase_request === 'object' ? raw.purchase_request : {};
+      setOperatorReceivingMeta({
+        has_unseen_changes: Boolean(raw.has_unseen_changes ?? nested.has_unseen_changes),
+        operator_notification: String(raw.operator_notification ?? nested.operator_notification ?? ''),
+        content_revision_at: String(raw.content_revision_at ?? nested.content_revision_at ?? '')
+      });
+      setApprovedLines(normalized);
+      setBootstrapLoading(false);
+      return normalized;
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 404) {
+        setOperatorReceivingMeta({ has_unseen_changes: false, operator_notification: '', content_revision_at: '' });
+        return fetchApprovedLines(requestId);
+      }
+      const message = getApiErrorMessage(err, 'Failed to load operator receiving view.');
+      setError(message);
+      setApprovedLines([]);
+      setOperatorReceivingMeta({ has_unseen_changes: false, operator_notification: '', content_revision_at: '' });
+      setBootstrapLoading(false);
+      return [];
+    }
+  }, [fetchApprovedLines]);
+
+  /** Hub: `POST /purchase/purchase-requests/{id}/operator-acknowledge` — clear “manager updated” banner. */
+  const acknowledgeOperatorChanges = useCallback(async (requestId) => {
+    if (!requestId) return { ok: false };
+    setError('');
+    try {
+      await api.post(
+        `${API.MAX_KITCHEN_PURCHASE}/purchase-requests/${encodeURIComponent(requestId)}/operator-acknowledge`,
+        {}
+      );
+      setOperatorReceivingMeta((prev) => ({
+        ...prev,
+        has_unseen_changes: false,
+        operator_notification: ''
+      }));
+      return { ok: true };
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to acknowledge purchase request updates.');
+      setError(message);
+      return { ok: false, message };
+    }
+  }, []);
+
   return {
     bootstrapLoading,
     submitLoading,
@@ -2719,11 +2845,14 @@ export const useKitchenPurchaseRequestOperatorApi = () => {
     shoppingList,
     approvedRequests,
     approvedLines,
+    operatorReceivingMeta,
     loadRequestSources,
     createAndSubmitPurchaseRequest,
     listApprovedRequests,
     clearApprovedRequestPreview,
     fetchApprovedLines,
+    loadOperatorReceivingView,
+    acknowledgeOperatorChanges,
     fetchRequestDetail,
     downloadApprovedLinesPdf
   };
@@ -3280,6 +3409,14 @@ export const useKitchenReceiptsApi = () => {
     return res.data?.data;
   }, []);
 
+  /** Hub: `POST …/receipts/{id}/lines/bulk` — `{ lines: [ … ] }` in one transaction. */
+  const addReceiptLinesBulk = useCallback(async (receipt_id, lines) => {
+    const res = await api.post(`${API.MAX_KITCHEN_PURCHASE}/purchases/receipts/${encodeURIComponent(receipt_id)}/lines/bulk`, {
+      lines: Array.isArray(lines) ? lines : []
+    });
+    return res.data?.data;
+  }, []);
+
   const uploadReceiptLineImage = useCallback(async (receipt_id, line_id, file) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -3290,10 +3427,21 @@ export const useKitchenReceiptsApi = () => {
     return res.data?.data || {};
   }, []);
 
-  const listReceipts = useCallback(async (from_date, to_date) => {
-    const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchases/receipts`, {
-      params: { from_date, to_date }
-    });
+  /**
+   * @param {string|{ from_date?: string, to_date?: string, purchase_request_id?: string }|undefined} fromOrOpts
+   * @param {string} [to_date] when first arg is from_date string
+   */
+  const listReceipts = useCallback(async (fromOrOpts, to_date) => {
+    const params = {};
+    if (fromOrOpts != null && typeof fromOrOpts === 'object' && !Array.isArray(fromOrOpts)) {
+      if (fromOrOpts.from_date != null) params.from_date = fromOrOpts.from_date;
+      if (fromOrOpts.to_date != null) params.to_date = fromOrOpts.to_date;
+      if (fromOrOpts.purchase_request_id != null) params.purchase_request_id = fromOrOpts.purchase_request_id;
+    } else {
+      if (fromOrOpts != null) params.from_date = fromOrOpts;
+      if (to_date != null) params.to_date = to_date;
+    }
+    const res = await api.get(`${API.MAX_KITCHEN_PURCHASE}/purchases/receipts`, { params });
     const raw = res.data?.data;
     const rows = Array.isArray(raw) ? raw : raw?.receipts || raw?.items || [];
     return rows.map((row, index) => normalizePurchaseReceiptHeader(row, index));
@@ -3368,8 +3516,11 @@ export const useKitchenReceiptsApi = () => {
 
   const openReceiptItemsPhotoInNewTab = useCallback(async (receiptId) => {
     const { url } = await getReceiptItemsPhotoUrl(receiptId);
-    const win = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!win) {
+    // Do not pass noopener in windowFeatures — with it, many browsers return null even when the tab opens,
+    // which falsely triggers "popup blocked". Break opener link after open instead.
+    const win = window.open(url, '_blank');
+    if (win) win.opener = null;
+    else {
       throw new Error('Popup blocked. Allow popups to view the items photo.');
     }
   }, [getReceiptItemsPhotoUrl]);
@@ -3422,8 +3573,9 @@ export const useKitchenReceiptsApi = () => {
   const openMaterialPhotoInNewTab = useCallback(
     async (receiptId, photoId) => {
       const { url } = await getMaterialPhotoViewUrl(receiptId, photoId);
-      const win = window.open(url, '_blank', 'noopener,noreferrer');
-      if (!win) {
+      const win = window.open(url, '_blank');
+      if (win) win.opener = null;
+      else {
         throw new Error('Popup blocked. Allow popups to view the photo.');
       }
     },
@@ -3459,11 +3611,12 @@ export const useKitchenReceiptsApi = () => {
       throw new Error('Empty invoice file.');
     }
     const blobUrl = URL.createObjectURL(blob);
-    const win = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+    const win = window.open(blobUrl, '_blank');
     if (!win) {
       URL.revokeObjectURL(blobUrl);
       throw new Error('Popup blocked. Allow popups to view the invoice.');
     }
+    win.opener = null;
     window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
   }, []);
 
@@ -3501,6 +3654,7 @@ export const useKitchenReceiptsApi = () => {
     uploadReceiptItemsPhoto,
     createReceipt,
     addReceiptLine,
+    addReceiptLinesBulk,
     uploadReceiptLineImage,
     listReceipts,
     listReceiptLines,

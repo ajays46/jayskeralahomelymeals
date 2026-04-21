@@ -6,6 +6,8 @@ import {
   createItemService,
   listItemsService,
   listInventoryUnitsService,
+  listInventoryCategoriesService,
+  createInventoryCategoryService,
   getItemService,
   updateItemService,
   listBrandsService,
@@ -53,6 +55,7 @@ import {
   uploadPurchaseReceiptInvoiceService,
   createPurchaseReceiptService,
   addPurchaseReceiptLineService,
+  addPurchaseReceiptLinesBulkService,
   uploadPurchaseReceiptLineImageService,
   listPurchaseReceiptsService,
   listPurchaseReceiptLinesService,
@@ -74,6 +77,8 @@ import {
   approvePurchaseRequestService,
   rejectPurchaseRequestService,
   listApprovedPurchaseRequestLinesService,
+  getOperatorReceivingViewService,
+  postOperatorAcknowledgeService,
   downloadApprovedPurchaseRequestLinesTxtService,
   downloadApprovedPurchaseRequestLinesPdfService,
   getPurchaseRequestComparisonService,
@@ -339,6 +344,37 @@ export const listItems = async (req, res, next) => {
 export const listInventoryUnits = async (req, res, next) => {
   try {
     const result = await listInventoryUnitsService(req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listInventoryCategories = async (req, res, next) => {
+  try {
+    const result = await listInventoryCategoriesService(req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createInventoryCategory = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      throw new AppError('Request body must be an object', 400);
+    }
+    const name = requireNonEmptyString(body.name, 'name');
+    const payload = { name };
+    if (body.display_order !== undefined && body.display_order !== null && body.display_order !== '') {
+      const n = Number(body.display_order);
+      if (!Number.isFinite(n)) {
+        throw new AppError('display_order must be a number', 400);
+      }
+      payload.display_order = n;
+    }
+    const result = await createInventoryCategoryService(payload, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -1258,6 +1294,23 @@ export const uploadPurchaseReceiptInvoice = async (req, res, next) => {
   }
 };
 
+export const addPurchaseReceiptLinesBulk = async (req, res, next) => {
+  try {
+    const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
+    const body = req.body || {};
+    if (!Array.isArray(body.lines)) {
+      throw new AppError('lines must be an array', 400);
+    }
+    if (body.lines.length === 0) {
+      throw new AppError('lines must not be empty', 400);
+    }
+    const result = await addPurchaseReceiptLinesBulkService(receiptId, body, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const addPurchaseReceiptLine = async (req, res, next) => {
   try {
     const receiptId = requireIdParam(req.params.receipt_id, 'receipt_id');
@@ -1334,6 +1387,9 @@ export const listPurchaseReceipts = async (req, res, next) => {
     }
     if (query.to_date != null && typeof query.to_date !== 'string') {
       throw new AppError('to_date must be a string', 400);
+    }
+    if (query.purchase_request_id != null && typeof query.purchase_request_id !== 'string') {
+      throw new AppError('purchase_request_id must be a string', 400);
     }
     const result = await listPurchaseReceiptsService(req.query, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
@@ -1628,6 +1684,26 @@ export const listApprovedPurchaseRequestLines = async (req, res, next) => {
   try {
     const requestId = requireIdParam(req.params.request_id, 'request_id');
     const result = await listApprovedPurchaseRequestLinesService(requestId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getOperatorReceivingView = async (req, res, next) => {
+  try {
+    const requestId = requireIdParam(req.params.request_id, 'request_id');
+    const result = await getOperatorReceivingViewService(requestId, req.companyId, kitchenActorUserId(req));
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const postOperatorAcknowledge = async (req, res, next) => {
+  try {
+    const requestId = requireIdParam(req.params.request_id, 'request_id');
+    const result = await postOperatorAcknowledgeService(requestId, req.companyId, kitchenActorUserId(req));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);

@@ -56,6 +56,7 @@ import StoreOperatorDeliveryMealCountsPage from './pages/store-operator/StoreOpe
 import StoreOperatorAdjustmentsPage from './pages/store-operator/StoreOperatorAdjustmentsPage';
 import StoreOperatorItemDetailPage from './pages/store-operator/StoreOperatorItemDetailPage';
 import StoreOperatorPurchaseReceiptsPage from './pages/store-operator/StoreOperatorPurchaseReceiptsPage';
+import StoreOperatorReceiptRegisterPage from './pages/store-operator/StoreOperatorReceiptRegisterPage';
 import StoreOperatorMealReportPage from './pages/store-operator/StoreOperatorMealReportPage';
 import StoreOperatorItemMasterPage from './pages/store-operator/StoreOperatorItemMasterPage';
 import StoreOperatorBrandMasterPage from './pages/store-operator/StoreOperatorBrandMasterPage';
@@ -304,6 +305,7 @@ const App = () => {
                 <Route path="store-operator/adjustments" element={<StoreOperatorAdjustmentsPage />} />
                 <Route path="store-operator/item/:itemId" element={<StoreOperatorItemDetailPage />} />
                 <Route path="store-operator/purchases" element={<StoreOperatorPurchaseReceiptsPage />} />
+                <Route path="store-operator/receipt-register" element={<StoreOperatorReceiptRegisterPage />} />
                 <Route path="store-operator/meal-report" element={<StoreOperatorMealReportPage />} />
                 <Route path="store-operator/recipe-bom" element={<StoreOperatorRecipeBomPage />} />
                 <Route path="store-operator/stock-reconciliation" element={<StoreKitchenStockReconciliationPage />} />

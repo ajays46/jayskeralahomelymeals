@@ -15,6 +15,8 @@ import {
   approvePurchaseRequest,
   rejectPurchaseRequest,
   listApprovedPurchaseRequestLines,
+  getOperatorReceivingView,
+  postOperatorAcknowledge,
   downloadApprovedPurchaseRequestLinesTxt,
   downloadApprovedPurchaseRequestLinesPdf,
   getPurchaseRequestComparison,
@@ -22,6 +24,7 @@ import {
   uploadPurchaseReceiptInvoice,
   createPurchaseReceipt,
   addPurchaseReceiptLine,
+  addPurchaseReceiptLinesBulk,
   uploadPurchaseReceiptLineImage,
   listPurchaseReceipts,
   listPurchaseReceiptLines,
@@ -114,6 +117,8 @@ router.post(
 router.post('/purchase-requests/:request_id/approve', smOnly, approvePurchaseRequest);
 router.post('/purchase-requests/:request_id/reject', smOnly, rejectPurchaseRequest);
 router.get('/purchase-requests/:request_id/approved-lines', smSo, listApprovedPurchaseRequestLines);
+router.get('/purchase-requests/:request_id/operator-receiving-view', smSo, getOperatorReceivingView);
+router.post('/purchase-requests/:request_id/operator-acknowledge', checkRole('STORE_OPERATOR'), postOperatorAcknowledge);
 router.get('/purchase-requests/:request_id/approved-lines.txt', smSo, downloadApprovedPurchaseRequestLinesTxt);
 router.get('/purchase-requests/:request_id/approved-lines.pdf', smSo, downloadApprovedPurchaseRequestLinesPdf);
 router.get('/purchase-requests/:request_id/purchase-comparison', smSo, getPurchaseRequestComparison);
@@ -138,6 +143,7 @@ router.post(
   uploadPurchaseReceiptMaterialPhotos
 );
 router.post('/purchases/receipts', checkRole('STORE_OPERATOR'), createPurchaseReceipt);
+router.post('/purchases/receipts/:receipt_id/lines/bulk', checkRole('STORE_OPERATOR'), addPurchaseReceiptLinesBulk);
 router.post('/purchases/receipts/:receipt_id/lines', checkRole('STORE_OPERATOR'), addPurchaseReceiptLine);
 router.post(
   '/purchases/receipts/:receipt_id/lines/:line_id/image/upload',

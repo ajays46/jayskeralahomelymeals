@@ -7,6 +7,8 @@ import { resolveCompanyId } from '../../../../middleware/resolveCompanyId.js';
 import {
   listItems,
   listInventoryUnits,
+  listInventoryCategories,
+  createInventoryCategory,
   createItem,
   updateItem,
   pendingImageUploadUrl,
@@ -40,6 +42,8 @@ const smSo = checkRole('STORE_MANAGER', 'STORE_OPERATOR');
 const smOnly = checkRole('STORE_MANAGER');
 
 router.get('/units', smSo, listInventoryUnits);
+router.get('/categories', smSo, listInventoryCategories);
+router.post('/categories', smSo, createInventoryCategory);
 router.get('/items', smSo, listItems);
 router.post('/items/pending-image-upload-url', smSo, pendingImageUploadUrl);
 router.post('/items', smSo, createItem);

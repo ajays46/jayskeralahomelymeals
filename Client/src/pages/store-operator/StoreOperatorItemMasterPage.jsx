@@ -3,18 +3,39 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StoreNotice, StorePageShell, StoreSection, StoreStatCard, StoreStatGrid } from '@/components/store/StorePageShell';
 import { CreateInventoryItemSection } from '@/components/store/CreateInventoryItemSection';
-import { fetchInventoryUnitsList, useKitchenInventoryMock } from '../../hooks/adminHook/kitchenStoreHook';
+import api from '../../api/axios';
+import { API } from '../../api/endpoints';
+import {
+  fetchInventoryCategoriesList,
+  fetchInventoryUnitsList,
+  useKitchenInventoryMock
+} from '../../hooks/adminHook/kitchenStoreHook';
 import { showStoreError, showStoreSuccess } from '../../utils/toastConfig.jsx';
 
 /** @feature kitchen-store — STORE_OPERATOR: item master list, create item, edit item (PUT …/inventory/items/:id). */
 
 const UNCATEGORIZED = '__uncategorized__';
 const NO_BRAND = '__no_brand__';
+/** Align with `CreateInventoryItemSection` / inventory API (FRONTEND_INVENTORY_CATEGORIES_AND_ITEMS.md). */
+const CAT_NONE = '__none__';
+const CAT_OTHER = '__other__';
 
 const itemFilterControlClass =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
 
 const isLowStock = (item) => Number(item.current_quantity) <= Number(item.min_quantity);
+
+/**
+ * Min / qty fields: avoid `<input type="number">` showing values like "1.00" and match list API numbers cleanly.
+ * Does not change magnitude — if the API stores `1` vs `100`, that comes from the server.
+ */
+function formatQuantityInputString(raw) {
+  if (raw === '' || raw == null) return '';
+  const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/,/g, '').trim());
+  if (!Number.isFinite(n)) return '';
+  if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
+  return String(n);
+}
 
 /** ISO / API datetime → India Standard Time (en-IN, Asia/Kolkata), matching purchase receipts. */
 function formatDateTimeIST(iso) {
@@ -88,10 +109,54 @@ const ItemBrandCell = ({ item }) => {
 const emptyEditForm = () => ({
   name: '',
   unit: '',
-  category: '',
+  category_pick: CAT_NONE,
+  category_custom: '',
   min_quantity: '',
   brand_id: ''
 });
+
+/** Map item detail + category list → edit form category fields. */
+function categoryFieldsFromDetail(itemDetail, categories) {
+  if (!itemDetail) return { category_pick: CAT_NONE, category_custom: '' };
+  const rawId = itemDetail.category_id ?? itemDetail.categoryId;
+  const cid = rawId != null && String(rawId).trim() !== '' ? String(rawId).trim() : '';
+  const catName = String(itemDetail.category ?? '').trim();
+  const list = Array.isArray(categories) ? categories : [];
+  if (cid && list.some((c) => c.id === cid)) {
+    return { category_pick: cid, category_custom: '' };
+  }
+  if (cid && catName) {
+    return { category_pick: cid, category_custom: '' };
+  }
+  const byName = catName ? list.find((c) => c.name === catName) : null;
+  if (byName) {
+    return { category_pick: byName.id, category_custom: '' };
+  }
+  if (catName) {
+    return { category_pick: CAT_OTHER, category_custom: catName };
+  }
+  return { category_pick: CAT_NONE, category_custom: '' };
+}
+
+function buildCategoryUpdatePayload(category_pick, category_custom, categories) {
+  const list = Array.isArray(categories) ? categories : [];
+  if (category_pick === CAT_NONE) {
+    return { category: '' };
+  }
+  if (category_pick === CAT_OTHER) {
+    const t = String(category_custom ?? '').trim();
+    return t ? { category: t } : { category: '' };
+  }
+  const row = list.find((c) => c.id === category_pick);
+  if (row) {
+    return { category_id: row.id, category: row.name };
+  }
+  /* `category_id` from item detail before categories list loaded, or unknown id */
+  if (category_pick && category_pick !== CAT_NONE && category_pick !== CAT_OTHER) {
+    return { category_id: category_pick };
+  }
+  return {};
+}
 
 const StoreOperatorItemMasterPage = () => {
   const { items, getItemDetail, nearExpiryByItemId, updateItem, refreshItems, brands } = useKitchenInventoryMock();
@@ -106,6 +171,15 @@ const StoreOperatorItemMasterPage = () => {
   const [status, setStatus] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [catalogUnits, setCatalogUnits] = useState([]);
+  const [inventoryCategories, setInventoryCategories] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categorySaving, setCategorySaving] = useState(false);
+
+  const loadInventoryCategories = async () => {
+    const list = await fetchInventoryCategoriesList();
+    setInventoryCategories(list);
+    return list;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -118,8 +192,22 @@ const StoreOperatorItemMasterPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await loadInventoryCategories();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const { namedCategories, hasUncategorized, units, brandNames, hasNoBrandItem } = useMemo(() => {
     const catSet = new Set();
+    inventoryCategories.forEach((c) => {
+      if (c.name) catSet.add(c.name.trim());
+    });
     let uncat = false;
     const unitSet = new Set();
     const brandSet = new Set();
@@ -140,7 +228,7 @@ const StoreOperatorItemMasterPage = () => {
       brandNames: [...brandSet].sort((a, b) => a.localeCompare(b)),
       hasNoBrandItem: noBrand
     };
-  }, [items]);
+  }, [items, inventoryCategories]);
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -192,17 +280,19 @@ const StoreOperatorItemMasterPage = () => {
       return;
     }
     const bid = itemDetail.brand_id ?? itemDetail.brandId;
+    const cf = categoryFieldsFromDetail(itemDetail, inventoryCategories);
     setEditForm({
       name: String(itemDetail.name ?? ''),
       unit: String(itemDetail.unit ?? ''),
-      category: String(itemDetail.category ?? ''),
+      category_pick: cf.category_pick,
+      category_custom: cf.category_custom,
       min_quantity:
         itemDetail.min_quantity != null && itemDetail.min_quantity !== ''
-          ? String(itemDetail.min_quantity)
+          ? formatQuantityInputString(itemDetail.min_quantity)
           : '',
       brand_id: bid != null && String(bid).trim() !== '' ? String(bid) : ''
     });
-  }, [itemDetail]);
+  }, [itemDetail, inventoryCategories]);
 
   const onLoadDetail = async (itemId) => {
     setSelectedId(itemId);
@@ -214,13 +304,15 @@ const StoreOperatorItemMasterPage = () => {
   const syncEditFormFromDetail = () => {
     if (!itemDetail) return;
     const bid = itemDetail.brand_id ?? itemDetail.brandId;
+    const cf = categoryFieldsFromDetail(itemDetail, inventoryCategories);
     setEditForm({
       name: String(itemDetail.name ?? ''),
       unit: String(itemDetail.unit ?? ''),
-      category: String(itemDetail.category ?? ''),
+      category_pick: cf.category_pick,
+      category_custom: cf.category_custom,
       min_quantity:
         itemDetail.min_quantity != null && itemDetail.min_quantity !== ''
-          ? String(itemDetail.min_quantity)
+          ? formatQuantityInputString(itemDetail.min_quantity)
           : '',
       brand_id: bid != null && String(bid).trim() !== '' ? String(bid) : ''
     });
@@ -249,10 +341,16 @@ const StoreOperatorItemMasterPage = () => {
       minQuantity = n;
     }
 
+    const categoryPayload = buildCategoryUpdatePayload(
+      editForm.category_pick,
+      editForm.category_custom,
+      inventoryCategories
+    );
+
     const payload = {
       name,
       unit,
-      category: editForm.category.trim(),
+      ...categoryPayload,
       min_quantity: minQuantity,
       brand_id: editForm.brand_id === '' ? null : editForm.brand_id
     };
@@ -273,6 +371,35 @@ const StoreOperatorItemMasterPage = () => {
     }
   };
 
+  const onAddInventoryCategory = async (e) => {
+    e.preventDefault();
+    const name = newCategoryName.trim();
+    if (!name) {
+      showStoreError('Enter a category name.', 'Validation');
+      return;
+    }
+    setCategorySaving(true);
+    try {
+      await api.post(`${API.MAX_KITCHEN_INVENTORY}/categories`, {
+        name,
+        display_order: inventoryCategories.length
+      });
+      setNewCategoryName('');
+      showStoreSuccess('Category added.', 'Saved');
+      await loadInventoryCategories();
+    } catch (err) {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail || err?.response?.data?.message;
+      if (status === 409) {
+        showStoreError('Category already exists for this company.', 'Conflict');
+      } else {
+        showStoreError(typeof detail === 'string' ? detail : 'Failed to create category.', 'Save failed');
+      }
+    } finally {
+      setCategorySaving(false);
+    }
+  };
+
   return (
     <StorePageShell>
       {status ? <StoreNotice tone="sky">{status}</StoreNotice> : null}
@@ -282,10 +409,36 @@ const StoreOperatorItemMasterPage = () => {
         <StoreStatCard label="Filtered Items" value={filteredItems.length} tone="sky" />
       </StoreStatGrid>
 
+      <StoreSection title="Add category" tone="violet">
+        <form onSubmit={onAddInventoryCategory} className="flex max-w-xl flex-wrap items-end gap-2">
+          <div className="min-w-[12rem] flex-1 space-y-1">
+            <label htmlFor="item-master-new-category" className="text-xs font-medium text-slate-600">
+              New category name
+            </label>
+            <input
+              id="item-master-new-category"
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              className={`${itemFilterControlClass} w-full`}
+              placeholder="e.g., Beverages"
+              autoComplete="off"
+            />
+          </div>
+          <Button type="submit" size="sm" className="h-9 shrink-0" disabled={categorySaving}>
+            {categorySaving ? 'Saving…' : 'Add category'}
+          </Button>
+        </form>
+      </StoreSection>
+
       <CreateInventoryItemSection
         idPrefix="item-master"
-        onItemCreated={() => void refreshItems()}
+        onItemCreated={() => {
+          void refreshItems();
+          void loadInventoryCategories();
+        }}
         showPrimaryImage={false}
+        inventoryCategories={inventoryCategories}
       />
 
       <StoreSection
@@ -511,18 +664,73 @@ const StoreOperatorItemMasterPage = () => {
                   />
                 )}
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 sm:col-span-2">
                 <label htmlFor="item-edit-category" className="text-xs font-medium text-slate-600">
                   Category
                 </label>
-                <input
-                  id="item-edit-category"
-                  type="text"
-                  value={editForm.category}
-                  onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
-                  className={`${itemFilterControlClass} w-full`}
-                  autoComplete="off"
-                />
+                {inventoryCategories.length > 0 ? (
+                  <>
+                    <select
+                      id="item-edit-category"
+                      value={editForm.category_pick}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          category_pick: e.target.value,
+                          category_custom: e.target.value === CAT_OTHER ? f.category_custom : ''
+                        }))
+                      }
+                      className={`${itemFilterControlClass} w-full`}
+                    >
+                      <option value={CAT_NONE}>Uncategorized</option>
+                      {[CAT_NONE, CAT_OTHER].includes(editForm.category_pick) ||
+                      inventoryCategories.some((c) => c.id === editForm.category_pick) ? null : (
+                        <option value={editForm.category_pick}>
+                          {(itemDetail?.category || '').trim() || 'Current category'} (current id)
+                        </option>
+                      )}
+                      {inventoryCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                      <option value={CAT_OTHER}>Other — type a new name</option>
+                    </select>
+                    {editForm.category_pick === CAT_OTHER ? (
+                      <input
+                        id="item-edit-category-custom"
+                        type="text"
+                        value={editForm.category_custom}
+                        onChange={(e) => setEditForm((f) => ({ ...f, category_custom: e.target.value }))}
+                        className={`${itemFilterControlClass} mt-2 w-full`}
+                        placeholder="Category name (ensured in inventory_categories on save)"
+                        autoComplete="off"
+                      />
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <input
+                      id="item-edit-category-fallback"
+                      type="text"
+                      value={editForm.category_pick === CAT_NONE ? '' : editForm.category_custom}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setEditForm((f) => ({
+                          ...f,
+                          category_pick: v.trim() === '' ? CAT_NONE : CAT_OTHER,
+                          category_custom: v
+                        }));
+                      }}
+                      className={`${itemFilterControlClass} w-full`}
+                      placeholder="Leave empty for uncategorized, or type a category name"
+                      autoComplete="off"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      No categories from API yet — free text sends the category string on save (guide option B).
+                    </p>
+                  </>
+                )}
               </div>
               <div className="space-y-1">
                 <label htmlFor="item-edit-min" className="text-xs font-medium text-slate-600">
@@ -530,13 +738,13 @@ const StoreOperatorItemMasterPage = () => {
                 </label>
                 <input
                   id="item-edit-min"
-                  type="number"
-                  min={0}
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   value={editForm.min_quantity}
                   onChange={(e) => setEditForm((f) => ({ ...f, min_quantity: e.target.value }))}
                   className={`${itemFilterControlClass} w-full`}
                   placeholder="0"
+                  autoComplete="off"
                 />
               </div>
               <div className="space-y-1">

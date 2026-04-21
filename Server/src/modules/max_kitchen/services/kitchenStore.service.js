@@ -159,6 +159,38 @@ export const listInventoryUnitsService = async (companyId, userId = null) => {
   }
 };
 
+/** GET /inventory/categories — `inventory_categories` rows (company-scoped). */
+export const listInventoryCategoriesService = async (companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(`${K}/inventory/categories`, withKitchenContext(companyId, userId));
+    logKitchenSuccess('listInventoryCategories', { endpoint: `/inventory/categories`, companyId: companyId || null });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('listInventoryCategories', error, { endpoint: `/inventory/categories`, companyId: companyId || null });
+    throw mapAxiosError(error);
+  }
+};
+
+/** POST /inventory/categories — create category row (409 if duplicate name). */
+export const createInventoryCategoryService = async (body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(`${K}/inventory/categories`, body, withKitchenContext(companyId, userId));
+    logKitchenSuccess('createInventoryCategory', {
+      endpoint: `/inventory/categories`,
+      companyId: companyId || null,
+      name: body?.name || null
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('createInventoryCategory', error, {
+      endpoint: `/inventory/categories`,
+      companyId: companyId || null,
+      name: body?.name || null
+    });
+    throw mapAxiosError(error);
+  }
+};
+
 export const getItemService = async (itemId, companyId, userId = null) => {
   try {
     const response = await apiClient.get(`${K}/inventory/items/${itemId}`, withKitchenContext(companyId, userId));
@@ -1104,6 +1136,29 @@ export const addPurchaseReceiptLineService = async (receiptId, body, companyId, 
   }
 };
 
+export const addPurchaseReceiptLinesBulkService = async (receiptId, body, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchases/receipts/${encodeURIComponent(receiptId)}/lines/bulk`,
+      body || {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('addPurchaseReceiptLinesBulk', {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/lines/bulk',
+      companyId: companyId || null,
+      receiptId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('addPurchaseReceiptLinesBulk', error, {
+      endpoint: '/purchase/purchases/receipts/:receipt_id/lines/bulk',
+      companyId: companyId || null,
+      receiptId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
 export const uploadPurchaseReceiptLineImageService = async (receiptId, lineId, file, companyId, userId = null) => {
   try {
     const formData = new FormData();
@@ -1601,6 +1656,51 @@ export const listApprovedPurchaseRequestLinesService = async (requestId, company
   } catch (error) {
     logKitchenError('listApprovedPurchaseRequestLines', error, {
       endpoint: '/purchase/purchase-requests/:request_id/approved-lines',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const getOperatorReceivingViewService = async (requestId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.get(
+      `${K}/purchase/purchase-requests/${encodeURIComponent(requestId)}/operator-receiving-view`,
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('getOperatorReceivingView', {
+      endpoint: '/purchase/purchase-requests/:request_id/operator-receiving-view',
+      companyId: companyId || null,
+      requestId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('getOperatorReceivingView', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/operator-receiving-view',
+      companyId: companyId || null,
+      requestId
+    });
+    throw mapAxiosError(error);
+  }
+};
+
+export const postOperatorAcknowledgeService = async (requestId, companyId, userId = null) => {
+  try {
+    const response = await apiClient.post(
+      `${K}/purchase/purchase-requests/${encodeURIComponent(requestId)}/operator-acknowledge`,
+      {},
+      withKitchenContext(companyId, userId)
+    );
+    logKitchenSuccess('postOperatorAcknowledge', {
+      endpoint: '/purchase/purchase-requests/:request_id/operator-acknowledge',
+      companyId: companyId || null,
+      requestId
+    });
+    return parseKitchenJsonResponse(response);
+  } catch (error) {
+    logKitchenError('postOperatorAcknowledge', error, {
+      endpoint: '/purchase/purchase-requests/:request_id/operator-acknowledge',
       companyId: companyId || null,
       requestId
     });

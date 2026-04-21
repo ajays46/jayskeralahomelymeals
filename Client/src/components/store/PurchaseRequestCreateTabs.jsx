@@ -143,6 +143,8 @@ const PurchaseRequestCreateTabs = ({
             next[existingIndex].item_primary_image_url ||
             item.item_primary_image_url ||
             item.primary_image_url ||
+            item.itemPrimaryImageUrl ||
+            item.primaryImageUrl ||
             '',
           freshness_priority:
             kind === PURCHASE_KIND.DAILY
@@ -166,7 +168,12 @@ const PurchaseRequestCreateTabs = ({
             operator_note: '',
             brand_name: item.brand_name || '',
             brand_logo_s3_url: item.brand_logo_s3_url || '',
-            item_primary_image_url: item.item_primary_image_url || item.primary_image_url || '',
+            item_primary_image_url:
+              item.item_primary_image_url ||
+              item.primary_image_url ||
+              item.itemPrimaryImageUrl ||
+              item.primaryImageUrl ||
+              '',
             freshness_priority: kind === PURCHASE_KIND.DAILY ? 'NORMAL' : ''
           }
         ]
@@ -530,6 +537,7 @@ const PurchaseRequestCreateTabs = ({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[4.5rem]">Photo</TableHead>
                       <TableHead>Item</TableHead>
                       <TableHead>Unit</TableHead>
                       <TableHead>Qty</TableHead>
@@ -541,19 +549,26 @@ const PurchaseRequestCreateTabs = ({
                   <TableBody>
                     {selectedLines.map((line) => (
                       <TableRow key={line.local_id} className="align-top">
+                        <TableCell className="w-[4.5rem]">
+                          {line.item_primary_image_url ? (
+                            <img
+                              src={line.item_primary_image_url}
+                              alt=""
+                              className="h-11 w-11 rounded-md border border-slate-200 bg-white object-cover"
+                            />
+                          ) : (
+                            <div
+                              className="flex h-11 w-11 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50 text-[10px] font-medium text-slate-400"
+                              aria-hidden
+                            >
+                              —
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>
-                          <div className="flex items-start gap-2">
-                            {line.item_primary_image_url ? (
-                              <img
-                                src={line.item_primary_image_url}
-                                alt=""
-                                className="mt-0.5 h-8 w-8 shrink-0 rounded border border-slate-200 bg-white object-cover"
-                              />
-                            ) : null}
-                            <span className="min-w-0 flex-1 text-sm font-medium text-slate-900">
-                              {line.requested_item_name || '—'}
-                            </span>
-                          </div>
+                          <span className="text-sm font-medium text-slate-900">
+                            {line.requested_item_name || '—'}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-slate-700">{line.requested_unit || '—'}</span>

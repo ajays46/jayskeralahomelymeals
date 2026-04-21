@@ -11,7 +11,9 @@ const initialForm = {
   name: '',
   unit: '',
   category: '',
-  min_quantity: ''
+  min_quantity: '',
+  /** When `inventoryCategories` is set: '' (none) or category id */
+  category_pick: ''
 };
 
 const toNumberOrUndefined = (value) => {
@@ -57,7 +59,9 @@ export const CreateInventoryItemSection = ({
   /** Item Master hides the image block; create payload stays minimal and no post-create image upload. */
   showPrimaryImage = true,
   /** No `StoreSection` chrome — use inside a parent `<details>` or tight layout. */
-  embedded = false
+  embedded = false,
+  /** From `GET /inventory/categories`; when non-empty, category is chosen by id (or omit). */
+  inventoryCategories = null
 }) => {
   const [form, setForm] = useState(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,9 +97,11 @@ export const CreateInventoryItemSection = ({
   };
 
   const resetForm = () => {
-    setForm(initialForm);
+    setForm({ ...initialForm });
     setPrimaryFile(null);
   };
+
+  const useCategoryApi = Array.isArray(inventoryCategories) && inventoryCategories.length > 0;
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -104,9 +110,22 @@ export const CreateInventoryItemSection = ({
     const payload = {
       name: form.name.trim(),
       unit: form.unit.trim(),
-      category: form.category.trim(),
       min_quantity: toNumberOrUndefined(form.min_quantity)
     };
+
+    if (useCategoryApi) {
+      const pick = String(form.category_pick || '').trim();
+      if (pick) {
+        const row = inventoryCategories.find((x) => x.id === pick);
+        if (row) {
+          payload.category_id = row.id;
+          payload.category = row.name;
+        }
+      }
+    } else {
+      const c = form.category.trim();
+      if (c) payload.category = c;
+    }
 
     if (!payload.name || !payload.unit) {
       setNotice({ tone: 'amber', message: 'Name and unit are required.' });
@@ -242,14 +261,30 @@ export const CreateInventoryItemSection = ({
           <label htmlFor={inputId.category} className="text-sm font-medium">
             Category
           </label>
-          <input
-            id={inputId.category}
-            type="text"
-            value={form.category}
-            onChange={onChange('category')}
-            className="w-full rounded-md border px-3 py-2 text-sm"
-            placeholder="e.g., Grains"
-          />
+          {useCategoryApi ? (
+            <select
+              id={inputId.category}
+              value={form.category_pick}
+              onChange={onChange('category_pick')}
+              className="w-full rounded-md border px-3 py-2 text-sm"
+            >
+              <option value="">Select category…</option>
+              {inventoryCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id={inputId.category}
+              type="text"
+              value={form.category}
+              onChange={onChange('category')}
+              className="w-full rounded-md border px-3 py-2 text-sm"
+              placeholder="e.g., Grains"
+            />
+          )}
         </div>
 
         <div className="space-y-1">

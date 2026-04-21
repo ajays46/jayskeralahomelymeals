@@ -42,6 +42,66 @@ function receiptDayKey(value) {
   return d.toISOString().slice(0, 10);
 }
 
+const EXPLICIT_TZ_REGEX = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i;
+
+/** Parse API timestamps for display in IST (same rules as operator purchase receipts). */
+function parseKitchenTimestampForIST(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return null;
+  if (EXPLICIT_TZ_REGEX.test(s)) {
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  let normalized = s;
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(s)) {
+    normalized = s.replace(' ', 'T');
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(normalized)) {
+    const d = new Date(`${normalized}+05:30`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(`${s}T12:00:00+05:30`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Uploaded-at column: show in India Standard Time (dd/MM/yyyy, 12h). */
+function formatDateTimeIST(iso) {
+  const d = parseKitchenTimestampForIST(iso);
+  if (!d) return '—';
+  const datePart = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(d);
+  const timePart = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }).format(d);
+  return `${datePart}, ${timePart}`;
+}
+
+/** Prefer showing both invoice and items-photo upload times in IST when present. */
+function formatReceiptUploadAtIST(row) {
+  const inv = row.invoice_uploaded_at;
+  const pho = row.items_photo_uploaded_at;
+  const hasInv = inv != null && String(inv).trim() !== '';
+  const hasPho = pho != null && String(pho).trim() !== '';
+  if (!hasInv && !hasPho) return '—';
+  if (hasInv && !hasPho) return formatDateTimeIST(inv);
+  if (!hasInv && hasPho) return formatDateTimeIST(pho);
+  const invF = formatDateTimeIST(inv);
+  const phoF = formatDateTimeIST(pho);
+  if (invF === phoF) return invF;
+  return `Invoice: ${invF} · Items photo: ${phoF}`;
+}
+
 const receiptControlClass =
   'h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
 
@@ -284,7 +344,6 @@ const StoreManagerPurchaseReceiptsPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Receipt date</TableHead>
-                <TableHead>Request ID</TableHead>
                 <TableHead>Invoice ref</TableHead>
                 <TableHead>Invoice</TableHead>
                 <TableHead>Items photo</TableHead>
@@ -295,7 +354,7 @@ const StoreManagerPurchaseReceiptsPage = () => {
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                  <TableCell colSpan={6} className="py-10 text-center text-sm text-slate-500">
                     {history.length === 0
                       ? 'No receipts loaded. Refresh the register.'
                       : 'No receipts match the current filters.'}
@@ -308,7 +367,6 @@ const StoreManagerPurchaseReceiptsPage = () => {
                   return (
                     <TableRow key={receiptId}>
                       <TableCell className="font-medium">{formatReceiptDateOnly(receiptDateRaw)}</TableCell>
-                      <TableCell>{row.purchase_request_id || '-'}</TableCell>
                       <TableCell>{row.reference_invoice || '-'}</TableCell>
                       <TableCell className="max-w-36">
                         {purchaseReceiptHasInvoice(row) ? (
@@ -340,7 +398,9 @@ const StoreManagerPurchaseReceiptsPage = () => {
                           '—'
                         )}
                       </TableCell>
-                      <TableCell>{row.invoice_uploaded_at || '-'}</TableCell>
+                      <TableCell className="max-w-[18rem] text-sm leading-snug text-slate-800">
+                        {formatReceiptUploadAtIST(row)}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button type="button" variant="outline" size="sm" onClick={() => openReceiptLines(receiptId)}>
                           Open
