@@ -194,6 +194,46 @@ const normalizeItems = (itemsRaw) => {
   }));
 };
 
+const clampInventoryListPageSize = (n) => {
+  const x = Math.floor(Number(n));
+  if (!Number.isFinite(x)) return 20;
+  return Math.min(200, Math.max(1, x));
+};
+
+/**
+ * `GET /inventory/items` with pagination (`page`, `page_size`, optional `q`, `category`).
+ * @returns {Promise<{ items: ReturnType<typeof normalizeItems>, page: number, page_size: number, total: number }>}
+ */
+export async function fetchInventoryItemsPage(query = {}) {
+  const page = Math.max(1, Math.floor(Number(query.page)) || 1);
+  const page_size = clampInventoryListPageSize(query.page_size ?? 20);
+  const params = { page, page_size };
+
+  const q = typeof query.q === 'string' ? query.q.trim() : '';
+  if (q) params.q = q;
+
+  if (Object.prototype.hasOwnProperty.call(query, 'category')) {
+    params.category = query.category == null ? '' : String(query.category);
+  }
+
+  try {
+    const itemsRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, { params });
+    const itemsData = itemsRes.data?.data || {};
+    const rawList = itemsData.items ?? (Array.isArray(itemsData) ? itemsData : []);
+    const fetchedItems = normalizeItems(rawList);
+    const totalNum = Number(itemsData.total);
+    const total = Number.isFinite(totalNum) ? totalNum : fetchedItems.length;
+    return {
+      items: fetchedItems,
+      page: Number(itemsData.page) || page,
+      page_size: Number(itemsData.page_size) || page_size,
+      total
+    };
+  } catch {
+    return { items: [], page, page_size, total: 0 };
+  }
+}
+
 const normalizeBrands = (brandsRaw) => {
   const arr = Array.isArray(brandsRaw) ? brandsRaw : [];
   return arr.map((b) => ({
@@ -489,16 +529,28 @@ function useKitchenStoreDataInternal() {
     return map;
   }, [items]);
 
-  const refreshItems = async (query = {}) => {
-    const params = { page: 1, page_size: 50, ...query };
-    Object.keys(params).forEach((k) => {
-      if (params[k] === undefined || params[k] === null || params[k] === '') delete params[k];
-    });
-    const itemsRes = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, { params });
-    const itemsData = itemsRes.data?.data || {};
-    const fetchedItems = normalizeItems(itemsData.items || itemsData || []);
-    setItems(fetchedItems);
-    return fetchedItems;
+  /** Reload full item list for provider state (movements, maps, other pages). Uses max `page_size` and follows `total`. */
+  const refreshItems = async () => {
+    const catalogPageSize = 200;
+    const merged = [];
+    let page = 1;
+    let total = Infinity;
+    for (let guard = 0; guard < 500; guard += 1) {
+      const { items: batch, total: reported } = await fetchInventoryItemsPage({
+        page,
+        page_size: catalogPageSize
+      });
+      if (typeof reported === 'number' && Number.isFinite(reported) && reported >= 0) {
+        total = reported;
+      }
+      merged.push(...batch);
+      if (batch.length === 0) break;
+      if (merged.length >= total) break;
+      if (batch.length < catalogPageSize) break;
+      page += 1;
+    }
+    setItems(merged);
+    return merged;
   };
 
   const refreshBrands = async () => {
@@ -1643,11 +1695,12 @@ export const useKitchenWeeklyRecipeBom = ({
 
   const searchInventoryItems = useCallback(async (q) => {
     try {
-      const res = await api.get(`${API.MAX_KITCHEN_INVENTORY}/items`, {
-        params: { page: 1, page_size: 80, ...(q ? { q } : {}) }
+      const { items } = await fetchInventoryItemsPage({
+        page: 1,
+        page_size: 80,
+        ...(q ? { q: String(q) } : {})
       });
-      const itemsData = res.data?.data || {};
-      return normalizeItems(itemsData.items || itemsData || []);
+      return items;
     } catch {
       return [];
     }

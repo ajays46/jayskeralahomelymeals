@@ -255,7 +255,7 @@ const StoreManagerInventoryViewPage = () => {
               className={`${controlClass} w-full sm:w-auto`}
             >
               <option value="all">All categories</option>
-              {hasUncategorized ? <option value={UNCATEGORIZED}>Uncategorized</option> : null}
+              {hasUncategorized ? <option value={UNCATEGORIZED}>No category</option> : null}
               {namedCategories.map((c) => (
                 <option key={c} value={c}>
                   {c}

@@ -1,20 +1,52 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { MaxUiComboBox, MaxUiTextBox } from '@/components/max-ui';
 import { StoreNotice, StoreSection } from '@/components/store/StorePageShell';
 import api from '../../api/axios';
 import { API, readMaxKitchenClientEnvelope } from '../../api/endpoints';
 import { kitchenInventoryRequireItemImage } from '../../config/kitchenFeatureFlags.js';
 import { fetchInventoryUnitsList } from '../../hooks/adminHook/kitchenStoreHook';
+import {
+  inferPrimaryUnitTypeFromItemName,
+  rankInventoryUnitsForItemName,
+  unitInferenceHint
+} from '../../utils/inventoryUnitInference.js';
 
 /** @feature kitchen-store — Operator form: create inventory item (`POST .../inventory/items`). */
+/** Match `InventoryItemMasterView`: `category` string only (see FRONTEND_INVENTORY_CATEGORY_AND_EXPIRY_UPDATES.md). */
+const CAT_NONE = '__none__';
+const CAT_OTHER = '__other__';
+
 const initialForm = {
   name: '',
   unit: '',
+  /** Free-text when there is no `GET /inventory/categories` list (same as item master “option B”). */
   category: '',
   min_quantity: '',
-  /** When `inventoryCategories` is set: '' (none) or category id */
-  category_pick: ''
+  /** When categories list is set: catalog row id, `CAT_NONE`, or `CAT_OTHER`. */
+  category_pick: CAT_NONE,
+  category_custom: ''
 };
+
+/** Same rules as item-master save: optional `category` / `category_id` for upstream. */
+function buildCategoryCreatePayload(category_pick, category_custom, categories) {
+  const list = Array.isArray(categories) ? categories : [];
+  if (category_pick === CAT_NONE) {
+    return { category: '' };
+  }
+  if (category_pick === CAT_OTHER) {
+    const t = String(category_custom ?? '').trim();
+    return t ? { category: t } : { category: '' };
+  }
+  const row = list.find((c) => c.id === category_pick);
+  if (row) {
+    return { category_id: row.id, category: row.name };
+  }
+  if (category_pick && category_pick !== CAT_NONE && category_pick !== CAT_OTHER) {
+    return { category_id: category_pick };
+  }
+  return {};
+}
 
 const toNumberOrUndefined = (value) => {
   if (value === '' || value == null) return undefined;
@@ -61,13 +93,19 @@ export const CreateInventoryItemSection = ({
   /** No `StoreSection` chrome — use inside a parent `<details>` or tight layout. */
   embedded = false,
   /** From `GET /inventory/categories`; when non-empty, category is chosen by id (or omit). */
-  inventoryCategories = null
+  inventoryCategories = null,
+  /** Hide inference hints, API-oriented placeholders, and deployment-style notices (e.g. operator item master). */
+  suppressFieldHints = false
 }) => {
   const [form, setForm] = useState(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState({ tone: 'sky', message: '' });
   const [primaryFile, setPrimaryFile] = useState(null);
   const [catalogUnits, setCatalogUnits] = useState([]);
+  /** Tracks last auto-applied unit so renaming can update the suggestion unless the user diverged. */
+  const prevSuggestedUnitRef = useRef('');
+  /** When WEIGHT/VOLUME/COUNT inference changes (e.g. rice→egg), always refresh unit — same abbrev can mask that. */
+  const prevInferredPrimaryRef = useRef(null);
 
   const strictImage = kitchenInventoryRequireItemImage();
 
@@ -87,16 +125,43 @@ export const CreateInventoryItemSection = ({
       name: `${idPrefix}-name`,
       unit: `${idPrefix}-unit`,
       category: `${idPrefix}-category`,
+      categoryCustom: `${idPrefix}-category-custom`,
       minQuantity: `${idPrefix}-min-quantity`
     }),
     [idPrefix]
   );
+
+  const unitRanking = useMemo(
+    () => rankInventoryUnitsForItemName(form.name, catalogUnits),
+    [form.name, catalogUnits]
+  );
+  const { orderedUnits, suggestedGroup, otherGroup, primaryUnitType } = unitRanking;
+  const unitFieldHint = unitInferenceHint(primaryUnitType, form.name);
+
+  useEffect(() => {
+    if (!catalogUnits.length) return;
+    const primary = inferPrimaryUnitTypeFromItemName(form.name);
+    const primaryChanged = prevInferredPrimaryRef.current !== primary;
+    prevInferredPrimaryRef.current = primary;
+    if (!primary) return;
+    const { suggestedAbbrev: next } = rankInventoryUnitsForItemName(form.name, catalogUnits);
+    if (!next) return;
+    setForm((f) => {
+      const cur = f.unit.trim();
+      const userOverrodeUnit = cur !== '' && cur !== prevSuggestedUnitRef.current;
+      if (userOverrodeUnit && !primaryChanged) return f;
+      prevSuggestedUnitRef.current = next;
+      return cur === next ? f : { ...f, unit: next };
+    });
+  }, [form.name, catalogUnits]);
 
   const onChange = (key) => (event) => {
     setForm((prev) => ({ ...prev, [key]: event.target.value }));
   };
 
   const resetForm = () => {
+    prevSuggestedUnitRef.current = '';
+    prevInferredPrimaryRef.current = null;
     setForm({ ...initialForm });
     setPrimaryFile(null);
   };
@@ -114,14 +179,7 @@ export const CreateInventoryItemSection = ({
     };
 
     if (useCategoryApi) {
-      const pick = String(form.category_pick || '').trim();
-      if (pick) {
-        const row = inventoryCategories.find((x) => x.id === pick);
-        if (row) {
-          payload.category_id = row.id;
-          payload.category = row.name;
-        }
-      }
+      Object.assign(payload, buildCategoryCreatePayload(form.category_pick, form.category_custom, inventoryCategories));
     } else {
       const c = form.category.trim();
       if (c) payload.category = c;
@@ -133,10 +191,12 @@ export const CreateInventoryItemSection = ({
     }
 
     if (showPrimaryImage && strictImage) {
-      if (!primaryFile) {
+        if (!primaryFile) {
         setNotice({
           tone: 'amber',
-          message: 'Strict image mode is on: choose a primary image (JPEG, PNG, or WebP) before creating the item.'
+          message: suppressFieldHints
+            ? 'Choose a primary image (JPEG, PNG, or WebP) before creating the item.'
+            : 'Strict image mode is on: choose a primary image (JPEG, PNG, or WebP) before creating the item.'
         });
         return;
       }
@@ -201,106 +261,132 @@ export const CreateInventoryItemSection = ({
       {notice.message ? <StoreNotice tone={notice.tone}>{notice.message}</StoreNotice> : null}
       {showPrimaryImage && strictImage ? (
         <StoreNotice tone="sky">
-          Image is required for this deployment. Choose a JPEG, PNG, or WebP; it is attached immediately after the item is
-          created.
+          {suppressFieldHints
+            ? 'A primary image is required. Use JPEG, PNG, or WebP.'
+            : 'Image is required for this deployment. Choose a JPEG, PNG, or WebP; it is attached immediately after the item is created.'}
         </StoreNotice>
       ) : null}
 
       <form onSubmit={onSubmit} className="grid gap-3 md:grid-cols-2">
-        <div className="space-y-1">
-          <label htmlFor={inputId.name} className="text-sm font-medium">
-            Name
-          </label>
-          <input
-            id={inputId.name}
-            type="text"
-            value={form.name}
-            onChange={onChange('name')}
-            className="w-full rounded-md border px-3 py-2 text-sm"
-            placeholder="e.g., Basmati Rice"
-            required
-          />
-        </div>
+        <MaxUiTextBox
+          label="Name"
+          labelClassName="text-sm font-medium text-slate-800"
+          id={inputId.name}
+          type="text"
+          value={form.name}
+          onChange={onChange('name')}
+          placeholder="e.g., Basmati Rice"
+          required
+        />
 
-        <div className="space-y-1">
-          <label htmlFor={inputId.unit} className="text-sm font-medium">
-            Unit
-          </label>
-          {catalogUnits.length > 0 ? (
-            <select
-              id={inputId.unit}
-              value={form.unit}
-              onChange={onChange('unit')}
-              className="w-full rounded-md border px-3 py-2 text-sm"
-              required
-            >
-              <option value="">Select unit…</option>
-              {catalogUnits.map((u) => (
-                <option key={u.id || u.abbreviation} value={u.abbreviation}>
+        {catalogUnits.length > 0 ? (
+          <MaxUiComboBox
+            label="Unit"
+            labelClassName="text-sm font-medium text-slate-800"
+            id={inputId.unit}
+            value={form.unit}
+            onChange={onChange('unit')}
+            required
+            hint={suppressFieldHints ? undefined : unitFieldHint || undefined}
+          >
+            <option value="">Select unit…</option>
+            {primaryUnitType && otherGroup.length > 0 ? (
+              <>
+                <optgroup label={suppressFieldHints ? 'Suggested' : `Likely (${primaryUnitType.toLowerCase()})`}>
+                  {suggestedGroup.map((u) => (
+                    <option key={`${u.id}-${u.abbreviation}`} value={u.abbreviation}>
+                      {u.name} ({u.abbreviation})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label={suppressFieldHints ? 'More units' : 'Other units'}>
+                  {otherGroup.map((u) => (
+                    <option key={`${u.id}-${u.abbreviation}`} value={u.abbreviation}>
+                      {u.name} ({u.abbreviation})
+                    </option>
+                  ))}
+                </optgroup>
+              </>
+            ) : (
+              orderedUnits.map((u) => (
+                <option key={`${u.id}-${u.abbreviation}`} value={u.abbreviation}>
                   {u.name} ({u.abbreviation})
                 </option>
-              ))}
-            </select>
-          ) : (
-            <>
-              <input
-                id={inputId.unit}
-                type="text"
-                value={form.unit}
-                onChange={onChange('unit')}
-                className="w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="e.g., kg (load /inventory/units for dropdown)"
-                required
-              />
-              <p className="text-xs text-slate-500">Standard units list unavailable; enter abbreviation manually.</p>
-            </>
-          )}
-        </div>
+              ))
+            )}
+          </MaxUiComboBox>
+        ) : (
+          <MaxUiTextBox
+            label="Unit"
+            labelClassName="text-sm font-medium text-slate-800"
+            id={inputId.unit}
+            type="text"
+            value={form.unit}
+            onChange={onChange('unit')}
+            placeholder={suppressFieldHints ? 'e.g., kg' : 'e.g., kg (load /inventory/units for dropdown)'}
+            required
+            hint={suppressFieldHints ? undefined : 'Standard units list unavailable; enter abbreviation manually.'}
+          />
+        )}
 
-        <div className="space-y-1">
-          <label htmlFor={inputId.category} className="text-sm font-medium">
-            Category
-          </label>
-          {useCategoryApi ? (
-            <select
+        {useCategoryApi ? (
+          <div className="min-w-0 space-y-2">
+            <MaxUiComboBox
+              label="Category"
+              labelClassName="text-sm font-medium text-slate-800"
               id={inputId.category}
               value={form.category_pick}
-              onChange={onChange('category_pick')}
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  category_pick: e.target.value,
+                  category_custom: e.target.value === CAT_OTHER ? f.category_custom : ''
+                }))
+              }
             >
-              <option value="">Select category…</option>
+              <option value={CAT_NONE}>Select category…</option>
               {inventoryCategories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
-            </select>
-          ) : (
-            <input
-              id={inputId.category}
-              type="text"
-              value={form.category}
-              onChange={onChange('category')}
-              className="w-full rounded-md border px-3 py-2 text-sm"
-              placeholder="e.g., Grains"
-            />
-          )}
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor={inputId.minQuantity} className="text-sm font-medium">
-            Min Quantity
-          </label>
-          <input
-            id={inputId.minQuantity}
-            type="number"
-            step="any"
-            value={form.min_quantity}
-            onChange={onChange('min_quantity')}
-            className="w-full rounded-md border px-3 py-2 text-sm"
-            placeholder="0"
+              <option value={CAT_OTHER}>{suppressFieldHints ? 'Other (type name)' : 'Other — type a new name'}</option>
+            </MaxUiComboBox>
+            {form.category_pick === CAT_OTHER ? (
+              <MaxUiTextBox
+                label="Category name"
+                labelClassName="text-sm font-medium text-slate-800"
+                id={inputId.categoryCustom}
+                type="text"
+                value={form.category_custom}
+                onChange={onChange('category_custom')}
+                placeholder="e.g., Specialty produce"
+                autoComplete="off"
+              />
+            ) : null}
+          </div>
+        ) : (
+          <MaxUiTextBox
+            label="Category"
+            labelClassName="text-sm font-medium text-slate-800"
+            id={inputId.category}
+            type="text"
+            value={form.category}
+            onChange={onChange('category')}
+            placeholder="e.g., Grains"
           />
-        </div>
+        )}
+
+        <MaxUiTextBox
+          label="Min Quantity"
+          labelClassName="text-sm font-medium text-slate-800"
+          id={inputId.minQuantity}
+          type="number"
+          step="any"
+          value={form.min_quantity}
+          onChange={onChange('min_quantity')}
+          placeholder="0"
+        />
 
         {showPrimaryImage ? (
           <div className="md:col-span-2 space-y-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-3">

@@ -102,6 +102,388 @@ exports.Prisma.CustomerPortalTokenScalarFieldEnum = {
   usedAt: 'usedAt'
 };
 
+exports.Prisma.BrandsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  logo_s3_key: 'logo_s3_key',
+  logo_s3_url: 'logo_s3_url',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_categoriesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  display_order: 'display_order',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_demand_forecastsScalarFieldEnum = {
+  id: 'id',
+  run_id: 'run_id',
+  company_id: 'company_id',
+  forecast_date: 'forecast_date',
+  meal_slot: 'meal_slot',
+  inventory_item_id: 'inventory_item_id',
+  forecast_quantity: 'forecast_quantity',
+  model_name: 'model_name',
+  created_at: 'created_at'
+};
+
+exports.Prisma.Inventory_item_imagesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  s3_key: 's3_key',
+  s3_url: 's3_url',
+  presigned_url: 'presigned_url',
+  filename: 'filename',
+  content_type: 'content_type',
+  file_size: 'file_size',
+  sort_order: 'sort_order',
+  is_primary: 'is_primary',
+  uploaded_by: 'uploaded_by',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_itemsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  brand_id: 'brand_id',
+  name: 'name',
+  unit: 'unit',
+  category: 'category',
+  freshness_category: 'freshness_category',
+  min_quantity: 'min_quantity',
+  current_quantity: 'current_quantity',
+  created_at: 'created_at',
+  updated_at: 'updated_at',
+  unit_cost: 'unit_cost'
+};
+
+exports.Prisma.Inventory_physical_count_session_linesScalarFieldEnum = {
+  id: 'id',
+  session_id: 'session_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  physical_quantity: 'physical_quantity',
+  system_quantity_snapshot: 'system_quantity_snapshot',
+  note: 'note',
+  suspicious: 'suspicious',
+  manager_acknowledged: 'manager_acknowledged',
+  manager_note: 'manager_note',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_physical_count_sessionsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  status: 'status',
+  title: 'title',
+  readiness_note: 'readiness_note',
+  created_by: 'created_by',
+  finalized_at: 'finalized_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_purchase_recommendationsScalarFieldEnum = {
+  id: 'id',
+  run_id: 'run_id',
+  company_id: 'company_id',
+  forecast_date: 'forecast_date',
+  meal_slot: 'meal_slot',
+  inventory_item_id: 'inventory_item_id',
+  forecast_quantity: 'forecast_quantity',
+  current_quantity: 'current_quantity',
+  safety_buffer: 'safety_buffer',
+  recommended_purchase_quantity: 'recommended_purchase_quantity',
+  model_name: 'model_name',
+  created_at: 'created_at'
+};
+
+exports.Prisma.Inventory_stock_batchesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  receipt_line_id: 'receipt_line_id',
+  batch_quantity: 'batch_quantity',
+  remaining_quantity: 'remaining_quantity',
+  expiry_date: 'expiry_date',
+  manufacturing_date: 'manufacturing_date',
+  received_at: 'received_at',
+  is_expired: 'is_expired',
+  is_blocked: 'is_blocked',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_stock_movementsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  item_id: 'item_id',
+  movement_type: 'movement_type',
+  quantity: 'quantity',
+  delta: 'delta',
+  expiry_date: 'expiry_date',
+  note: 'note',
+  occurred_at: 'occurred_at',
+  created_at: 'created_at'
+};
+
+exports.Prisma.Inventory_unitsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  abbreviation: 'abbreviation',
+  unit_type: 'unit_type',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_daily_plan_linesScalarFieldEnum = {
+  id: 'id',
+  plan_id: 'plan_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  required_quantity: 'required_quantity',
+  planned_issue_quantity: 'planned_issue_quantity',
+  issued_quantity: 'issued_quantity',
+  variance_note: 'variance_note',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_daily_plansScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  plan_date: 'plan_date',
+  meal_slot: 'meal_slot',
+  status: 'status',
+  generated_by: 'generated_by',
+  approved_by: 'approved_by',
+  issued_by: 'issued_by',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_inventory_holdingScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  quantity: 'quantity',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_meal_programsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  code: 'code',
+  display_name: 'display_name',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_menu_item_program_mapScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_item_id: 'menu_item_id',
+  program_id: 'program_id',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_pipeline_runsScalarFieldEnum = {
+  id: 'id',
+  pipeline_name: 'pipeline_name',
+  company_id: 'company_id',
+  as_of_date: 'as_of_date',
+  status: 'status',
+  processed_rows: 'processed_rows',
+  message: 'message',
+  started_at: 'started_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_program_recipe_linesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  program_id: 'program_id',
+  inventory_item_id: 'inventory_item_id',
+  quantity_per_unit: 'quantity_per_unit',
+  unit: 'unit',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_recipe_linesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_item_id: 'menu_item_id',
+  inventory_item_id: 'inventory_item_id',
+  quantity_per_unit: 'quantity_per_unit',
+  unit: 'unit',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_store_requisition_linesScalarFieldEnum = {
+  id: 'id',
+  requisition_id: 'requisition_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  gross_requirement: 'gross_requirement',
+  quantity_from_kitchen: 'quantity_from_kitchen',
+  quantity_needed_from_store: 'quantity_needed_from_store',
+  quantity_requested: 'quantity_requested',
+  quantity_approved: 'quantity_approved',
+  quantity_surplus_issued: 'quantity_surplus_issued',
+  quantity_issued_total: 'quantity_issued_total',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_store_requisitionsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  for_date: 'for_date',
+  meal_slot: 'meal_slot',
+  status: 'status',
+  requested_by: 'requested_by',
+  submitted_at: 'submitted_at',
+  approved_by: 'approved_by',
+  approved_at: 'approved_at',
+  issued_by: 'issued_by',
+  issued_at: 'issued_at',
+  chef_note: 'chef_note',
+  manager_note: 'manager_note',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Menu_weekly_scheduleScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_id: 'menu_id',
+  day_of_week: 'day_of_week',
+  meal_slot: 'meal_slot',
+  menu_item_id: 'menu_item_id',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Purchase_receipt_linesScalarFieldEnum = {
+  id: 'id',
+  receipt_id: 'receipt_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  purchase_request_line_id: 'purchase_request_line_id',
+  purchased_qty: 'purchased_qty',
+  purchase_unit: 'purchase_unit',
+  conversion_to_base: 'conversion_to_base',
+  received_qty_in_base_unit: 'received_qty_in_base_unit',
+  line_total: 'line_total',
+  unit_price_in_base: 'unit_price_in_base',
+  purchase_date: 'purchase_date',
+  expiry_date: 'expiry_date',
+  manufacturing_date: 'manufacturing_date',
+  comparison_status: 'comparison_status',
+  off_list_purchase_reason: 'off_list_purchase_reason',
+  manager_review_status: 'manager_review_status',
+  manager_action: 'manager_action',
+  manager_action_note: 'manager_action_note',
+  stock_applied: 'stock_applied',
+  stock_applied_at: 'stock_applied_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at',
+  image_s3_key: 'image_s3_key',
+  image_s3_url: 'image_s3_url',
+  image_uploaded_at: 'image_uploaded_at',
+  received_brand_id: 'received_brand_id',
+  received_brand_name: 'received_brand_name'
+};
+
+exports.Prisma.Purchase_receipt_material_photosScalarFieldEnum = {
+  id: 'id',
+  receipt_id: 'receipt_id',
+  company_id: 'company_id',
+  s3_key: 's3_key',
+  s3_url: 's3_url',
+  uploaded_at: 'uploaded_at'
+};
+
+exports.Prisma.Purchase_receiptsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  purchase_request_id: 'purchase_request_id',
+  reference_invoice: 'reference_invoice',
+  invoice_s3_key: 'invoice_s3_key',
+  invoice_s3_url: 'invoice_s3_url',
+  invoice_uploaded_at: 'invoice_uploaded_at',
+  items_photo_s3_key: 'items_photo_s3_key',
+  items_photo_s3_url: 'items_photo_s3_url',
+  items_photo_uploaded_at: 'items_photo_uploaded_at',
+  received_at: 'received_at',
+  created_by: 'created_by',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Purchase_request_linesScalarFieldEnum = {
+  id: 'id',
+  request_id: 'request_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  requested_item_name: 'requested_item_name',
+  requested_brand_name: 'requested_brand_name',
+  requested_unit: 'requested_unit',
+  requested_quantity: 'requested_quantity',
+  approved_quantity: 'approved_quantity',
+  is_new_item: 'is_new_item',
+  resolved_inventory_item_id: 'resolved_inventory_item_id',
+  operator_note: 'operator_note',
+  manager_note: 'manager_note',
+  freshness_priority: 'freshness_priority',
+  line_status: 'line_status',
+  purchased_quantity: 'purchased_quantity',
+  fulfillment_status: 'fulfillment_status',
+  last_purchased_at: 'last_purchased_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Purchase_request_operator_seenScalarFieldEnum = {
+  company_id: 'company_id',
+  request_id: 'request_id',
+  user_id: 'user_id',
+  last_seen_content_revision_at: 'last_seen_content_revision_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Purchase_requestsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  status: 'status',
+  purchase_type: 'purchase_type',
+  for_date: 'for_date',
+  urgency: 'urgency',
+  requested_by: 'requested_by',
+  requested_note: 'requested_note',
+  submitted_at: 'submitted_at',
+  approved_by: 'approved_by',
+  approval_note: 'approval_note',
+  approved_at: 'approved_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -118,9 +500,296 @@ exports.Prisma.CustomerPortalTokenOrderByRelevanceFieldEnum = {
   userId: 'userId'
 };
 
+exports.Prisma.brandsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  logo_s3_key: 'logo_s3_key',
+  logo_s3_url: 'logo_s3_url'
+};
+
+exports.Prisma.inventory_categoriesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name'
+};
+
+exports.Prisma.inventory_demand_forecastsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  run_id: 'run_id',
+  company_id: 'company_id',
+  meal_slot: 'meal_slot',
+  inventory_item_id: 'inventory_item_id',
+  model_name: 'model_name'
+};
+
+exports.Prisma.inventory_item_imagesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  s3_key: 's3_key',
+  s3_url: 's3_url',
+  presigned_url: 'presigned_url',
+  filename: 'filename',
+  content_type: 'content_type',
+  uploaded_by: 'uploaded_by'
+};
+
+exports.Prisma.inventory_itemsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  brand_id: 'brand_id',
+  name: 'name',
+  unit: 'unit',
+  category: 'category',
+  freshness_category: 'freshness_category'
+};
+
+exports.Prisma.inventory_physical_count_session_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  session_id: 'session_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  note: 'note',
+  manager_note: 'manager_note'
+};
+
+exports.Prisma.inventory_physical_count_sessionsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  status: 'status',
+  title: 'title',
+  readiness_note: 'readiness_note',
+  created_by: 'created_by'
+};
+
+exports.Prisma.inventory_purchase_recommendationsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  run_id: 'run_id',
+  company_id: 'company_id',
+  meal_slot: 'meal_slot',
+  inventory_item_id: 'inventory_item_id',
+  model_name: 'model_name'
+};
+
+exports.Prisma.inventory_stock_batchesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  receipt_line_id: 'receipt_line_id'
+};
+
+exports.Prisma.inventory_stock_movementsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  item_id: 'item_id',
+  movement_type: 'movement_type',
+  note: 'note'
+};
+
+exports.Prisma.inventory_unitsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  abbreviation: 'abbreviation',
+  unit_type: 'unit_type'
+};
+
+exports.Prisma.kitchen_daily_plan_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  plan_id: 'plan_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  variance_note: 'variance_note'
+};
+
+exports.Prisma.kitchen_daily_plansOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  meal_slot: 'meal_slot',
+  status: 'status',
+  generated_by: 'generated_by',
+  approved_by: 'approved_by',
+  issued_by: 'issued_by'
+};
+
+exports.Prisma.kitchen_inventory_holdingOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id'
+};
+
+exports.Prisma.kitchen_meal_programsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  code: 'code',
+  display_name: 'display_name'
+};
+
+exports.Prisma.kitchen_menu_item_program_mapOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_item_id: 'menu_item_id',
+  program_id: 'program_id'
+};
+
+exports.Prisma.kitchen_pipeline_runsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  pipeline_name: 'pipeline_name',
+  company_id: 'company_id',
+  status: 'status',
+  message: 'message'
+};
+
+exports.Prisma.kitchen_program_recipe_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  program_id: 'program_id',
+  inventory_item_id: 'inventory_item_id',
+  unit: 'unit'
+};
+
+exports.Prisma.kitchen_recipe_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_item_id: 'menu_item_id',
+  inventory_item_id: 'inventory_item_id',
+  unit: 'unit'
+};
+
+exports.Prisma.kitchen_store_requisition_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  requisition_id: 'requisition_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id'
+};
+
+exports.Prisma.kitchen_store_requisitionsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  meal_slot: 'meal_slot',
+  status: 'status',
+  requested_by: 'requested_by',
+  approved_by: 'approved_by',
+  issued_by: 'issued_by',
+  chef_note: 'chef_note',
+  manager_note: 'manager_note'
+};
+
+exports.Prisma.menu_weekly_scheduleOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_id: 'menu_id',
+  menu_item_id: 'menu_item_id'
+};
+
+exports.Prisma.purchase_receipt_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  receipt_id: 'receipt_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  purchase_request_line_id: 'purchase_request_line_id',
+  purchase_unit: 'purchase_unit',
+  comparison_status: 'comparison_status',
+  off_list_purchase_reason: 'off_list_purchase_reason',
+  manager_review_status: 'manager_review_status',
+  manager_action: 'manager_action',
+  manager_action_note: 'manager_action_note',
+  image_s3_key: 'image_s3_key',
+  image_s3_url: 'image_s3_url',
+  received_brand_id: 'received_brand_id',
+  received_brand_name: 'received_brand_name'
+};
+
+exports.Prisma.purchase_receipt_material_photosOrderByRelevanceFieldEnum = {
+  id: 'id',
+  receipt_id: 'receipt_id',
+  company_id: 'company_id',
+  s3_key: 's3_key',
+  s3_url: 's3_url'
+};
+
+exports.Prisma.purchase_receiptsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  purchase_request_id: 'purchase_request_id',
+  reference_invoice: 'reference_invoice',
+  invoice_s3_key: 'invoice_s3_key',
+  invoice_s3_url: 'invoice_s3_url',
+  items_photo_s3_key: 'items_photo_s3_key',
+  items_photo_s3_url: 'items_photo_s3_url',
+  created_by: 'created_by'
+};
+
+exports.Prisma.purchase_request_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  request_id: 'request_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  requested_item_name: 'requested_item_name',
+  requested_brand_name: 'requested_brand_name',
+  requested_unit: 'requested_unit',
+  resolved_inventory_item_id: 'resolved_inventory_item_id',
+  operator_note: 'operator_note',
+  manager_note: 'manager_note',
+  freshness_priority: 'freshness_priority',
+  line_status: 'line_status',
+  fulfillment_status: 'fulfillment_status'
+};
+
+exports.Prisma.purchase_request_operator_seenOrderByRelevanceFieldEnum = {
+  company_id: 'company_id',
+  request_id: 'request_id',
+  user_id: 'user_id'
+};
+
+exports.Prisma.purchase_requestsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  status: 'status',
+  purchase_type: 'purchase_type',
+  urgency: 'urgency',
+  requested_by: 'requested_by',
+  requested_note: 'requested_note',
+  approved_by: 'approved_by',
+  approval_note: 'approval_note'
+};
+exports.menu_weekly_schedule_meal_slot = exports.$Enums.menu_weekly_schedule_meal_slot = {
+  BREAKFAST: 'BREAKFAST',
+  LUNCH: 'LUNCH',
+  DINNER: 'DINNER'
+};
 
 exports.Prisma.ModelName = {
-  CustomerPortalToken: 'CustomerPortalToken'
+  CustomerPortalToken: 'CustomerPortalToken',
+  brands: 'brands',
+  inventory_categories: 'inventory_categories',
+  inventory_demand_forecasts: 'inventory_demand_forecasts',
+  inventory_item_images: 'inventory_item_images',
+  inventory_items: 'inventory_items',
+  inventory_physical_count_session_lines: 'inventory_physical_count_session_lines',
+  inventory_physical_count_sessions: 'inventory_physical_count_sessions',
+  inventory_purchase_recommendations: 'inventory_purchase_recommendations',
+  inventory_stock_batches: 'inventory_stock_batches',
+  inventory_stock_movements: 'inventory_stock_movements',
+  inventory_units: 'inventory_units',
+  kitchen_daily_plan_lines: 'kitchen_daily_plan_lines',
+  kitchen_daily_plans: 'kitchen_daily_plans',
+  kitchen_inventory_holding: 'kitchen_inventory_holding',
+  kitchen_meal_programs: 'kitchen_meal_programs',
+  kitchen_menu_item_program_map: 'kitchen_menu_item_program_map',
+  kitchen_pipeline_runs: 'kitchen_pipeline_runs',
+  kitchen_program_recipe_lines: 'kitchen_program_recipe_lines',
+  kitchen_recipe_lines: 'kitchen_recipe_lines',
+  kitchen_store_requisition_lines: 'kitchen_store_requisition_lines',
+  kitchen_store_requisitions: 'kitchen_store_requisitions',
+  menu_weekly_schedule: 'menu_weekly_schedule',
+  purchase_receipt_lines: 'purchase_receipt_lines',
+  purchase_receipt_material_photos: 'purchase_receipt_material_photos',
+  purchase_receipts: 'purchase_receipts',
+  purchase_request_lines: 'purchase_request_lines',
+  purchase_request_operator_seen: 'purchase_request_operator_seen',
+  purchase_requests: 'purchase_requests'
 };
 /**
  * Create the Client
@@ -170,8 +839,8 @@ const config = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../../../generated/kitchen-prisma\"\n}\n\ndatasource db {\n  provider     = \"mysql\"\n  url          = env(\"KITCHEN_DATABASE_URL\")\n  relationMode = \"prisma\"\n}\n\nmodel CustomerPortalToken {\n  id         String    @id @default(uuid()) @db.VarChar(36)\n  shortToken String    @unique @map(\"short_token\") @db.VarChar(20)\n  userId     String    @map(\"user_id\") @db.VarChar(36)\n  expiresAt  DateTime  @map(\"expires_at\") @db.DateTime(0)\n  createdAt  DateTime  @default(now()) @map(\"created_at\")\n  usedAt     DateTime? @map(\"used_at\") @db.DateTime(0)\n\n  @@index([shortToken], map: \"idx_short_token\")\n  @@index([userId], map: \"idx_user_id\")\n  @@index([expiresAt], map: \"idx_expires_at\")\n  @@map(\"customer_portal_tokens\")\n}\n",
-  "inlineSchemaHash": "323c1547a5acce0cc0249687322e16de2d15f3a12cae093fbe44ef5208d75478",
+  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../../../generated/kitchen-prisma\"\n}\n\ndatasource db {\n  provider     = \"mysql\"\n  url          = env(\"KITCHEN_DATABASE_URL\")\n  relationMode = \"prisma\"\n}\n\nmodel CustomerPortalToken {\n  id         String    @id @default(uuid()) @db.VarChar(36)\n  shortToken String    @unique @map(\"short_token\") @db.VarChar(20)\n  userId     String    @map(\"user_id\") @db.VarChar(36)\n  expiresAt  DateTime  @map(\"expires_at\") @db.DateTime(0)\n  createdAt  DateTime  @default(now()) @map(\"created_at\")\n  usedAt     DateTime? @map(\"used_at\") @db.DateTime(0)\n\n  @@index([shortToken], map: \"idx_short_token\")\n  @@index([userId], map: \"idx_user_id\")\n  @@index([expiresAt], map: \"idx_expires_at\")\n  @@map(\"customer_portal_tokens\")\n}\n\n/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.\nmodel veg_bom_agg {\n  menu_item_id String   @db.Char(36)\n  n            String\n  u            String   @db.VarChar(50)\n  q            Decimal? @db.Decimal(36, 6)\n\n  @@map(\"_veg_bom_agg\")\n  @@ignore\n}\n\n/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.\nmodel veg_bom_stage {\n  menu_item_id String  @db.Char(36)\n  n            String\n  q            Decimal @db.Decimal(14, 6)\n  u            String  @db.VarChar(50)\n\n  @@map(\"_veg_bom_stage\")\n  @@ignore\n}\n\nmodel brands {\n  id          String   @id @db.Char(36)\n  company_id  String   @db.Char(36)\n  name        String   @db.VarChar(255)\n  logo_s3_key String?  @db.VarChar(500)\n  logo_s3_url String?  @db.VarChar(2000)\n  created_at  DateTime @default(now()) @db.DateTime(6)\n  updated_at  DateTime @default(now()) @db.DateTime(6)\n\n  @@unique([company_id, name], map: \"uq_brands_company_name\")\n  @@index([company_id], map: \"idx_brands_company\")\n}\n\nmodel inventory_categories {\n  id            String   @id @db.Char(36)\n  company_id    String   @db.Char(36)\n  name          String   @db.VarChar(100)\n  display_order Int      @default(0)\n  created_at    DateTime @default(now()) @db.DateTime(6)\n  updated_at    DateTime @default(now()) @db.DateTime(6)\n\n  @@unique([company_id, name], map: \"uq_categories_company_name\")\n  @@index([company_id], map: \"idx_categories_company\")\n}\n\nmodel inventory_demand_forecasts {\n  id                String   @id @db.Char(36)\n  run_id            String   @db.Char(36)\n  company_id        String   @db.Char(36)\n  forecast_date     DateTime @db.Date\n  meal_slot         String   @db.VarChar(20)\n  inventory_item_id String   @db.Char(36)\n  forecast_quantity Decimal  @db.Decimal(12, 4)\n  model_name        String   @db.VarChar(100)\n  created_at        DateTime @default(now()) @db.DateTime(6)\n\n  @@index([inventory_item_id], map: \"idx_inventory_demand_forecasts_item\")\n  @@index([company_id, forecast_date, meal_slot], map: \"idx_inventory_demand_forecasts_lookup\")\n}\n\nmodel inventory_item_images {\n  id                String   @id @db.Char(36)\n  company_id        String   @db.Char(36)\n  inventory_item_id String   @db.Char(36)\n  s3_key            String?  @db.VarChar(500)\n  s3_url            String?  @db.VarChar(500)\n  presigned_url     String?  @db.VarChar(500)\n  filename          String?  @db.VarChar(255)\n  content_type      String?  @db.VarChar(100)\n  file_size         BigInt?\n  sort_order        Int      @default(0)\n  is_primary        Boolean  @default(false)\n  uploaded_by       String?  @db.VarChar(100)\n  created_at        DateTime @default(now()) @db.DateTime(6)\n  updated_at        DateTime @default(now()) @db.DateTime(6)\n\n  @@index([company_id, inventory_item_id], map: \"idx_inventory_item_images_company_item\")\n  @@index([company_id, inventory_item_id, is_primary], map: \"idx_inventory_item_images_primary\")\n}\n\nmodel inventory_items {\n  id                 String   @id @db.Char(36)\n  company_id         String   @db.Char(36)\n  brand_id           String?  @db.Char(36)\n  name               String   @db.VarChar(255)\n  unit               String   @default(\"pcs\") @db.VarChar(50)\n  category           String?  @db.VarChar(100)\n  freshness_category String?  @db.VarChar(30)\n  min_quantity       Decimal? @db.Decimal(10, 2)\n  current_quantity   Decimal  @default(0.00) @db.Decimal(10, 2)\n  created_at         DateTime @default(now()) @db.DateTime(6)\n  updated_at         DateTime @default(now()) @db.DateTime(6)\n  unit_cost          Decimal? @db.Decimal(10, 2)\n\n  @@index([brand_id], map: \"idx_inventory_items_brand\")\n  @@index([company_id, category], map: \"idx_inventory_items_company_category\")\n  @@index([company_id, current_quantity], map: \"idx_inventory_items_company_currentqty\")\n  @@index([company_id, min_quantity], map: \"idx_inventory_items_company_minqty\")\n  @@index([company_id, name], map: \"idx_inventory_items_company_name\")\n}\n\nmodel inventory_physical_count_session_lines {\n  id                       String   @id @db.Char(36)\n  session_id               String   @db.Char(36)\n  company_id               String   @db.Char(36)\n  inventory_item_id        String   @db.Char(36)\n  physical_quantity        Decimal  @db.Decimal(12, 4)\n  system_quantity_snapshot Decimal? @db.Decimal(12, 4)\n  note                     String?  @db.VarChar(1000)\n  suspicious               Int      @default(0) @db.TinyInt\n  manager_acknowledged     Int      @default(0) @db.TinyInt\n  manager_note             String?  @db.VarChar(1000)\n  created_at               DateTime @default(now()) @db.DateTime(6)\n  updated_at               DateTime @default(now()) @db.DateTime(6)\n\n  @@unique([session_id, inventory_item_id], map: \"uq_ipcsl_session_item\")\n  @@index([company_id, inventory_item_id], map: \"idx_ipcsl_company_item\")\n  @@index([session_id], map: \"idx_ipcsl_session\")\n}\n\nmodel inventory_physical_count_sessions {\n  id             String    @id @db.Char(36)\n  company_id     String    @db.Char(36)\n  status         String    @default(\"DRAFT\") @db.VarChar(20)\n  title          String?   @db.VarChar(255)\n  readiness_note String?   @db.Text\n  created_by     String?   @db.VarChar(100)\n  finalized_at   DateTime? @db.DateTime(6)\n  created_at     DateTime  @default(now()) @db.DateTime(6)\n  updated_at     DateTime  @default(now()) @db.DateTime(6)\n\n  @@index([company_id, status], map: \"idx_ipcs_company_status\")\n}\n\nmodel inventory_purchase_recommendations {\n  id                            String   @id @db.Char(36)\n  run_id                        String   @db.Char(36)\n  company_id                    String   @db.Char(36)\n  forecast_date                 DateTime @db.Date\n  meal_slot                     String   @db.VarChar(20)\n  inventory_item_id             String   @db.Char(36)\n  forecast_quantity             Decimal  @db.Decimal(12, 4)\n  current_quantity              Decimal  @db.Decimal(12, 4)\n  safety_buffer                 Decimal  @default(0.0000) @db.Decimal(12, 4)\n  recommended_purchase_quantity Decimal  @db.Decimal(12, 4)\n  model_name                    String   @db.VarChar(100)\n  created_at                    DateTime @default(now()) @db.DateTime(6)\n\n  @@index([inventory_item_id], map: \"idx_inventory_purchase_reco_item\")\n  @@index([company_id, forecast_date, meal_slot], map: \"idx_inventory_purchase_reco_lookup\")\n}\n\nmodel inventory_stock_batches {\n  id                 String    @id @db.Char(36)\n  company_id         String    @db.Char(36)\n  inventory_item_id  String    @db.Char(36)\n  receipt_line_id    String?   @db.Char(36)\n  batch_quantity     Decimal   @default(0.0000) @db.Decimal(12, 4)\n  remaining_quantity Decimal   @default(0.0000) @db.Decimal(12, 4)\n  expiry_date        DateTime? @db.Date\n  manufacturing_date DateTime? @db.Date\n  received_at        DateTime  @db.DateTime(6)\n  is_expired         Boolean   @default(false)\n  is_blocked         Boolean   @default(false)\n  created_at         DateTime  @default(now()) @db.DateTime(6)\n  updated_at         DateTime  @default(now()) @db.DateTime(6)\n\n  @@index([company_id, inventory_item_id], map: \"idx_batch_company_item\")\n  @@index([company_id, expiry_date], map: \"idx_batch_expiry\")\n  @@index([company_id, inventory_item_id, remaining_quantity], map: \"idx_batch_remaining\")\n}\n\nmodel inventory_stock_movements {\n  id            String    @id @db.Char(36)\n  company_id    String    @db.Char(36)\n  item_id       String    @db.Char(36)\n  movement_type String    @db.VarChar(20)\n  quantity      Decimal   @db.Decimal(10, 2)\n  delta         Decimal   @db.Decimal(10, 2)\n  expiry_date   DateTime? @db.Date\n  note          String?   @db.VarChar(1000)\n  occurred_at   DateTime  @db.DateTime(6)\n  created_at    DateTime  @default(now()) @db.DateTime(6)\n\n  @@index([company_id, item_id, occurred_at], map: \"idx_inventory_stock_movements_company_item_time\")\n  @@index([company_id, occurred_at], map: \"idx_inventory_stock_movements_company_time\")\n  @@index([item_id, occurred_at], map: \"idx_inventory_stock_movements_item_time\")\n}\n\nmodel inventory_units {\n  id           String   @id @db.Char(36)\n  company_id   String   @db.Char(36)\n  name         String   @db.VarChar(50)\n  abbreviation String   @db.VarChar(20)\n  unit_type    String   @default(\"WEIGHT\") @db.VarChar(30)\n  created_at   DateTime @default(now()) @db.DateTime(6)\n  updated_at   DateTime @default(now()) @db.DateTime(6)\n\n  @@unique([company_id, name], map: \"uq_units_company_name\")\n  @@index([company_id], map: \"idx_units_company\")\n}\n\nmodel kitchen_daily_plan_lines {\n  id                     String   @id @db.VarChar(36)\n  plan_id                String   @db.VarChar(36)\n  company_id             String   @db.VarChar(36)\n  inventory_item_id      String   @db.VarChar(36)\n  required_quantity      Decimal  @db.Decimal(10, 4)\n  planned_issue_quantity Decimal  @db.Decimal(10, 4)\n  issued_quantity        Decimal  @db.Decimal(10, 4)\n  variance_note          String?  @db.VarChar(1000)\n  created_at             DateTime @db.DateTime(0)\n  updated_at             DateTime @db.DateTime(0)\n\n  @@index([plan_id, inventory_item_id], map: \"idx_kitchen_daily_plan_lines_plan_item\")\n  @@index([company_id], map: \"ix_kitchen_daily_plan_lines_company_id\")\n  @@index([inventory_item_id], map: \"ix_kitchen_daily_plan_lines_inventory_item_id\")\n  @@index([plan_id], map: \"ix_kitchen_daily_plan_lines_plan_id\")\n}\n\nmodel kitchen_daily_plans {\n  id           String   @id @db.VarChar(36)\n  company_id   String   @db.VarChar(36)\n  plan_date    DateTime @db.Date\n  meal_slot    String?  @db.VarChar(20)\n  status       String   @db.VarChar(20)\n  generated_by String?  @db.VarChar(100)\n  approved_by  String?  @db.VarChar(100)\n  issued_by    String?  @db.VarChar(100)\n  created_at   DateTime @db.DateTime(0)\n  updated_at   DateTime @db.DateTime(0)\n\n  @@index([company_id, plan_date, meal_slot], map: \"idx_kitchen_daily_plans_company_date_slot\")\n  @@index([company_id], map: \"ix_kitchen_daily_plans_company_id\")\n}\n\nmodel kitchen_inventory_holding {\n  id                String   @id @db.VarChar(36)\n  company_id        String   @db.VarChar(36)\n  inventory_item_id String   @db.VarChar(36)\n  quantity          Decimal  @db.Decimal(12, 4)\n  updated_at        DateTime @db.DateTime(0)\n\n  @@unique([company_id, inventory_item_id], map: \"uq_kitchen_holding_company_item\")\n  @@index([company_id], map: \"ix_kitchen_inventory_holding_company_id\")\n  @@index([inventory_item_id], map: \"ix_kitchen_inventory_holding_inventory_item_id\")\n}\n\nmodel kitchen_meal_programs {\n  id           String   @id @db.VarChar(36)\n  company_id   String   @db.VarChar(36)\n  code         String   @db.VarChar(64)\n  display_name String?  @db.VarChar(255)\n  created_at   DateTime @db.DateTime(0)\n  updated_at   DateTime @db.DateTime(0)\n\n  @@unique([company_id, code], map: \"uq_kmp_company_code\")\n  @@index([company_id], map: \"idx_kmp_company\")\n  @@index([company_id], map: \"ix_kitchen_meal_programs_company_id\")\n}\n\nmodel kitchen_menu_item_program_map {\n  id           String   @id @db.VarChar(36)\n  company_id   String   @db.VarChar(36)\n  menu_item_id String   @db.VarChar(36)\n  program_id   String   @db.VarChar(36)\n  created_at   DateTime @db.DateTime(0)\n  updated_at   DateTime @db.DateTime(0)\n\n  @@unique([company_id, menu_item_id], map: \"uq_kmipm_company_menu\")\n  @@index([program_id], map: \"idx_kmipm_program\")\n  @@index([company_id], map: \"ix_kitchen_menu_item_program_map_company_id\")\n  @@index([menu_item_id], map: \"ix_kitchen_menu_item_program_map_menu_item_id\")\n  @@index([program_id], map: \"ix_kitchen_menu_item_program_map_program_id\")\n}\n\nmodel kitchen_pipeline_runs {\n  id             String   @id @db.Char(36)\n  pipeline_name  String   @db.VarChar(100)\n  company_id     String   @db.Char(36)\n  as_of_date     DateTime @db.Date\n  status         String   @db.VarChar(20)\n  processed_rows Int      @default(0)\n  message        String?  @db.VarChar(1000)\n  started_at     DateTime @default(now()) @db.DateTime(6)\n  created_at     DateTime @default(now()) @db.DateTime(6)\n  updated_at     DateTime @default(now()) @db.DateTime(6)\n\n  @@index([pipeline_name, company_id, as_of_date], map: \"idx_kitchen_pipeline_runs_lookup\")\n  @@index([status], map: \"idx_kitchen_pipeline_runs_status\")\n}\n\nmodel kitchen_program_recipe_lines {\n  id                String   @id @db.VarChar(36)\n  company_id        String   @db.VarChar(36)\n  program_id        String   @db.VarChar(36)\n  inventory_item_id String   @db.VarChar(36)\n  quantity_per_unit Decimal  @db.Decimal(12, 4)\n  unit              String   @db.VarChar(50)\n  created_at        DateTime @db.DateTime(0)\n  updated_at        DateTime @db.DateTime(0)\n\n  @@unique([company_id, program_id, inventory_item_id], map: \"uq_kprl_prog_inv\")\n  @@index([program_id], map: \"idx_kprl_program\")\n  @@index([company_id], map: \"ix_kitchen_program_recipe_lines_company_id\")\n  @@index([inventory_item_id], map: \"ix_kitchen_program_recipe_lines_inventory_item_id\")\n  @@index([program_id], map: \"ix_kitchen_program_recipe_lines_program_id\")\n}\n\nmodel kitchen_recipe_lines {\n  id                String   @id @db.VarChar(36)\n  company_id        String   @db.VarChar(36)\n  menu_item_id      String   @db.VarChar(36)\n  inventory_item_id String   @db.VarChar(36)\n  quantity_per_unit Decimal  @db.Decimal(10, 4)\n  unit              String   @db.VarChar(50)\n  created_at        DateTime @db.DateTime(0)\n  updated_at        DateTime @db.DateTime(0)\n\n  @@index([company_id], map: \"ix_kitchen_recipe_lines_company_id\")\n  @@index([inventory_item_id], map: \"ix_kitchen_recipe_lines_inventory_item_id\")\n  @@index([menu_item_id], map: \"ix_kitchen_recipe_lines_menu_item_id\")\n  @@index([company_id, menu_item_id, inventory_item_id], map: \"ux_recipe_company_menu_inv\")\n}\n\nmodel kitchen_store_requisition_lines {\n  id                         String   @id @db.VarChar(36)\n  requisition_id             String   @db.VarChar(36)\n  company_id                 String   @db.VarChar(36)\n  inventory_item_id          String   @db.VarChar(36)\n  gross_requirement          Decimal  @db.Decimal(12, 4)\n  quantity_from_kitchen      Decimal  @db.Decimal(12, 4)\n  quantity_needed_from_store Decimal  @db.Decimal(12, 4)\n  quantity_requested         Decimal  @db.Decimal(12, 4)\n  quantity_approved          Decimal? @db.Decimal(12, 4)\n  quantity_surplus_issued    Decimal  @db.Decimal(12, 4)\n  quantity_issued_total      Decimal  @db.Decimal(12, 4)\n  created_at                 DateTime @db.DateTime(0)\n  updated_at                 DateTime @db.DateTime(0)\n\n  @@index([requisition_id], map: \"idx_ksrl_requisition\")\n  @@index([company_id], map: \"ix_kitchen_store_requisition_lines_company_id\")\n  @@index([inventory_item_id], map: \"ix_kitchen_store_requisition_lines_inventory_item_id\")\n  @@index([requisition_id], map: \"ix_kitchen_store_requisition_lines_requisition_id\")\n}\n\nmodel kitchen_store_requisitions {\n  id           String    @id @db.VarChar(36)\n  company_id   String    @db.VarChar(36)\n  for_date     DateTime  @db.Date\n  meal_slot    String?   @db.VarChar(20)\n  status       String    @db.VarChar(30)\n  requested_by String?   @db.VarChar(100)\n  submitted_at DateTime? @db.DateTime(0)\n  approved_by  String?   @db.VarChar(100)\n  approved_at  DateTime? @db.DateTime(0)\n  issued_by    String?   @db.VarChar(100)\n  issued_at    DateTime? @db.DateTime(0)\n  chef_note    String?   @db.VarChar(1000)\n  manager_note String?   @db.VarChar(1000)\n  created_at   DateTime  @db.DateTime(0)\n  updated_at   DateTime  @db.DateTime(0)\n\n  @@index([company_id, for_date, meal_slot], map: \"idx_ksr_company_date_slot\")\n  @@index([company_id], map: \"ix_kitchen_store_requisitions_company_id\")\n}\n\n/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments\nmodel menu_weekly_schedule {\n  id           String                         @id @db.Char(36)\n  company_id   String                         @db.VarChar(36)\n  menu_id      String                         @db.VarChar(36)\n  day_of_week  Int                            @db.UnsignedTinyInt\n  meal_slot    menu_weekly_schedule_meal_slot\n  menu_item_id String                         @db.VarChar(36)\n  created_at   DateTime                       @default(now())\n  updated_at   DateTime                       @default(now())\n\n  @@unique([company_id, menu_id, day_of_week, meal_slot], map: \"uq_menu_weekly_cell\")\n  @@index([menu_id], map: \"fk_mws_menu\")\n  @@index([company_id, menu_id], map: \"idx_mws_company_menu\")\n  @@index([menu_item_id], map: \"idx_mws_menu_item\")\n}\n\nmodel purchase_receipt_lines {\n  id                        String    @id @db.Char(36)\n  receipt_id                String    @db.Char(36)\n  company_id                String    @db.Char(36)\n  inventory_item_id         String    @db.Char(36)\n  purchase_request_line_id  String?   @db.Char(36)\n  purchased_qty             Decimal   @db.Decimal(12, 4)\n  purchase_unit             String    @db.VarChar(50)\n  conversion_to_base        Decimal   @default(1.000000) @db.Decimal(12, 6)\n  received_qty_in_base_unit Decimal   @db.Decimal(12, 4)\n  line_total                Decimal   @db.Decimal(14, 2)\n  unit_price_in_base        Decimal   @db.Decimal(14, 6)\n  purchase_date             DateTime  @db.Date\n  expiry_date               DateTime? @db.Date\n  manufacturing_date        DateTime? @db.Date\n  comparison_status         String    @default(\"UNLINKED\") @db.VarChar(30)\n  off_list_purchase_reason  String?   @db.VarChar(1000)\n  manager_review_status     String    @default(\"PENDING\") @db.VarChar(20)\n  manager_action            String?   @db.VarChar(50)\n  manager_action_note       String?   @db.VarChar(1000)\n  stock_applied             Boolean   @default(false)\n  stock_applied_at          DateTime? @db.DateTime(6)\n  created_at                DateTime  @default(now()) @db.DateTime(6)\n  updated_at                DateTime  @default(now()) @db.DateTime(6)\n  image_s3_key              String?   @db.VarChar(500)\n  image_s3_url              String?   @db.VarChar(2000)\n  image_uploaded_at         DateTime? @db.DateTime(0)\n  received_brand_id         String?   @db.VarChar(36)\n  received_brand_name       String?   @db.VarChar(255)\n\n  @@index([company_id, purchase_date], map: \"idx_purchase_receipt_lines_company_date\")\n  @@index([comparison_status], map: \"idx_purchase_receipt_lines_comparison_status\")\n  @@index([inventory_item_id, purchase_date], map: \"idx_purchase_receipt_lines_item_date\")\n  @@index([manager_review_status], map: \"idx_purchase_receipt_lines_manager_review\")\n  @@index([receipt_id], map: \"idx_purchase_receipt_lines_receipt\")\n  @@index([purchase_request_line_id], map: \"idx_purchase_receipt_lines_request_line\")\n}\n\nmodel purchase_receipt_material_photos {\n  id          String   @id @db.VarChar(36)\n  receipt_id  String   @db.VarChar(36)\n  company_id  String   @db.VarChar(36)\n  s3_key      String   @db.VarChar(500)\n  s3_url      String   @db.VarChar(2000)\n  uploaded_at DateTime @db.DateTime(0)\n\n  @@index([company_id], map: \"ix_max_kitchen_purchase_receipt_material_photos_company_id\")\n  @@index([receipt_id], map: \"ix_max_kitchen_purchase_receipt_material_photos_receipt_id\")\n}\n\nmodel purchase_receipts {\n  id                      String    @id @db.Char(36)\n  company_id              String    @db.Char(36)\n  purchase_request_id     String?   @db.Char(36)\n  reference_invoice       String?   @db.VarChar(100)\n  invoice_s3_key          String?   @db.VarChar(500)\n  invoice_s3_url          String?   @db.VarChar(2000)\n  invoice_uploaded_at     DateTime? @db.DateTime(6)\n  items_photo_s3_key      String?   @db.VarChar(500)\n  items_photo_s3_url      String?   @db.VarChar(2000)\n  items_photo_uploaded_at DateTime? @db.DateTime(6)\n  received_at             DateTime  @db.DateTime(6)\n  created_by              String?   @db.VarChar(100)\n  created_at              DateTime  @default(now()) @db.DateTime(6)\n  updated_at              DateTime  @default(now()) @db.DateTime(6)\n\n  @@index([company_id, received_at], map: \"idx_purchase_receipts_company_received\")\n  @@index([purchase_request_id], map: \"idx_purchase_receipts_request\")\n}\n\nmodel purchase_request_lines {\n  id                         String    @id @db.VarChar(36)\n  request_id                 String    @db.VarChar(36)\n  company_id                 String    @db.VarChar(36)\n  inventory_item_id          String?   @db.VarChar(36)\n  requested_item_name        String    @db.VarChar(255)\n  requested_brand_name       String?   @db.VarChar(255)\n  requested_unit             String    @db.VarChar(50)\n  requested_quantity         Decimal   @db.Decimal(12, 4)\n  approved_quantity          Decimal?  @db.Decimal(12, 4)\n  is_new_item                Boolean\n  resolved_inventory_item_id String?   @db.VarChar(36)\n  operator_note              String?   @db.VarChar(1000)\n  manager_note               String?   @db.VarChar(1000)\n  freshness_priority         String?   @db.VarChar(20)\n  line_status                String    @db.VarChar(20)\n  purchased_quantity         Decimal   @default(0.0000) @db.Decimal(12, 4)\n  fulfillment_status         String    @default(\"OPEN\") @db.VarChar(20)\n  last_purchased_at          DateTime? @db.DateTime(6)\n  created_at                 DateTime  @db.DateTime(0)\n  updated_at                 DateTime  @db.DateTime(0)\n\n  @@index([fulfillment_status], map: \"idx_purchase_request_lines_fulfillment\")\n  @@index([request_id, line_status], map: \"idx_purchase_request_lines_req_status\")\n  @@index([company_id], map: \"ix_purchase_request_lines_company_id\")\n  @@index([inventory_item_id], map: \"ix_purchase_request_lines_inventory_item_id\")\n  @@index([request_id], map: \"ix_purchase_request_lines_request_id\")\n  @@index([resolved_inventory_item_id], map: \"ix_purchase_request_lines_resolved_inventory_item_id\")\n}\n\nmodel purchase_request_operator_seen {\n  company_id                    String   @db.VarChar(36)\n  request_id                    String   @db.VarChar(36)\n  user_id                       String   @db.VarChar(100)\n  last_seen_content_revision_at DateTime @db.DateTime(0)\n  created_at                    DateTime @db.DateTime(0)\n  updated_at                    DateTime @db.DateTime(0)\n\n  @@id([company_id, request_id, user_id])\n  @@index([company_id, request_id], map: \"idx_pr_operator_seen_req\")\n}\n\nmodel purchase_requests {\n  id             String    @id @db.VarChar(36)\n  company_id     String    @db.VarChar(36)\n  status         String    @db.VarChar(20)\n  purchase_type  String    @default(\"AD_HOC\") @db.VarChar(20)\n  for_date       DateTime? @db.Date\n  urgency        String    @default(\"NORMAL\") @db.VarChar(20)\n  requested_by   String?   @db.VarChar(100)\n  requested_note String?   @db.VarChar(1000)\n  submitted_at   DateTime? @db.DateTime(6)\n  approved_by    String?   @db.VarChar(100)\n  approval_note  String?   @db.VarChar(1000)\n  approved_at    DateTime? @db.DateTime(0)\n  created_at     DateTime  @db.DateTime(0)\n  updated_at     DateTime  @db.DateTime(0)\n\n  @@index([company_id, status], map: \"idx_purchase_requests_company_status\")\n  @@index([submitted_at], map: \"idx_purchase_requests_submitted_at\")\n  @@index([company_id], map: \"ix_purchase_requests_company_id\")\n}\n\nenum menu_weekly_schedule_meal_slot {\n  BREAKFAST\n  LUNCH\n  DINNER\n}\n",
+  "inlineSchemaHash": "8746044e0e1d1c425e42587ecc35e470760a612e7ac2dea1ba62b53e3ee2fb7c",
   "copyEngine": true
 }
 
@@ -192,7 +861,7 @@ if (!fs.existsSync(path.join(__dirname, 'schema.prisma'))) {
   config.isBundled = true
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"CustomerPortalToken\":{\"dbName\":\"customer_portal_tokens\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"shortToken\",\"dbName\":\"short_token\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"dbName\":\"user_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"dbName\":\"expires_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"dbName\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"dbName\":\"used_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"CustomerPortalToken\":{\"dbName\":\"customer_portal_tokens\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"shortToken\",\"dbName\":\"short_token\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"dbName\":\"user_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"dbName\":\"expires_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"dbName\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"dbName\":\"used_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"brands\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"logo_s3_key\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"logo_s3_url\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"2000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"company_id\",\"name\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"company_id\",\"name\"]}],\"isGenerated\":false},\"inventory_categories\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"display_order\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"company_id\",\"name\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"company_id\",\"name\"]}],\"isGenerated\":false},\"inventory_demand_forecasts\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"run_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"forecast_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"meal_slot\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"forecast_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"model_name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"inventory_item_images\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"s3_key\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"s3_url\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"presigned_url\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"filename\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content_type\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"file_size\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"BigInt\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sort_order\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"is_primary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploaded_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"inventory_items\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"brand_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"unit\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"default\":\"pcs\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"category\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"freshness_category\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"30\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"min_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"10\",\"2\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"current_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"10\",\"2\"]],\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"unit_cost\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"10\",\"2\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"inventory_physical_count_session_lines\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"session_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"physical_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"system_quantity_snapshot\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"suspicious\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":[\"TinyInt\",[]],\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"manager_acknowledged\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":[\"TinyInt\",[]],\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"manager_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"session_id\",\"inventory_item_id\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"session_id\",\"inventory_item_id\"]}],\"isGenerated\":false},\"inventory_physical_count_sessions\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"default\":\"DRAFT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"readiness_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalized_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"inventory_purchase_recommendations\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"run_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"forecast_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"meal_slot\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"forecast_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"current_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"safety_buffer\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"recommended_purchase_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"model_name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"inventory_stock_batches\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"receipt_line_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"batch_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"remaining_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiry_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"manufacturing_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"received_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"is_expired\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"is_blocked\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"inventory_stock_movements\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"movement_type\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"10\",\"2\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"delta\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"10\",\"2\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiry_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"occurred_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"inventory_units\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"abbreviation\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"unit_type\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"30\"]],\"default\":\"WEIGHT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"company_id\",\"name\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"company_id\",\"name\"]}],\"isGenerated\":false},\"kitchen_daily_plan_lines\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"plan_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"required_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"10\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"planned_issue_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"10\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"issued_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"10\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"variance_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"kitchen_daily_plans\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"plan_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"meal_slot\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"generated_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"approved_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"issued_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"kitchen_inventory_holding\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"company_id\",\"inventory_item_id\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"company_id\",\"inventory_item_id\"]}],\"isGenerated\":false},\"kitchen_meal_programs\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"64\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"display_name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"company_id\",\"code\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"company_id\",\"code\"]}],\"isGenerated\":false},\"kitchen_menu_item_program_map\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"menu_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"program_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"company_id\",\"menu_item_id\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"company_id\",\"menu_item_id\"]}],\"isGenerated\":false},\"kitchen_pipeline_runs\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"pipeline_name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"as_of_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"processed_rows\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"message\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"started_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"kitchen_program_recipe_lines\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"program_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity_per_unit\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"unit\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"company_id\",\"program_id\",\"inventory_item_id\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"company_id\",\"program_id\",\"inventory_item_id\"]}],\"isGenerated\":false},\"kitchen_recipe_lines\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"menu_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity_per_unit\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"10\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"unit\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"kitchen_store_requisition_lines\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requisition_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gross_requirement\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity_from_kitchen\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity_needed_from_store\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity_requested\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity_approved\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity_surplus_issued\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"quantity_issued_total\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"kitchen_store_requisitions\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"for_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"meal_slot\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"30\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requested_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submitted_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"approved_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"approved_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"issued_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"issued_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chef_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"manager_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"menu_weekly_schedule\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"menu_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"day_of_week\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":[\"UnsignedTinyInt\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"meal_slot\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"menu_weekly_schedule_meal_slot\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"menu_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"company_id\",\"menu_id\",\"day_of_week\",\"meal_slot\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"company_id\",\"menu_id\",\"day_of_week\",\"meal_slot\"]}],\"isGenerated\":false,\"documentation\":\"This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments\"},\"purchase_receipt_lines\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"receipt_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"purchase_request_line_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"purchased_qty\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"purchase_unit\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"conversion_to_base\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"6\"]],\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"received_qty_in_base_unit\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"line_total\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"14\",\"2\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"unit_price_in_base\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"14\",\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"purchase_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiry_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"manufacturing_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"comparison_status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"30\"]],\"default\":\"UNLINKED\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"off_list_purchase_reason\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"manager_review_status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"manager_action\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"manager_action_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stock_applied\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stock_applied_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"image_s3_key\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"image_s3_url\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"2000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"image_uploaded_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"received_brand_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"received_brand_name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"purchase_receipt_material_photos\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"receipt_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"s3_key\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"s3_url\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"2000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploaded_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"purchase_receipts\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"purchase_request_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Char\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reference_invoice\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invoice_s3_key\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invoice_s3_url\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"2000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invoice_uploaded_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"items_photo_s3_key\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"items_photo_s3_url\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"2000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"items_photo_uploaded_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"received_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"purchase_request_lines\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"request_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requested_item_name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requested_brand_name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requested_unit\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requested_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"approved_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"is_new_item\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Boolean\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"resolved_inventory_item_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"operator_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"manager_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"freshness_priority\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"line_status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"purchased_quantity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Decimal\",\"nativeType\":[\"Decimal\",[\"12\",\"4\"]],\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fulfillment_status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"default\":\"OPEN\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"last_purchased_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"purchase_request_operator_seen\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"request_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"last_seen_content_revision_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":{\"name\":null,\"fields\":[\"company_id\",\"request_id\",\"user_id\"]},\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"purchase_requests\":{\"dbName\":null,\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"company_id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"36\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"purchase_type\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"default\":\"AD_HOC\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"for_date\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"Date\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"urgency\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"default\":\"NORMAL\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requested_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requested_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submitted_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"6\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"approved_by\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"approval_note\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"1000\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"approved_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"created_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updated_at\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":[\"DateTime\",[\"0\"]],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"menu_weekly_schedule_meal_slot\":{\"values\":[{\"name\":\"BREAKFAST\",\"dbName\":null},{\"name\":\"LUNCH\",\"dbName\":null},{\"name\":\"DINNER\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
 defineDmmfProperty(exports.Prisma, config.runtimeDataModel)
 config.engineWasm = undefined
 config.compilerWasm = undefined

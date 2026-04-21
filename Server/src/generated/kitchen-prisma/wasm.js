@@ -129,6 +129,388 @@ exports.Prisma.CustomerPortalTokenScalarFieldEnum = {
   usedAt: 'usedAt'
 };
 
+exports.Prisma.BrandsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  logo_s3_key: 'logo_s3_key',
+  logo_s3_url: 'logo_s3_url',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_categoriesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  display_order: 'display_order',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_demand_forecastsScalarFieldEnum = {
+  id: 'id',
+  run_id: 'run_id',
+  company_id: 'company_id',
+  forecast_date: 'forecast_date',
+  meal_slot: 'meal_slot',
+  inventory_item_id: 'inventory_item_id',
+  forecast_quantity: 'forecast_quantity',
+  model_name: 'model_name',
+  created_at: 'created_at'
+};
+
+exports.Prisma.Inventory_item_imagesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  s3_key: 's3_key',
+  s3_url: 's3_url',
+  presigned_url: 'presigned_url',
+  filename: 'filename',
+  content_type: 'content_type',
+  file_size: 'file_size',
+  sort_order: 'sort_order',
+  is_primary: 'is_primary',
+  uploaded_by: 'uploaded_by',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_itemsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  brand_id: 'brand_id',
+  name: 'name',
+  unit: 'unit',
+  category: 'category',
+  freshness_category: 'freshness_category',
+  min_quantity: 'min_quantity',
+  current_quantity: 'current_quantity',
+  created_at: 'created_at',
+  updated_at: 'updated_at',
+  unit_cost: 'unit_cost'
+};
+
+exports.Prisma.Inventory_physical_count_session_linesScalarFieldEnum = {
+  id: 'id',
+  session_id: 'session_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  physical_quantity: 'physical_quantity',
+  system_quantity_snapshot: 'system_quantity_snapshot',
+  note: 'note',
+  suspicious: 'suspicious',
+  manager_acknowledged: 'manager_acknowledged',
+  manager_note: 'manager_note',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_physical_count_sessionsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  status: 'status',
+  title: 'title',
+  readiness_note: 'readiness_note',
+  created_by: 'created_by',
+  finalized_at: 'finalized_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_purchase_recommendationsScalarFieldEnum = {
+  id: 'id',
+  run_id: 'run_id',
+  company_id: 'company_id',
+  forecast_date: 'forecast_date',
+  meal_slot: 'meal_slot',
+  inventory_item_id: 'inventory_item_id',
+  forecast_quantity: 'forecast_quantity',
+  current_quantity: 'current_quantity',
+  safety_buffer: 'safety_buffer',
+  recommended_purchase_quantity: 'recommended_purchase_quantity',
+  model_name: 'model_name',
+  created_at: 'created_at'
+};
+
+exports.Prisma.Inventory_stock_batchesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  receipt_line_id: 'receipt_line_id',
+  batch_quantity: 'batch_quantity',
+  remaining_quantity: 'remaining_quantity',
+  expiry_date: 'expiry_date',
+  manufacturing_date: 'manufacturing_date',
+  received_at: 'received_at',
+  is_expired: 'is_expired',
+  is_blocked: 'is_blocked',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Inventory_stock_movementsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  item_id: 'item_id',
+  movement_type: 'movement_type',
+  quantity: 'quantity',
+  delta: 'delta',
+  expiry_date: 'expiry_date',
+  note: 'note',
+  occurred_at: 'occurred_at',
+  created_at: 'created_at'
+};
+
+exports.Prisma.Inventory_unitsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  abbreviation: 'abbreviation',
+  unit_type: 'unit_type',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_daily_plan_linesScalarFieldEnum = {
+  id: 'id',
+  plan_id: 'plan_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  required_quantity: 'required_quantity',
+  planned_issue_quantity: 'planned_issue_quantity',
+  issued_quantity: 'issued_quantity',
+  variance_note: 'variance_note',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_daily_plansScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  plan_date: 'plan_date',
+  meal_slot: 'meal_slot',
+  status: 'status',
+  generated_by: 'generated_by',
+  approved_by: 'approved_by',
+  issued_by: 'issued_by',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_inventory_holdingScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  quantity: 'quantity',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_meal_programsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  code: 'code',
+  display_name: 'display_name',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_menu_item_program_mapScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_item_id: 'menu_item_id',
+  program_id: 'program_id',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_pipeline_runsScalarFieldEnum = {
+  id: 'id',
+  pipeline_name: 'pipeline_name',
+  company_id: 'company_id',
+  as_of_date: 'as_of_date',
+  status: 'status',
+  processed_rows: 'processed_rows',
+  message: 'message',
+  started_at: 'started_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_program_recipe_linesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  program_id: 'program_id',
+  inventory_item_id: 'inventory_item_id',
+  quantity_per_unit: 'quantity_per_unit',
+  unit: 'unit',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_recipe_linesScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_item_id: 'menu_item_id',
+  inventory_item_id: 'inventory_item_id',
+  quantity_per_unit: 'quantity_per_unit',
+  unit: 'unit',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_store_requisition_linesScalarFieldEnum = {
+  id: 'id',
+  requisition_id: 'requisition_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  gross_requirement: 'gross_requirement',
+  quantity_from_kitchen: 'quantity_from_kitchen',
+  quantity_needed_from_store: 'quantity_needed_from_store',
+  quantity_requested: 'quantity_requested',
+  quantity_approved: 'quantity_approved',
+  quantity_surplus_issued: 'quantity_surplus_issued',
+  quantity_issued_total: 'quantity_issued_total',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Kitchen_store_requisitionsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  for_date: 'for_date',
+  meal_slot: 'meal_slot',
+  status: 'status',
+  requested_by: 'requested_by',
+  submitted_at: 'submitted_at',
+  approved_by: 'approved_by',
+  approved_at: 'approved_at',
+  issued_by: 'issued_by',
+  issued_at: 'issued_at',
+  chef_note: 'chef_note',
+  manager_note: 'manager_note',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Menu_weekly_scheduleScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_id: 'menu_id',
+  day_of_week: 'day_of_week',
+  meal_slot: 'meal_slot',
+  menu_item_id: 'menu_item_id',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Purchase_receipt_linesScalarFieldEnum = {
+  id: 'id',
+  receipt_id: 'receipt_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  purchase_request_line_id: 'purchase_request_line_id',
+  purchased_qty: 'purchased_qty',
+  purchase_unit: 'purchase_unit',
+  conversion_to_base: 'conversion_to_base',
+  received_qty_in_base_unit: 'received_qty_in_base_unit',
+  line_total: 'line_total',
+  unit_price_in_base: 'unit_price_in_base',
+  purchase_date: 'purchase_date',
+  expiry_date: 'expiry_date',
+  manufacturing_date: 'manufacturing_date',
+  comparison_status: 'comparison_status',
+  off_list_purchase_reason: 'off_list_purchase_reason',
+  manager_review_status: 'manager_review_status',
+  manager_action: 'manager_action',
+  manager_action_note: 'manager_action_note',
+  stock_applied: 'stock_applied',
+  stock_applied_at: 'stock_applied_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at',
+  image_s3_key: 'image_s3_key',
+  image_s3_url: 'image_s3_url',
+  image_uploaded_at: 'image_uploaded_at',
+  received_brand_id: 'received_brand_id',
+  received_brand_name: 'received_brand_name'
+};
+
+exports.Prisma.Purchase_receipt_material_photosScalarFieldEnum = {
+  id: 'id',
+  receipt_id: 'receipt_id',
+  company_id: 'company_id',
+  s3_key: 's3_key',
+  s3_url: 's3_url',
+  uploaded_at: 'uploaded_at'
+};
+
+exports.Prisma.Purchase_receiptsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  purchase_request_id: 'purchase_request_id',
+  reference_invoice: 'reference_invoice',
+  invoice_s3_key: 'invoice_s3_key',
+  invoice_s3_url: 'invoice_s3_url',
+  invoice_uploaded_at: 'invoice_uploaded_at',
+  items_photo_s3_key: 'items_photo_s3_key',
+  items_photo_s3_url: 'items_photo_s3_url',
+  items_photo_uploaded_at: 'items_photo_uploaded_at',
+  received_at: 'received_at',
+  created_by: 'created_by',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Purchase_request_linesScalarFieldEnum = {
+  id: 'id',
+  request_id: 'request_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  requested_item_name: 'requested_item_name',
+  requested_brand_name: 'requested_brand_name',
+  requested_unit: 'requested_unit',
+  requested_quantity: 'requested_quantity',
+  approved_quantity: 'approved_quantity',
+  is_new_item: 'is_new_item',
+  resolved_inventory_item_id: 'resolved_inventory_item_id',
+  operator_note: 'operator_note',
+  manager_note: 'manager_note',
+  freshness_priority: 'freshness_priority',
+  line_status: 'line_status',
+  purchased_quantity: 'purchased_quantity',
+  fulfillment_status: 'fulfillment_status',
+  last_purchased_at: 'last_purchased_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Purchase_request_operator_seenScalarFieldEnum = {
+  company_id: 'company_id',
+  request_id: 'request_id',
+  user_id: 'user_id',
+  last_seen_content_revision_at: 'last_seen_content_revision_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Purchase_requestsScalarFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  status: 'status',
+  purchase_type: 'purchase_type',
+  for_date: 'for_date',
+  urgency: 'urgency',
+  requested_by: 'requested_by',
+  requested_note: 'requested_note',
+  submitted_at: 'submitted_at',
+  approved_by: 'approved_by',
+  approval_note: 'approval_note',
+  approved_at: 'approved_at',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -145,9 +527,296 @@ exports.Prisma.CustomerPortalTokenOrderByRelevanceFieldEnum = {
   userId: 'userId'
 };
 
+exports.Prisma.brandsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  logo_s3_key: 'logo_s3_key',
+  logo_s3_url: 'logo_s3_url'
+};
+
+exports.Prisma.inventory_categoriesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name'
+};
+
+exports.Prisma.inventory_demand_forecastsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  run_id: 'run_id',
+  company_id: 'company_id',
+  meal_slot: 'meal_slot',
+  inventory_item_id: 'inventory_item_id',
+  model_name: 'model_name'
+};
+
+exports.Prisma.inventory_item_imagesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  s3_key: 's3_key',
+  s3_url: 's3_url',
+  presigned_url: 'presigned_url',
+  filename: 'filename',
+  content_type: 'content_type',
+  uploaded_by: 'uploaded_by'
+};
+
+exports.Prisma.inventory_itemsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  brand_id: 'brand_id',
+  name: 'name',
+  unit: 'unit',
+  category: 'category',
+  freshness_category: 'freshness_category'
+};
+
+exports.Prisma.inventory_physical_count_session_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  session_id: 'session_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  note: 'note',
+  manager_note: 'manager_note'
+};
+
+exports.Prisma.inventory_physical_count_sessionsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  status: 'status',
+  title: 'title',
+  readiness_note: 'readiness_note',
+  created_by: 'created_by'
+};
+
+exports.Prisma.inventory_purchase_recommendationsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  run_id: 'run_id',
+  company_id: 'company_id',
+  meal_slot: 'meal_slot',
+  inventory_item_id: 'inventory_item_id',
+  model_name: 'model_name'
+};
+
+exports.Prisma.inventory_stock_batchesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  receipt_line_id: 'receipt_line_id'
+};
+
+exports.Prisma.inventory_stock_movementsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  item_id: 'item_id',
+  movement_type: 'movement_type',
+  note: 'note'
+};
+
+exports.Prisma.inventory_unitsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  name: 'name',
+  abbreviation: 'abbreviation',
+  unit_type: 'unit_type'
+};
+
+exports.Prisma.kitchen_daily_plan_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  plan_id: 'plan_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  variance_note: 'variance_note'
+};
+
+exports.Prisma.kitchen_daily_plansOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  meal_slot: 'meal_slot',
+  status: 'status',
+  generated_by: 'generated_by',
+  approved_by: 'approved_by',
+  issued_by: 'issued_by'
+};
+
+exports.Prisma.kitchen_inventory_holdingOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id'
+};
+
+exports.Prisma.kitchen_meal_programsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  code: 'code',
+  display_name: 'display_name'
+};
+
+exports.Prisma.kitchen_menu_item_program_mapOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_item_id: 'menu_item_id',
+  program_id: 'program_id'
+};
+
+exports.Prisma.kitchen_pipeline_runsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  pipeline_name: 'pipeline_name',
+  company_id: 'company_id',
+  status: 'status',
+  message: 'message'
+};
+
+exports.Prisma.kitchen_program_recipe_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  program_id: 'program_id',
+  inventory_item_id: 'inventory_item_id',
+  unit: 'unit'
+};
+
+exports.Prisma.kitchen_recipe_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_item_id: 'menu_item_id',
+  inventory_item_id: 'inventory_item_id',
+  unit: 'unit'
+};
+
+exports.Prisma.kitchen_store_requisition_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  requisition_id: 'requisition_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id'
+};
+
+exports.Prisma.kitchen_store_requisitionsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  meal_slot: 'meal_slot',
+  status: 'status',
+  requested_by: 'requested_by',
+  approved_by: 'approved_by',
+  issued_by: 'issued_by',
+  chef_note: 'chef_note',
+  manager_note: 'manager_note'
+};
+
+exports.Prisma.menu_weekly_scheduleOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  menu_id: 'menu_id',
+  menu_item_id: 'menu_item_id'
+};
+
+exports.Prisma.purchase_receipt_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  receipt_id: 'receipt_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  purchase_request_line_id: 'purchase_request_line_id',
+  purchase_unit: 'purchase_unit',
+  comparison_status: 'comparison_status',
+  off_list_purchase_reason: 'off_list_purchase_reason',
+  manager_review_status: 'manager_review_status',
+  manager_action: 'manager_action',
+  manager_action_note: 'manager_action_note',
+  image_s3_key: 'image_s3_key',
+  image_s3_url: 'image_s3_url',
+  received_brand_id: 'received_brand_id',
+  received_brand_name: 'received_brand_name'
+};
+
+exports.Prisma.purchase_receipt_material_photosOrderByRelevanceFieldEnum = {
+  id: 'id',
+  receipt_id: 'receipt_id',
+  company_id: 'company_id',
+  s3_key: 's3_key',
+  s3_url: 's3_url'
+};
+
+exports.Prisma.purchase_receiptsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  purchase_request_id: 'purchase_request_id',
+  reference_invoice: 'reference_invoice',
+  invoice_s3_key: 'invoice_s3_key',
+  invoice_s3_url: 'invoice_s3_url',
+  items_photo_s3_key: 'items_photo_s3_key',
+  items_photo_s3_url: 'items_photo_s3_url',
+  created_by: 'created_by'
+};
+
+exports.Prisma.purchase_request_linesOrderByRelevanceFieldEnum = {
+  id: 'id',
+  request_id: 'request_id',
+  company_id: 'company_id',
+  inventory_item_id: 'inventory_item_id',
+  requested_item_name: 'requested_item_name',
+  requested_brand_name: 'requested_brand_name',
+  requested_unit: 'requested_unit',
+  resolved_inventory_item_id: 'resolved_inventory_item_id',
+  operator_note: 'operator_note',
+  manager_note: 'manager_note',
+  freshness_priority: 'freshness_priority',
+  line_status: 'line_status',
+  fulfillment_status: 'fulfillment_status'
+};
+
+exports.Prisma.purchase_request_operator_seenOrderByRelevanceFieldEnum = {
+  company_id: 'company_id',
+  request_id: 'request_id',
+  user_id: 'user_id'
+};
+
+exports.Prisma.purchase_requestsOrderByRelevanceFieldEnum = {
+  id: 'id',
+  company_id: 'company_id',
+  status: 'status',
+  purchase_type: 'purchase_type',
+  urgency: 'urgency',
+  requested_by: 'requested_by',
+  requested_note: 'requested_note',
+  approved_by: 'approved_by',
+  approval_note: 'approval_note'
+};
+exports.menu_weekly_schedule_meal_slot = exports.$Enums.menu_weekly_schedule_meal_slot = {
+  BREAKFAST: 'BREAKFAST',
+  LUNCH: 'LUNCH',
+  DINNER: 'DINNER'
+};
 
 exports.Prisma.ModelName = {
-  CustomerPortalToken: 'CustomerPortalToken'
+  CustomerPortalToken: 'CustomerPortalToken',
+  brands: 'brands',
+  inventory_categories: 'inventory_categories',
+  inventory_demand_forecasts: 'inventory_demand_forecasts',
+  inventory_item_images: 'inventory_item_images',
+  inventory_items: 'inventory_items',
+  inventory_physical_count_session_lines: 'inventory_physical_count_session_lines',
+  inventory_physical_count_sessions: 'inventory_physical_count_sessions',
+  inventory_purchase_recommendations: 'inventory_purchase_recommendations',
+  inventory_stock_batches: 'inventory_stock_batches',
+  inventory_stock_movements: 'inventory_stock_movements',
+  inventory_units: 'inventory_units',
+  kitchen_daily_plan_lines: 'kitchen_daily_plan_lines',
+  kitchen_daily_plans: 'kitchen_daily_plans',
+  kitchen_inventory_holding: 'kitchen_inventory_holding',
+  kitchen_meal_programs: 'kitchen_meal_programs',
+  kitchen_menu_item_program_map: 'kitchen_menu_item_program_map',
+  kitchen_pipeline_runs: 'kitchen_pipeline_runs',
+  kitchen_program_recipe_lines: 'kitchen_program_recipe_lines',
+  kitchen_recipe_lines: 'kitchen_recipe_lines',
+  kitchen_store_requisition_lines: 'kitchen_store_requisition_lines',
+  kitchen_store_requisitions: 'kitchen_store_requisitions',
+  menu_weekly_schedule: 'menu_weekly_schedule',
+  purchase_receipt_lines: 'purchase_receipt_lines',
+  purchase_receipt_material_photos: 'purchase_receipt_material_photos',
+  purchase_receipts: 'purchase_receipts',
+  purchase_request_lines: 'purchase_request_lines',
+  purchase_request_operator_seen: 'purchase_request_operator_seen',
+  purchase_requests: 'purchase_requests'
 };
 
 /**

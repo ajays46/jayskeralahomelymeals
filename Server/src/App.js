@@ -201,5 +201,5 @@ const PORT = process.env.PORT || 5000;
     }
   })();
   console.log("Connected DB:", process.env.DATABASE_URL);
-  
+  console.log("KITCHEN_DATABASE_URL:", process.env.KITCHEN_DATABASE_URL);
 

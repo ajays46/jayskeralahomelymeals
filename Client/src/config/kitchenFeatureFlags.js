@@ -17,3 +17,11 @@ export function kitchenPlanRequireApproval() {
   }
   return String(raw).toLowerCase() === 'true';
 }
+
+/**
+ * Item Master “Add category” block. Hidden unless explicitly enabled.
+ * Set `VITE_KITCHEN_INVENTORY_SHOW_ADD_CATEGORY=true` in `.env` (Vite) to show again.
+ */
+export function kitchenInventoryShowAddCategorySection() {
+  return String(import.meta.env.VITE_KITCHEN_INVENTORY_SHOW_ADD_CATEGORY || '').toLowerCase() === 'true';
+}

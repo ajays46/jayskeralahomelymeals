@@ -12,6 +12,7 @@ const managerLinks = [
   { to: 'store-manager/purchase-comparison', label: 'Purchase Comparison' },
   { to: 'store-manager/off-list-review', label: 'Purchase Manager Review' },
   { to: 'store-manager/inventory', label: 'Inventory View' },
+  { to: 'store-manager/item-master', label: 'Item master' },
   { to: 'store-manager/expiry-dashboard', label: 'Expiry dashboard' },
   { to: 'store-manager/stock-logs', label: 'Stock Logs' },
   { to: 'store-manager/plan-approval', label: 'Plan Approval' },

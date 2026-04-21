@@ -38,6 +38,7 @@ import StoreManagerKitchenDashboard from './pages/store-manager/StoreManagerKitc
 import StoreManagerPlanApprovalPage from './pages/store-manager/StoreManagerPlanApprovalPage';
 import StoreManagerReportsPage from './pages/store-manager/StoreManagerReportsPage';
 import StoreManagerInventoryViewPage from './pages/store-manager/StoreManagerInventoryViewPage';
+import StoreManagerItemMasterPage from './pages/store-manager/StoreManagerItemMasterPage';
 import StoreManagerExpiryDashboardPage from './pages/store-manager/StoreManagerExpiryDashboardPage';
 import StoreManagerStockLogsPage from './pages/store-manager/StoreManagerStockLogsPage';
 import StoreOperatorRecipeBomPage from './pages/store-operator/StoreOperatorRecipeBomPage';
@@ -284,6 +285,7 @@ const App = () => {
                 <Route path="store-manager/plan-approval" element={<StoreManagerPlanApprovalPage />} />
                 <Route path="store-manager/reports" element={<StoreManagerReportsPage />} />
                 <Route path="store-manager/inventory" element={<StoreManagerInventoryViewPage />} />
+                <Route path="store-manager/item-master" element={<StoreManagerItemMasterPage />} />
                 <Route path="store-manager/expiry-dashboard" element={<StoreManagerExpiryDashboardPage />} />
                 <Route path="store-manager/stock-logs" element={<StoreManagerStockLogsPage />} />
                 <Route path="store-manager/forecast" element={<StoreManagerForecastDashboardPage />} />
