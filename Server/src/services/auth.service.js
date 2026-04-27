@@ -173,7 +173,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         const refreshToken = generateRefreshToken(user.id, allRoles);
 
         // Company path for redirect: company admins go to their company URL (e.g. JKHM -> /jkhm)
-        const companyPath = user.company?.name
+        const resolvedCompanyPath = user.company?.name
             ? String(user.company.name).trim().toLowerCase()
             : null;
 
@@ -187,7 +187,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
                 role: primaryRole.name,
                 roles: user.userRoles.map(role => role.name), // Include all roles
                 companyId: user.companyId ?? undefined,
-                companyPath // e.g. "jkhm" or "jlg" for redirect after login
+                companyPath: resolvedCompanyPath // e.g. "jkhm" or "jlg" for redirect after login
             },
             token: {
                 accessToken,
