@@ -966,6 +966,8 @@ enum user_roles_name {
   PARTNER_MANAGER
   CEO
   CFO
+  STORE_OPERATOR
+  STORE_MANAGER
 }
 
 enum DeliveryExecutiveStatus {
