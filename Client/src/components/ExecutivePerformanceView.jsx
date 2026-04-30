@@ -37,7 +37,7 @@ const SESSION_OPTIONS = [
  * ExecutivePerformanceView - CXO view of all delivery executives' performance
  * Uses /api/executive/performance with optional filters: start_date, end_date, days, session, min_routes, driver_name
  */
-const ExecutivePerformanceView = ({ enabled = true }) => {
+const ExecutivePerformanceView = ({ enabled = true, onSelectExecutiveDrillDown, onViewRoutesFromSummary }) => {
   const [expandedId, setExpandedId] = useState(null);
   const [filterForm, setFilterForm] = useState({
     start_date: '',
@@ -398,7 +398,20 @@ const ExecutivePerformanceView = ({ enabled = true }) => {
                             </div>
                           </td>
                           <td className="px-5 py-4 whitespace-nowrap text-right text-sm text-gray-900">{ex.total_routes ?? '—'}</td>
-                          <td className="px-5 py-4 whitespace-nowrap text-right text-sm text-gray-900">{ex.total_deliveries ?? '—'}</td>
+                          <td className="px-5 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                            {onSelectExecutiveDrillDown ? (
+                              <button
+                                type="button"
+                                onClick={() => onSelectExecutiveDrillDown(ex)}
+                                className="font-medium text-blue-600 hover:text-blue-800 underline-offset-2 hover:underline"
+                                title="View routes for this executive"
+                              >
+                                {ex.total_deliveries ?? '—'}
+                              </button>
+                            ) : (
+                              ex.total_deliveries ?? '—'
+                            )}
+                          </td>
                           <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
                             {perf.average_efficiency_score != null ? `${Number(perf.average_efficiency_score).toFixed(1)}%` : '—'}
                           </td>

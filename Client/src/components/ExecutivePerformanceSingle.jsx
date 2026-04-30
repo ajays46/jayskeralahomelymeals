@@ -11,7 +11,8 @@ const ExecutivePerformanceSingle = ({
   isLoading,
   error,
   refetch,
-  driverName
+  driverName,
+  onNavigateToRoutes
 }) => {
   const [sessionsExpanded, setSessionsExpanded] = useState(false);
 
@@ -94,6 +95,13 @@ const ExecutivePerformanceSingle = ({
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Total deliveries</p>
           <p className="mt-1 text-2xl font-semibold text-gray-900">{ex.total_deliveries ?? '—'}</p>
+          <button
+            type="button"
+            onClick={() => onNavigateToRoutes?.()}
+            className="mt-3 inline-flex items-center rounded-md border border-transparent bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            View Routes
+          </button>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Avg efficiency</p>

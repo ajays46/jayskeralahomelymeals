@@ -194,6 +194,66 @@ const DeliveryExecutivePage = () => {
     return withDates ?? matches[0] ?? drivers[0];
   }, [availabilityData?.drivers, routeMapFilters.driver_name]);
 
+  const getDefaultDateAndSession = useCallback((driverAvailability) => {
+    const availableDates = Array.isArray(driverAvailability?.available_dates) ? driverAvailability.available_dates : [];
+    if (!availableDates.length) return { date: '', session: '' };
+
+    // Prefer latest available date from API response.
+    const defaultDate = [...availableDates].sort((a, b) => String(b).localeCompare(String(a)))[0];
+    const sessionsForDate = driverAvailability?.available_sessions?.[defaultDate];
+    const availableSessions = Array.isArray(sessionsForDate)
+      ? sessionsForDate
+      : (sessionsForDate && typeof sessionsForDate === 'object' ? Object.keys(sessionsForDate) : []);
+
+    const normalizedSessions = availableSessions.map((s) => String(s).toUpperCase());
+    const anyIndex = normalizedSessions.findIndex((s) => s === 'ANY');
+    const preferredSession = anyIndex >= 0 ? availableSessions[anyIndex] : (availableSessions[0] || '');
+
+    return {
+      date: defaultDate,
+      session: preferredSession
+    };
+  }, []);
+
+  // Auto-apply default date/session in Routes tab so route details are visible without extra clicks.
+  useEffect(() => {
+    if (!isCXOUser || executiveViewTab !== 'routes' || !routeMapFilters.driver_name || availabilityLoading || !selectedDriverAvailability) return;
+
+    const { date: defaultDate, session: defaultSession } = getDefaultDateAndSession(selectedDriverAvailability);
+    if (!defaultDate) return;
+
+    const shouldUpdateForm = !routeMapFilters.date;
+    const shouldUpdateApplied = !appliedRouteMapFilters.date;
+    if (!shouldUpdateForm && !shouldUpdateApplied) return;
+
+    if (shouldUpdateForm) {
+      setRouteMapFilters((prev) => ({
+        ...prev,
+        date: defaultDate,
+        session: prev.session || defaultSession || ''
+      }));
+    }
+
+    if (shouldUpdateApplied) {
+      setAppliedRouteMapFilters((prev) => ({
+        ...prev,
+        driver_name: routeMapFilters.driver_name,
+        date: defaultDate,
+        session: prev.session || defaultSession || '',
+        route_id: prev.route_id || ''
+      }));
+    }
+  }, [
+    isCXOUser,
+    executiveViewTab,
+    routeMapFilters.driver_name,
+    routeMapFilters.date,
+    appliedRouteMapFilters.date,
+    availabilityLoading,
+    selectedDriverAvailability,
+    getDefaultDateAndSession
+  ]);
+
   // Get current date string (memoized to avoid unnecessary recalculations)
   const currentDateStr = useMemo(() => {
     const today = new Date();
@@ -3052,7 +3112,29 @@ const DeliveryExecutivePage = () => {
               <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto space-y-5">
                     {/* No executive selected: all-executives performance */}
                     {!routeMapFilters.driver_name ? (
-                      <ExecutivePerformanceView enabled={isCXOUser} />
+                      <ExecutivePerformanceView
+                        enabled={isCXOUser}
+                        onSelectExecutiveDrillDown={(executive) => {
+                          const nextDriverName = executive?.driver_name || '';
+                          if (!nextDriverName) return;
+                          setSelectedExecutiveIdCXO(executive?.driver_id || null);
+                          setRouteMapFilters({ driver_name: nextDriverName, date: '', session: '', route_id: '' });
+                          setAppliedRouteMapFilters({ driver_name: nextDriverName, date: '', session: '', route_id: '' });
+                          setExecutiveViewTab('routes');
+                        }}
+                        onViewRoutesFromSummary={(executives) => {
+                          if (!Array.isArray(executives) || executives.length === 0) return;
+                          const ranked = [...executives].sort((a, b) => (b?.total_deliveries ?? 0) - (a?.total_deliveries ?? 0));
+                          const topExecutive = ranked[0];
+                          const nextDriverName = topExecutive?.driver_name || '';
+                          if (!nextDriverName) return;
+
+                          setSelectedExecutiveIdCXO(topExecutive?.driver_id || null);
+                          setRouteMapFilters({ driver_name: nextDriverName, date: '', session: '', route_id: '' });
+                          setAppliedRouteMapFilters({ driver_name: nextDriverName, date: '', session: '', route_id: '' });
+                          setExecutiveViewTab('routes');
+                        }}
+                      />
                     ) : (
                       /* Executive selected: tabs — Performance | Routes */
                       <div className="space-y-0">
@@ -3090,6 +3172,23 @@ const DeliveryExecutivePage = () => {
                               error={executivePerformanceSingleError}
                               refetch={refetchExecutivePerformanceSingle}
                               driverName={routeMapFilters.driver_name}
+                              onNavigateToRoutes={() => {
+                                setExecutiveViewTab('routes');
+                                const { date: defaultDate, session: defaultSession } = getDefaultDateAndSession(selectedDriverAvailability);
+                                if (!defaultDate) return;
+
+                                setRouteMapFilters((prev) => ({
+                                  ...prev,
+                                  date: prev.date || defaultDate,
+                                  session: prev.session || defaultSession || ''
+                                }));
+                                setAppliedRouteMapFilters((prev) => ({
+                                  ...prev,
+                                  driver_name: prev.driver_name || routeMapFilters.driver_name,
+                                  date: prev.date || defaultDate,
+                                  session: prev.session || defaultSession || ''
+                                }));
+                              }}
                             />
                           ) : (
                             <div className="space-y-5">
@@ -3118,7 +3217,17 @@ const DeliveryExecutivePage = () => {
                                           return (
                                             <select
                                               value={routeMapFilters.date || ''}
-                                              onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, date: e.target.value, session: '' }))}
+                                              onChange={(e) => {
+                                                const nextDate = e.target.value;
+                                                const sessionsForDate = selectedDriverAvailability?.available_sessions?.[nextDate];
+                                                const availableSessions = Array.isArray(sessionsForDate)
+                                                  ? sessionsForDate
+                                                  : (sessionsForDate && typeof sessionsForDate === 'object' ? Object.keys(sessionsForDate) : []);
+                                                const normalizedSessions = availableSessions.map((s) => String(s).toUpperCase());
+                                                const anyIndex = normalizedSessions.findIndex((s) => s === 'ANY');
+                                                const preferredSession = anyIndex >= 0 ? availableSessions[anyIndex] : (availableSessions[0] || '');
+                                                setRouteMapFilters((prev) => ({ ...prev, date: nextDate, session: preferredSession }));
+                                              }}
                                               className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                             >
                                               <option value="">Select date</option>
@@ -3132,7 +3241,7 @@ const DeliveryExecutivePage = () => {
                                           <input
                                             type="date"
                                             value={routeMapFilters.date || ''}
-                                            onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, date: e.target.value, session: '' }))}
+                                            onChange={(e) => setRouteMapFilters((prev) => ({ ...prev, date: e.target.value, session: prev.session || 'ANY' }))}
                                             disabled={!hasDriver}
                                             className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                                           />
@@ -3167,6 +3276,7 @@ const DeliveryExecutivePage = () => {
                                             className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                                           >
                                             <option value="">{hasDate ? 'All Sessions' : 'Select date first'}</option>
+                                            <option value="ANY">Delivery</option>
                                             <option value="BREAKFAST">Breakfast</option>
                                             <option value="LUNCH">Lunch</option>
                                             <option value="DINNER">Dinner</option>
