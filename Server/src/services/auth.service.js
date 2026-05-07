@@ -8,7 +8,10 @@ import validator from 'validator';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
 import nodemailer from 'nodemailer';
 import { getCompanyByPath } from './tenant.service.js';
+import { OAuth2Client } from 'google-auth-library';
 dotenv.config();
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /**
  * Auth Service - Handles user authentication and authorization business logic
@@ -198,6 +201,134 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         console.error('Login error:', error);
         throw error;
     }
+};
+
+export const loginWithGoogle = async ({ credential, companyPath }) => {
+    if (!credential) {
+        throw new AppError('Google credential is required', 400);
+    }
+    if (!process.env.GOOGLE_CLIENT_ID) {
+        throw new AppError('Google login is not configured on server', 500);
+    }
+
+    let payload = null;
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+        payload = ticket.getPayload();
+    } catch (error) {
+        throw new AppError('Invalid Google credential', 401);
+    }
+
+    const email = payload?.email?.trim().toLowerCase();
+    const isEmailVerified = Boolean(payload?.email_verified);
+
+    if (!email || !isEmailVerified) {
+        throw new AppError('Google account email is not verified', 401);
+    }
+
+    let auth = await prisma.auth.findUnique({ where: { email } });
+
+    let companyId = null;
+    if (companyPath && String(companyPath).trim()) {
+        const company = await getCompanyByPath(String(companyPath).trim());
+        if (company) companyId = company.id;
+    }
+
+    if (!auth) {
+        const api_key = generateApiKey();
+        auth = await prisma.auth.create({
+            data: {
+                email,
+                password: 'NO_PASSWORD_NEEDED',
+                apiKey: api_key,
+                status: 'ACTIVE'
+            }
+        });
+
+        const user = await prisma.user.create({
+            data: {
+                authId: auth.id,
+                status: 'ACTIVE',
+                ...(companyId && { companyId })
+            }
+        });
+
+        await prisma.userRole.create({
+            data: {
+                userId: user.id,
+                name: 'USER'
+            }
+        });
+    }
+
+    let user = await prisma.user.findUnique({
+        where: { authId: auth.id },
+        include: {
+            userRoles: true,
+            company: { select: { id: true, name: true } }
+        }
+    });
+
+    // Recover if auth exists but user record is missing
+    if (!user) {
+        const createdUser = await prisma.user.create({
+            data: {
+                authId: auth.id,
+                status: 'ACTIVE',
+                ...(companyId && { companyId })
+            }
+        });
+        await prisma.userRole.create({
+            data: { userId: createdUser.id, name: 'USER' }
+        });
+        user = await prisma.user.findUnique({
+            where: { id: createdUser.id },
+            include: {
+                userRoles: true,
+                company: { select: { id: true, name: true } }
+            }
+        });
+    }
+
+    if (!user || !user.userRoles || user.userRoles.length === 0) {
+        throw new AppError('User or roles not found', 404);
+    }
+
+    if (auth.status !== 'ACTIVE') {
+        throw new AppError('Account is not active', 403);
+    }
+    if (user.status !== 'ACTIVE') {
+        throw new AppError('Your account is inactive. Please contact your administrator.', 403);
+    }
+
+    const allRoles = user.userRoles.map(role => role.name).join(',');
+    const primaryRole = user.userRoles[0];
+    const accessToken = generateAccessToken(user.id, allRoles);
+    const refreshToken = generateRefreshToken(user.id, allRoles);
+    const resolvedCompanyPath = user.company?.name
+        ? String(user.company.name).trim().toLowerCase()
+        : null;
+
+    return {
+        user: {
+            id: user.id,
+            email: auth.email,
+            phone: auth.phoneNumber,
+            api_key: auth.apiKey,
+            status: auth.status,
+            role: primaryRole.name,
+            roles: user.userRoles.map(role => role.name),
+            companyId: user.companyId ?? undefined,
+            companyPath: resolvedCompanyPath
+        },
+        token: {
+            accessToken,
+            refreshToken
+        }
+    };
 };
 
 export const forgotPasswordService = async (identifier) => {

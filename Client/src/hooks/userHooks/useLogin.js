@@ -22,8 +22,16 @@ export const useLogin = () => {
       const response = await api.post('/auth/login', credentials);       
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       if (data.success) {
+        const rememberFor7Days = Boolean(variables?.remember);
+        if (rememberFor7Days) {
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          localStorage.setItem('auth_expires_at', String(Date.now() + sevenDaysMs));
+        } else {
+          localStorage.removeItem('auth_expires_at');
+        }
+
         const roles = data.data.roles || [data.data.role]; // Handle both new and old format
         const primaryRole = roles[0]; // Use first role as default
         

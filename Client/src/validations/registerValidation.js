@@ -18,11 +18,7 @@ export const registerSchema = z.object({
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
-  agree: z.boolean()
-    .refine((val) => val === true, {
-      message: 'You must agree to the Terms of Service and Privacy Policy'
-    })
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character')
 });
 
 export const validateField = (schema, name, value) => {

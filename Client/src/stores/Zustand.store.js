@@ -53,6 +53,15 @@ const useAuthStore = create(
                 activeRole: state.activeRole,
                 showRoleSelector: state.showRoleSelector,
             }),
+            onRehydrateStorage: () => (state) => {
+                if (!state?.isAuthenticated) return;
+                const expiry = Number(localStorage.getItem('auth_expires_at'));
+                // If "remember me" window has passed (or was never set), require fresh login.
+                if (!expiry || Date.now() > expiry) {
+                    state.logout();
+                    localStorage.removeItem('auth_expires_at');
+                }
+            },
         }
     )
 )

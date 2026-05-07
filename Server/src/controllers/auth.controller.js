@@ -1,4 +1,4 @@
-import { registerUser, loginUser, forgotPasswordService, resetPasswordService, adminLoginService, addUserRole, removeUserRole, getUserRoles, hasRole } from '../services/auth.service.js';
+import { registerUser, loginUser, loginWithGoogle, forgotPasswordService, resetPasswordService, adminLoginService, addUserRole, removeUserRole, getUserRoles, hasRole } from '../services/auth.service.js';
 import AppError from '../utils/AppError.js';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
@@ -53,6 +53,26 @@ export const login = async (req, res, next) => {
       identifier: req.body?.identifier,
       reason: error.message
     });
+    next(error);
+  }
+};
+
+// Login/register user with Google credential token
+export const googleAuth = async (req, res, next) => {
+  try {
+    const { credential, companyPath } = req.body;
+    const userData = await loginWithGoogle({ credential, companyPath });
+    const { accessToken, refreshToken } = userData.token;
+
+    setJWTCookie(res, refreshToken);
+
+    res.status(200).json({
+      success: true,
+      message: 'Google authentication successful',
+      accessToken,
+      data: userData.user
+    });
+  } catch (error) {
     next(error);
   }
 };

@@ -1,30 +1,30 @@
 import { useState } from 'react';
-import Terms from './Terms';
 import { z } from 'zod';
+import { GoogleLogin } from '@react-oauth/google';
 import { registerSchema, validateField } from '../validations/registerValidation';
 import { useTenant } from '../context/TenantContext';
 import { useRegister } from '../hooks/userHooks/useRegister';
+import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
 
 /**
  * Register - User registration form component with validation
  * Handles new user registration with email, phone, and password validation
  * Sends companyPath so phone is unique per company (same phone allowed in different companies).
  */
-const Register = ({ accent: accentProp }) => {
+const Register = ({ accent: accentProp, onClose }) => {
   const tenant = useTenant();
   const accent = accentProp || '#FE8C00';
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
     password: '',
-    agree: false,
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
   const [errors, setErrors] = useState({});
 
   const { mutate: register, isPending } = useRegister();
+  const { mutate: googleAuthMutation, isPending: isGooglePending } = useGoogleAuth();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -67,7 +67,6 @@ const Register = ({ accent: accentProp }) => {
             email: '',
             phone: '',
             password: '',
-            agree: false,
           });
           setErrors({});
           // Emit an event to switch to login form
@@ -101,6 +100,29 @@ const Register = ({ accent: accentProp }) => {
         setErrors(newErrors);
       }
     }
+  };
+
+  const handleGoogleSuccess = (credentialResponse) => {
+    const credential = credentialResponse?.credential;
+    if (!credential) {
+      setErrors(prev => ({ ...prev, submit: 'Google signup failed. Missing credential.' }));
+      return;
+    }
+
+    googleAuthMutation(
+      {
+        credential,
+        companyPath: tenant?.companyPath,
+        remember: true
+      },
+      {
+        onSuccess: () => onClose?.(),
+        onError: (error) => {
+          const errorMessage = error.response?.data?.message || 'Google signup failed';
+          setErrors(prev => ({ ...prev, submit: errorMessage }));
+        }
+      }
+    );
   };
 
   return (
@@ -172,31 +194,14 @@ const Register = ({ accent: accentProp }) => {
             </button>
             {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
           </div>
-          <div className="flex items-center mb-2">
-            <input
-              id="agree"
-              name="agree"
-              type="checkbox"
-              checked={formData.agree}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`h-4 w-4 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded ${errors.agree ? 'border-red-500' : ''}`}
-              style={{ accentColor: accent }}
-              required
-            />
-            <label htmlFor="agree" className="ml-2 text-sm text-gray-700">
-              I Agree with <button type="button" onClick={() => setShowTerms(true)} className="font-medium hover:underline" style={{ color: accent }}>Terms of Service</button> and <a href="#" className="font-medium hover:underline" style={{ color: accent }}>Privacy Policy</a>
-            </label>
-          </div>
-          {errors.agree && <p className="mt-1 text-sm text-red-500">{errors.agree}</p>}
           {errors.submit && <p className="mt-1 text-sm text-red-500">{errors.submit}</p>}
           <button
             type="submit"
-            disabled={isPending}
-            className={`w-full py-3 rounded-full text-white font-semibold text-lg shadow-md transition-colors ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={isPending || isGooglePending}
+            className={`w-full py-3 rounded-full text-white font-semibold text-lg shadow-md transition-colors ${isPending || isGooglePending ? 'opacity-50 cursor-not-allowed' : ''}`}
             style={{ backgroundColor: accent }}
           >
-            {isPending ? 'Registering...' : 'Register'}
+            {isPending || isGooglePending ? 'Registering...' : 'Register'}
           </button>
         </form>
         <div className="flex items-center my-6">
@@ -205,9 +210,13 @@ const Register = ({ accent: accentProp }) => {
           <div className="flex-grow h-px bg-gray-200" />
         </div>
         <div className="flex justify-center gap-4 mb-4">
-          <button className="bg-white border border-gray-200 rounded-full p-2 shadow-sm hover:shadow-md transition"><img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="h-6 w-6" /></button>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setErrors(prev => ({ ...prev, submit: 'Google signup failed. Please try again.' }))}
+            text="signup_with"
+            shape="pill"
+          />
         </div>
-        <Terms isOpen={showTerms} onClose={() => setShowTerms(false)} />
       </div>
     </>
   );
