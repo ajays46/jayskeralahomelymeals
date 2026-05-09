@@ -4,6 +4,7 @@ import useAuthStore from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardRoute } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
+import { syncRememberMeStorage } from './useLogin';
 
 export const useGoogleAuth = () => {
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
@@ -23,13 +24,12 @@ export const useGoogleAuth = () => {
     onSuccess: (data, variables) => {
       if (!data.success) return;
 
-      const rememberFor7Days = Boolean(variables?.remember);
-      if (rememberFor7Days) {
-        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-        localStorage.setItem('auth_expires_at', String(Date.now() + sevenDaysMs));
-      } else {
-        localStorage.removeItem('auth_expires_at');
-      }
+      const id =
+        [data.data?.email, data.data?.phone].find((v) => v != null && String(v).trim()) || '';
+      syncRememberMeStorage({
+        remember: variables?.remember === true,
+        identifier: id,
+      });
 
       const roles = data.data.roles || [data.data.role];
       const primaryRole = roles[0];

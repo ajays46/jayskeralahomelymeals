@@ -7,6 +7,30 @@ import { getDashboardRoute } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { getCompanyBasePathFallback } from '../../utils/companyPaths';
 
+/** Saved when "Remember me" is checked — identifier only; password is never stored. */
+export const REMEMBERED_LOGIN_IDENTIFIER_KEY = 'remembered_login_identifier';
+
+/**
+ * Persist or clear "remember me" data. Use strict `remember === true` so strings like "false" are not truthy.
+ * Call from the login UI's mutate `onSuccess` so this always matches what the user actually submitted.
+ */
+export function syncRememberMeStorage({ remember, identifier }) {
+  const rememberOn = remember === true;
+  if (rememberOn) {
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    localStorage.setItem('auth_expires_at', String(Date.now() + sevenDaysMs));
+    const id = identifier != null ? String(identifier).trim() : '';
+    if (id) {
+      localStorage.setItem(REMEMBERED_LOGIN_IDENTIFIER_KEY, id);
+    } else {
+      localStorage.removeItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
+    }
+  } else {
+    localStorage.removeItem('auth_expires_at');
+    localStorage.removeItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
+  }
+}
+
 export const useLogin = () => {
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const setRoles = useAuthStore((state) => state.setRoles);
@@ -24,14 +48,6 @@ export const useLogin = () => {
     },
     onSuccess: (data, variables) => {
       if (data.success) {
-        const rememberFor7Days = Boolean(variables?.remember);
-        if (rememberFor7Days) {
-          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-          localStorage.setItem('auth_expires_at', String(Date.now() + sevenDaysMs));
-        } else {
-          localStorage.removeItem('auth_expires_at');
-        }
-
         const roles = data.data.roles || [data.data.role]; // Handle both new and old format
         const primaryRole = roles[0]; // Use first role as default
         

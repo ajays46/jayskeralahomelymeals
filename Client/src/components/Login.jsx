@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
 import { Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useTenant } from '../context/TenantContext';
-import { useLogin } from '../hooks/userHooks/useLogin';
+import { useLogin, REMEMBERED_LOGIN_IDENTIFIER_KEY, syncRememberMeStorage } from '../hooks/userHooks/useLogin';
 import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
 
 /**
@@ -25,6 +25,23 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  /**
+   * When a remembered email is restored, password stays read-only until focus so the browser
+   * does not auto-fill the password. Users without a saved identifier are unaffected.
+   */
+  const [passwordUnlocked, setPasswordUnlocked] = useState(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
+    if (!saved) return;
+    setPasswordUnlocked(false);
+    setFormData((prev) => ({
+      ...prev,
+      identifier: saved,
+      password: '',
+      remember: true,
+    }));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -53,8 +70,13 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
 
       // If validation passes, proceed with login (include companyPath for phone login per company)
       await loginMutation({ ...formData, companyPath: tenant?.companyPath }, {
-        onSuccess: () => {
-          // Close the auth slider on successful login
+        onSuccess: (data, variables) => {
+          if (data?.success) {
+            syncRememberMeStorage({
+              remember: variables?.remember === true,
+              identifier: variables?.identifier,
+            });
+          }
           onClose();
         },
         onError: (error) => {
@@ -93,7 +115,9 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
         remember: formData.remember
       },
       {
-        onSuccess: () => onClose?.(),
+        onSuccess: () => {
+          onClose?.();
+        },
         onError: (error) => {
           const errorMessage = error.response?.data?.message || 'Google login failed';
           setErrors(prev => ({ ...prev, submit: errorMessage }));
@@ -114,6 +138,7 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
               id="identifier"
               name="identifier"
               type="text"
+              autoComplete="username"
               className={`block w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
               placeholder="Enter your email or phone number"
               value={formData.identifier}
@@ -129,6 +154,9 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
               id="password"
               name="password"
               type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              readOnly={!passwordUnlocked}
+              onFocus={() => setPasswordUnlocked(true)}
               className={`block w-full rounded-lg border ${errors.password ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900 pr-10`}
               placeholder="********"
               value={formData.password}
