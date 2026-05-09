@@ -13,6 +13,7 @@ import { getCompanyBasePathFallback } from './utils/companyPaths';
 const Terms = lazy(() => import('./components/Terms'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
 const HomePage = lazy(() => import('./pages/HomePage'));
+const JLGHomePage = lazy(() => import('./pages/JLGHomePage'));
 const MLHomePage = lazy(() => import('./ml/pages/MLHomePage'));
 const MLDeliveryPartnerDashboard = lazy(() => import('./ml/pages/MLDeliveryPartnerDashboard'));
 const MLCXODashboard = lazy(() => import('./ml/pages/MLCXODashboard'));
@@ -63,11 +64,13 @@ function RoutePageFallback() {
   );
 }
 
-/** Renders MLHomePage for /ml, else HomePage (food companies). */
+/** Renders tenant-specific home: ML → logistics landing; JLG → classic greens marketing home; others → minimal auth landing. */
 function TenantAwareHome() {
   const tenant = useTenant();
-  const isMl = tenant?.companyPath?.toLowerCase() === 'ml';
-  return isMl ? <MLHomePage /> : <HomePage />;
+  const path = tenant?.companyPath?.toLowerCase() ?? '';
+  if (path === 'ml') return <MLHomePage />;
+  if (path === 'jlg') return <JLGHomePage />;
+  return <HomePage />;
 }
 
 /**

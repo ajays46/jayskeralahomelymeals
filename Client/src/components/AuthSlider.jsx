@@ -103,7 +103,15 @@ const AuthSlider = ({ isOpen, onClose }) => {
                   {showForgot ? (
                     <ForgotPassword onBackToLogin={() => setShowForgot(false)} accent={accent} />
                   ) : activeTab === 'login' ? (
-                    <Login onClose={onClose} onForgotPassword={() => setShowForgot(true)} accent={accent} />
+                    <Login
+                      onClose={onClose}
+                      onForgotPassword={() => setShowForgot(true)}
+                      onSwitchToRegister={() => {
+                        setActiveTab('register');
+                        setShowForgot(false);
+                      }}
+                      accent={accent}
+                    />
                   ) : (
                     <Register accent={accent} onClose={onClose} />
                   )}

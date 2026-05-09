@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
-import { Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useTenant } from '../context/TenantContext';
 import { useLogin, REMEMBERED_LOGIN_IDENTIFIER_KEY, syncRememberMeStorage } from '../hooks/userHooks/useLogin';
@@ -11,9 +10,9 @@ import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
  * Login - Authentication form component with validation and error handling
  * Handles user login with email/phone, password validation, and form state management
  * Features: Form validation, password visibility toggle, error handling, loading states
- * Sends companyPath for phone login so same phone can be used in multiple companies.
+ * @param {() => void} [onSwitchToRegister] - When set (e.g. AuthSlider), shows “Register” link to open registration tab.
  */
-const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
+const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentProp }) => {
   const tenant = useTenant();
   const { mutate: loginMutation, isPending } = useLogin();
   const { mutate: googleAuthMutation, isPending: isGooglePending } = useGoogleAuth();
@@ -230,6 +229,20 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
             )}
           </button>
         </form>
+        {onSwitchToRegister && (
+          <p className="text-center text-sm text-gray-600 mt-5">
+            Don&apos;t have an account?{' '}
+            <button
+              type="button"
+              className="font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: accent }}
+              onClick={onSwitchToRegister}
+              disabled={isPending || isGooglePending}
+            >
+              Register
+            </button>
+          </p>
+        )}
         <div className="flex items-center my-6">
           <div className="flex-grow h-px bg-gray-200" />
           <span className="mx-3 text-gray-400 text-sm">Or sign in with</span>
