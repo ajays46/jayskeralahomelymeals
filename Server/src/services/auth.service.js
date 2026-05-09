@@ -14,6 +14,23 @@ dotenv.config();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /**
+ * URL segment for post-login navigation. Prefers request companyPath when it resolves
+ * to the same company as the user (avoids wrong tenant when DB name is a display label).
+ */
+async function resolveCompanyPathForUser(user, requestCompanyPath) {
+    let path = user.company?.name
+        ? String(user.company.name).trim().toLowerCase()
+        : null;
+    if (requestCompanyPath && String(requestCompanyPath).trim() && user.companyId) {
+        const fromUrl = await getCompanyByPath(String(requestCompanyPath).trim());
+        if (fromUrl && fromUrl.id === user.companyId) {
+            path = String(requestCompanyPath).trim().toLowerCase();
+        }
+    }
+    return path;
+}
+
+/**
  * Auth Service - Handles user authentication and authorization business logic
  * Features: User registration, login validation, password management, role assignment, JWT token generation
  */
@@ -175,10 +192,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         const accessToken = generateAccessToken(user.id, allRoles);
         const refreshToken = generateRefreshToken(user.id, allRoles);
 
-        // Company path for redirect: company admins go to their company URL (e.g. JKHM -> /jkhm)
-        const resolvedCompanyPath = user.company?.name
-            ? String(user.company.name).trim().toLowerCase()
-            : null;
+        const resolvedCompanyPath = await resolveCompanyPathForUser(user, companyPath);
 
         return {
             user: {
@@ -308,9 +322,7 @@ export const loginWithGoogle = async ({ credential, companyPath }) => {
     const primaryRole = user.userRoles[0];
     const accessToken = generateAccessToken(user.id, allRoles);
     const refreshToken = generateRefreshToken(user.id, allRoles);
-    const resolvedCompanyPath = user.company?.name
-        ? String(user.company.name).trim().toLowerCase()
-        : null;
+    const resolvedCompanyPath = await resolveCompanyPathForUser(user, companyPath);
 
     return {
         user: {

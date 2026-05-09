@@ -96,7 +96,7 @@ function TenantLayout() {
 
   // Set browser tab title and favicon from company theme – e.g. JLG: "Jay's Leafy Greens" + logo2.png
   useEffect(() => {
-    const title = theme?.brandName || "Jay's Kerala Homely Meals";
+    const title = theme?.brandName || "Jay's Kerala Kitchen Service";
     const faviconHref = theme?.logoUrl || '/logo.png';
     document.title = title;
     let link = document.querySelector('link[rel="icon"]');
@@ -107,7 +107,7 @@ function TenantLayout() {
     }
     link.setAttribute('href', faviconHref);
     return () => {
-      document.title = "Jay's Kerala Homely Meals";
+      document.title = "Jay's Kerala Kitchen Service";
       link.setAttribute('href', '/logo.png');
     };
   }, [theme?.brandName, theme?.logoUrl]);

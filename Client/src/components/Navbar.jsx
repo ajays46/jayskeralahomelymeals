@@ -18,9 +18,9 @@ import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO
 /**
  * Navbar - Main navigation component with role-based menu and authentication
  * Handles user authentication, role-based navigation, and responsive mobile menu
- * Features: Auto-hide on scroll, role-based menu items, user dropdown, search functionality
+ * @param {boolean} [minimalNav] — When true, hide Home/Menu/Place Order/Help and search (landing-style bar).
  */
-const Navbar = ({ onSignInClick }) => {
+const Navbar = ({ onSignInClick, minimalNav = false }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -92,26 +92,30 @@ const Navbar = ({ onSignInClick }) => {
               />
               <span className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 ml-3">
                 <span className="text-lg sm:text-xl md:text-[26px] tracking-wider whitespace-nowrap font-leagueSpartan font-black" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.5)', color: accent }}>
-                  {theme.brandName || "Jay's Kerala Homely Meals"}
+                  {theme.brandName || "Jay's Kerala Kitchen Service"}
                 </span>
               </span>
             </Link>
           </div>
 
           {/* Desktop Navigation - hover uses --tenant-accent */}
-          <div className="hidden md:flex items-center space-x-6">
-            <Link to={base} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
-              <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
-            </Link>
-            <Link to={`${base}/menu`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
-              <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> Menu
-            </Link>
-            <Link to={`${base}/place-order`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
-              <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> Place Order
-            </Link>
-            <Link to="/help" className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
-              <MdHelp className="text-xl group-hover:scale-110 transition-transform duration-300" /> Help
-            </Link>
+          <div className={`hidden md:flex items-center ${minimalNav ? 'gap-4' : 'space-x-6'}`}>
+            {!minimalNav && (
+              <>
+                <Link to={base} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
+                  <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
+                </Link>
+                <Link to={`${base}/menu`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
+                  <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> Menu
+                </Link>
+                <Link to={`${base}/place-order`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
+                  <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> Place Order
+                </Link>
+                <Link to="/help" className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
+                  <MdHelp className="text-xl group-hover:scale-110 transition-transform duration-300" /> Help
+                </Link>
+              </>
+            )}
 
             {/* User Profile Section */}
             {user ? (
@@ -259,34 +263,38 @@ const Navbar = ({ onSignInClick }) => {
             </a>
             */}
 
-            {/* Search */}
-            <div className="relative group">
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search food..."
-                className="pl-10 pr-4 py-2 text-sm rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FE8C00] focus:border-transparent text-gray-700 bg-white/90 backdrop-blur-sm transition-all duration-300 group-hover:bg-white"
-              />
-              <span className="absolute left-3 top-2.5 text-gray-400 group-hover:text-[#FE8C00] transition-colors duration-300">
-                <MdSearch className="w-5 h-5" />
-              </span>
-            </div>
+            {!minimalNav && (
+              <div className="relative group">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search food..."
+                  className="pl-10 pr-4 py-2 text-sm rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FE8C00] focus:border-transparent text-gray-700 bg-white/90 backdrop-blur-sm transition-all duration-300 group-hover:bg-white"
+                />
+                <span className="absolute left-3 top-2.5 text-gray-400 group-hover:text-[#FE8C00] transition-colors duration-300">
+                  <MdSearch className="w-5 h-5" />
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
-            <motion.button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
-              whileTap={{ scale: 0.95 }}
-            >
-              {menuOpen ? (
-                <MdClose className="w-8 h-8" />
-              ) : (
-                <MdMenu className="w-8 h-8" />
-              )}
-            </motion.button>
+          {/* Mobile: hamburger (full nav or minimal + logged-in). Minimal guest: no Sign In here — page has CTA */}
+          <div className="md:hidden flex items-center gap-2">
+            {!(minimalNav && !user) && (
+              <motion.button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
+                whileTap={{ scale: 0.95 }}
+                aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              >
+                {menuOpen ? (
+                  <MdClose className="w-8 h-8" />
+                ) : (
+                  <MdMenu className="w-8 h-8" />
+                )}
+              </motion.button>
+            )}
           </div>
         </div>
       </div>
@@ -323,7 +331,7 @@ const Navbar = ({ onSignInClick }) => {
                     className="w-14 h-14 object-contain rounded-full shadow-lg"
                   />
                   <span className="ml-3 font-bold text-white text-lg font-leagueSpartan" style={{ textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>
-                    {theme.brandName || "Jay's Kerala Homely Meals"}
+                    {theme.brandName || "Jay's Kerala Kitchen Service"}
                   </span>
                 </div>
                 <motion.button
@@ -336,6 +344,7 @@ const Navbar = ({ onSignInClick }) => {
               </div>
 
               {/* Search Bar */}
+              {!minimalNav && (
               <div className="p-6 border-b border-gray-100 bg-white">
                 <div className="relative">
                   <input
@@ -350,8 +359,10 @@ const Navbar = ({ onSignInClick }) => {
                   </span>
                 </div>
               </div>
+              )}
 
               {/* Quick Actions - hover uses --sidebar-accent */}
+              {!minimalNav && (
               <div className="p-4">
                 <div className="grid grid-cols-2 gap-2">
                   <Link to={base} className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-[color:var(--sidebar-accent)]/30 [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
@@ -368,14 +379,17 @@ const Navbar = ({ onSignInClick }) => {
                   </Link>
                 </div>
               </div>
+              )}
 
               {/* Additional Links */}
+              {!minimalNav && (
               <div className="px-4 pb-2">
                 <Link to="/help" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                   <MdHelp className="text-base group-hover:scale-110 transition-transform duration-300" /> 
                   <span className="font-medium text-sm">Help</span>
                 </Link>
               </div>
+              )}
 
                             {/* User Section */}
                             {user ? (
@@ -485,7 +499,7 @@ const Navbar = ({ onSignInClick }) => {
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
                       <MdPerson className="text-xl text-gray-400" />
                     </div>
-                    <p className="text-xs text-gray-500 mb-2">Welcome to {theme.brandName || "Jay's Kerala"}</p>
+                    <p className="text-xs text-gray-500 mb-2">Welcome to {theme.brandName || "Jay's Kerala Kitchen Service"}</p>
                   </div>
                   <motion.button
                     onClick={() => {
