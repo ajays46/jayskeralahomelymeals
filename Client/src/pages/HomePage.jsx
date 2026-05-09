@@ -2,7 +2,7 @@
  * Copyright (c) 2025 JAYS KERALA INNOVATIONS PRIVATE LIMITED. All rights reserved.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
@@ -27,6 +27,9 @@ const HomePage = () => {
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
 
+  const openAuthSlider = useCallback(() => setAuthSliderOpen(true), []);
+  const closeAuthSlider = useCallback(() => setAuthSliderOpen(false), []);
+
   useEffect(() => {
     if (user && roles && roles.length > 0) {
       const dashboardRoute = getDashboardRoute(roles, base);
@@ -41,8 +44,8 @@ const HomePage = () => {
       className={`min-h-screen bg-gradient-to-br ${gradient} flex flex-col`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <Navbar minimalNav onSignInClick={() => setAuthSliderOpen(true)} />
-      <AuthSlider isOpen={authSliderOpen} onClose={() => setAuthSliderOpen(false)} />
+      <Navbar minimalNav onSignInClick={openAuthSlider} />
+      <AuthSlider isOpen={authSliderOpen} onClose={closeAuthSlider} />
 
       <main className="flex-1 flex flex-col">
         <div className="pt-24 sm:pt-28 pb-24 px-4 max-w-md mx-auto w-full flex-1 flex flex-col">
@@ -51,21 +54,21 @@ const HomePage = () => {
               {theme.heroTitle || 'Welcome'}
               <span className="block mt-1" style={{ color: accent }}>
                 {theme.heroSubtitle || theme.brandName || 'Kitchen Service'}
-              </span>
+                        </span>
             </h1>
             <p className="text-gray-600 text-base sm:text-lg mb-8">
               {theme.heroDescription ||
                 'Sign in to order, manage your plan, and explore our menu — authentic Kerala kitchen service.'}
             </p>
             {!user && (
-              <button
+                  <button
                 type="button"
-                onClick={() => setAuthSliderOpen(true)}
+                onClick={openAuthSlider}
                 className="min-h-[48px] px-8 py-3 rounded-2xl font-semibold text-white shadow-lg active:scale-[0.98] transition-transform text-base mx-auto"
                 style={{ backgroundColor: accent }}
               >
                 Sign In
-              </button>
+                  </button>
             )}
           </div>
         </div>

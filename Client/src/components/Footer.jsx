@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { APP_VERSION } from '../config/appVersion';
 
 /**
  * Footer - Copyright footer component
@@ -24,6 +25,9 @@ const Footer = () => {
           </div>
           <p className="text-sm">
             © {copyrightYear} {companyName}. All rights reserved.
+          </p>
+          <p className="text-xs text-gray-500" aria-label={`Application version ${APP_VERSION}`}>
+            v{APP_VERSION}
           </p>
         </div>
       </div>

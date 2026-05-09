@@ -2,7 +2,7 @@
  * MLNavbar - MaXHub Logistics navbar (logistics-only; no Menu, Place Order, Help).
  * Used when companyPath === 'ml'. Sign In opens same AuthSlider with ML theme.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MdPerson, MdDashboard, MdLogout, MdClose, MdMenu, MdEmail, MdPhone, MdAdminPanelSettings, MdAddCircle, MdList } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
 import { Link, useLocation } from 'react-router-dom';
@@ -11,7 +11,6 @@ import useAuthStore from '../../stores/Zustand.store';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
 import { useLogout } from '../../hooks/userHooks/useLogin';
-import { Modal } from 'antd';
 import { isDeliveryPartner, isCEO, isCFO, isAdmin, isDeliveryManager } from '../../utils/roleUtils';
 import MLJaiceChat from './MLJaiceChat';
 
@@ -19,9 +18,8 @@ const MLNavbar = ({ onSignInClick }) => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const logoutMutation = useLogout();
@@ -42,13 +40,15 @@ const MLNavbar = ({ onSignInClick }) => {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > lastScrollY && window.scrollY > 50) setShowNavbar(false);
+      const y = window.scrollY;
+      const prev = lastScrollYRef.current;
+      if (y > prev && y > 50) setShowNavbar(false);
       else setShowNavbar(true);
-      setLastScrollY(window.scrollY);
+      lastScrollYRef.current = y;
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : 'unset';
@@ -56,12 +56,9 @@ const MLNavbar = ({ onSignInClick }) => {
 
   const handleLogout = () => {
     setUserDropdownOpen(false);
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = () => {
-    logoutMutation.mutate();
-    setShowLogoutConfirm(false);
+    if (window.confirm('Are you sure you want to logout?')) {
+      logoutMutation.mutate();
+    }
   };
 
   return (
@@ -241,19 +238,6 @@ const MLNavbar = ({ onSignInClick }) => {
         )}
       </AnimatePresence>
 
-      <Modal
-        title="Confirm Logout"
-        open={showLogoutConfirm}
-        onOk={confirmLogout}
-        onCancel={() => setShowLogoutConfirm(false)}
-        okText="Yes, Logout"
-        cancelText="Cancel"
-        okType="danger"
-        centered
-        maskClosable={false}
-      >
-        <p className="pt-2">Are you sure you want to logout? You will need to sign in again to access your account.</p>
-      </Modal>
     </nav>
 
       {/* Jaice chat - for CXO / Delivery Manager / Admin */}

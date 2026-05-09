@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import Login from './Login';
-import Register from './Register';
-import ForgotPassword from './ForgotPassword';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+
+const Login = lazy(() => import('./Login'));
+const Register = lazy(() => import('./Register'));
+const ForgotPassword = lazy(() => import('./ForgotPassword'));
 import { IoClose } from 'react-icons/io5';
 import { useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
@@ -92,13 +93,21 @@ const AuthSlider = ({ isOpen, onClose }) => {
                     {successMessage}
                   </div>
                 )}
-                {showForgot ? (
-                  <ForgotPassword onBackToLogin={() => setShowForgot(false)} accent={accent} />
-                ) : activeTab === 'login' ? (
-                  <Login onClose={onClose} onForgotPassword={() => setShowForgot(true)} accent={accent} />
-                ) : (
-                  <Register accent={accent} onClose={onClose} />
-                )}
+                <Suspense
+                  fallback={
+                    <div className="flex justify-center py-16 text-gray-500 text-sm" aria-busy="true">
+                      Loading…
+                    </div>
+                  }
+                >
+                  {showForgot ? (
+                    <ForgotPassword onBackToLogin={() => setShowForgot(false)} accent={accent} />
+                  ) : activeTab === 'login' ? (
+                    <Login onClose={onClose} onForgotPassword={() => setShowForgot(true)} accent={accent} />
+                  ) : (
+                    <Register accent={accent} onClose={onClose} />
+                  )}
+                </Suspense>
               </div>
             </div>
           </div>

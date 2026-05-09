@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   MdRestaurant, MdRestaurantMenu, MdHelp,
   MdPerson, MdShoppingCart, MdSearch,
@@ -12,7 +12,6 @@ import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLogout } from '../hooks/userHooks/useLogin';
-import { Modal } from 'antd';
 import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO } from '../utils/roleUtils';
 
 /**
@@ -24,12 +23,11 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const navigate = useNavigate();
   const [showNavbar, setShowNavbar] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
   const logoutMutation = useLogout();
 
   // Function to check user roles using utility functions
@@ -45,25 +43,24 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > lastScrollY && window.scrollY > 50) {
-        setShowNavbar(false); // scrolling down
+      const y = window.scrollY;
+      const prev = lastScrollYRef.current;
+      if (y > prev && y > 50) {
+        setShowNavbar(false);
       } else {
-        setShowNavbar(true); // scrolling up
+        setShowNavbar(true);
       }
-      setLastScrollY(window.scrollY);
+      lastScrollYRef.current = y;
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   const handleLogout = () => {
     setUserDropdownOpen(false);
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = () => {
-    logoutMutation.mutate();
-    setShowLogoutConfirm(false);
+    if (window.confirm('Are you sure you want to logout?')) {
+      logoutMutation.mutate();
+    }
   };
 
   // Close mobile menu when clicking outside
@@ -521,19 +518,6 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
         )}
       </AnimatePresence>
 
-      <Modal
-        title="Confirm Logout"
-        open={showLogoutConfirm}
-        onOk={confirmLogout}
-        onCancel={() => setShowLogoutConfirm(false)}
-        okText="Yes, Logout"
-        cancelText="Cancel"
-        okType="danger"
-        centered
-        maskClosable={false}
-      >
-        <p className="pt-2">Are you sure you want to logout? You will need to sign in again to access your account.</p>
-      </Modal>
     </nav>
   );
 };
