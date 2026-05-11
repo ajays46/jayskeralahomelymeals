@@ -126,7 +126,7 @@ export const registerUser = async ({ email, password, phone, companyPath }) => {
     }
 };
 
-export const loginUser = async ({ identifier, password, companyPath }) => {
+export const loginUser = async ({ identifier, password, companyPath, remember = false }) => {
     try {
         let auth = null;
         if (validator.isEmail(identifier)) {
@@ -190,7 +190,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         // Get the primary role (first role or highest priority role)
         const primaryRole = user.userRoles[0];
         const accessToken = generateAccessToken(user.id, allRoles);
-        const refreshToken = generateRefreshToken(user.id, allRoles);
+        const refreshToken = generateRefreshToken(user.id, allRoles, Boolean(remember));
 
         const resolvedCompanyPath = await resolveCompanyPathForUser(user, companyPath);
 
@@ -217,7 +217,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
     }
 };
 
-export const loginWithGoogle = async ({ credential, companyPath }) => {
+export const loginWithGoogle = async ({ credential, companyPath, remember = false }) => {
     if (!credential) {
         throw new AppError('Google credential is required', 400);
     }
@@ -321,7 +321,7 @@ export const loginWithGoogle = async ({ credential, companyPath }) => {
     const allRoles = user.userRoles.map(role => role.name).join(',');
     const primaryRole = user.userRoles[0];
     const accessToken = generateAccessToken(user.id, allRoles);
-    const refreshToken = generateRefreshToken(user.id, allRoles);
+    const refreshToken = generateRefreshToken(user.id, allRoles, Boolean(remember));
     const resolvedCompanyPath = await resolveCompanyPathForUser(user, companyPath);
 
     return {

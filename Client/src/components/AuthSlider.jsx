@@ -113,7 +113,14 @@ const AuthSlider = ({ isOpen, onClose }) => {
                       accent={accent}
                     />
                   ) : (
-                    <Register accent={accent} onClose={onClose} />
+                    <Register
+                      accent={accent}
+                      onClose={onClose}
+                      onSwitchToLogin={() => {
+                        setActiveTab('login');
+                        setShowForgot(false);
+                      }}
+                    />
                   )}
                 </Suspense>
               </div>

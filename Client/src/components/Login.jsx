@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
 import { GoogleLogin } from '@react-oauth/google';
 import { useTenant } from '../context/TenantContext';
-import { useLogin, REMEMBERED_LOGIN_IDENTIFIER_KEY, syncRememberMeStorage } from '../hooks/userHooks/useLogin';
+import { useLogin, getRememberedIdentifier } from '../hooks/userHooks/useLogin';
 import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
 
 /**
@@ -30,8 +30,10 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
    */
   const [passwordUnlocked, setPasswordUnlocked] = useState(true);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
+  useLayoutEffect(() => {
+    // Prefer tenant-scoped + TTL; fall back to global key (same as 0e1747c) so email + tick always restore.
+    const saved =
+      getRememberedIdentifier(tenant?.companyPath) || getRememberedIdentifier('');
     if (!saved) return;
     setPasswordUnlocked(false);
     setFormData((prev) => ({
@@ -40,7 +42,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
       password: '',
       remember: true,
     }));
-  }, []);
+  }, [tenant?.companyPath]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -68,15 +70,9 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
       loginSchema.parse(formData);
 
       // If validation passes, proceed with login (include companyPath for phone login per company)
-      await loginMutation({ ...formData, companyPath: tenant?.companyPath }, {
-        onSuccess: (data, variables) => {
-          if (data?.success) {
-            syncRememberMeStorage({
-              remember: variables?.remember === true,
-              identifier: variables?.identifier,
-            });
-          }
-          onClose();
+      loginMutation({ ...formData, companyPath: tenant?.companyPath }, {
+        onSuccess: (data) => {
+          if (data?.success) onClose?.();
         },
         onError: (error) => {
           const errorMessage = error.response?.data?.message;
@@ -150,10 +146,11 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
           <div className="relative">
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input
+              key={passwordUnlocked ? 'login-pw-unlocked' : 'login-pw-locked'}
               id="password"
               name="password"
               type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
+              autoComplete={passwordUnlocked ? 'current-password' : 'off'}
               readOnly={!passwordUnlocked}
               onFocus={() => setPasswordUnlocked(true)}
               className={`block w-full rounded-lg border ${errors.password ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900 pr-10`}

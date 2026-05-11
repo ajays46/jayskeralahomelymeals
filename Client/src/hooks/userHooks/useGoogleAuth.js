@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import api from '../../api/axios';
-import useAuthStore from '../../stores/Zustand.store';
+import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardRoute } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
@@ -24,12 +24,22 @@ export const useGoogleAuth = () => {
     onSuccess: (data, variables) => {
       if (!data.success) return;
 
+      const rememberRaw = variables?.remember;
+      const rememberOn =
+        rememberRaw === true || rememberRaw === 'true' || rememberRaw === 1 || rememberRaw === '1';
+      const rememberOff =
+        rememberRaw === false || rememberRaw === 'false' || rememberRaw === 0 || rememberRaw === '0';
+      applyAuthPersistMode(rememberOn);
+
       const id =
         [data.data?.email, data.data?.phone].find((v) => v != null && String(v).trim()) || '';
-      syncRememberMeStorage({
-        remember: variables?.remember === true,
-        identifier: id,
-      });
+      if (rememberOn || rememberOff) {
+        syncRememberMeStorage({
+          remember: rememberOn,
+          identifier: id,
+          companyPath: variables?.companyPath || data.data?.companyPath,
+        });
+      }
 
       const roles = data.data.roles || [data.data.role];
       const primaryRole = roles[0];

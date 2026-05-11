@@ -1,33 +1,134 @@
 import { useMutation,useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { showLoginError } from '../../utils/toastConfig.jsx';
-import useAuthStore from '../../stores/Zustand.store';
+import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardRoute } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
-import { getCompanyBasePathFallback } from '../../utils/companyPaths';
 
-/** Saved when "Remember me" is checked — identifier only; password is never stored. */
+/** Legacy global key (pre–per-company); still read for migration. */
 export const REMEMBERED_LOGIN_IDENTIFIER_KEY = 'remembered_login_identifier';
 
+const REMEMBER_ME_EXPIRY_PREFIX = 'remember_me_expires_at';
+
+/** Survives `localStorage.clear()` on legacy logout handlers — call before clear, then restore after. */
+export function preserveRememberMeLocalStorageSnapshot() {
+  if (typeof localStorage === 'undefined') return [];
+  const out = [];
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (
+      key === REMEMBERED_LOGIN_IDENTIFIER_KEY ||
+      key === REMEMBER_ME_EXPIRY_PREFIX ||
+      key === 'auth_expires_at' ||
+      key.startsWith(`${REMEMBERED_LOGIN_IDENTIFIER_KEY}_`) ||
+      key.startsWith(`${REMEMBER_ME_EXPIRY_PREFIX}_`)
+    ) {
+      out.push([key, localStorage.getItem(key)]);
+    }
+  }
+  return out;
+}
+
+export function restoreRememberMeLocalStorageSnapshot(entries) {
+  if (!entries?.length || typeof localStorage === 'undefined') return;
+  for (const [key, value] of entries) {
+    if (key && value != null) localStorage.setItem(key, value);
+  }
+}
+
+function rememberMeKeys(companyPath) {
+  const suffix = companyPath ? `_${String(companyPath).toLowerCase().trim()}` : '';
+  return {
+    identifierKey: `${REMEMBERED_LOGIN_IDENTIFIER_KEY}${suffix}`,
+    expiryKey: `${REMEMBER_ME_EXPIRY_PREFIX}${suffix}`,
+  };
+}
+
 /**
- * Persist or clear "remember me" data. Use strict `remember === true` so strings like "false" are not truthy.
- * Call from the login UI's mutate `onSuccess` so this always matches what the user actually submitted.
+ * Read saved identifier for this tenant if the saved window is still valid.
+ * Supports legacy global keys (`remembered_login_identifier`, `auth_expires_at`).
  */
-export function syncRememberMeStorage({ remember, identifier }) {
-  const rememberOn = remember === true;
+export function getRememberedIdentifier(companyPath) {
+  const cp = companyPath ? String(companyPath).toLowerCase().trim() : '';
+  const { identifierKey, expiryKey } = rememberMeKeys(cp);
+  const legacyId = localStorage.getItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
+
+  // Per-company row: TTL must use *scoped* expiry only (global must not invalidate scoped).
+  if (cp) {
+    const scopedId = localStorage.getItem(identifierKey);
+    if (scopedId) {
+      const expiryScoped = Number(localStorage.getItem(expiryKey) || '0');
+      if (expiryScoped > 0 && Date.now() > expiryScoped) {
+        localStorage.removeItem(identifierKey);
+        localStorage.removeItem(expiryKey);
+      } else {
+        return scopedId;
+      }
+    }
+  }
+
+  if (!legacyId) return null;
+
+  const expiryGlobal = Number(
+    localStorage.getItem(REMEMBER_ME_EXPIRY_PREFIX) ||
+      localStorage.getItem('auth_expires_at') ||
+      '0'
+  );
+  if (expiryGlobal > 0 && Date.now() > expiryGlobal) {
+    localStorage.removeItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
+    localStorage.removeItem(REMEMBER_ME_EXPIRY_PREFIX);
+    localStorage.removeItem('auth_expires_at');
+    return null;
+  }
+  return legacyId;
+}
+
+function isRememberMeExplicitTrue(raw) {
+  return raw === true || raw === 'true' || raw === 1 || raw === '1';
+}
+
+function isRememberMeExplicitFalse(raw) {
+  return raw === false || raw === 'false' || raw === 0 || raw === '0';
+}
+
+/**
+ * Persist or clear "remember me" data (email/phone only, never password).
+ * Uses keys separate from auth/session storage so Zustand rehydration is not coupled to Remember Me.
+ */
+export function syncRememberMeStorage({ remember, identifier, companyPath }) {
+  const rememberOn = isRememberMeExplicitTrue(remember);
+  const { identifierKey, expiryKey } = rememberMeKeys(companyPath);
   if (rememberOn) {
-    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-    localStorage.setItem('auth_expires_at', String(Date.now() + sevenDaysMs));
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    const ts = String(Date.now() + thirtyDaysMs);
     const id = identifier != null ? String(identifier).trim() : '';
+
+    // Global keys (same as commit 0e1747c) so login still restores when /:companyPath is missing
+    // or tenant context is not ready yet — same email + tick as before.
+    localStorage.setItem('auth_expires_at', ts);
+    localStorage.setItem(REMEMBER_ME_EXPIRY_PREFIX, ts);
     if (id) {
       localStorage.setItem(REMEMBERED_LOGIN_IDENTIFIER_KEY, id);
     } else {
       localStorage.removeItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
     }
-  } else {
+
+    // Per-company overlay when path is known (multi-tenant)
+    localStorage.setItem(expiryKey, ts);
+    if (id) {
+      localStorage.setItem(identifierKey, id);
+    } else {
+      localStorage.removeItem(identifierKey);
+      localStorage.removeItem(expiryKey);
+    }
+  } else if (isRememberMeExplicitFalse(remember)) {
+    localStorage.removeItem(expiryKey);
+    localStorage.removeItem(identifierKey);
     localStorage.removeItem('auth_expires_at');
     localStorage.removeItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
+    localStorage.removeItem(REMEMBER_ME_EXPIRY_PREFIX);
   }
 }
 
@@ -48,9 +149,26 @@ export const useLogin = () => {
     },
     onSuccess: (data, variables) => {
       if (data.success) {
-        const roles = data.data.roles || [data.data.role]; // Handle both new and old format
-        const primaryRole = roles[0]; // Use first role as default
-        
+        const roles = data.data.roles || [data.data.role];
+        const primaryRole = roles[0];
+        const rememberRaw = variables?.remember;
+        const rememberOn = isRememberMeExplicitTrue(rememberRaw);
+        const rememberOff = isRememberMeExplicitFalse(rememberRaw);
+
+        applyAuthPersistMode(rememberOn);
+
+        // Must run here (global onSuccess), not only in Login’s `mutate(..., { onSuccess })`).
+        // TanStack Query v5 runs per-mutate callbacks only when the observer still has listeners;
+        // after navigation / modal close / Strict Mode that can be skipped — then nothing is saved.
+        // Only touch remember-me keys when checkbox is explicitly true/false — avoids wiping on bad payloads.
+        if (rememberOn || rememberOff) {
+          syncRememberMeStorage({
+            remember: rememberOn,
+            identifier: variables?.identifier,
+            companyPath: variables?.companyPath || data.data?.companyPath,
+          });
+        }
+
         setAccessToken(data.accessToken);
         setRoles(roles);
         setActiveRole(primaryRole);

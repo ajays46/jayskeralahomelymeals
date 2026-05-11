@@ -7,6 +7,10 @@ import { message } from 'antd';
 import { toast } from 'react-toastify';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
+import {
+  preserveRememberMeLocalStorageSnapshot,
+  restoreRememberMeLocalStorageSnapshot,
+} from '../hooks/userHooks/useLogin';
 import axiosInstance from '../api/axios';
 import { SkeletonCard, SkeletonTable, SkeletonLoading, SkeletonDashboard } from '../components/Skeleton';
 import { useStartJourney, useStopReached, useEndJourney, useDriverNextStopMaps, useDriverRouteOverviewMaps, useCheckTraffic, useRouteOrder, useReoptimizeRoute, useUpdateGeoLocation, useRouteStatusFromActualStops, useRouteMapData, useExecutivePerformanceByDriver } from '../hooks/deliverymanager/useAIRouteOptimization';
@@ -1815,9 +1819,10 @@ const DeliveryExecutivePage = () => {
         // Logout API call failed, proceeding with local logout
       }
       
-      // Clear all authentication data
+      const rememberSnap = preserveRememberMeLocalStorageSnapshot();
       localStorage.clear();
       sessionStorage.clear();
+      restoreRememberMeLocalStorageSnapshot(rememberSnap);
       
       // Clear any cookies if they exist
       document.cookie.split(";").forEach(function(c) { 

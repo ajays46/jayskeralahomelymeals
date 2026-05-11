@@ -10,8 +10,9 @@ import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
  * Register - User registration form component with validation
  * Handles new user registration with email, phone, and password validation
  * Sends companyPath so phone is unique per company (same phone allowed in different companies).
+ * @param {() => void} [onSwitchToLogin] - When set (e.g. AuthSlider), shows “Login” link to open login tab.
  */
-const Register = ({ accent: accentProp, onClose }) => {
+const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
   const tenant = useTenant();
   const accent = accentProp || '#FE8C00';
   const [formData, setFormData] = useState({
@@ -204,6 +205,20 @@ const Register = ({ accent: accentProp, onClose }) => {
             {isPending || isGooglePending ? 'Registering...' : 'Register'}
           </button>
         </form>
+        {onSwitchToLogin && (
+          <p className="text-center text-sm text-gray-600 mt-5">
+            Already have an account?{' '}
+            <button
+              type="button"
+              className="font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: accent }}
+              onClick={onSwitchToLogin}
+              disabled={isPending || isGooglePending}
+            >
+              Login
+            </button>
+          </p>
+        )}
         <div className="flex items-center my-6">
           <div className="flex-grow h-px bg-gray-200" />
           <span className="mx-3 text-gray-400 text-sm">Or sign in with</span>
