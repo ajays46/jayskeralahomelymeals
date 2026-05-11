@@ -107,8 +107,8 @@ export function syncRememberMeStorage({ remember, identifier, companyPath }) {
   const { identifierKey, expiryKey } = rememberMeKeys(cp ? cp : undefined);
 
   if (rememberOn) {
-    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-    const ts = String(Date.now() + thirtyDaysMs);
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const ts = String(Date.now() + sevenDaysMs);
     const id = identifier != null ? String(identifier).trim() : '';
 
     if (cp) {
