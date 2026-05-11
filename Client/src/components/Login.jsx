@@ -31,9 +31,10 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
   const [passwordUnlocked, setPasswordUnlocked] = useState(true);
 
   useLayoutEffect(() => {
-    // Prefer tenant-scoped + TTL; fall back to global key (same as 0e1747c) so email + tick always restore.
-    const saved =
-      getRememberedIdentifier(tenant?.companyPath) || getRememberedIdentifier('');
+    // Per-company only: never fall back to global when URL has a tenant (avoids JKHM email on JLG / ML).
+    const saved = tenant?.companyPath
+      ? getRememberedIdentifier(tenant.companyPath)
+      : getRememberedIdentifier('');
     if (!saved) return;
     setPasswordUnlocked(false);
     setFormData((prev) => ({

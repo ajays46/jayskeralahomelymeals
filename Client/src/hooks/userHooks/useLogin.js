@@ -38,8 +38,13 @@ export function restoreRememberMeLocalStorageSnapshot(entries) {
   }
 }
 
+function normalizeCompanyPathForRemember(companyPath) {
+  if (companyPath == null || !String(companyPath).trim()) return '';
+  return String(companyPath).toLowerCase().trim();
+}
+
 function rememberMeKeys(companyPath) {
-  const suffix = companyPath ? `_${String(companyPath).toLowerCase().trim()}` : '';
+  const suffix = companyPath ? `_${normalizeCompanyPathForRemember(companyPath)}` : '';
   return {
     identifierKey: `${REMEMBERED_LOGIN_IDENTIFIER_KEY}${suffix}`,
     expiryKey: `${REMEMBER_ME_EXPIRY_PREFIX}${suffix}`,
@@ -47,28 +52,27 @@ function rememberMeKeys(companyPath) {
 }
 
 /**
- * Read saved identifier for this tenant if the saved window is still valid.
- * Supports legacy global keys (`remembered_login_identifier`, `auth_expires_at`).
+ * Read saved identifier for this tenant only (JKHM vs JLG vs ML are isolated).
+ * When `companyPath` is set, only scoped keys are used — never a shared global (avoids wrong-company email).
+ * Global keys are used only when there is no company path (legacy / non-tenant login URLs).
  */
 export function getRememberedIdentifier(companyPath) {
-  const cp = companyPath ? String(companyPath).toLowerCase().trim() : '';
+  const cp = normalizeCompanyPathForRemember(companyPath);
   const { identifierKey, expiryKey } = rememberMeKeys(cp);
-  const legacyId = localStorage.getItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
 
-  // Per-company row: TTL must use *scoped* expiry only (global must not invalidate scoped).
   if (cp) {
     const scopedId = localStorage.getItem(identifierKey);
-    if (scopedId) {
-      const expiryScoped = Number(localStorage.getItem(expiryKey) || '0');
-      if (expiryScoped > 0 && Date.now() > expiryScoped) {
-        localStorage.removeItem(identifierKey);
-        localStorage.removeItem(expiryKey);
-      } else {
-        return scopedId;
-      }
+    if (!scopedId) return null;
+    const expiryScoped = Number(localStorage.getItem(expiryKey) || '0');
+    if (expiryScoped > 0 && Date.now() > expiryScoped) {
+      localStorage.removeItem(identifierKey);
+      localStorage.removeItem(expiryKey);
+      return null;
     }
+    return scopedId;
   }
 
+  const legacyId = localStorage.getItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
   if (!legacyId) return null;
 
   const expiryGlobal = Number(
@@ -99,36 +103,44 @@ function isRememberMeExplicitFalse(raw) {
  */
 export function syncRememberMeStorage({ remember, identifier, companyPath }) {
   const rememberOn = isRememberMeExplicitTrue(remember);
-  const { identifierKey, expiryKey } = rememberMeKeys(companyPath);
+  const cp = normalizeCompanyPathForRemember(companyPath);
+  const { identifierKey, expiryKey } = rememberMeKeys(cp ? cp : undefined);
+
   if (rememberOn) {
     const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
     const ts = String(Date.now() + thirtyDaysMs);
     const id = identifier != null ? String(identifier).trim() : '';
 
-    // Global keys (same as commit 0e1747c) so login still restores when /:companyPath is missing
-    // or tenant context is not ready yet — same email + tick as before.
-    localStorage.setItem('auth_expires_at', ts);
-    localStorage.setItem(REMEMBER_ME_EXPIRY_PREFIX, ts);
-    if (id) {
-      localStorage.setItem(REMEMBERED_LOGIN_IDENTIFIER_KEY, id);
+    if (cp) {
+      // Company URL present: store only under this tenant (jkhm / jlg / ml stay separate).
+      localStorage.setItem(expiryKey, ts);
+      if (id) {
+        localStorage.setItem(identifierKey, id);
+      } else {
+        localStorage.removeItem(identifierKey);
+        localStorage.removeItem(expiryKey);
+      }
     } else {
-      localStorage.removeItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
-    }
-
-    // Per-company overlay when path is known (multi-tenant)
-    localStorage.setItem(expiryKey, ts);
-    if (id) {
-      localStorage.setItem(identifierKey, id);
-    } else {
-      localStorage.removeItem(identifierKey);
-      localStorage.removeItem(expiryKey);
+      // No tenant in context: legacy global keys only.
+      localStorage.setItem('auth_expires_at', ts);
+      localStorage.setItem(REMEMBER_ME_EXPIRY_PREFIX, ts);
+      if (id) {
+        localStorage.setItem(REMEMBERED_LOGIN_IDENTIFIER_KEY, id);
+      } else {
+        localStorage.removeItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
+      }
     }
   } else if (isRememberMeExplicitFalse(remember)) {
-    localStorage.removeItem(expiryKey);
-    localStorage.removeItem(identifierKey);
-    localStorage.removeItem('auth_expires_at');
-    localStorage.removeItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
-    localStorage.removeItem(REMEMBER_ME_EXPIRY_PREFIX);
+    if (cp) {
+      localStorage.removeItem(expiryKey);
+      localStorage.removeItem(identifierKey);
+    } else {
+      localStorage.removeItem(expiryKey);
+      localStorage.removeItem(identifierKey);
+      localStorage.removeItem('auth_expires_at');
+      localStorage.removeItem(REMEMBERED_LOGIN_IDENTIFIER_KEY);
+      localStorage.removeItem(REMEMBER_ME_EXPIRY_PREFIX);
+    }
   }
 }
 
