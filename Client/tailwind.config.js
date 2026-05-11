@@ -14,6 +14,8 @@ module.exports = {
         ],
         roboto: ['Roboto', 'sans-serif'],
         leagueSpartan: ['League Spartan', 'sans-serif'],
+        /** JKHM kitchen brand: rounded geometric sans (banner-style) */
+        jkhmBrand: ['Nunito', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-out',

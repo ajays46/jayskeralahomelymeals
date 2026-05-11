@@ -55,9 +55,12 @@ const HomePage = () => {
           <div className="text-center flex-1 flex flex-col justify-center">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">
               {theme.heroTitle || 'Welcome'}
-              <span className="block mt-1" style={{ color: accent }}>
+              <span
+                className={`block mt-1 ${theme.brandDisplayFontClass || ''}`}
+                style={{ color: theme.brandDisplayColor || accent }}
+              >
                 {theme.heroSubtitle || theme.brandName || 'Kitchen Service'}
-                        </span>
+              </span>
             </h1>
             <p className="text-gray-600 text-base sm:text-lg mb-8">
               {theme.heroDescription ||

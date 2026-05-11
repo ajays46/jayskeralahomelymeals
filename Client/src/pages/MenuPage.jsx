@@ -128,7 +128,15 @@ const MenuPage = () => {
             <div className="text-left sm:text-center max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto pt-14 sm:pt-12 md:pt-16 lg:pt-28 pb-8 sm:pb-12 md:pb-16 lg:pb-20">
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl lg:pt-2 xl:text-6xl font-bold text-white mb-4 sm:mb-6 pl-2 leading-tight">
                 {theme.heroTitle || 'Discover Authentic'}
-                <span className="block mt-1 sm:mt-2" style={{ color: accent }}>{theme.heroSubtitle || 'Kerala Cuisine'}</span>
+                <span
+                  className={`block mt-1 sm:mt-2 ${theme.brandDisplayFontClass || ''}`}
+                  style={{
+                    color: theme.brandDisplayColor || accent,
+                    textShadow: theme.brandDisplayTextShadow || undefined,
+                  }}
+                >
+                  {theme.heroSubtitle || 'Kerala Cuisine'}
+                </span>
               </h1>
               <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 mb-6 sm:mb-8 leading-relaxed px-2 sm:px-4">
                 {theme.heroDescription || "Experience the rich flavors and traditional recipes from God's Own Country. From spicy curries to aromatic rice dishes, every bite tells a story."}

@@ -220,7 +220,7 @@ const App = () => {
         
         <Suspense fallback={<RoutePageFallback />}>
         <Routes>
-          <Route path="/terms" element={<Terms />} />
+          <Route path="/terms" element={<Navigate to={`${getCompanyBasePathFallback()}/terms`} replace />} />
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
           <Route path="/" element={<Navigate to={getCompanyBasePathFallback()} replace />} />
 
@@ -233,6 +233,7 @@ const App = () => {
           {/* Multi-tenant: /:companyPath (e.g. /jkhm, /jlg) - TenantProvider resolves company by name */}
           <Route path="/:companyPath" element={<TenantProviderWrapper />}>
             <Route index element={<TenantAwareHome />} />
+            <Route path="terms" element={<Terms />} />
             <Route path="menu" element={<MenuPage />} />
             <Route path="place-order" element={<BookingWizardPage />} />
             <Route path="process-payment" element={<PaymentWizardPage />} />

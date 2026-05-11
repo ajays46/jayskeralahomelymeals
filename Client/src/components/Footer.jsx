@@ -1,6 +1,7 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { APP_VERSION } from '../config/appVersion';
+import { DEFAULT_COMPANY_PATH } from '../utils/companyPaths';
 
 /**
  * Footer - Copyright footer component
@@ -8,6 +9,8 @@ import { APP_VERSION } from '../config/appVersion';
  * Format: © [Year] [Company Name]. All rights reserved.
  */
 const Footer = () => {
+  const { companyPath } = useParams();
+  const tenantBase = (companyPath && String(companyPath).trim()) || DEFAULT_COMPANY_PATH;
   const copyrightYear = 2025;
   const companyName = 'JAYS KERALA INNOVATIONS PRIVATE LIMITED';
 
@@ -16,8 +19,8 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center space-y-2">
           <div className="flex justify-center items-center gap-4 flex-wrap">
-            <Link 
-              to="/terms" 
+            <Link
+              to={`/${tenantBase}/terms`}
               className="text-sm hover:text-white transition-colors duration-200 underline-offset-2 hover:underline"
             >
               Terms and Conditions

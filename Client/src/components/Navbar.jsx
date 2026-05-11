@@ -18,6 +18,7 @@ import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO
  * Navbar - Main navigation component with role-based menu and authentication
  * Handles user authentication, role-based navigation, and responsive mobile menu
  * @param {boolean} [minimalNav] — When true, hide Home/Menu/Place Order/Help and search (landing-style bar).
+ * JLG uses theme.hideMainNavLinks for the same behaviour without passing this prop.
  */
 const Navbar = ({ onSignInClick, minimalNav = false }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -39,7 +40,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
   const userIsCFO = isCFO(roles);
   const base = useCompanyBasePath();
   const tenant = useTenant();
-  const theme = tenant?.theme ?? getThemeForCompany(null, null);
+  const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -73,6 +74,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
   }, [menuOpen]);
 
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+  const stripMainNav = minimalNav || theme.hideMainNavLinks === true;
 
   return (
     <nav className={`tenant-nav ${theme.navBg || 'bg-[#989494]/50'} shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`} style={{ ['--tenant-accent']: accent }}>
@@ -88,7 +90,15 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
                 whileHover={{ rotate: 5 }}
               />
               <span className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 ml-3">
-                <span className="text-lg sm:text-xl md:text-[26px] tracking-wider whitespace-nowrap font-leagueSpartan font-black" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.5)', color: accent }}>
+                <span
+                  className={`text-lg sm:text-xl md:text-[26px] whitespace-nowrap ${
+                    theme.brandDisplayFontClass || 'font-leagueSpartan font-black tracking-wider'
+                  }`}
+                  style={{
+                    textShadow: theme.brandDisplayTextShadow || '2px 2px 8px rgba(0,0,0,0.5)',
+                    color: theme.brandDisplayColor || accent,
+                  }}
+                >
                   {theme.brandName || "Jay's Kerala Kitchen Service"}
                 </span>
               </span>
@@ -96,8 +106,8 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
           </div>
 
           {/* Desktop Navigation - hover uses --tenant-accent */}
-          <div className={`hidden md:flex items-center ${minimalNav ? 'gap-4' : 'space-x-6'}`}>
-            {!minimalNav && (
+          <div className={`hidden md:flex items-center ${stripMainNav ? 'gap-4' : 'space-x-6'}`}>
+            {!stripMainNav && (
               <>
                 <Link to={base} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
                   <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
@@ -246,10 +256,16 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
               </div>
             ) : (
               <button
+                type="button"
                 onClick={onSignInClick}
-                className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group"
+                className={
+                  stripMainNav
+                    ? 'inline-flex items-center justify-center gap-2 rounded-full border border-white/70 bg-white px-6 py-2.5 min-h-[44px] text-sm font-semibold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+                    : 'text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group'
+                }
               >
-                <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> Sign In
+                <MdPerson className={stripMainNav ? 'text-lg text-gray-800' : 'text-xl group-hover:scale-110 transition-transform duration-300'} />
+                Sign In
               </button>
             )}
 
@@ -260,7 +276,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
             </a>
             */}
 
-            {!minimalNav && (
+            {!stripMainNav && (
               <div className="relative group">
                 <input
                   type="text"
@@ -276,10 +292,21 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
             )}
           </div>
 
-          {/* Mobile: hamburger (full nav or minimal + logged-in). Minimal guest: no Sign In here — page has CTA */}
-          <div className="md:hidden flex items-center gap-2">
-            {!(minimalNav && !user) && (
+          {/* Mobile: guest + slim nav → Sign In in bar; else hamburger when needed */}
+          <div className="md:hidden flex shrink-0 items-center gap-2">
+            {stripMainNav && !user && onSignInClick ? (
+              <button
+                type="button"
+                onClick={onSignInClick}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-white/70 bg-white px-3.5 py-2 min-h-[40px] text-xs font-semibold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              >
+                <MdPerson className="text-base text-gray-800" />
+                <span>Sign In</span>
+              </button>
+            ) : null}
+            {!(stripMainNav && !user) ? (
               <motion.button
+                type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
                 whileTap={{ scale: 0.95 }}
@@ -291,7 +318,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
                   <MdMenu className="w-8 h-8" />
                 )}
               </motion.button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -327,7 +354,10 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
                     alt="Logo"
                     className="w-14 h-14 object-contain rounded-full shadow-lg"
                   />
-                  <span className="ml-3 font-bold text-white text-lg font-leagueSpartan" style={{ textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>
+                  <span
+                    className={`ml-3 font-bold text-white text-lg ${theme.brandDisplayFontClass || 'font-leagueSpartan'}`}
+                    style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.45)' }}
+                  >
                     {theme.brandName || "Jay's Kerala Kitchen Service"}
                   </span>
                 </div>
@@ -341,7 +371,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
               </div>
 
               {/* Search Bar */}
-              {!minimalNav && (
+              {!stripMainNav && (
               <div className="p-6 border-b border-gray-100 bg-white">
                 <div className="relative">
                   <input
@@ -359,7 +389,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
               )}
 
               {/* Quick Actions - hover uses --sidebar-accent */}
-              {!minimalNav && (
+              {!stripMainNav && (
               <div className="p-4">
                 <div className="grid grid-cols-2 gap-2">
                   <Link to={base} className="flex flex-col items-center gap-1 p-3 text-gray-700 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-[color:var(--sidebar-accent)]/30 [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
@@ -379,7 +409,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
               )}
 
               {/* Additional Links */}
-              {!minimalNav && (
+              {!stripMainNav && (
               <div className="px-4 pb-2">
                 <Link to="/help" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
                   <MdHelp className="text-base group-hover:scale-110 transition-transform duration-300" /> 

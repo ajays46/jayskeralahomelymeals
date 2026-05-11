@@ -5,6 +5,8 @@
  *
  * Optional keys:
  *   primaryColor, accentColor, logoUrl, brandName, navBg  - navbar & global
+ *   JKHM brand typography (optional): brandDisplayFontClass, brandDisplayColor, brandDisplayTextShadow
+ *   hideMainNavLinks (optional): hide Home/Menu/Place Order/Help + search (e.g. JLG landing-style bar)
  *   Home page overrides (optional):
  *   heroTitle, heroSubtitle, heroDescription, heroImage, featuredSectionTitle, adSectionTitle, adTagline, homeGradient
  */
@@ -12,8 +14,12 @@ export const tenantThemes = {
   jkhm: {
     primaryColor: '#FE8C00',
     accentColor: '#FE8C00',
-    logoUrl: '/logo.png',
+    logoUrl: '/jays%20kerala%20kitchen%20service.jpeg',
     brandName: "Jay's Kerala Kitchen Service",
+    /** Rounded bold sans + orange + drop shadow (homely-meals banner style) */
+    brandDisplayFontClass: 'font-jkhmBrand font-extrabold tracking-tight',
+    brandDisplayColor: '#F58220',
+    brandDisplayTextShadow: '2px 2px 5px rgba(0,0,0,0.55)',
     navBg: 'bg-[#989494]/50',
     heroTitle: 'Discover Authentic',
     heroSubtitle: 'Kerala Cuisine',
@@ -43,6 +49,8 @@ export const tenantThemes = {
     accentColor: '#10b981',
     logoUrl: '/logo2.png',
     brandName: "Jay's Leafy Greens",
+    /** Same slim bar as minimalNav: logo + name + Sign In (no Home/Menu/Place Order/Help/search) */
+    hideMainNavLinks: true,
     navBg: 'bg-[#065f46]/80',
     heroTitle: 'Fresh & Healthy',
     heroSubtitle: 'Leafy Greens',
@@ -96,8 +104,11 @@ export const tenantThemes = {
 const DEFAULT_THEME = {
   primaryColor: '#FE8C00',
   accentColor: '#FE8C00',
-  logoUrl: '/logo.png',
+  logoUrl: '/jays%20kerala%20kitchen%20service.jpeg',
   brandName: "Jay's Kerala Kitchen Service",
+  brandDisplayFontClass: 'font-jkhmBrand font-extrabold tracking-tight',
+  brandDisplayColor: '#F58220',
+  brandDisplayTextShadow: '2px 2px 5px rgba(0,0,0,0.55)',
   navBg: 'bg-[#989494]/50',
   heroTitle: 'Discover Authentic',
   heroSubtitle: 'Kerala Cuisine',
