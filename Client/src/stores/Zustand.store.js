@@ -117,8 +117,17 @@ const useAuthStore = create(
                 isAuthenticated: state.isAuthenticated,
                 roles: state.roles,
                 activeRole: state.activeRole,
-                showRoleSelector: state.showRoleSelector,
+                // Ephemeral UI: do not persist (avoids stale false overwriting open picker after login)
             }),
+            merge: (persistedState, currentState) => {
+                const p = persistedState && typeof persistedState === 'object' ? persistedState : {};
+                return {
+                    ...currentState,
+                    ...p,
+                    // Late rehydration must not wipe role picker opened synchronously on multi-role login
+                    showRoleSelector: Boolean(currentState.showRoleSelector),
+                };
+            },
         }
     )
 )

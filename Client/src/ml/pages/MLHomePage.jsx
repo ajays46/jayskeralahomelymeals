@@ -8,7 +8,7 @@ import MLNavbar from '../components/MLNavbar';
 import AuthSlider from '../../components/AuthSlider';
 import { useCompanyBasePath, useTenant } from '../../context/TenantContext';
 import { getThemeForCompany } from '../../config/tenantThemes';
-import { getDashboardRoute } from '../../utils/roleBasedRouting';
+import { getDashboardRoute, resolveSelectedRoleForDashboard } from '../../utils/roleBasedRouting';
 import useAuthStore from '../../stores/Zustand.store';
 
 const MLHomePage = () => {
@@ -20,18 +20,21 @@ const MLHomePage = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
+  const activeRole = useAuthStore((state) => state.activeRole);
+  const showRoleSelector = useAuthStore((state) => state.showRoleSelector);
 
   const openAuthSlider = useCallback(() => setAuthSliderOpen(true), []);
   const closeAuthSlider = useCallback(() => setAuthSliderOpen(false), []);
 
   useEffect(() => {
-    if (user && roles && roles.length > 0) {
-      const dashboardRoute = getDashboardRoute(roles, base);
-      if (dashboardRoute && dashboardRoute !== base) {
-        navigate(dashboardRoute, { replace: true });
-      }
+    if (!user || !roles || roles.length === 0) return;
+    if (showRoleSelector) return;
+    const selected = resolveSelectedRoleForDashboard(roles, activeRole, base);
+    const dashboardRoute = getDashboardRoute(roles, base, selected);
+    if (dashboardRoute && dashboardRoute !== base) {
+      navigate(dashboardRoute, { replace: true });
     }
-  }, [user, roles, base, navigate]);
+  }, [user, roles, base, navigate, activeRole, showRoleSelector]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>

@@ -56,13 +56,15 @@ export const useGoogleAuth = () => {
       const targetBasePath = data.data?.companyPath ? `/${String(data.data.companyPath).trim()}` : basePath;
       const isMl = (data.data?.companyPath || '').toLowerCase() === 'ml';
 
+      if (!isMl && roles.length > 1) {
+        setShowRoleSelector(true);
+      }
       setTimeout(() => {
         if (isMl) {
           const dashboardRoute = getDashboardRoute(roles, targetBasePath);
           navigate(dashboardRoute, { replace: true });
         } else if (roles.length > 1) {
           if (data.data?.companyPath) navigate(targetBasePath, { replace: true });
-          setShowRoleSelector(true);
         } else {
           const dashboardRoute = getDashboardRoute(roles, targetBasePath);
           navigate(dashboardRoute, { replace: true });

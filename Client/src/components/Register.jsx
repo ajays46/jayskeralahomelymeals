@@ -130,7 +130,6 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
     <>
       <h2 className="text-3xl font-bold text-gray-900 mb-4 lg:text-start text-center">Create an Account</h2>
       <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
-        <p className="text-gray-500 mb-6 text-sm">Create an account to start looking for the food you like</p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>

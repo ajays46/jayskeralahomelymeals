@@ -192,15 +192,17 @@ export const useLogin = () => {
         }
         const targetBasePath = data.data?.companyPath ? `/${String(data.data.companyPath).trim()}` : basePath;
         const isMl = (data.data?.companyPath || '').toLowerCase() === 'ml';
-        // Small delay to ensure AuthSlider closes first
+        if (!isMl && roles.length > 1) {
+          // Same tick as auth writes so RoleSelectionSidebar opens before persist rehydration / navigation
+          setShowRoleSelector(true);
+        }
+        // Small delay so AuthSlider can close before route change (picker already open for multi-role)
         setTimeout(() => {
-          // ML company: never show role selector; always go directly to role dashboard (e.g. CXO → cxo-dashboard)
           if (isMl) {
             const dashboardRoute = getDashboardRoute(roles, targetBasePath);
             navigate(dashboardRoute, { replace: true });
           } else if (roles.length > 1) {
             if (data.data?.companyPath) navigate(targetBasePath, { replace: true });
-            setShowRoleSelector(true);
           } else {
             const dashboardRoute = getDashboardRoute(roles, targetBasePath);
             navigate(dashboardRoute, { replace: true });

@@ -3026,6 +3026,7 @@ const DeliveryExecutivePage = () => {
             <span className="text-sm font-medium text-gray-700">{getDisplayName()}</span>
           </div>
           <button
+            type="button"
             onClick={() => setShowLogoutConfirm(true)}
             className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
             title="Logout"
@@ -4559,42 +4560,6 @@ const DeliveryExecutivePage = () => {
           )}
         </div>
 
-      {/* Logout Confirmation Modal - Swiggy Style */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <FiLogOut className="w-6 h-6 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Confirm Logout</h3>
-                <p className="text-gray-600 text-sm">Are you sure you want to logout?</p>
-              </div>
-            </div>
-            
-            <p className="text-gray-700 text-sm mb-6 pl-16">
-              You will be redirected to the home page and all your session data will be cleared.
-            </p>
-            
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-md"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Start Journey Confirmation Modal - Swiggy Style */}
       {showStartJourneyModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -4904,6 +4869,37 @@ const DeliveryExecutivePage = () => {
       )}
       </>
   )}
+      {/* Logout modal must live outside isCXOUser ternary — CXO layout uses the true branch only */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <FiLogOut className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Confirm Logout</h3>
+                <p className="text-gray-600 text-sm">Are you sure you want to logout?</p>
+              </div>
+            </div>
+            <p className="text-gray-700 text-sm mb-6 pl-16">
+              You will be redirected to the home page and all your session data will be cleared.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button type="button" onClick={handleLogout} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-md">
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {isCXOUser && companyId && user?.id && (
         <AssistantChat companyId={companyId} userId={user.id} />
       )}
