@@ -1,5 +1,6 @@
 import axios from 'axios';
 import useAuthStore from '../stores/Zustand.store';
+import { API_URL } from '../config/api';
 
 /**
  * Axios Configuration - HTTP client setup with authentication and error handling
@@ -8,7 +9,7 @@ import useAuthStore from '../stores/Zustand.store';
  */
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_NODE_ENV === 'development'  ? import.meta.env.VITE_DEV_API_URL: import.meta.env.VITE_PROD_API_URL,
+  baseURL: API_URL,
   withCredentials: true, // This is important for cookies
   headers: {
     'Content-Type': 'application/json'
