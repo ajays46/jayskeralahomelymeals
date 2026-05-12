@@ -154,9 +154,14 @@ class CriticalLogger {
    * Check if log level should be logged
    */
   shouldLog(level) {
-    const currentEnv = process.env.NODE_ENV || 'development';
-    const allowedLevels = LOG_CONFIG.levels[currentEnv];
-    return allowedLevels.includes(level);
+    const raw = process.env.NODE_ENV;
+    const currentEnv =
+      typeof raw === 'string' && raw.trim() !== ''
+        ? raw.trim().toLowerCase()
+        : 'development';
+    const allowedLevels =
+      LOG_CONFIG.levels[currentEnv] ?? LOG_CONFIG.levels.development;
+    return Array.isArray(allowedLevels) && allowedLevels.includes(level);
   }
 
   /**
