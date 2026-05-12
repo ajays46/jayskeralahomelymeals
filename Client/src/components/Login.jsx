@@ -129,7 +129,9 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
         <p className="text-gray-500 mb-6 text-sm">Welcome back! Please login to your account</p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">Email or Phone Number</label>
+            <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">
+              Email or Phone Number <span className="text-red-500">*</span>
+            </label>
             <input
               id="identifier"
               name="identifier"
@@ -145,7 +147,9 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
             {errors.identifier && <p className="mt-1 text-sm text-red-500">{errors.identifier}</p>}
           </div>
           <div className="relative">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password <span className="text-red-500">*</span>
+            </label>
             <input
               key={passwordUnlocked ? 'login-pw-unlocked' : 'login-pw-locked'}
               id="password"

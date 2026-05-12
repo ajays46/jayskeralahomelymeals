@@ -132,7 +132,9 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
       <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address <span className="text-red-500">*</span>
+            </label>
             <input
               id="email"
               name="email"
@@ -150,7 +152,9 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             )}
           </div>
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number <span className="text-red-500">*</span>
+            </label>
             <input
               id="phone"
               name="phone"
@@ -168,7 +172,9 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             )}
           </div>
           <div className="relative">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password <span className="text-red-500">*</span>
+            </label>
             <input
               id="password"
               name="password"
