@@ -154,7 +154,7 @@ const CustomersListPage = () => {
      const handleEditUser = (user) => {
      setEditingUsers(prev => new Set(prev).add(user.id));
      // Navigate to edit page
-     navigate('/jkhm/edit-customer', { 
+     navigate('/jkfds/edit-customer', { 
        state: { 
          editUser: user 
        } 
@@ -291,7 +291,7 @@ const CustomersListPage = () => {
       localStorage.setItem('fromDraft', 'true');
       
       // Navigate immediately
-      navigate('/jkhm/process-payment');
+      navigate('/jkfds/process-payment');
       
     } catch (error) {
       console.error('❌ Error in handleResumeOrder:', error);
@@ -569,7 +569,7 @@ const CustomersListPage = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-4">You don't have permission to access the customers list.</p>
           <button
-            onClick={() => navigate('/jkhm')}
+            onClick={() => navigate('/jkfds')}
             className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
           >
             Go to Home
@@ -588,7 +588,7 @@ const CustomersListPage = () => {
            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 sm:py-4 gap-3">
              <div className="flex items-center gap-3">
                <button
-                 onClick={() => navigate('/jkhm/seller')}
+                 onClick={() => navigate('/jkfds/seller')}
                  className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                  title="Go to Seller Dashboard"
                >
@@ -601,7 +601,7 @@ const CustomersListPage = () => {
              </div>
              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                <button
-                 onClick={() => navigate('/jkhm/seller')}
+                 onClick={() => navigate('/jkfds/seller')}
                  className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-600 text-white text-xs font-medium rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-sm"
                >
                  <MdDashboard className="w-4 h-4" />
@@ -615,7 +615,7 @@ const CustomersListPage = () => {
                  <span className="hidden sm:inline">Refresh</span>
                </button>
                <button
-                 onClick={() => navigate('/jkhm/create-user')}
+                 onClick={() => navigate('/jkfds/create-user')}
                  className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm"
                >
                  <MdAdd className="w-4 h-4" />
@@ -812,7 +812,7 @@ const CustomersListPage = () => {
               <p className="text-gray-500">No customers found</p>
               <p className="text-sm text-gray-400 mt-2">Start by adding your first customer</p>
               <button
-                onClick={() => navigate('/jkhm/create-user')}
+                onClick={() => navigate('/jkfds/create-user')}
                 className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Add Customer
@@ -975,7 +975,7 @@ const CustomersListPage = () => {
                                 const pendingPayment = getPendingPayment(customer);
                                 if (pendingPayment) {
                                   // Navigate to PaymentWizardPage with receipt upload step
-                                  navigate('/jkhm/process-payment', {
+                                  navigate('/jkfds/process-payment', {
                                     state: {
                                       paymentId: pendingPayment.id,
                                       goToReceiptUpload: true,
@@ -991,7 +991,7 @@ const CustomersListPage = () => {
                             </button>
                           ) : (
                             <button
-                              onClick={() => navigate('/jkhm/place-order', { 
+                              onClick={() => navigate('/jkfds/place-order', { 
                                 state: { 
                                   selectedUser: customer,
                                   skipToMenuSelection: true
@@ -1005,7 +1005,7 @@ const CustomersListPage = () => {
                           )}
                           
                           <button
-                            onClick={() => navigate('/jkhm/customer-orders', { 
+                            onClick={() => navigate('/jkfds/customer-orders', { 
                               state: { 
                                 customer: customer
                               } 

@@ -337,7 +337,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
               onClick={() => setMenuOpen(false)}
             />
             
-            {/* Mobile Menu - company theme (JLG gets green branding, JKHM orange) */}
+            {/* Mobile Menu - company theme (JLG gets green branding, jkfds orange) */}
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}

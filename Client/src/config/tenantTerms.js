@@ -1,6 +1,6 @@
 /**
- * Company-specific Terms & Conditions (key = URL path, e.g. jkhm, jlg, ml).
- * Add or edit an entry per company. Unknown paths fall back to JKHM terms.
+ * Company-specific Terms & Conditions (key = URL path, e.g. jkfds, jlg, ml).
+ * Add or edit an entry per company. Unknown paths fall back to jkfds terms.
  */
 
 const CONTACT_EMAIL =
@@ -21,9 +21,9 @@ const CONTACT_EMAIL =
  */
 
 /** @type {TenantTermsDocument} */
-const jkhmTerms = {
+const jkfdsTerms = {
   pageTitle: 'Terms & Conditions',
-  bannerTagline: 'Meal plans, food ordering & kitchen delivery (JKHM)',
+  bannerTagline: 'Meal plans, food ordering & kitchen delivery (jkfds)',
   lastUpdatedDisplay: '11 May 2026',
   intro: [
     'JAYS KERALA INNOVATIONS PRIVATE LIMITED provides this food ordering and meal plan service.',
@@ -213,7 +213,7 @@ const mlTerms = {
 };
 
 const tenantTermsByPath = {
-  jkhm: jkhmTerms,
+  jkfds: jkfdsTerms,
   jlg: jlgTerms,
   ml: mlTerms,
 };
@@ -230,5 +230,5 @@ const TERMS_PATH_ALIASES = {
 export function getTermsForCompany(companyPath) {
   const raw = (companyPath || '').toString().trim().toLowerCase();
   const key = TERMS_PATH_ALIASES[raw] || raw;
-  return tenantTermsByPath[key] || jkhmTerms;
+  return tenantTermsByPath[key] || jkfdsTerms;
 }

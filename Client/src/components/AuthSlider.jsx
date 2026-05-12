@@ -11,7 +11,7 @@ import { getThemeForCompany } from '../config/tenantThemes';
  * AuthSlider - Sliding authentication modal with tabbed interface
  * Handles login, registration, and password reset in a single modal
  * Features: Tab switching, form validation, success messages, responsive design
- * Uses tenant theme for tab colours (JLG green, JKHM orange).
+ * Uses tenant theme for tab colours (JLG green, jkfds orange).
  */
 const AuthSlider = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('login');

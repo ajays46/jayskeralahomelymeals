@@ -131,7 +131,7 @@ export function useTenant() {
   return ctx;
 }
 
-/** Hook: base path for current tenant (e.g. /jkhm). Use for links and navigate. */
+/** Hook: base path for current tenant (e.g. /jkfds). Use for links and navigate. */
 export function useCompanyBasePath() {
   const tenant = useTenant();
   const path = tenant?.companyPath || DEFAULT_COMPANY_PATH;

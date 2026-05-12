@@ -3,7 +3,7 @@ import AppError from '../utils/AppError.js';
 
 /**
  * GET /api/company-by-path/:path
- * Public. Resolves company from URL path (e.g. jkhm, jlg) using Company.name (case-insensitive).
+ * Public. Resolves company from URL path (e.g. jkfds, jlg) using Company.name (case-insensitive).
  * Returns { id, name } for tenant context. No schema change required.
  */
 export const companyByPath = async (req, res, next) => {

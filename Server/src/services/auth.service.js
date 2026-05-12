@@ -204,7 +204,7 @@ export const loginUser = async ({ identifier, password, companyPath, remember = 
                 role: primaryRole.name,
                 roles: user.userRoles.map(role => role.name), // Include all roles
                 companyId: user.companyId ?? undefined,
-                companyPath: resolvedCompanyPath // e.g. "jkhm" or "jlg" for redirect after login
+                companyPath: resolvedCompanyPath // e.g. "jkfds" or "jlg" for redirect after login
             },
             token: {
                 accessToken,

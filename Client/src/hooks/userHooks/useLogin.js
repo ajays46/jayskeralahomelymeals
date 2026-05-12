@@ -52,7 +52,7 @@ function rememberMeKeys(companyPath) {
 }
 
 /**
- * Read saved identifier for this tenant only (JKHM vs JLG vs ML are isolated).
+ * Read saved identifier for this tenant only (jkfds vs JLG vs ML are isolated).
  * When `companyPath` is set, only scoped keys are used — never a shared global (avoids wrong-company email).
  * Global keys are used only when there is no company path (legacy / non-tenant login URLs).
  */
@@ -112,7 +112,7 @@ export function syncRememberMeStorage({ remember, identifier, companyPath }) {
     const id = identifier != null ? String(identifier).trim() : '';
 
     if (cp) {
-      // Company URL present: store only under this tenant (jkhm / jlg / ml stay separate).
+      // Company URL present: store only under this tenant (jkfds / jlg / ml stay separate).
       localStorage.setItem(expiryKey, ts);
       if (id) {
         localStorage.setItem(identifierKey, id);

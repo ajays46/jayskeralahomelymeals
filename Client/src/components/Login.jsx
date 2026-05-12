@@ -31,7 +31,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
   const [passwordUnlocked, setPasswordUnlocked] = useState(true);
 
   useLayoutEffect(() => {
-    // Per-company only: never fall back to global when URL has a tenant (avoids JKHM email on JLG / ML).
+    // Per-company only: never fall back to global when URL has a tenant (avoids jkfds email on JLG / ML).
     const saved = tenant?.companyPath
       ? getRememberedIdentifier(tenant.companyPath)
       : getRememberedIdentifier('');

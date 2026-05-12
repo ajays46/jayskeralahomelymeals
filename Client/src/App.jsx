@@ -86,7 +86,7 @@ const ConditionalFooter = () => {
 };
 
 /** Wraps tenant routes: resolves company from URL, provides TenantContext, injects theme CSS vars for different UI per company.
- * Redirects authenticated users away from another company's URL (e.g. browser Back after login left /jkhm in history).
+ * Redirects authenticated users away from another company's URL (e.g. browser Back after login left /jkfds in history).
  */
 function TenantLayout() {
   const tenant = useTenant();
@@ -230,7 +230,7 @@ const App = () => {
           <Route path="/customer-login" element={<CustomerLoginPage />} />
           <Route path="/customer-orders" element={<CustomerOrdersPage />} />
 
-          {/* Multi-tenant: /:companyPath (e.g. /jkhm, /jlg) - TenantProvider resolves company by name */}
+          {/* Multi-tenant: /:companyPath (e.g. /jkfds, /jlg) - TenantProvider resolves company by name */}
           <Route path="/:companyPath" element={<TenantProviderWrapper />}>
             <Route index element={<TenantAwareHome />} />
             <Route path="terms" element={<Terms />} />

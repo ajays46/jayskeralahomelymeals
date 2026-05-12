@@ -88,7 +88,7 @@ const DeliveryExecutivePage = () => {
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const logout = useAuthStore((state) => state.logout);
-  // company_id for driver maps API: tenant from URL (e.g. /jkhm) or user from login
+  // company_id for driver maps API: tenant from URL (e.g. /jkfds) or user from login
   const companyId = tenant?.companyId ?? user?.companyId ?? user?.company_id ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('company_id') : null);
   
   // Check if user has CXO role (after roles is declared)

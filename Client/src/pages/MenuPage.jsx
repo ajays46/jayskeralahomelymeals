@@ -146,7 +146,7 @@ const MenuPage = () => {
         </div>
       </div>
 
-      {/* JLG: single product grid. JKHM: Find by Category + meal types */}
+      {/* JLG: single product grid. jkfds: Find by Category + meal types */}
       {isJlgMenu ? (
         <section className="py-10 lg:py-20 bg-white">
           <div className="container mx-auto px-4">

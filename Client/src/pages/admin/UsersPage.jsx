@@ -42,7 +42,7 @@ const UsersPage = () => {
   const { data: rolesData, isLoading: loadingRoles } = useUserRoles();
   const tenant = useTenant();
   const isMlCompany = tenant?.companyPath?.toLowerCase() === 'ml';
-  // DELIVERY_PARTNER only for MaXHub Logistics (ML) company; hide for jkhm, jlg, etc.
+  // DELIVERY_PARTNER only for MaXHub Logistics (ML) company; hide for jkfds, jlg, etc.
   const availableRoles = useMemo(() => {
     const all = rolesData?.data || [];
     if (isMlCompany) return all;

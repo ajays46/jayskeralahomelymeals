@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 
 /**
  * Resolve company by URL path. Uses existing Company.name only (no schema change).
- * Matches path to name case-insensitively (e.g. path "jkhm" matches name "JKHM").
+ * Matches path to name case-insensitively (e.g. path "jkfds" matches name "jkfds").
  */
 export const getCompanyByPath = async (path) => {
   if (!path || typeof path !== 'string' || !path.trim()) {

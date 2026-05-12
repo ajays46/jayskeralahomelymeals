@@ -25,7 +25,7 @@ const DAYS_OPTIONS = [
  */
 const CXODeliveryManagersPage = () => {
   const navigate = useNavigate();
-  const basePath = useCompanyBasePath() || '/jkhm';
+  const basePath = useCompanyBasePath() || '/jkfds';
   const tenant = useTenant();
   const { user, logout } = useAuthStore();
   const companyId = tenant?.companyId ?? user?.companyId ?? user?.company_id ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('company_id') : null);

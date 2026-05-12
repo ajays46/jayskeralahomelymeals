@@ -6,7 +6,7 @@ import { getThemeForCompany } from '../config/tenantThemes';
 import { DEFAULT_COMPANY_PATH } from '../utils/companyPaths';
 
 /**
- * Terms - Terms and Conditions (per company via URL path, e.g. /jkhm/terms).
+ * Terms - Terms and Conditions (per company via URL path, e.g. /jkfds/terms).
  * Can be rendered as a modal (with isOpen/onClose) or as a standalone page (route).
  */
 const Terms = ({ isOpen, onClose }) => {

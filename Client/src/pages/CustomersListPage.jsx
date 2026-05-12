@@ -590,7 +590,7 @@ const CustomersListPage = () => {
   // CXO (CEO/CFO) should not see Customers List — redirect to Seller Dashboard
   const isCXOUser = isCXO(roles) || isCEO(roles) || isCFO(roles);
   if (isCXOUser && !isSeller(roles)) {
-    return <Navigate to="/jkhm/seller" replace />;
+    return <Navigate to="/jkfds/seller" replace />;
   }
   if (!isSeller(roles)) {
     return (

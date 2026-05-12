@@ -6,8 +6,8 @@ This document describes how the **multi-company** feature is implemented in the 
 
 ## 1. Overview
 
-- **One app, multiple companies**: Same codebase serves different “companies” (e.g. JKHM, JLG) via URL path.
-- **URL pattern**: All tenant routes live under `/:companyPath` (e.g. `/jkhm`, `/jlg`). The path segment is the **company identifier** (resolved from `Company.name` in DB, case-insensitive).
+- **One app, multiple companies**: Same codebase serves different “companies” (e.g. jkfds, JLG) via URL path.
+- **URL pattern**: All tenant routes live under `/:companyPath` (e.g. `/jkfds`, `/jlg`). The path segment is the **company identifier** (resolved from `Company.name` in DB, case-insensitive).
 - **Data isolation**: Users, products, menus, orders, delivery, etc. are scoped by `company_id`. Admins with a company see only that company; users with `company_id = NULL` are “super admin” and see all.
 - **Per-company branding**: Each company can have its own theme (colors, logo, copy) via `tenantThemes`; no DB change, keyed by company path/name.
 
@@ -67,7 +67,7 @@ This document describes how the **multi-company** feature is implemented in the 
 
 ### 4.1 Routing and tenant context
 
-- **App entry**: Root `/` redirects to `/{DEFAULT_COMPANY_PATH}` (e.g. `/jkhm`). Default comes from `Client/src/utils/companyPaths.js` (`VITE_DEFAULT_COMPANY_PATH` or `'jkhm'`).
+- **App entry**: Root `/` redirects to `/{DEFAULT_COMPANY_PATH}` (e.g. `/jkfds`). Default comes from `Client/src/utils/companyPaths.js` (`VITE_DEFAULT_COMPANY_PATH` or `'jkfds'`).
 - **Tenant routes**: All main app routes are under one parent:  
   `path="/:companyPath"` with `element={<TenantProviderWrapper />}` (which wraps `TenantProvider` + `TenantLayout`). So every route is like `/:companyPath/menu`, `/:companyPath/admin`, etc.
 - **Files**: `Client/src/App.jsx` (routes), `Client/src/context/TenantContext.jsx`, `Client/src/utils/companyPaths.js`.
@@ -100,7 +100,7 @@ This document describes how the **multi-company** feature is implemented in the 
 ## 5. Theming (per-company look)
 
 - **File**: `Client/src/config/tenantThemes.js`
-- **Keys**: Company path/name (lowercase), e.g. `jkhm`, `jlg`.
+- **Keys**: Company path/name (lowercase), e.g. `jkfds`, `jlg`.
 - **Values**: Objects with `primaryColor`, `accentColor`, `logoUrl`, `brandName`, `navBg`, and optional home-page overrides (`heroTitle`, `heroSubtitle`, `featuredSectionTitle`, etc.). Fallback: `DEFAULT_THEME`.
 - **Usage**: `getThemeForCompany(companyPath, companyName)` used in `TenantContext`; result is in `tenant.theme` and applied in `TenantLayout` (CSS vars, title, favicon).
 
