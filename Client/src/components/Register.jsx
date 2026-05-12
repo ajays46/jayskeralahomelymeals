@@ -132,26 +132,6 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
       <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              className={`block w-full rounded-lg border ${errors.email ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
-              placeholder="Albertstevano@gmail.com"
-              value={formData.email}
-              onChange={handleChange}
-              onBlur={handleBlur}
-            />
-            {errors.email && (
-              <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
-                {errors.email}
-              </div>
-            )}
-          </div>
-          <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
               Phone Number <span className="text-red-500">*</span>
             </label>
@@ -168,6 +148,26 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             {errors.phone && (
               <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
                 {errors.phone}
+              </div>
+            )}
+          </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              className={`block w-full rounded-lg border ${errors.email ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
+              placeholder="Albertstevano@gmail.com"
+              value={formData.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+            />
+            {errors.email && (
+              <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                {errors.email}
               </div>
             )}
           </div>
