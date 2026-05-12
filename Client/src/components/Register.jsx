@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { z } from 'zod';
 import { GoogleLogin } from '@react-oauth/google';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 import { registerSchema, validateField } from '../validations/registerValidation';
 import { useTenant } from '../context/TenantContext';
 import { useRegister } from '../hooks/userHooks/useRegister';
@@ -23,6 +25,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [phoneCountry, setPhoneCountry] = useState('in');
 
   const { mutate: register, isPending } = useRegister();
   const { mutate: googleAuthMutation, isPending: isGooglePending } = useGoogleAuth();
@@ -69,6 +72,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             phone: '',
             password: '',
           });
+          setPhoneCountry('in');
           setErrors({});
           // Emit an event to switch to login form
           const switchToLoginEvent = new CustomEvent('switchToLogin', {
@@ -135,15 +139,39 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
               Phone Number <span className="text-red-500">*</span>
             </label>
-            <input
-              id="phone"
-              name="phone"
-              type="tel"
-              className={`block w-full rounded-lg border ${errors.phone ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
+            <PhoneInput
+              country={phoneCountry}
+              disableDropdown
+              countryCodeEditable
+              value={formData.phone.replace('+', '')}
+              onChange={(value, countryData) => {
+                const phoneValue = value ? `+${value}` : '';
+                setFormData((prevState) => ({
+                  ...prevState,
+                  phone: phoneValue
+                }));
+                if (countryData?.countryCode) {
+                  setPhoneCountry(countryData.countryCode);
+                }
+                if (errors.phone) {
+                  setErrors((prev) => ({ ...prev, phone: '' }));
+                }
+              }}
+              onBlur={() => {
+                const error = validateField(registerSchema, 'phone', formData.phone);
+                setErrors((prev) => ({ ...prev, phone: error }));
+              }}
+              disabled={isPending || isGooglePending}
+              inputProps={{
+                id: 'phone',
+                name: 'phone',
+                autoComplete: 'tel'
+              }}
+              containerClass="!w-full"
+              inputClass={`!w-full !h-[42px] !rounded-lg !pl-12 !text-gray-900 ${errors.phone ? '!border-red-500' : '!border-gray-300'}`}
+              buttonClass={`${errors.phone ? '!border-red-500' : '!border-gray-300'} !rounded-l-lg`}
+              searchClass="!w-full"
               placeholder="+91 9876543210"
-              value={formData.phone}
-              onChange={handleChange}
-              onBlur={handleBlur}
             />
             {errors.phone && (
               <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
