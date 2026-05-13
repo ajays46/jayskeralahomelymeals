@@ -38,16 +38,19 @@ export const clearJWTCookie = (res, cookieName = 'jwt') => {
  * @param {Object} res - Express response object
  * @param {string} token - JWT token to set
  * @param {string} cookieName - Name of the cookie (default: 'jwt')
- * @param {number} maxAge - Max age in milliseconds (default: 7 days)
+ * @param {number|null|undefined} maxAge - Max age in ms when Remember me; omit or null/undefined for session cookie (clears when browser closes)
  */
-export const setJWTCookie = (res, token, cookieName = 'jwt', maxAge = 7 * 24 * 60 * 60 * 1000) => {
+export const setJWTCookie = (res, token, cookieName = 'jwt', maxAge) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
     path: '/',
-    maxAge: maxAge
   };
+
+  if (typeof maxAge === 'number' && maxAge > 0) {
+    cookieOptions.maxAge = maxAge;
+  }
 
   res.cookie(cookieName, token, cookieOptions);
 };

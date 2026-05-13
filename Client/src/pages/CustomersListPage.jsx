@@ -23,6 +23,10 @@ import { FiLogOut } from 'react-icons/fi';
 import { useCompanyBasePath } from '../context/TenantContext';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
+import {
+  preserveRememberMeLocalStorageSnapshot,
+  restoreRememberMeLocalStorageSnapshot,
+} from '../hooks/userHooks/useLogin';
 import axiosInstance from '../api/axios';
 import { isDeliveryManager, isSeller, isCXO, isCEO, isCFO } from '../utils/roleUtils';
 import { getValidDrafts, cleanExpiredDrafts } from '../utils/draftOrderUtils';
@@ -467,9 +471,11 @@ const CustomersListPage = () => {
         // Logout API call failed, proceeding with local logout
       }
       
-      // Clear all authentication data
+      // Clear all authentication data (keep “Remember me” email keys — same as Navbar logout)
+      const rememberSnap = preserveRememberMeLocalStorageSnapshot();
       localStorage.clear();
       sessionStorage.clear();
+      restoreRememberMeLocalStorageSnapshot(rememberSnap);
       
       // Clear any cookies if they exist
       document.cookie.split(";").forEach(function(c) { 
@@ -584,7 +590,7 @@ const CustomersListPage = () => {
   // CXO (CEO/CFO) should not see Customers List — redirect to Seller Dashboard
   const isCXOUser = isCXO(roles) || isCEO(roles) || isCFO(roles);
   if (isCXOUser && !isSeller(roles)) {
-    return <Navigate to="/jkhm/seller" replace />;
+    return <Navigate to="/jkfds/seller" replace />;
   }
   if (!isSeller(roles)) {
     return (

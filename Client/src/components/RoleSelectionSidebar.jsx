@@ -31,42 +31,42 @@ const roleConfig = {
   //   title: 'CEO Dashboard',
   //   description: 'Management overview and strategic insights',
   //   color: 'bg-purple-500',
-  //   route: '/jkhm/management-dashboard'
+  //   route: '/jkfds/management-dashboard'
   // },
   // 'CFO': {
   //   icon: CurrencyDollarIcon,
   //   title: 'CFO Dashboard',
   //   description: 'Financial analytics and reporting',
   //   color: 'bg-green-500',
-  //   route: '/jkhm/financial-dashboard'
+  //   route: '/jkfds/financial-dashboard'
   // },
   'ADMIN': {
     icon: CogIcon,
     title: 'Admin Panel',
     description: 'System administration and user management',
     color: 'bg-blue-500',
-    route: '/jkhm/admin'
+    route: '/jkfds/admin'
   },
   'DELIVERY_MANAGER': {
     icon: TruckIcon,
     title: 'Delivery Manager',
     description: 'Delivery operations and route management',
     color: 'bg-orange-500',
-    route: '/jkhm/delivery-manager'
+    route: '/jkfds/delivery-manager'
   },
   'SELLER': {
     icon: ShoppingBagIcon,
     title: 'Seller Dashboard',
     description: 'Customer management and order processing',
     color: 'bg-indigo-500',
-    route: '/jkhm/seller/customers'
+    route: '/jkfds/seller/customers'
   },
   'DELIVERY_EXECUTIVE': {
     icon: TruckIcon,
     title: 'Delivery Executive',
     description: 'Delivery assignments and status updates',
     color: 'bg-teal-500',
-    route: '/jkhm/delivery-executive'
+    route: '/jkfds/delivery-executive'
   },
   'DELIVERY_PARTNER': {
     icon: TruckIcon,
@@ -87,7 +87,7 @@ const roleConfig = {
     title: 'User Dashboard',
     description: 'Personal orders and account management',
     color: 'bg-gray-500',
-    route: '/jkhm'
+    route: '/jkfds'
   }
 };
 

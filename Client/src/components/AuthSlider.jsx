@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import Login from './Login';
-import Register from './Register';
-import ForgotPassword from './ForgotPassword';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+
+const Login = lazy(() => import('./Login'));
+const Register = lazy(() => import('./Register'));
+const ForgotPassword = lazy(() => import('./ForgotPassword'));
 import { IoClose } from 'react-icons/io5';
 import { useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
@@ -10,7 +11,7 @@ import { getThemeForCompany } from '../config/tenantThemes';
  * AuthSlider - Sliding authentication modal with tabbed interface
  * Handles login, registration, and password reset in a single modal
  * Features: Tab switching, form validation, success messages, responsive design
- * Uses tenant theme for tab colours (JLG green, JKHM orange).
+ * Uses tenant theme for tab colours (JLG green, jkfds orange).
  */
 const AuthSlider = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('login');
@@ -92,13 +93,36 @@ const AuthSlider = ({ isOpen, onClose }) => {
                     {successMessage}
                   </div>
                 )}
-                {showForgot ? (
-                  <ForgotPassword onBackToLogin={() => setShowForgot(false)} accent={accent} />
-                ) : activeTab === 'login' ? (
-                  <Login onClose={onClose} onForgotPassword={() => setShowForgot(true)} accent={accent} />
-                ) : (
-                  <Register accent={accent} />
-                )}
+                <Suspense
+                  fallback={
+                    <div className="flex justify-center py-16 text-gray-500 text-sm" aria-busy="true">
+                      Loading…
+                    </div>
+                  }
+                >
+                  {showForgot ? (
+                    <ForgotPassword onBackToLogin={() => setShowForgot(false)} accent={accent} />
+                  ) : activeTab === 'login' ? (
+                    <Login
+                      onClose={onClose}
+                      onForgotPassword={() => setShowForgot(true)}
+                      onSwitchToRegister={() => {
+                        setActiveTab('register');
+                        setShowForgot(false);
+                      }}
+                      accent={accent}
+                    />
+                  ) : (
+                    <Register
+                      accent={accent}
+                      onClose={onClose}
+                      onSwitchToLogin={() => {
+                        setActiveTab('login');
+                        setShowForgot(false);
+                      }}
+                    />
+                  )}
+                </Suspense>
               </div>
             </div>
           </div>

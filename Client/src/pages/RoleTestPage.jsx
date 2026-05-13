@@ -160,7 +160,7 @@ const RoleTestPage = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => navigate('/jkhm/admin')}
+                  onClick={() => navigate('/jkfds/admin')}
                   className="text-xs"
                 >
                   Admin Panel
@@ -174,7 +174,7 @@ const RoleTestPage = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => navigate('/jkhm/delivery-manager')}
+                  onClick={() => navigate('/jkfds/delivery-manager')}
                   className="text-xs"
                 >
                   Delivery Manager

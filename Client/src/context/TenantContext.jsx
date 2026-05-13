@@ -3,19 +3,38 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { getThemeForCompany } from '../config/tenantThemes';
 import { DEFAULT_COMPANY_PATH } from '../utils/companyPaths';
+import useAuthStore from '../stores/Zustand.store';
 
 const TenantContext = createContext(null);
+
+function tenantPathMatchesSessionUser(path, authState) {
+  if (!path || !authState?.isAuthenticated || !authState?.user?.companyId) return false;
+  const u = String(authState.user.companyPath || '').toLowerCase().trim();
+  return u.length > 0 && u === String(path).toLowerCase().trim();
+}
+
+function initialTenantState(urlCompanyPath) {
+  const path = urlCompanyPath?.trim() || null;
+  if (!path) {
+    return { companyId: null, companyName: null, companyPath: null, loading: false, error: null };
+  }
+  const auth = useAuthStore.getState();
+  if (tenantPathMatchesSessionUser(path, auth)) {
+    return {
+      companyId: auth.user.companyId,
+      companyName: auth.user.companyName || null,
+      companyPath: path,
+      loading: false,
+      error: null,
+    };
+  }
+  return { companyId: null, companyName: null, companyPath: path, loading: true, error: null };
+}
 
 export function TenantProvider({ children }) {
   const { companyPath } = useParams();
   const navigate = useNavigate();
-  const [state, setState] = useState({
-    companyId: null,
-    companyName: null,
-    companyPath: companyPath || null,
-    loading: true,
-    error: null,
-  });
+  const [state, setState] = useState(() => initialTenantState(companyPath));
 
   const resolveCompany = useCallback(async (path) => {
     if (!path || !path.trim()) return null;
@@ -33,8 +52,30 @@ export function TenantProvider({ children }) {
       setState((s) => ({ ...s, loading: false, error: null, companyId: null, companyName: null, companyPath: null }));
       return;
     }
+    const auth = useAuthStore.getState();
+    const sessionMatch = tenantPathMatchesSessionUser(path, auth);
+
+    // Avoid blocking the whole tenant shell (Outlet + role selector) while /company-by-path
+    // loads when we already know this tenant from the session right after login.
+    if (sessionMatch) {
+      setState((s) => ({
+        ...s,
+        companyId: auth.user.companyId,
+        companyName: auth.user.companyName ?? s.companyName ?? null,
+        companyPath: path,
+        loading: false,
+        error: null,
+      }));
+    } else {
+      setState((s) => ({
+        ...s,
+        loading: true,
+        error: null,
+        companyPath: path,
+      }));
+    }
+
     let cancelled = false;
-    setState((s) => ({ ...s, loading: true, error: null }));
     resolveCompany(path)
       .then((company) => {
         if (cancelled) return;
@@ -90,7 +131,7 @@ export function useTenant() {
   return ctx;
 }
 
-/** Hook: base path for current tenant (e.g. /jkhm). Use for links and navigate. */
+/** Hook: base path for current tenant (e.g. /jkfds). Use for links and navigate. */
 export function useCompanyBasePath() {
   const tenant = useTenant();
   const path = tenant?.companyPath || DEFAULT_COMPANY_PATH;

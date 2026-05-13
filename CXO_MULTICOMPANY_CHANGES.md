@@ -1,21 +1,21 @@
 # Changes Needed: Use Multicompany With CXO Ability
 
-**Implemented (current branch):** `getDashboardRoute(roles, basePath)` with fallback, `companyPaths.js`, RoleSelectionSidebar using basePath, useLogin/useLogout storing companyId and using basePath for redirect. Remaining: Login form sending `companyPath`, Navbar and all pages replacing hardcoded `/jkhm`, and (optional) backend passing companyId to CXO AI route services.
+**Implemented (current branch):** `getDashboardRoute(roles, basePath)` with fallback, `companyPaths.js`, RoleSelectionSidebar using basePath, useLogin/useLogout storing companyId and using basePath for redirect. Remaining: Login form sending `companyPath`, Navbar and all pages replacing hardcoded `/jkfds`, and (optional) backend passing companyId to CXO AI route services.
 
 ---
 
-CXO = CEO and CFO roles (management dashboard, financial dashboard, route map data, executive performance, delivery managers list, seller dashboard). For these to work correctly with **multicompany** (tenant URL like `/jkhm`, `/jlg`), the following changes are required.
+CXO = CEO and CFO roles (management dashboard, financial dashboard, route map data, executive performance, delivery managers list, seller dashboard). For these to work correctly with **multicompany** (tenant URL like `/jkfds`, `/jlg`), the following changes are required.
 
 ---
 
-## 1. Frontend – Dynamic Company Path (Replace Hardcoded `/jkhm`)
+## 1. Frontend – Dynamic Company Path (Replace Hardcoded `/jkfds`)
 
 ### 1.1 Role-based routing and login redirect
 
 - **`Client/src/utils/roleBasedRouting.js`**
   - **Change**: `getDashboardRoute(roles)` should accept an optional second argument `basePath` (e.g. from `useCompanyBasePath()` or `getCompanyBasePathFallback()`).
   - **Logic**: When `basePath` is provided (e.g. `/jlg`), return `${basePath}/management-dashboard`, `${basePath}/financial-dashboard`, etc. When missing, fallback to `getCompanyBasePathFallback()` so behaviour stays correct when called outside tenant context.
-  - **Impact**: CEO/CFO/Admin/DM/Seller/DE redirects after login and from role switcher go to the current company, not always `/jkhm`.
+  - **Impact**: CEO/CFO/Admin/DM/Seller/DE redirects after login and from role switcher go to the current company, not always `/jkfds`.
 
 ### 1.2 useLogin and useLogout
 
@@ -26,7 +26,7 @@ CXO = CEO and CFO roles (management dashboard, financial dashboard, route map da
     - Use `useCompanyBasePath()` (or fallback) for `basePath` so redirect stays on current tenant when no companyPath in response.
   - **Change**: Import and use `getCompanyBasePathFallback` when hook is used outside TenantProvider (e.g. login page at `/customer-login`).
 - **`Client/src/hooks/userHooks/useLogout.js`**
-  - **Change**: On success/error, `localStorage.removeItem('company_id')` and `navigate(basePath)` where `basePath = useCompanyBasePath()` or fallback, not hardcoded `'/jkhm'`.
+  - **Change**: On success/error, `localStorage.removeItem('company_id')` and `navigate(basePath)` where `basePath = useCompanyBasePath()` or fallback, not hardcoded `'/jkfds'`.
 
 ### 1.3 Login form – send companyPath
 
@@ -41,13 +41,13 @@ CXO = CEO and CFO roles (management dashboard, financial dashboard, route map da
 ### 1.5 Navbar and other components
 
 - **`Client/src/components/Navbar.jsx`**
-  - **Change**: Replace every `href="/jkhm/..."` and `href="/jkhm"` with `${basePath}/...` and `basePath` where `basePath = useCompanyBasePath()`. Same for any `navigate('/jkhm/...')` if present.
-- **All other pages/components** that use `/jkhm` (see grep list in MULTICOMPANY_FEATURE_REFERENCE.md): use `useCompanyBasePath()` (or `getCompanyBasePathFallback()` where hook is not available) and replace hardcoded `/jkhm` with `${basePath}/...` for links and `navigate(basePath + '/...')` for programmatic navigation.
+  - **Change**: Replace every `href="/jkfds/..."` and `href="/jkfds"` with `${basePath}/...` and `basePath` where `basePath = useCompanyBasePath()`. Same for any `navigate('/jkfds/...')` if present.
+- **All other pages/components** that use `/jkfds` (see grep list in MULTICOMPANY_FEATURE_REFERENCE.md): use `useCompanyBasePath()` (or `getCompanyBasePathFallback()` where hook is not available) and replace hardcoded `/jkfds` with `${basePath}/...` for links and `navigate(basePath + '/...')` for programmatic navigation.
 
 ### 1.6 Protect routes
 
 - **`Client/src/protectRoute/Protect.jsx`**, **`DeliveryManagerProtect.jsx`**
-  - **Change**: Redirect to `getCompanyBasePathFallback()` (or login) instead of hardcoded `'/jkhm'` when the user is not allowed.
+  - **Change**: Redirect to `getCompanyBasePathFallback()` (or login) instead of hardcoded `'/jkfds'` when the user is not allowed.
 
 ---
 
@@ -78,9 +78,9 @@ The ai-routes already use `resolveCompanyId`; the client sends `X-Company-ID` fo
 | **useLogout.js** | Clear `company_id`; navigate to `basePath` (useCompanyBasePath or fallback) |
 | **Login.jsx** | Pass `companyPath` from `useParams()` into login credentials when under `:companyPath` |
 | **RoleSelectionSidebar.jsx** | `useCompanyBasePath()`; build all role routes with basePath; pass basePath to `getDashboardRoute` |
-| **Navbar.jsx** | Replace all `/jkhm` links and navigations with `basePath` from `useCompanyBasePath()` |
-| **Protect / DeliveryManagerProtect** | Redirect to `getCompanyBasePathFallback()` instead of `/jkhm` |
-| **All other pages** | Replace hardcoded `/jkhm` with `${basePath}/...` or `navigate(basePath + '/...')` (see grep list) |
+| **Navbar.jsx** | Replace all `/jkfds` links and navigations with `basePath` from `useCompanyBasePath()` |
+| **Protect / DeliveryManagerProtect** | Redirect to `getCompanyBasePathFallback()` instead of `/jkfds` |
+| **All other pages** | Replace hardcoded `/jkfds` with `${basePath}/...` or `navigate(basePath + '/...')` (see grep list) |
 | **Backend CXO APIs** | (If external API is multi-tenant) Pass `req.companyId` to route map and executive performance services and send `X-Company-ID` to external API |
 
-After these changes, CXO (CEO/CFO) will work under any company path (e.g. `/jlg/management-dashboard`, `/jkhm/financial-dashboard`) and redirects/links will stay on the current tenant.
+After these changes, CXO (CEO/CFO) will work under any company path (e.g. `/jlg/management-dashboard`, `/jkfds/financial-dashboard`) and redirects/links will stay on the current tenant.

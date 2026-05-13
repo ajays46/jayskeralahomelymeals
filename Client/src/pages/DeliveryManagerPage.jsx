@@ -10,6 +10,10 @@ import { useUpdateGeoLocation, useUpdateDeliveryComment } from '../hooks/deliver
 import { useTextCorrection } from '../hooks/useTextCorrection';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
+import {
+  preserveRememberMeLocalStorageSnapshot,
+  restoreRememberMeLocalStorageSnapshot,
+} from '../hooks/userHooks/useLogin';
 import { isSeller, hasAnyRole } from '../utils/roleUtils';
 import { SkeletonDeliveryManager, SkeletonLoading } from '../components/Skeleton';
 import TextCorrectionSuggestion from '../components/TextCorrectionSuggestion';
@@ -1588,9 +1592,10 @@ const DeliveryManagerPage = () => {
         } catch (error) {
         }
         
-        // Clear all authentication data
+        const rememberSnap = preserveRememberMeLocalStorageSnapshot();
         localStorage.clear();
         sessionStorage.clear();
+        restoreRememberMeLocalStorageSnapshot(rememberSnap);
         
         // Clear any cookies if they exist
         document.cookie.split(";").forEach(function(c) { 

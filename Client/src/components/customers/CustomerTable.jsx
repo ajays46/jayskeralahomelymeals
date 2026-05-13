@@ -26,7 +26,7 @@ const CustomerTable = memo(({
   filters, 
   sortBy, 
   navigate,
-  basePath = '/jkhm'
+  basePath = '/jkfds'
 }) => {
   if (sellerUsersLoading) {
     return (

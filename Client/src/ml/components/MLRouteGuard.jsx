@@ -9,7 +9,7 @@ import { useTenant } from '../../context/TenantContext';
 
 const MLRouteGuard = ({ children }) => {
   const tenant = useTenant();
-  const base = tenant?.companyPath ? `/${tenant.companyPath}` : '/jkhm';
+  const base = tenant?.companyPath ? `/${tenant.companyPath}` : '/jkfds';
   if (tenant?.companyPath?.toLowerCase() !== 'ml') {
     return <Navigate to={base} replace />;
   }

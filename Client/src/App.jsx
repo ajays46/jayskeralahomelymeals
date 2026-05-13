@@ -1,56 +1,7 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React, { useEffect, useLayoutEffect, lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 
-import Terms from './components/Terms';
-// import RegisterPage from './pages/RegisterPage';
-// import LoginPage from './pages/LoginPage';
-// import GustPage from './pages/GustPage';
-import HomePage from './pages/HomePage';
-import MLHomePage from './ml/pages/MLHomePage';
-import MLDeliveryPartnerDashboard from './ml/pages/MLDeliveryPartnerDashboard';
-import MLCXODashboard from './ml/pages/MLCXODashboard';
-import MLPartnerManagerDashboard from './ml/pages/MLPartnerManagerDashboard';
-import MLAddTripPage from './ml/pages/MLAddTripPage';
-import MLMyTripsPage from './ml/pages/MLMyTripsPage';
-import MLTripDetailPage from './ml/pages/MLTripDetailPage';
-import MLRouteGuard from './ml/components/MLRouteGuard';
-import ProtectedRoute from './protectRoute/Protect';
-import AdminPage from './pages/admin/AdminPage';
-import SellerPage from './pages/SellerPage';
-import DeliveryManagerRoute from './pages/DeliveryManagerRoute';
-import RouteComparisonPage from './pages/RouteComparisonPage';
-import RouteViewPage from './pages/RouteViewPage';
-import DeliveryExecutivePage from './pages/DeliveryExecutivePage';
-import ProfilePage from './pages/ProfilePage';
-import ResetPassword from './components/ResetPassword';
-import CompanyCreatePage from './pages/admin/CompanyCreatePage';
-import MenuPage from './pages/MenuPage';
-import AddProductPage from './pages/admin/AddProductPage';
-import ProductsPage from './pages/admin/ProductsPage';
-import AddMenuPage from './pages/admin/AddMenuPage';
-import MenuItemPage from './pages/admin/MenuItemPage';
-import MenuItemsTablePage from './pages/admin/MenuItemsTablePage';
-import UsersPage from './pages/admin/UsersPage';
-import ManagementDashboardPage from './pages/ManagementDashboardPage';
-import FinancialDashboardPage from './pages/FinancialDashboardPage';
-import DeliveryDashboardPage from './pages/DeliveryDashboardPage';
-import SellerPerformanceDashboardPage from './pages/SellerPerformanceDashboardPage';
-
-import CreateUserPage from './pages/CreateUserPage';
-import DeliveryItemsPage from './pages/DeliveryItemsPage';
-import CustomersListPage from './pages/CustomersListPage';
-import EditCustomerPage from './pages/EditCustomerPage';
-import CustomerOrdersPage from './pages/CustomerOrdersPage';
-import BookingWizardPage from './pages/BookingWizardPage';
-import PaymentWizardPage from './pages/PaymentWizardPage';
-import UploadReceiptPage from './pages/UploadReceiptPage';
-import RoleTestPage from './pages/RoleTestPage';
-import CustomerPortalPage from './pages/CustomerPortalPage';
-import CustomerPasswordSetupPage from './pages/CustomerPasswordSetupPage';
-import CustomerLoginPage from './pages/CustomerLoginPage';
-import NotFound from './pages/NotFound';
 import { initializeDraftCleanup } from './utils/draftOrderUtils';
 import RoleSelectionSidebar from './components/RoleSelectionSidebar';
 import Footer from './components/Footer';
@@ -59,21 +10,68 @@ import api from './api/axios';
 import { TenantProvider, useTenant } from './context/TenantContext';
 import { getCompanyBasePathFallback } from './utils/companyPaths';
 
-/** Renders MLHomePage for /ml, else HomePage (food companies). */
-function TenantAwareHome() {
-  const tenant = useTenant();
-  const isMl = tenant?.companyPath?.toLowerCase() === 'ml';
-  return isMl ? <MLHomePage /> : <HomePage />;
+const Terms = lazy(() => import('./components/Terms'));
+const ResetPassword = lazy(() => import('./components/ResetPassword'));
+const HomePage = lazy(() => import('./pages/HomePage'));
+const JLGHomePage = lazy(() => import('./pages/JLGHomePage'));
+const MLHomePage = lazy(() => import('./ml/pages/MLHomePage'));
+const MLDeliveryPartnerDashboard = lazy(() => import('./ml/pages/MLDeliveryPartnerDashboard'));
+const MLCXODashboard = lazy(() => import('./ml/pages/MLCXODashboard'));
+const MLPartnerManagerDashboard = lazy(() => import('./ml/pages/MLPartnerManagerDashboard'));
+const MLAddTripPage = lazy(() => import('./ml/pages/MLAddTripPage'));
+const MLMyTripsPage = lazy(() => import('./ml/pages/MLMyTripsPage'));
+const MLTripDetailPage = lazy(() => import('./ml/pages/MLTripDetailPage'));
+const MLRouteGuard = lazy(() => import('./ml/components/MLRouteGuard'));
+const ProtectedRoute = lazy(() => import('./protectRoute/Protect'));
+const AdminPage = lazy(() => import('./pages/admin/AdminPage'));
+const SellerPage = lazy(() => import('./pages/SellerPage'));
+const DeliveryManagerRoute = lazy(() => import('./pages/DeliveryManagerRoute'));
+const RouteComparisonPage = lazy(() => import('./pages/RouteComparisonPage'));
+const RouteViewPage = lazy(() => import('./pages/RouteViewPage'));
+const DeliveryExecutivePage = lazy(() => import('./pages/DeliveryExecutivePage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const CompanyCreatePage = lazy(() => import('./pages/admin/CompanyCreatePage'));
+const MenuPage = lazy(() => import('./pages/MenuPage'));
+const AddProductPage = lazy(() => import('./pages/admin/AddProductPage'));
+const ProductsPage = lazy(() => import('./pages/admin/ProductsPage'));
+const AddMenuPage = lazy(() => import('./pages/admin/AddMenuPage'));
+const MenuItemPage = lazy(() => import('./pages/admin/MenuItemPage'));
+const MenuItemsTablePage = lazy(() => import('./pages/admin/MenuItemsTablePage'));
+const UsersPage = lazy(() => import('./pages/admin/UsersPage'));
+const ManagementDashboardPage = lazy(() => import('./pages/ManagementDashboardPage'));
+const FinancialDashboardPage = lazy(() => import('./pages/FinancialDashboardPage'));
+const DeliveryDashboardPage = lazy(() => import('./pages/DeliveryDashboardPage'));
+const SellerPerformanceDashboardPage = lazy(() => import('./pages/SellerPerformanceDashboardPage'));
+const CreateUserPage = lazy(() => import('./pages/CreateUserPage'));
+const DeliveryItemsPage = lazy(() => import('./pages/DeliveryItemsPage'));
+const CustomersListPage = lazy(() => import('./pages/CustomersListPage'));
+const EditCustomerPage = lazy(() => import('./pages/EditCustomerPage'));
+const CustomerOrdersPage = lazy(() => import('./pages/CustomerOrdersPage'));
+const BookingWizardPage = lazy(() => import('./pages/BookingWizardPage'));
+const PaymentWizardPage = lazy(() => import('./pages/PaymentWizardPage'));
+const UploadReceiptPage = lazy(() => import('./pages/UploadReceiptPage'));
+const RoleTestPage = lazy(() => import('./pages/RoleTestPage'));
+const CustomerPortalPage = lazy(() => import('./pages/CustomerPortalPage'));
+const CustomerPasswordSetupPage = lazy(() => import('./pages/CustomerPasswordSetupPage'));
+const CustomerLoginPage = lazy(() => import('./pages/CustomerLoginPage'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+function RoutePageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <p className="text-gray-600">Loading...</p>
+    </div>
+  );
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+/** Renders tenant-specific home: ML → logistics landing; JLG → classic greens marketing home; others → minimal auth landing. */
+function TenantAwareHome() {
+  const tenant = useTenant();
+  const path = tenant?.companyPath?.toLowerCase() ?? '';
+  if (path === 'ml') return <MLHomePage />;
+  if (path === 'jlg') return <JLGHomePage />;
+  return <HomePage />;
+}
 
 /**
  * ConditionalFooter - Renders Footer on tenant home and menu (any company path)
@@ -87,16 +85,39 @@ const ConditionalFooter = () => {
   return null;
 };
 
-/** Wraps tenant routes: resolves company from URL, provides TenantContext, injects theme CSS vars for different UI per company. */
+/** Wraps tenant routes: resolves company from URL, provides TenantContext, injects theme CSS vars for different UI per company.
+ * Redirects authenticated users away from another company's URL (e.g. browser Back after login left /jkfds in history).
+ */
 function TenantLayout() {
   const tenant = useTenant();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const theme = tenant?.theme ?? {};
   const primary = theme.primaryColor || theme.buttonPrimary || '#FE8C00';
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
 
+  useLayoutEffect(() => {
+    if (!isAuthenticated || !user?.companyPath) return;
+    const urlSeg = String(tenant?.companyPath || '').toLowerCase().trim();
+    const userSeg = String(user.companyPath).toLowerCase().trim();
+    if (!urlSeg || userSeg === urlSeg) return;
+    const suffix = location.pathname.replace(/^\/[^/]+/, '') || '';
+    navigate(`/${userSeg}${suffix}${location.search}${location.hash}`, { replace: true });
+  }, [
+    isAuthenticated,
+    user?.companyPath,
+    tenant?.companyPath,
+    location.pathname,
+    location.search,
+    location.hash,
+    navigate,
+  ]);
+
   // Set browser tab title and favicon from company theme – e.g. JLG: "Jay's Leafy Greens" + logo2.png
   useEffect(() => {
-    const title = theme?.brandName || "Jay's Kerala Homely Meals";
+    const title = theme?.brandName || "Jay's Kerala Kitchen";
     const faviconHref = theme?.logoUrl || '/logo.png';
     document.title = title;
     let link = document.querySelector('link[rel="icon"]');
@@ -107,7 +128,7 @@ function TenantLayout() {
     }
     link.setAttribute('href', faviconHref);
     return () => {
-      document.title = "Jay's Kerala Homely Meals";
+      document.title = "Jay's Kerala Kitchen";
       link.setAttribute('href', '/logo.png');
     };
   }, [theme?.brandName, theme?.logoUrl]);
@@ -188,9 +209,8 @@ const App = () => {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ConfigProvider getPopupContainer={() => document.body}>
-        <Router>
+    <ConfigProvider getPopupContainer={() => document.body}>
+      <Router>
           {/* Role Selection Sidebar */}
         <RoleSelectionSidebar 
           isOpen={showRoleSelector}
@@ -198,8 +218,9 @@ const App = () => {
           userRoles={roles}
         />
         
+        <Suspense fallback={<RoutePageFallback />}>
         <Routes>
-          <Route path="/terms" element={<Terms />} />
+          <Route path="/terms" element={<Navigate to={`${getCompanyBasePathFallback()}/terms`} replace />} />
           <Route path="/reset-password/:token/:id" element={<ResetPassword />} />
           <Route path="/" element={<Navigate to={getCompanyBasePathFallback()} replace />} />
 
@@ -209,9 +230,10 @@ const App = () => {
           <Route path="/customer-login" element={<CustomerLoginPage />} />
           <Route path="/customer-orders" element={<CustomerOrdersPage />} />
 
-          {/* Multi-tenant: /:companyPath (e.g. /jkhm, /jlg) - TenantProvider resolves company by name */}
+          {/* Multi-tenant: /:companyPath (e.g. /jkfds, /jlg) - TenantProvider resolves company by name */}
           <Route path="/:companyPath" element={<TenantProviderWrapper />}>
             <Route index element={<TenantAwareHome />} />
+            <Route path="terms" element={<Terms />} />
             <Route path="menu" element={<MenuPage />} />
             <Route path="place-order" element={<BookingWizardPage />} />
             <Route path="process-payment" element={<PaymentWizardPage />} />
@@ -255,12 +277,12 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
+        </Suspense>
         
         {/* Footer - Conditionally rendered (hidden on NotFound page) */}
         <ConditionalFooter />
       </Router>
-      </ConfigProvider>
-    </QueryClientProvider>
+    </ConfigProvider>
   );
 };
 

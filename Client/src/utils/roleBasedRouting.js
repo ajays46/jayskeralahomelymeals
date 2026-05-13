@@ -1,5 +1,30 @@
 import { useNavigate } from 'react-router-dom';
 import { getCompanyBasePathFallback } from './companyPaths';
+import { isCXO } from './roleUtils';
+
+const CXO_HAT_ROLES_FOR_ROUTING = ['DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE'];
+
+/**
+ * Whether persisted `activeRole` should drive `getDashboardRoute` (third arg).
+ * CXO may use DM/Seller/DE dashboards without those roles in the JWT list.
+ */
+export function resolveSelectedRoleForDashboard(roles, activeRole, basePath) {
+  if (!activeRole || typeof activeRole !== 'string') return null;
+  const ar = activeRole.toUpperCase();
+  const roleArray = roles && Array.isArray(roles) ? roles : roles ? [roles] : [];
+  const path = basePath && typeof basePath === 'string' && basePath.trim()
+    ? (basePath.trim().startsWith('/') ? basePath.trim() : `/${basePath.trim()}`)
+    : getCompanyBasePathFallback();
+  const isMl = path === '/ml' || path.toLowerCase().endsWith('/ml');
+
+  if (isMl) {
+    if (roleArray.some((r) => (r || '').toUpperCase() === ar)) return activeRole;
+    return null;
+  }
+  if (roleArray.some((r) => (r || '').toUpperCase() === ar)) return activeRole;
+  if (isCXO(roles) && CXO_HAT_ROLES_FOR_ROUTING.includes(ar)) return activeRole;
+  return null;
+}
 
 /**
  * Role-Based Routing - Dashboard route by role. Pass basePath (e.g. from useCompanyBasePath) when inside tenant routes.

@@ -1,27 +1,34 @@
 /**
  * Company-wise UI theme config (frontend only, no schema change).
  * Same app functionality for all companies; only look differs per company.
- * Key: company path from URL (e.g. jkhm, jlg). Add entries for each company that should have a custom look.
+ * Key: company path from URL (e.g. jkfds, jlg). Add entries for each company that should have a custom look.
  *
  * Optional keys:
  *   primaryColor, accentColor, logoUrl, brandName, navBg  - navbar & global
+ *   jkfds brand typography (optional): brandDisplayFontClass, brandDisplayColor, brandDisplayTextShadow
+ *   hideMainNavLinks (optional): hide Home/Menu/Place Order/Help + search (e.g. JLG landing-style bar)
  *   Home page overrides (optional):
  *   heroTitle, heroSubtitle, heroDescription, heroImage, featuredSectionTitle, adSectionTitle, adTagline, homeGradient
  */
 export const tenantThemes = {
-  jkhm: {
+  jkfds: {
     primaryColor: '#FE8C00',
     accentColor: '#FE8C00',
-    logoUrl: '/logo.png',
-    brandName: "Jay's Kerala Homely Meals",
+    logoUrl: '/jays%20kerala%20kitchen%20service.jpeg',
+    brandName: "Jay's Kerala Kitchen",
+    brandSubtitle: 'food delivery service',
+    /** Rounded bold sans + orange + drop shadow (homely-meals banner style) */
+    brandDisplayFontClass: 'font-jkfdsBrand font-extrabold tracking-tight',
+    brandDisplayColor: '#F58220',
+    brandDisplayTextShadow: '2px 2px 5px rgba(0,0,0,0.55)',
     navBg: 'bg-[#989494]/50',
     heroTitle: 'Discover Authentic',
     heroSubtitle: 'Kerala Cuisine',
     heroDescription: "Experience the rich flavors and traditional recipes from God's Own Country. From spicy curries to aromatic rice dishes, every bite tells a story.",
     heroImage: '/banner_one.jpg',
     featuredSectionTitle: 'Our Featured Dishes',
-    adSectionTitle: "JAY'S KERALA HOMELY MEALS",
-    adTagline: 'Homely Meals Network',
+    adSectionTitle: "JAY'S KERALA KITCHEN SERVICE",
+    adTagline: 'Kitchen Service Network',
     homeGradient: 'from-orange-50 via-white to-orange-50',
     adSectionGradient: 'from-orange-50 to-yellow-50',
     featuredSectionSubtitle: 'Explore our carefully curated selection of traditional Kerala dishes by meal type',
@@ -32,7 +39,7 @@ export const tenantThemes = {
     dinnerTitle: 'Dinner Favorites',
     dinnerSubtitle: 'Light and delicious dinner options with traditional flavors',
     adRatesLine: 'NEW BREAKFAST-LUNCH-DINNER RATES',
-    adFooterLine: 'Premium Homely Meals Network • Popular Menu Rates 5.0 ⭐',
+    adFooterLine: 'Premium Kitchen Service Network • Popular Menu Rates 5.0 ⭐',
     ctaTitle: 'Start Your Meal Journey Today!',
     ctaDescription: "Experience authentic Kerala cuisine with our flexible meal plans. Choose what works best for you!",
     ctaOrderText: 'Order Now',
@@ -43,6 +50,8 @@ export const tenantThemes = {
     accentColor: '#10b981',
     logoUrl: '/logo2.png',
     brandName: "Jay's Leafy Greens",
+    /** Same slim bar as minimalNav: logo + name + Sign In (no Home/Menu/Place Order/Help/search) */
+    hideMainNavLinks: true,
     navBg: 'bg-[#065f46]/80',
     heroTitle: 'Fresh & Healthy',
     heroSubtitle: 'Leafy Greens',
@@ -96,16 +105,20 @@ export const tenantThemes = {
 const DEFAULT_THEME = {
   primaryColor: '#FE8C00',
   accentColor: '#FE8C00',
-  logoUrl: '/logo.png',
-  brandName: "Jay's Kerala Homely Meals",
+  logoUrl: '/jays%20kerala%20kitchen%20service.jpeg',
+  brandName: "Jay's Kerala Kitchen",
+  brandSubtitle: 'food delivery service',
+  brandDisplayFontClass: 'font-jkfdsBrand font-extrabold tracking-tight',
+  brandDisplayColor: '#F58220',
+  brandDisplayTextShadow: '2px 2px 5px rgba(0,0,0,0.55)',
   navBg: 'bg-[#989494]/50',
   heroTitle: 'Discover Authentic',
   heroSubtitle: 'Kerala Cuisine',
   heroDescription: "Experience the rich flavors and traditional recipes from God's Own Country. From spicy curries to aromatic rice dishes, every bite tells a story.",
   heroImage: '/banner_one.jpg',
   featuredSectionTitle: 'Our Featured Dishes',
-  adSectionTitle: "JAY'S KERALA HOMELY MEALS",
-  adTagline: 'Homely Meals Network',
+  adSectionTitle: "JAY'S KERALA KITCHEN SERVICE",
+  adTagline: 'Kitchen Service Network',
   homeGradient: 'from-orange-50 via-white to-orange-50',
   adSectionGradient: 'from-orange-50 to-yellow-50',
   featuredSectionSubtitle: 'Explore our carefully curated selection of traditional Kerala dishes by meal type',
@@ -116,7 +129,7 @@ const DEFAULT_THEME = {
   dinnerTitle: 'Dinner Favorites',
   dinnerSubtitle: 'Light and delicious dinner options with traditional flavors',
   adRatesLine: 'NEW BREAKFAST-LUNCH-DINNER RATES',
-  adFooterLine: 'Premium Homely Meals Network • Popular Menu Rates 5.0 ⭐',
+  adFooterLine: 'Premium Kitchen Service Network • Popular Menu Rates 5.0 ⭐',
   ctaTitle: 'Start Your Meal Journey Today!',
   ctaDescription: "Experience authentic Kerala cuisine with our flexible meal plans. Choose what works best for you!",
 };

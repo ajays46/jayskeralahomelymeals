@@ -19,7 +19,7 @@ async function getOrCreateSystemUserId() {
   const firstUser = await prisma.user.findFirst({ select: { id: true } });
   if (firstUser) return firstUser.id;
 
-  throw new Error('No users in system. Create an admin user first (e.g. via JKHM/JLG), then run this seed.');
+  throw new Error('No users in system. Create an admin user first (e.g. via jkfds/JLG), then run this seed.');
 }
 
 async function seedMlCompany() {

@@ -7,17 +7,80 @@ import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
 import nodemailer from 'nodemailer';
-import { getCompanyByPath } from './tenant.service.js';
+import { getCompanyByPath, normalizeCompanyPathKey } from './tenant.service.js';
+import { OAuth2Client } from 'google-auth-library';
+import { verifyTextCaptcha } from '../utils/textCaptcha.js';
 dotenv.config();
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const LOGIN_CAPTCHA_THRESHOLD = 3;
+const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const loginAttemptStore = new Map();
+
+const getLoginAttemptKey = (identifier, companyPath) => {
+    const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
+    const normalizedCompanyPath = normalizeCompanyPathKey(companyPath || '');
+    return `${normalizedCompanyPath || 'global'}::${normalizedIdentifier}`;
+};
+
+const getFailedLoginAttempts = (attemptKey) => {
+    const now = Date.now();
+    const record = loginAttemptStore.get(attemptKey);
+    if (!record) return 0;
+    if (now - record.lastFailedAt > LOGIN_ATTEMPT_WINDOW_MS) {
+        loginAttemptStore.delete(attemptKey);
+        return 0;
+    }
+    return record.count;
+};
+
+const registerFailedLoginAttempt = (attemptKey) => {
+    const now = Date.now();
+    const activeCount = getFailedLoginAttempts(attemptKey);
+    const nextCount = activeCount + 1;
+    loginAttemptStore.set(attemptKey, { count: nextCount, lastFailedAt: now });
+    return nextCount;
+};
+
+const clearFailedLoginAttempts = (attemptKey) => {
+    loginAttemptStore.delete(attemptKey);
+};
+
+/**
+ * URL segment for post-login navigation. Prefers request companyPath when it resolves
+ * to the same company as the user (avoids wrong tenant when DB name is a display label).
+ */
+async function resolveCompanyPathForUser(user, requestCompanyPath) {
+    let path = user.company?.name
+        ? normalizeCompanyPathKey(user.company.name)
+        : null;
+    if (requestCompanyPath && String(requestCompanyPath).trim() && user.companyId) {
+        const fromUrl = await getCompanyByPath(String(requestCompanyPath).trim());
+        if (fromUrl && fromUrl.id === user.companyId) {
+            path = normalizeCompanyPathKey(requestCompanyPath);
+        }
+    }
+    return path;
+}
 
 /**
  * Auth Service - Handles user authentication and authorization business logic
  * Features: User registration, login validation, password management, role assignment, JWT token generation
  */
 
-export const registerUser = async ({ email, password, phone, companyPath }) => {
+export const registerUser = async ({ email, password, phone, companyPath, termsAccepted, captchaId, captchaText }) => {
     if (!email || !password) {
         throw new AppError('Email and password are required', 400);
+    }
+    const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'register' });
+    if (!captchaCheck.success) {
+        throw new AppError('Please complete CAPTCHA verification', 400, {
+            requireCaptcha: true,
+            reason: captchaCheck.reason || 'verification_failed'
+        });
+    }
+    if (termsAccepted !== true) {
+        throw new AppError('You must accept the Terms & Conditions', 400);
     }
 
     const existingAuth = await prisma.auth.findUnique({
@@ -62,6 +125,8 @@ export const registerUser = async ({ email, password, phone, companyPath }) => {
                 email,
                 password: hashedPassword,
                 phoneNumber: phone,
+                termsAccepted: true,
+                termsAcceptedAt: new Date(),
                 apiKey: api_key,
                 status: 'ACTIVE'
             }
@@ -106,7 +171,20 @@ export const registerUser = async ({ email, password, phone, companyPath }) => {
     }
 };
 
-export const loginUser = async ({ identifier, password, companyPath }) => {
+export const loginUser = async ({ identifier, password, companyPath, remember = false, captchaId, captchaText }) => {
+    const attemptKey = getLoginAttemptKey(identifier, companyPath);
+    const failedAttempts = getFailedLoginAttempts(attemptKey);
+    if (failedAttempts >= LOGIN_CAPTCHA_THRESHOLD) {
+        const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'login' });
+        if (!captchaCheck.success) {
+            throw new AppError('Please complete CAPTCHA verification', 400, {
+                requireCaptcha: true,
+                failedAttempts,
+                reason: captchaCheck.reason || 'verification_failed'
+            });
+        }
+    }
+
     try {
         let auth = null;
         if (validator.isEmail(identifier)) {
@@ -132,7 +210,11 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         }
 
         if (!auth) {
-            throw new AppError('Invalid credentials Please try again', 401);
+            const attempts = registerFailedLoginAttempt(attemptKey);
+            throw new AppError('Invalid credentials Please try again', 401, {
+                failedAttempts: attempts,
+                requireCaptcha: attempts >= LOGIN_CAPTCHA_THRESHOLD
+            });
         }
 
         // Check if password is still in placeholder state
@@ -141,7 +223,11 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         }
 
         if (!(await bcrypt.compare(password, auth.password))) {
-            throw new AppError('Invalid credentials Please try again', 401);
+            const attempts = registerFailedLoginAttempt(attemptKey);
+            throw new AppError('Invalid credentials Please try again', 401, {
+                failedAttempts: attempts,
+                requireCaptcha: attempts >= LOGIN_CAPTCHA_THRESHOLD
+            });
         }
 
         if (auth.status !== 'ACTIVE') {
@@ -170,12 +256,10 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         // Get the primary role (first role or highest priority role)
         const primaryRole = user.userRoles[0];
         const accessToken = generateAccessToken(user.id, allRoles);
-        const refreshToken = generateRefreshToken(user.id, allRoles);
+        const refreshToken = generateRefreshToken(user.id, allRoles, Boolean(remember));
 
-        // Company path for redirect: company admins go to their company URL (e.g. JKHM -> /jkhm)
-        const resolvedCompanyPath = user.company?.name
-            ? String(user.company.name).trim().toLowerCase()
-            : null;
+        const resolvedCompanyPath = await resolveCompanyPathForUser(user, companyPath);
+        clearFailedLoginAttempts(attemptKey);
 
         return {
             user: {
@@ -187,7 +271,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
                 role: primaryRole.name,
                 roles: user.userRoles.map(role => role.name), // Include all roles
                 companyId: user.companyId ?? undefined,
-                companyPath: resolvedCompanyPath // e.g. "jkhm" or "jlg" for redirect after login
+                companyPath: resolvedCompanyPath // e.g. "jkfds" or "jlg" for redirect after login
             },
             token: {
                 accessToken,
@@ -198,6 +282,132 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         console.error('Login error:', error);
         throw error;
     }
+};
+
+export const loginWithGoogle = async ({ credential, companyPath, remember = false }) => {
+    if (!credential) {
+        throw new AppError('Google credential is required', 400);
+    }
+    if (!process.env.GOOGLE_CLIENT_ID) {
+        throw new AppError('Google login is not configured on server', 500);
+    }
+
+    let payload = null;
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+        payload = ticket.getPayload();
+    } catch (error) {
+        throw new AppError('Invalid Google credential', 401);
+    }
+
+    const email = payload?.email?.trim().toLowerCase();
+    const isEmailVerified = Boolean(payload?.email_verified);
+
+    if (!email || !isEmailVerified) {
+        throw new AppError('Google account email is not verified', 401);
+    }
+
+    let auth = await prisma.auth.findUnique({ where: { email } });
+
+    let companyId = null;
+    if (companyPath && String(companyPath).trim()) {
+        const company = await getCompanyByPath(String(companyPath).trim());
+        if (company) companyId = company.id;
+    }
+
+    if (!auth) {
+        const api_key = generateApiKey();
+        auth = await prisma.auth.create({
+            data: {
+                email,
+                password: 'NO_PASSWORD_NEEDED',
+                apiKey: api_key,
+                status: 'ACTIVE'
+            }
+        });
+
+        const user = await prisma.user.create({
+            data: {
+                authId: auth.id,
+                status: 'ACTIVE',
+                ...(companyId && { companyId })
+            }
+        });
+
+        await prisma.userRole.create({
+            data: {
+                userId: user.id,
+                name: 'USER'
+            }
+        });
+    }
+
+    let user = await prisma.user.findUnique({
+        where: { authId: auth.id },
+        include: {
+            userRoles: true,
+            company: { select: { id: true, name: true } }
+        }
+    });
+
+    // Recover if auth exists but user record is missing
+    if (!user) {
+        const createdUser = await prisma.user.create({
+            data: {
+                authId: auth.id,
+                status: 'ACTIVE',
+                ...(companyId && { companyId })
+            }
+        });
+        await prisma.userRole.create({
+            data: { userId: createdUser.id, name: 'USER' }
+        });
+        user = await prisma.user.findUnique({
+            where: { id: createdUser.id },
+            include: {
+                userRoles: true,
+                company: { select: { id: true, name: true } }
+            }
+        });
+    }
+
+    if (!user || !user.userRoles || user.userRoles.length === 0) {
+        throw new AppError('User or roles not found', 404);
+    }
+
+    if (auth.status !== 'ACTIVE') {
+        throw new AppError('Account is not active', 403);
+    }
+    if (user.status !== 'ACTIVE') {
+        throw new AppError('Your account is inactive. Please contact your administrator.', 403);
+    }
+
+    const allRoles = user.userRoles.map(role => role.name).join(',');
+    const primaryRole = user.userRoles[0];
+    const accessToken = generateAccessToken(user.id, allRoles);
+    const refreshToken = generateRefreshToken(user.id, allRoles, Boolean(remember));
+    const resolvedCompanyPath = await resolveCompanyPathForUser(user, companyPath);
+
+    return {
+        user: {
+            id: user.id,
+            email: auth.email,
+            phone: auth.phoneNumber,
+            api_key: auth.apiKey,
+            status: auth.status,
+            role: primaryRole.name,
+            roles: user.userRoles.map(role => role.name),
+            companyId: user.companyId ?? undefined,
+            companyPath: resolvedCompanyPath
+        },
+        token: {
+            accessToken,
+            refreshToken
+        }
+    };
 };
 
 export const forgotPasswordService = async (identifier) => {

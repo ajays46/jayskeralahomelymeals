@@ -1,32 +1,60 @@
-import { useState } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
-import { Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { useTenant } from '../context/TenantContext';
-import { useLogin } from '../hooks/userHooks/useLogin';
+import { useLogin, getRememberedIdentifier } from '../hooks/userHooks/useLogin';
+import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
+import CaptchaField from './CaptchaField';
 
 /**
  * Login - Authentication form component with validation and error handling
  * Handles user login with email/phone, password validation, and form state management
  * Features: Form validation, password visibility toggle, error handling, loading states
- * Sends companyPath for phone login so same phone can be used in multiple companies.
+ * @param {() => void} [onSwitchToRegister] - When set (e.g. AuthSlider), shows “Register” link to open registration tab.
  */
-const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
+const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentProp }) => {
   const tenant = useTenant();
   const { mutate: loginMutation, isPending } = useLogin();
+  const { mutate: googleAuthMutation, isPending: isGooglePending } = useGoogleAuth();
   const accent = accentProp || '#FE8C00';
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
+    remember: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [, setFailedAttempts] = useState(0);
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [captchaData, setCaptchaData] = useState({ captchaId: '', captchaText: '' });
+  const [captchaRenderKey, setCaptchaRenderKey] = useState(0);
+  /**
+   * When a remembered email is restored, password stays read-only until focus so the browser
+   * does not auto-fill the password. Users without a saved identifier are unaffected.
+   */
+  const [passwordUnlocked, setPasswordUnlocked] = useState(true);
+
+  useLayoutEffect(() => {
+    // Per-company only: never fall back to global when URL has a tenant (avoids jkfds email on JLG / ML).
+    const saved = tenant?.companyPath
+      ? getRememberedIdentifier(tenant.companyPath)
+      : getRememberedIdentifier('');
+    if (!saved) return;
+    setPasswordUnlocked(false);
+    setFormData((prev) => ({
+      ...prev,
+      identifier: saved,
+      password: '',
+      remember: true,
+    }));
+  }, [tenant?.companyPath]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prevState => ({
       ...prevState,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
     // Clear error when user starts typing
     if (errors[name]) {
@@ -46,21 +74,54 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
     try {
       // Validate all fields
       loginSchema.parse(formData);
+      if (showCaptcha && (!captchaData.captchaId || !captchaData.captchaText)) {
+        setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
+        return;
+      }
 
       // If validation passes, proceed with login (include companyPath for phone login per company)
-      await loginMutation({ ...formData, companyPath: tenant?.companyPath }, {
-        onSuccess: () => {
-          // Close the auth slider on successful login
-          onClose();
+      loginMutation({
+        ...formData,
+        companyPath: tenant?.companyPath,
+        captchaId: captchaData.captchaId,
+        captchaText: captchaData.captchaText
+      }, {
+        onSuccess: (data) => {
+          if (data?.success) {
+            setFailedAttempts(0);
+            setShowCaptcha(false);
+            setCaptchaData({ captchaId: '', captchaText: '' });
+            onClose?.();
+          }
         },
         onError: (error) => {
           const errorMessage = error.response?.data?.message;
+          const requireCaptcha = Boolean(error.response?.data?.details?.requireCaptcha);
+          const isInvalidCreds = errorMessage?.toLowerCase().includes('invalid');
+
+          if (isInvalidCreds) {
+            setFailedAttempts((prev) => {
+              const next = prev + 1;
+              if (next >= 3) setShowCaptcha(true);
+              return next;
+            });
+          }
+          if (requireCaptcha) {
+            setShowCaptcha(true);
+          }
+
           if (errorMessage?.toLowerCase().includes('invalid')) {
             setErrors(prev => ({ ...prev, password: 'Invalid credentials please try again' }));
+          } else if (errorMessage?.toLowerCase().includes('captcha')) {
+            setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
           } else if (errorMessage?.toLowerCase().includes('not active')) {
             setErrors(prev => ({ ...prev, identifier: 'Your account is not active yet' }));
           } else {
             setErrors(prev => ({ ...prev, submit: errorMessage || 'Login failed' }));
+          }
+          if (showCaptcha || requireCaptcha) {
+            setCaptchaData({ captchaId: '', captchaText: '' });
+            setCaptchaRenderKey(prev => prev + 1);
           }
         }
       });
@@ -76,6 +137,30 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
     }
   };
 
+  const handleGoogleSuccess = (credentialResponse) => {
+    const credential = credentialResponse?.credential;
+    if (!credential) {
+      setErrors(prev => ({ ...prev, submit: 'Google login failed. Missing credential.' }));
+      return;
+    }
+    googleAuthMutation(
+      {
+        credential,
+        companyPath: tenant?.companyPath,
+        remember: formData.remember
+      },
+      {
+        onSuccess: () => {
+          onClose?.();
+        },
+        onError: (error) => {
+          const errorMessage = error.response?.data?.message || 'Google login failed';
+          setErrors(prev => ({ ...prev, submit: errorMessage }));
+        }
+      }
+    );
+  };
+
   return (
     <>
       <h2 className="text-3xl font-bold text-gray-900 mb-4 lg:text-start text-center">Login to your account</h2>
@@ -83,32 +168,41 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
         <p className="text-gray-500 mb-6 text-sm">Welcome back! Please login to your account</p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">Email or Phone Number</label>
+            <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">
+              Email or Phone Number <span className="text-red-500">*</span>
+            </label>
             <input
               id="identifier"
               name="identifier"
               type="text"
+              autoComplete="username"
               className={`block w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
               placeholder="Enter your email or phone number"
               value={formData.identifier}
               onChange={handleChange}
               onBlur={handleBlur}
-              disabled={isPending}
+              disabled={isPending || isGooglePending}
             />
             {errors.identifier && <p className="mt-1 text-sm text-red-500">{errors.identifier}</p>}
           </div>
           <div className="relative">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password <span className="text-red-500">*</span>
+            </label>
             <input
+              key={passwordUnlocked ? 'login-pw-unlocked' : 'login-pw-locked'}
               id="password"
               name="password"
               type={showPassword ? 'text' : 'password'}
+              autoComplete={passwordUnlocked ? 'current-password' : 'off'}
+              readOnly={!passwordUnlocked}
+              onFocus={() => setPasswordUnlocked(true)}
               className={`block w-full rounded-lg border ${errors.password ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900 pr-10`}
               placeholder="********"
               value={formData.password}
               onChange={handleChange}
               onBlur={handleBlur}
-              disabled={isPending}
+              disabled={isPending || isGooglePending}
             />
             <button
               type="button"
@@ -116,7 +210,7 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
               onClick={() => setShowPassword(!showPassword)}
               tabIndex={-1}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
-              disabled={isPending}
+              disabled={isPending || isGooglePending}
             >
               {showPassword ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.403-3.221 1.125-4.575m1.875-2.25A9.956 9.956 0 0112 3c5.523 0 10 4.477 10 10 0 1.657-.403 3.221-1.125 4.575m-1.875 2.25A9.956 9.956 0 0112 21c-5.523 0-10-4.477-10-10 0-1.657.403-3.221 1.125-4.575" /></svg>
@@ -136,9 +230,11 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
                 id="remember"
                 name="remember"
                 type="checkbox"
+                checked={formData.remember}
+                onChange={handleChange}
                 className="h-4 w-4 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded"
                 style={{ accentColor: accent }}
-                disabled={isPending}
+                disabled={isPending || isGooglePending}
               />
               <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
                 Remember me
@@ -149,16 +245,31 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
               className="text-sm hover:underline bg-transparent border-none p-0"
               style={{ color: accent }}
               onClick={onForgotPassword}
-              disabled={isPending}
+              disabled={isPending || isGooglePending}
             >
               Forgot password?
             </button>
           </div>
+          {showCaptcha && (
+            <CaptchaField
+              accent={accent}
+              recaptchaKey={captchaRenderKey}
+              action="login"
+              onChange={(value) => {
+                setCaptchaData(value || { captchaId: '', captchaText: '' });
+                if (errors.captcha) {
+                  setErrors(prev => ({ ...prev, captcha: '' }));
+                }
+              }}
+              error={errors.captcha}
+              disabled={isPending || isGooglePending}
+            />
+          )}
           {errors.submit && <p className="mt-1 text-sm text-red-500">{errors.submit}</p>}
           <button
             type="submit"
-            disabled={isPending}
-            className={`w-full py-3 rounded-full text-white font-semibold text-lg shadow-md transition-colors ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={isPending || isGooglePending}
+            className={`w-full py-3 rounded-full text-white font-semibold text-lg shadow-md transition-colors ${isPending || isGooglePending ? 'opacity-50 cursor-not-allowed' : ''}`}
             style={{ backgroundColor: accent }}
           >
             {isPending ? (
@@ -174,15 +285,32 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
             )}
           </button>
         </form>
+        {onSwitchToRegister && (
+          <p className="text-center text-sm text-gray-600 mt-5">
+            Don&apos;t have an account?{' '}
+            <button
+              type="button"
+              className="font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: accent }}
+              onClick={onSwitchToRegister}
+              disabled={isPending || isGooglePending}
+            >
+              Register
+            </button>
+          </p>
+        )}
         <div className="flex items-center my-6">
           <div className="flex-grow h-px bg-gray-200" />
           <span className="mx-3 text-gray-400 text-sm">Or sign in with</span>
           <div className="flex-grow h-px bg-gray-200" />
         </div>
         <div className="flex justify-center gap-4 mb-4">
-          <button className="bg-white border border-gray-200 rounded-full p-2 shadow-sm hover:shadow-md transition">
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="h-6 w-6" />
-          </button>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setErrors(prev => ({ ...prev, submit: 'Google login failed. Please try again.' }))}
+            text="signin_with"
+            shape="pill"
+          />
         </div>
       </div>
     </>
