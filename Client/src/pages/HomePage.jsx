@@ -17,6 +17,7 @@ import useAuthStore from '../stores/Zustand.store';
  */
 const HomePage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState('login');
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
@@ -29,7 +30,14 @@ const HomePage = () => {
   const activeRole = useAuthStore((state) => state.activeRole);
   const showRoleSelector = useAuthStore((state) => state.showRoleSelector);
 
-  const openAuthSlider = useCallback(() => setAuthSliderOpen(true), []);
+  const openSignInSlider = useCallback(() => {
+    setAuthInitialTab('login');
+    setAuthSliderOpen(true);
+  }, []);
+  const openRegisterSlider = useCallback(() => {
+    setAuthInitialTab('register');
+    setAuthSliderOpen(true);
+  }, []);
   const closeAuthSlider = useCallback(() => setAuthSliderOpen(false), []);
 
   useEffect(() => {
@@ -47,8 +55,8 @@ const HomePage = () => {
       className={`min-h-screen bg-gradient-to-br ${gradient} flex flex-col`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <Navbar minimalNav onSignInClick={openAuthSlider} />
-      <AuthSlider isOpen={authSliderOpen} onClose={closeAuthSlider} />
+      <Navbar minimalNav onSignInClick={openSignInSlider} onRegisterClick={openRegisterSlider} />
+      <AuthSlider isOpen={authSliderOpen} onClose={closeAuthSlider} initialTab={authInitialTab} />
 
       <main className="flex-1 flex flex-col">
         <div className="pt-24 sm:pt-28 pb-24 px-4 max-w-md mx-auto w-full flex-1 flex flex-col">
@@ -69,7 +77,7 @@ const HomePage = () => {
             {!user && (
                   <button
                 type="button"
-                onClick={openAuthSlider}
+                onClick={openSignInSlider}
                 className="min-h-[48px] px-8 py-3 rounded-2xl font-semibold text-white shadow-lg active:scale-[0.98] transition-transform text-base mx-auto"
                 style={{ backgroundColor: accent }}
               >

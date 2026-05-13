@@ -121,7 +121,7 @@ const CustomerLoginPage = () => {
         const accessToken = response.data.accessToken;
         setAccessToken(accessToken);
         
-        showSuccessToast('Login successful! Redirecting...');
+        showSuccessToast('Sign-in successful! Redirecting...');
         
         // Redirect to customer orders page
         setTimeout(() => {
@@ -130,7 +130,7 @@ const CustomerLoginPage = () => {
       }
     } catch (error) {
       console.error('Error logging in:', error);
-      const errorMessage = error.response?.data?.message || 'Login failed';
+      const errorMessage = error.response?.data?.message || 'Sign-in failed';
       
       if (errorMessage.toLowerCase().includes('invalid')) {
         setErrors({ password: 'Invalid phone number or password' });
@@ -154,14 +154,14 @@ const CustomerLoginPage = () => {
           <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
             <MdPerson className="text-2xl text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Login</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h1>
           {customerInfo && (
             <p className="text-gray-600">
               Welcome back, <span className="font-semibold text-gray-900">{customerInfo.customerName}</span>
             </p>
           )}
           <p className="text-sm text-gray-500 mt-2">
-            Login to view your orders and delivery status
+            Sign in to view your orders and delivery status
           </p>
         </div>
 
@@ -244,12 +244,12 @@ const CustomerLoginPage = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
                   </svg>
-                  Logging in...
+                  Signing in...
                 </span>
               ) : (
                 <span className="flex items-center justify-center gap-2">
                   <MdLock className="w-5 h-5" />
-                  Login
+                  Sign In
                 </span>
               )}
             </button>

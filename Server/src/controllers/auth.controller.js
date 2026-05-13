@@ -35,10 +35,11 @@ export const getCaptcha = async (req, res, next) => {
 // Register new user (companyPath from frontend for per-company phone uniqueness)
 export const register = async (req, res, next) => {
   try {
-    const { email, password, phone, companyPath, termsAccepted, captchaId, captchaText } = req.body;
+    const { email, identifier, password, phone, companyPath, termsAccepted, captchaId, captchaText } = req.body;
 
     const user = await registerUser({
       email,
+      identifier,
       password,
       phone,
       companyPath,

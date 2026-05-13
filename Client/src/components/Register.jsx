@@ -21,7 +21,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
   const accent = accentProp || '#FE8C00';
   const [formData, setFormData] = useState({
     email: '',
-    phone: '',
+    phone: '+91',
     password: '',
     termsAccepted: false,
   });
@@ -66,10 +66,16 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
         return;
       }
 
+      const normalizedPhone = String(formData.phone || '').trim();
+      const normalizedEmail = String(formData.email || '').trim();
+
       // Add default name and companyPath for per-company phone uniqueness
       const registrationData = {
-        ...formData,
-        name: formData.email.split('@')[0], // Use part of email as default name
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        password: formData.password,
+        termsAccepted: formData.termsAccepted,
+        name: normalizedEmail ? normalizedEmail.split('@')[0] : normalizedPhone.replace('+', ''),
         companyPath: tenant?.companyPath,
         captchaId: captchaData.captchaId,
         captchaText: captchaData.captchaText
@@ -81,7 +87,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
           // Show success message and switch to login form
           setFormData({
             email: '',
-            phone: '',
+            phone: '+91',
             password: '',
             termsAccepted: false,
           });
@@ -91,7 +97,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
           setErrors({});
           // Emit an event to switch to login form
           const switchToLoginEvent = new CustomEvent('switchToLogin', {
-            detail: { message: 'Registration successful! Please login.' }
+            detail: { message: 'Registration successful! Please sign in.' }
           });
           window.dispatchEvent(switchToLoginEvent);
         },
@@ -99,9 +105,11 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
           const message = error.response?.data?.message || '';
 
           if (message.includes('Email already registered')) {
-            setErrors({ email: 'This email is already registered. Please login instead.' });
+            setErrors({ email: 'This email is already registered. Please sign in instead.' });
           } else if (message.includes('phone number is already registered')) {
-            setErrors({ phone: 'This phone number is already registered. Please login instead.' });
+            setErrors({ phone: 'This phone number is already registered. Please sign in instead.' });
+          } else if (message.includes('Phone number is required')) {
+            setErrors({ phone: message });
           } else if (message.toLowerCase().includes('captcha')) {
             setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
             setCaptchaData({ captchaId: '', captchaText: '' });
@@ -151,72 +159,90 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
 
   return (
     <>
-      <h2 className="text-3xl font-bold text-gray-900 mb-4 lg:text-start text-center">Create an Account</h2>
+      <h3 className="md:hidden text-2xl font-bold text-gray-900 text-center mb-3">Create an account</h3>
+      <h2 className="hidden md:block text-3xl font-bold text-gray-900 mb-4 text-center">Create an Account</h2>
       <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
+        <div className="hidden md:flex justify-center gap-4 mb-6">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setErrors(prev => ({ ...prev, submit: 'Google signup failed. Please try again.' }))}
+            text="signup_with"
+            shape="pill"
+          />
+        </div>
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number <span className="text-red-500">*</span>
-            </label>
-            <PhoneInput
-              country={phoneCountry}
-              disableDropdown
-              countryCodeEditable
-              value={formData.phone.replace('+', '')}
-              onChange={(value, countryData) => {
-                const phoneValue = value ? `+${value}` : '';
-                setFormData((prevState) => ({
-                  ...prevState,
-                  phone: phoneValue
-                }));
-                if (countryData?.countryCode) {
-                  setPhoneCountry(countryData.countryCode);
-                }
-                if (errors.phone) {
-                  setErrors((prev) => ({ ...prev, phone: '' }));
-                }
-              }}
-              onBlur={() => {
-                const error = validateField(registerSchema, 'phone', formData.phone);
-                setErrors((prev) => ({ ...prev, phone: error }));
-              }}
-              disabled={isPending || isGooglePending}
-              inputProps={{
-                id: 'phone',
-                name: 'phone',
-                autoComplete: 'tel'
-              }}
-              containerClass="!w-full"
-              inputClass={`!w-full !h-[42px] !rounded-lg !pl-12 !text-gray-900 ${errors.phone ? '!border-red-500' : '!border-gray-300'}`}
-              buttonClass={`${errors.phone ? '!border-red-500' : '!border-gray-300'} !rounded-l-lg`}
-              searchClass="!w-full"
-              placeholder="+91 9876543210"
-            />
-            {errors.phone && (
-              <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
-                {errors.phone}
-              </div>
-            )}
-          </div>
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              className={`block w-full rounded-lg border ${errors.email ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
-              placeholder="Albertstevano@gmail.com"
-              value={formData.email}
-              onChange={handleChange}
-              onBlur={handleBlur}
-            />
-            {errors.email && (
-              <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
-                {errors.email}
-              </div>
-            )}
+          <div className="space-y-2">
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
+              <PhoneInput
+                country={phoneCountry}
+                disableDropdown={false}
+                countryCodeEditable={false}
+                value={formData.phone.replace('+', '')}
+                onChange={(value, countryData) => {
+                  const dialCode = countryData?.dialCode ? `+${countryData.dialCode}` : '';
+                  const phoneValue = value ? `+${value}` : dialCode;
+                  setFormData((prevState) => ({
+                    ...prevState,
+                    phone: phoneValue
+                  }));
+                  if (countryData?.countryCode) {
+                    setPhoneCountry(countryData.countryCode);
+                  }
+                  if (errors.phone) {
+                    setErrors((prev) => ({ ...prev, phone: '' }));
+                  }
+                }}
+                onBlur={() => {
+                  const error = validateField(registerSchema, 'phone', formData.phone);
+                  setErrors((prev) => ({ ...prev, phone: error }));
+                }}
+                disabled={isPending || isGooglePending}
+                inputProps={{
+                  id: 'phone',
+                  name: 'phone',
+                  autoComplete: 'tel'
+                }}
+                containerClass="!w-full"
+                inputClass={`!w-full !h-[42px] !rounded-lg !pl-12 !text-gray-900 ${errors.phone ? '!border-red-500' : '!border-gray-300'}`}
+                buttonClass={`${errors.phone ? '!border-red-500' : '!border-gray-300'} !rounded-l-lg`}
+                searchClass="!w-full"
+                placeholder="Enter phone number"
+              />
+              {errors.phone && (
+                <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                  {errors.phone}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span className="text-[11px] font-medium tracking-wide text-gray-500 uppercase">OR</span>
+              <div className="h-px flex-1 bg-gray-200" />
+            </div>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className={`block w-full rounded-lg border ${errors.email ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
+                placeholder="name@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                disabled={isPending || isGooglePending}
+              />
+              {errors.email && (
+                <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                  {errors.email}
+                </div>
+              )}
+            </div>
           </div>
           <div className="relative">
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
@@ -247,6 +273,19 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             </button>
             {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
           </div>
+          <CaptchaField
+            accent={accent}
+            recaptchaKey={captchaRenderKey}
+            action="register"
+            onChange={(value) => {
+              setCaptchaData(value || { captchaId: '', captchaText: '' });
+              if (errors.captcha) {
+                setErrors(prev => ({ ...prev, captcha: '' }));
+              }
+            }}
+            error={errors.captcha}
+            disabled={isPending || isGooglePending}
+          />
           <div>
             <label className="flex items-start gap-2 text-sm text-gray-700">
               <input
@@ -275,19 +314,6 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
               <p className="mt-1 text-sm text-red-500">{errors.termsAccepted}</p>
             )}
           </div>
-          <CaptchaField
-            accent={accent}
-            recaptchaKey={captchaRenderKey}
-            action="register"
-            onChange={(value) => {
-              setCaptchaData(value || { captchaId: '', captchaText: '' });
-              if (errors.captcha) {
-                setErrors(prev => ({ ...prev, captcha: '' }));
-              }
-            }}
-            error={errors.captcha}
-            disabled={isPending || isGooglePending}
-          />
           {errors.submit && <p className="mt-1 text-sm text-red-500">{errors.submit}</p>}
           <button
             type="submit"
@@ -295,7 +321,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             className={`w-full py-3 rounded-full text-white font-semibold text-lg shadow-md transition-colors ${isPending || isGooglePending ? 'opacity-50 cursor-not-allowed' : ''}`}
             style={{ backgroundColor: accent }}
           >
-            {isPending || isGooglePending ? 'Registering...' : 'Register'}
+            {isPending || isGooglePending ? 'Signing up...' : 'Sign Up'}
           </button>
         </form>
         {onSwitchToLogin && (
@@ -308,23 +334,10 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
               onClick={onSwitchToLogin}
               disabled={isPending || isGooglePending}
             >
-              Login
+              Sign In
             </button>
           </p>
         )}
-        <div className="flex items-center my-6">
-          <div className="flex-grow h-px bg-gray-200" />
-          <span className="mx-3 text-gray-400 text-sm">Or sign in with</span>
-          <div className="flex-grow h-px bg-gray-200" />
-        </div>
-        <div className="flex justify-center gap-4 mb-4">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setErrors(prev => ({ ...prev, submit: 'Google signup failed. Please try again.' }))}
-            text="signup_with"
-            shape="pill"
-          />
-        </div>
       </div>
       <Terms isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} compact />
     </>

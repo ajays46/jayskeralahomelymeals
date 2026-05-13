@@ -16,7 +16,7 @@ export const tenantThemes = {
     accentColor: '#FE8C00',
     logoUrl: '/jays%20kerala%20kitchen%20service.jpeg',
     brandName: "Jay's Kerala Kitchen",
-    brandSubtitle: 'food delivery service',
+    brandSubtitle: 'Food Delivery Service',
     /** Rounded bold sans + orange + drop shadow (homely-meals banner style) */
     brandDisplayFontClass: 'font-jkfdsBrand font-extrabold tracking-tight',
     brandDisplayColor: '#F58220',
@@ -107,7 +107,7 @@ const DEFAULT_THEME = {
   accentColor: '#FE8C00',
   logoUrl: '/jays%20kerala%20kitchen%20service.jpeg',
   brandName: "Jay's Kerala Kitchen",
-  brandSubtitle: 'food delivery service',
+  brandSubtitle: 'Food Delivery Service',
   brandDisplayFontClass: 'font-jkfdsBrand font-extrabold tracking-tight',
   brandDisplayColor: '#F58220',
   brandDisplayTextShadow: '2px 2px 5px rgba(0,0,0,0.55)',

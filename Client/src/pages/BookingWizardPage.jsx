@@ -1884,7 +1884,7 @@ const BookingWizardPage = () => {
     try {
       // Check if user is authenticated
       if (!user || !user.id) {
-        showErrorToast('Please login to continue with your order');
+        showErrorToast('Please sign in to continue with your order');
         return;
       }
 

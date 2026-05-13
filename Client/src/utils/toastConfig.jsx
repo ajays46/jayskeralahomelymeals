@@ -81,12 +81,12 @@ export const showInfoToast = (message, title = "Info") => {
 
 // Authentication specific toasts
 export const showLoginError = (error) => {
-  const errorMessage = error.response?.data?.message || 'An error occurred during login.';
-  showErrorToast(errorMessage, "Login Failed");
+  const errorMessage = error.response?.data?.message || 'An error occurred during sign in.';
+  showErrorToast(errorMessage, "Sign In Failed");
 };
 
 export const showLoginSuccess = () => {
-  showSuccessToast('Welcome back! You have been successfully logged in.', "Login Successful");
+  showSuccessToast('Welcome back! You have been successfully signed in.', "Sign In Successful");
 };
 
 export const showLogoutSuccess = () => {

@@ -7,12 +7,17 @@ import { z } from 'zod';
  */
 
 export const registerSchema = z.object({
-  email: z.string()
-    .email('Please enter a valid email address')
-    .min(1, 'Email is required'),
   phone: z.string()
-    .min(10, 'Phone number must be at least 10 digits')
-    .regex(/^[0-9+\s-]+$/, 'Please enter a valid phone number'),
+    .min(4, 'Phone number is required')
+    .regex(/^\+[0-9\s-]+$/, 'Please enter a valid phone number'),
+  email: z.string()
+    .trim()
+    .optional()
+    .or(z.literal(''))
+    .refine((value) => {
+      if (!value) return true;
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    }, 'Please enter a valid email address'),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')

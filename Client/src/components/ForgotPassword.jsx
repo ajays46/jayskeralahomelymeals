@@ -74,7 +74,7 @@ const ForgotPassword = ({ onBackToLogin, accent: accentProp }) => {
           style={{ color: accent }}
           onClick={onBackToLogin}
         >
-          Back to Login
+          Back to Sign In
         </button>
       </div>
     </div>

@@ -14,7 +14,7 @@ import { useLogout } from '../../hooks/userHooks/useLogin';
 import { isDeliveryPartner, isCEO, isCFO, isAdmin, isDeliveryManager } from '../../utils/roleUtils';
 import MLJaiceChat from './MLJaiceChat';
 
-const MLNavbar = ({ onSignInClick }) => {
+const MLNavbar = ({ onSignInClick, onRegisterClick }) => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -174,15 +174,41 @@ const MLNavbar = ({ onSignInClick }) => {
                 </AnimatePresence>
               </div>
             ) : (
-              <button onClick={onSignInClick} className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 group">
-                <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> Sign In
-              </button>
+              <div className="flex items-center gap-4">
+                <button onClick={onSignInClick} aria-label="Sign In or Register" title="Sign In or Register" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-white/70 bg-white/15 px-4 py-2 min-h-[40px] text-sm font-semibold text-white transition-all duration-300 hover:bg-white/20 active:scale-[0.98]">
+                  <MdPerson className="text-base" /> Sign In
+                </button>
+                <button onClick={onRegisterClick || onSignInClick} className="inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-bold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98]">
+                  Sign Up
+                </button>
+              </div>
             )}
           </div>
 
           {/* Hamburger: only on mobile when not delivery partner (delivery partner uses bottom nav) */}
           {!(user && userIsDeliveryPartner) && (
             <div className="md:hidden flex items-center gap-1">
+              {!user && (
+                <motion.button
+                  type="button"
+                  onClick={onSignInClick}
+                  className="text-gray-900 focus:outline-none p-2 rounded-lg hover:bg-black/5 transition-all duration-300"
+                  whileTap={{ scale: 0.95 }}
+                  aria-label="Sign In or Register"
+                  title="Sign In or Register"
+                >
+                  <MdPerson className="w-7 h-7" />
+                </motion.button>
+              )}
+              {!user && (
+                <button
+                  type="button"
+                  onClick={onRegisterClick || onSignInClick}
+                  className="inline-flex items-center justify-center rounded-full border border-white/70 bg-white px-3 py-2 min-h-[40px] text-xs font-bold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98]"
+                >
+                  Sign Up
+                </button>
+              )}
               {user && (
                 <motion.button
                   type="button"
@@ -230,7 +256,9 @@ const MLNavbar = ({ onSignInClick }) => {
                 {user ? (
                   <button onClick={() => { handleLogout(); setMenuOpen(false); }} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-red-50 active:text-red-600 w-full text-left rounded-xl text-base font-medium"><MdLogout className="text-xl flex-shrink-0" /> Logout</button>
                 ) : (
-                  <button onClick={() => { onSignInClick(); setMenuOpen(false); }} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 w-full text-left rounded-xl text-base font-medium"><MdPerson className="text-xl flex-shrink-0" /> Sign In</button>
+                  <>
+                    <button onClick={() => { (onRegisterClick || onSignInClick)?.(); setMenuOpen(false); }} className="flex items-center justify-center gap-2 min-h-[48px] px-4 py-2 text-white w-full text-center rounded-xl text-base font-bold shadow-md" style={{ background: accent }}>Sign Up</button>
+                  </>
                 )}
               </div>
             </motion.div>

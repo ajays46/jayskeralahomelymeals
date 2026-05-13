@@ -1,8 +1,9 @@
-import { useState, useLayoutEffect } from 'react';
+import { useState, useLayoutEffect, useEffect } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
 import { GoogleLogin } from '@react-oauth/google';
 import { useTenant } from '../context/TenantContext';
+import { getThemeForCompany } from '../config/tenantThemes';
 import { useLogin, getRememberedIdentifier } from '../hooks/userHooks/useLogin';
 import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
 import CaptchaField from './CaptchaField';
@@ -13,11 +14,14 @@ import CaptchaField from './CaptchaField';
  * Features: Form validation, password visibility toggle, error handling, loading states
  * @param {() => void} [onSwitchToRegister] - When set (e.g. AuthSlider), shows “Register” link to open registration tab.
  */
-const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentProp }) => {
+const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentProp, startWithCredentials = false }) => {
   const tenant = useTenant();
+  const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const { mutate: loginMutation, isPending } = useLogin();
   const { mutate: googleAuthMutation, isPending: isGooglePending } = useGoogleAuth();
   const accent = accentProp || '#FE8C00';
+  const brandName = theme?.brandName || "Jay's Kerala Kitchen";
+  const logoUrl = theme?.logoUrl || '/logo.png';
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
@@ -29,6 +33,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [captchaData, setCaptchaData] = useState({ captchaId: '', captchaText: '' });
   const [captchaRenderKey, setCaptchaRenderKey] = useState(0);
+  const [showCredentialFormMobile, setShowCredentialFormMobile] = useState(false);
   /**
    * When a remembered email is restored, password stays read-only until focus so the browser
    * does not auto-fill the password. Users without a saved identifier are unaffected.
@@ -49,6 +54,10 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
       remember: true,
     }));
   }, [tenant?.companyPath]);
+
+  useEffect(() => {
+    setShowCredentialFormMobile(Boolean(startWithCredentials));
+  }, [startWithCredentials]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -117,7 +126,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
           } else if (errorMessage?.toLowerCase().includes('not active')) {
             setErrors(prev => ({ ...prev, identifier: 'Your account is not active yet' }));
           } else {
-            setErrors(prev => ({ ...prev, submit: errorMessage || 'Login failed' }));
+            setErrors(prev => ({ ...prev, submit: errorMessage || 'Sign-in failed' }));
           }
           if (showCaptcha || requireCaptcha) {
             setCaptchaData({ captchaId: '', captchaText: '' });
@@ -140,7 +149,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
   const handleGoogleSuccess = (credentialResponse) => {
     const credential = credentialResponse?.credential;
     if (!credential) {
-      setErrors(prev => ({ ...prev, submit: 'Google login failed. Missing credential.' }));
+      setErrors(prev => ({ ...prev, submit: 'Google sign-in failed. Missing credential.' }));
       return;
     }
     googleAuthMutation(
@@ -154,7 +163,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
           onClose?.();
         },
         onError: (error) => {
-          const errorMessage = error.response?.data?.message || 'Google login failed';
+          const errorMessage = error.response?.data?.message || 'Google sign-in failed';
           setErrors(prev => ({ ...prev, submit: errorMessage }));
         }
       }
@@ -163,11 +172,66 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
 
   return (
     <>
-      <h2 className="text-3xl font-bold text-gray-900 mb-4 lg:text-start text-center">Login to your account</h2>
+      <h2 className="hidden md:block text-3xl font-bold text-gray-900 mb-4 text-center">Sign In to your account</h2>
       <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
-        <p className="text-gray-500 mb-6 text-sm">Welcome back! Please login to your account</p>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div>
+        <div className="hidden md:flex justify-center gap-4 mb-6">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setErrors(prev => ({ ...prev, submit: 'Google sign-in failed. Please try again.' }))}
+            text="signin_with"
+            shape="pill"
+          />
+        </div>
+
+        {/* Mobile-first auth options: Google -> credentials -> create account */}
+        {!showCredentialFormMobile && (
+          <div className="md:hidden space-y-4 mb-4">
+            <div className="flex flex-col items-center text-center mb-6">
+              <img
+                src={logoUrl}
+                alt={`${brandName} logo`}
+                className="w-20 h-20 object-contain rounded-full shadow-sm mb-3"
+              />
+              <h3 className="text-2xl font-bold text-gray-900">{brandName}</h3>
+              {theme?.brandSubtitle ? (
+                <p className="text-sm text-gray-500 mt-1">{theme.brandSubtitle}</p>
+              ) : null}
+            </div>
+            <div className="w-full flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setErrors(prev => ({ ...prev, submit: 'Google sign-in failed. Please try again.' }))}
+                text="signin_with"
+                shape="pill"
+                width="320"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCredentialFormMobile(true)}
+              className="w-full py-3 rounded-xl text-white font-semibold text-base shadow-md transition-colors"
+              style={{ backgroundColor: accent }}
+            >
+              Login with Email or Phone number
+            </button>
+            <button
+              type="button"
+              onClick={() => onSwitchToRegister?.()}
+              disabled={!onSwitchToRegister}
+              className="w-full py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold text-base bg-white"
+            >
+              Create an account
+            </button>
+          </div>
+        )}
+
+        <form className={`${showCredentialFormMobile ? 'block' : 'hidden md:block'} space-y-4`} onSubmit={handleSubmit}>
+          {showCredentialFormMobile && (
+            <div className="md:hidden mb-2">
+              <h3 className="text-2xl font-bold text-gray-900">Sign In to your account</h3>
+            </div>
+          )}
+          <div className="mt-1">
             <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">
               Email or Phone Number <span className="text-red-500">*</span>
             </label>
@@ -278,15 +342,15 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
                 </svg>
-                Logging in...
+                Signing in...
               </span>
             ) : (
-              'Login'
+              'Sign In'
             )}
           </button>
         </form>
         {onSwitchToRegister && (
-          <p className="text-center text-sm text-gray-600 mt-5">
+          <p className={`${showCredentialFormMobile ? 'block' : 'hidden md:block'} text-center text-sm text-gray-600 mt-5`}>
             Don&apos;t have an account?{' '}
             <button
               type="button"
@@ -295,19 +359,14 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
               onClick={onSwitchToRegister}
               disabled={isPending || isGooglePending}
             >
-              Register
+              Sign Up
             </button>
           </p>
         )}
-        <div className="flex items-center my-6">
-          <div className="flex-grow h-px bg-gray-200" />
-          <span className="mx-3 text-gray-400 text-sm">Or sign in with</span>
-          <div className="flex-grow h-px bg-gray-200" />
-        </div>
-        <div className="flex justify-center gap-4 mb-4">
+        <div className={`${showCredentialFormMobile ? 'flex md:hidden' : 'hidden'} justify-center gap-4 mt-4 mb-4`}>
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
-            onError={() => setErrors(prev => ({ ...prev, submit: 'Google login failed. Please try again.' }))}
+            onError={() => setErrors(prev => ({ ...prev, submit: 'Google sign-in failed. Please try again.' }))}
             text="signin_with"
             shape="pill"
           />

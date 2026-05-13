@@ -41,14 +41,18 @@ const CaptchaField = ({ accent, onChange, error, disabled = false, recaptchaKey 
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        Human Verification <span className="text-red-500">*</span>
+        Are you a human? <span className="text-red-500">*</span>
       </label>
-      <div className={`rounded-lg border p-3 ${error ? 'border-red-500' : 'border-gray-200'}`}>
-        <div className="flex items-center justify-between gap-2">
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-[170px_auto] items-center gap-2">
           {captchaImage ? (
-            <img src={captchaImage} alt="CAPTCHA challenge" className="h-[56px] w-[170px] rounded border border-gray-300 bg-white object-cover" />
+            <img
+              src={captchaImage}
+              alt="CAPTCHA challenge"
+              className={`h-[56px] w-[170px] rounded border bg-white object-cover ${error ? 'border-red-500' : 'border-gray-300'}`}
+            />
           ) : (
-            <div className="h-[56px] w-[170px] rounded border border-gray-300 bg-gray-50 flex items-center justify-center text-xs text-gray-500">
+            <div className={`h-[56px] w-[170px] rounded border bg-gray-50 flex items-center justify-center text-xs text-gray-500 ${error ? 'border-red-500' : 'border-gray-300'}`}>
               {isLoading ? 'Loading CAPTCHA...' : 'CAPTCHA unavailable'}
             </div>
           )}
@@ -56,10 +60,12 @@ const CaptchaField = ({ accent, onChange, error, disabled = false, recaptchaKey 
             type="button"
             onClick={fetchCaptcha}
             disabled={disabled || isLoading}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="justify-self-end inline-flex h-[42px] w-[42px] items-center justify-center rounded-lg border transition-colors hover:bg-orange-50 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ color: accent, borderColor: accent }}
+            aria-label="Refresh captcha"
+            title="Refresh captcha"
           >
-            Refresh
+            <span className="text-xl leading-none text-orange-500" aria-hidden="true">↻</span>
           </button>
         </div>
         <input
@@ -70,9 +76,9 @@ const CaptchaField = ({ accent, onChange, error, disabled = false, recaptchaKey 
             setCaptchaText(value);
             onChangeRef.current?.({ captchaId, captchaText: value });
           }}
-          placeholder="Enter CAPTCHA code"
+          placeholder="Type the characters above"
           disabled={disabled || isLoading || !captchaId}
-          className="mt-3 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2"
+          className={`block w-full rounded-lg border px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${error ? 'border-red-500' : 'border-gray-300'}`}
           style={{ ['--tw-ring-color']: accent }}
         />
       </div>

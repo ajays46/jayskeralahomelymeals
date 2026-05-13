@@ -13,6 +13,7 @@ import useAuthStore from '../../stores/Zustand.store';
 
 const MLHomePage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState('login');
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
@@ -23,7 +24,14 @@ const MLHomePage = () => {
   const activeRole = useAuthStore((state) => state.activeRole);
   const showRoleSelector = useAuthStore((state) => state.showRoleSelector);
 
-  const openAuthSlider = useCallback(() => setAuthSliderOpen(true), []);
+  const openSignInSlider = useCallback(() => {
+    setAuthInitialTab('login');
+    setAuthSliderOpen(true);
+  }, []);
+  const openRegisterSlider = useCallback(() => {
+    setAuthInitialTab('register');
+    setAuthSliderOpen(true);
+  }, []);
   const closeAuthSlider = useCallback(() => setAuthSliderOpen(false), []);
 
   useEffect(() => {
@@ -38,8 +46,8 @@ const MLHomePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <MLNavbar onSignInClick={openAuthSlider} />
-      <AuthSlider isOpen={authSliderOpen} onClose={closeAuthSlider} />
+      <MLNavbar onSignInClick={openSignInSlider} onRegisterClick={openRegisterSlider} />
+      <AuthSlider isOpen={authSliderOpen} onClose={closeAuthSlider} initialTab={authInitialTab} />
 
       <div className="pt-24 sm:pt-28 pb-24 px-4 max-w-md mx-auto">
         <div className="text-center">
@@ -52,7 +60,7 @@ const MLHomePage = () => {
           </p>
           {!user && (
             <button
-              onClick={openAuthSlider}
+              onClick={openSignInSlider}
               className="min-h-[48px] px-8 py-3 rounded-2xl font-semibold text-white shadow-lg active:scale-[0.98] transition-transform text-base"
               style={{ backgroundColor: accent }}
             >

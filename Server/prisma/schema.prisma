@@ -11,9 +11,9 @@ datasource db {
 
 model Auth {
   id          String   @id @default(uuid()) @db.VarChar(36)
-  email       String   @unique @db.VarChar(255)
+  email       String?  @unique @db.VarChar(255)
   password    String   @db.VarChar(255)
-  phoneNumber String?  @map("phone_number") @db.VarChar(255)
+  phoneNumber String   @map("phone_number") @db.VarChar(255)
   termsAccepted   Boolean   @default(false) @map("terms_accepted")
   termsAcceptedAt DateTime? @map("terms_accepted_at")
   apiKey      String   @map("api_key") @db.VarChar(255)

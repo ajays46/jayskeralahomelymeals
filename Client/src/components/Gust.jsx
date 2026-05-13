@@ -14,7 +14,7 @@ const Gust = () => {
       <p className="text-center text-sm text-white mt-2">
         Don't have an account?{' '}
         <Link to="/register" className="text-white font-medium underline hover:text-orange-100">
-          Register here
+          Sign up here
         </Link>
       </p>
     </div>
