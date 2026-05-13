@@ -74,6 +74,8 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
   }, [menuOpen]);
 
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+  const brandName = theme.brandName || "Jay's Kerala Kitchen";
+  const brandSubtitle = theme.brandSubtitle || '';
   const stripMainNav = minimalNav || theme.hideMainNavLinks === true;
 
   return (
@@ -91,15 +93,24 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
               />
               <span className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 ml-3">
                 <span
-                  className={`text-lg sm:text-xl md:text-[26px] whitespace-nowrap ${
-                    theme.brandDisplayFontClass || 'font-leagueSpartan font-black tracking-wider'
-                  }`}
-                  style={{
-                    textShadow: theme.brandDisplayTextShadow || '2px 2px 8px rgba(0,0,0,0.5)',
-                    color: theme.brandDisplayColor || accent,
-                  }}
+                  className="flex flex-col leading-tight"
                 >
-                  {theme.brandName || "Jay's Kerala Kitchen Service"}
+                  <span
+                    className={`text-lg sm:text-xl md:text-[26px] whitespace-nowrap ${
+                      theme.brandDisplayFontClass || 'font-leagueSpartan font-black tracking-wider'
+                    }`}
+                    style={{
+                      textShadow: theme.brandDisplayTextShadow || '2px 2px 8px rgba(0,0,0,0.5)',
+                      color: theme.brandDisplayColor || accent,
+                    }}
+                  >
+                    {brandName}
+                  </span>
+                  {brandSubtitle ? (
+                    <span className="text-xs sm:text-sm text-white/85 font-medium normal-case mt-0.5">
+                      {brandSubtitle}
+                    </span>
+                  ) : null}
                 </span>
               </span>
             </Link>
@@ -354,11 +365,18 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
                     alt="Logo"
                     className="w-14 h-14 object-contain rounded-full shadow-lg"
                   />
-                  <span
-                    className={`ml-3 font-bold text-white text-lg ${theme.brandDisplayFontClass || 'font-leagueSpartan'}`}
-                    style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.45)' }}
-                  >
-                    {theme.brandName || "Jay's Kerala Kitchen Service"}
+                  <span className="ml-3 flex flex-col leading-tight">
+                    <span
+                      className={`font-bold text-white text-lg ${theme.brandDisplayFontClass || 'font-leagueSpartan'}`}
+                      style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.45)' }}
+                    >
+                      {brandName}
+                    </span>
+                    {brandSubtitle ? (
+                      <span className="text-[11px] text-white/90 font-medium mt-0.5">
+                        {brandSubtitle}
+                      </span>
+                    ) : null}
                   </span>
                 </div>
                 <motion.button
@@ -526,7 +544,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
                       <MdPerson className="text-xl text-gray-400" />
                     </div>
-                    <p className="text-xs text-gray-500 mb-2">Welcome to {theme.brandName || "Jay's Kerala Kitchen Service"}</p>
+                    <p className="text-xs text-gray-500 mb-2">Welcome to {brandName}</p>
                   </div>
                   <motion.button
                     onClick={() => {

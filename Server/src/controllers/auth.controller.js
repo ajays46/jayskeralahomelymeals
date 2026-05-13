@@ -7,6 +7,7 @@ import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { logSecurityEvent } from '../middleware/logging.middleware.js';
+import { createTextCaptcha } from '../utils/textCaptcha.js';
 
 dotenv.config();
 
@@ -15,12 +16,36 @@ dotenv.config();
  * Features: User registration, login, password reset, role management, JWT token handling
  */
 
+export const getCaptcha = async (req, res, next) => {
+  try {
+    const purpose = String(req.query?.purpose || 'register').toLowerCase().trim();
+    const allowedPurposes = new Set(['register', 'login']);
+    const normalizedPurpose = allowedPurposes.has(purpose) ? purpose : 'register';
+    const captcha = createTextCaptcha(normalizedPurpose);
+
+    res.status(200).json({
+      success: true,
+      data: captcha
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Register new user (companyPath from frontend for per-company phone uniqueness)
 export const register = async (req, res, next) => {
   try {
-    const { email, password, phone, companyPath } = req.body;
+    const { email, password, phone, companyPath, termsAccepted, captchaId, captchaText } = req.body;
 
-    const user = await registerUser({ email, password, phone, companyPath });
+    const user = await registerUser({
+      email,
+      password,
+      phone,
+      companyPath,
+      termsAccepted,
+      captchaId,
+      captchaText
+    });
     res.status(201).json({
       status: 'success',
       data: user
@@ -33,9 +58,16 @@ export const register = async (req, res, next) => {
 // Login user (companyPath from frontend for phone login when same phone in multiple companies)
 export const login = async (req, res, next) => {
   try {
-    const { identifier, password, companyPath, remember } = req.body;
+    const { identifier, password, companyPath, remember, captchaId, captchaText } = req.body;
     const rememberMe = remember === true || remember === 'true';
-    const userData = await loginUser({ identifier, password, companyPath, remember: rememberMe });
+    const userData = await loginUser({
+      identifier,
+      password,
+      companyPath,
+      remember: rememberMe,
+      captchaId,
+      captchaText
+    });
 
     const { accessToken, refreshToken } = userData.token;
 

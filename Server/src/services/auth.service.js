@@ -7,11 +7,44 @@ import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
 import nodemailer from 'nodemailer';
-import { getCompanyByPath } from './tenant.service.js';
+import { getCompanyByPath, normalizeCompanyPathKey } from './tenant.service.js';
 import { OAuth2Client } from 'google-auth-library';
+import { verifyTextCaptcha } from '../utils/textCaptcha.js';
 dotenv.config();
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const LOGIN_CAPTCHA_THRESHOLD = 3;
+const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const loginAttemptStore = new Map();
+
+const getLoginAttemptKey = (identifier, companyPath) => {
+    const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
+    const normalizedCompanyPath = normalizeCompanyPathKey(companyPath || '');
+    return `${normalizedCompanyPath || 'global'}::${normalizedIdentifier}`;
+};
+
+const getFailedLoginAttempts = (attemptKey) => {
+    const now = Date.now();
+    const record = loginAttemptStore.get(attemptKey);
+    if (!record) return 0;
+    if (now - record.lastFailedAt > LOGIN_ATTEMPT_WINDOW_MS) {
+        loginAttemptStore.delete(attemptKey);
+        return 0;
+    }
+    return record.count;
+};
+
+const registerFailedLoginAttempt = (attemptKey) => {
+    const now = Date.now();
+    const activeCount = getFailedLoginAttempts(attemptKey);
+    const nextCount = activeCount + 1;
+    loginAttemptStore.set(attemptKey, { count: nextCount, lastFailedAt: now });
+    return nextCount;
+};
+
+const clearFailedLoginAttempts = (attemptKey) => {
+    loginAttemptStore.delete(attemptKey);
+};
 
 /**
  * URL segment for post-login navigation. Prefers request companyPath when it resolves
@@ -19,12 +52,12 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
  */
 async function resolveCompanyPathForUser(user, requestCompanyPath) {
     let path = user.company?.name
-        ? String(user.company.name).trim().toLowerCase()
+        ? normalizeCompanyPathKey(user.company.name)
         : null;
     if (requestCompanyPath && String(requestCompanyPath).trim() && user.companyId) {
         const fromUrl = await getCompanyByPath(String(requestCompanyPath).trim());
         if (fromUrl && fromUrl.id === user.companyId) {
-            path = String(requestCompanyPath).trim().toLowerCase();
+            path = normalizeCompanyPathKey(requestCompanyPath);
         }
     }
     return path;
@@ -35,9 +68,19 @@ async function resolveCompanyPathForUser(user, requestCompanyPath) {
  * Features: User registration, login validation, password management, role assignment, JWT token generation
  */
 
-export const registerUser = async ({ email, password, phone, companyPath }) => {
+export const registerUser = async ({ email, password, phone, companyPath, termsAccepted, captchaId, captchaText }) => {
     if (!email || !password) {
         throw new AppError('Email and password are required', 400);
+    }
+    const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'register' });
+    if (!captchaCheck.success) {
+        throw new AppError('Please complete CAPTCHA verification', 400, {
+            requireCaptcha: true,
+            reason: captchaCheck.reason || 'verification_failed'
+        });
+    }
+    if (termsAccepted !== true) {
+        throw new AppError('You must accept the Terms & Conditions', 400);
     }
 
     const existingAuth = await prisma.auth.findUnique({
@@ -82,6 +125,8 @@ export const registerUser = async ({ email, password, phone, companyPath }) => {
                 email,
                 password: hashedPassword,
                 phoneNumber: phone,
+                termsAccepted: true,
+                termsAcceptedAt: new Date(),
                 apiKey: api_key,
                 status: 'ACTIVE'
             }
@@ -126,7 +171,20 @@ export const registerUser = async ({ email, password, phone, companyPath }) => {
     }
 };
 
-export const loginUser = async ({ identifier, password, companyPath, remember = false }) => {
+export const loginUser = async ({ identifier, password, companyPath, remember = false, captchaId, captchaText }) => {
+    const attemptKey = getLoginAttemptKey(identifier, companyPath);
+    const failedAttempts = getFailedLoginAttempts(attemptKey);
+    if (failedAttempts >= LOGIN_CAPTCHA_THRESHOLD) {
+        const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'login' });
+        if (!captchaCheck.success) {
+            throw new AppError('Please complete CAPTCHA verification', 400, {
+                requireCaptcha: true,
+                failedAttempts,
+                reason: captchaCheck.reason || 'verification_failed'
+            });
+        }
+    }
+
     try {
         let auth = null;
         if (validator.isEmail(identifier)) {
@@ -152,7 +210,11 @@ export const loginUser = async ({ identifier, password, companyPath, remember = 
         }
 
         if (!auth) {
-            throw new AppError('Invalid credentials Please try again', 401);
+            const attempts = registerFailedLoginAttempt(attemptKey);
+            throw new AppError('Invalid credentials Please try again', 401, {
+                failedAttempts: attempts,
+                requireCaptcha: attempts >= LOGIN_CAPTCHA_THRESHOLD
+            });
         }
 
         // Check if password is still in placeholder state
@@ -161,7 +223,11 @@ export const loginUser = async ({ identifier, password, companyPath, remember = 
         }
 
         if (!(await bcrypt.compare(password, auth.password))) {
-            throw new AppError('Invalid credentials Please try again', 401);
+            const attempts = registerFailedLoginAttempt(attemptKey);
+            throw new AppError('Invalid credentials Please try again', 401, {
+                failedAttempts: attempts,
+                requireCaptcha: attempts >= LOGIN_CAPTCHA_THRESHOLD
+            });
         }
 
         if (auth.status !== 'ACTIVE') {
@@ -193,6 +259,7 @@ export const loginUser = async ({ identifier, password, companyPath, remember = 
         const refreshToken = generateRefreshToken(user.id, allRoles, Boolean(remember));
 
         const resolvedCompanyPath = await resolveCompanyPathForUser(user, companyPath);
+        clearFailedLoginAttempts(attemptKey);
 
         return {
             user: {

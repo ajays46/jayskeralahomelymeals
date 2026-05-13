@@ -9,7 +9,7 @@ import { DEFAULT_COMPANY_PATH } from '../utils/companyPaths';
  * Terms - Terms and Conditions (per company via URL path, e.g. /jkfds/terms).
  * Can be rendered as a modal (with isOpen/onClose) or as a standalone page (route).
  */
-const Terms = ({ isOpen, onClose }) => {
+const Terms = ({ isOpen, onClose, compact = false }) => {
   const navigate = useNavigate();
   const { companyPath: pathParam } = useParams();
   const tenant = useTenant();
@@ -73,19 +73,44 @@ const Terms = ({ isOpen, onClose }) => {
         className="rounded-xl p-4 sm:p-5 mb-6 text-white shadow-md ring-1 ring-black/10"
         style={bannerStyle}
       >
-        <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest opacity-90">
-          Tenant / URL: <span className="font-mono">{effectivePath}</span>
-        </p>
-        <p
-          className={`text-xl sm:text-2xl mt-1 leading-snug text-white ${theme.brandDisplayFontClass || 'font-bold'}`}
-          style={theme.brandDisplayTextShadow ? { textShadow: theme.brandDisplayTextShadow } : undefined}
-        >
-          {theme.brandName}
-        </p>
-        {doc.bannerTagline && (
-          <p className="text-sm sm:text-base mt-2 leading-relaxed opacity-95 border-t border-white/25 pt-3">
-            {doc.bannerTagline}
-          </p>
+        {compact ? (
+          <div className="flex items-center gap-3">
+            {theme.logoUrl && (
+              <img
+                src={theme.logoUrl}
+                alt={`${theme.brandName} logo`}
+                className="h-12 w-12 rounded-full object-cover ring-2 ring-white/30"
+              />
+            )}
+            <div>
+              <p
+                className={`text-xl sm:text-2xl leading-snug text-white ${theme.brandDisplayFontClass || 'font-bold'}`}
+                style={theme.brandDisplayTextShadow ? { textShadow: theme.brandDisplayTextShadow } : undefined}
+              >
+                {theme.brandName}
+              </p>
+              <p className="text-sm sm:text-base mt-1 opacity-95">
+                {theme.brandSubtitle || 'food delivery service'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest opacity-90">
+              Tenant / URL: <span className="font-mono">{effectivePath}</span>
+            </p>
+            <p
+              className={`text-xl sm:text-2xl mt-1 leading-snug text-white ${theme.brandDisplayFontClass || 'font-bold'}`}
+              style={theme.brandDisplayTextShadow ? { textShadow: theme.brandDisplayTextShadow } : undefined}
+            >
+              {theme.brandName}
+            </p>
+            {doc.bannerTagline && (
+              <p className="text-sm sm:text-base mt-2 leading-relaxed opacity-95 border-t border-white/25 pt-3">
+                {doc.bannerTagline}
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -178,8 +203,8 @@ const Terms = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex ${compact ? 'items-center justify-end p-2 sm:p-4' : 'items-center justify-center p-4'}`}>
+        <div className={`bg-white shadow-lg overflow-y-auto ${compact ? 'w-full max-w-sm max-h-[85vh] rounded-xl' : 'w-full max-w-4xl max-h-[90vh] rounded-xl'}`}>
           <div className="p-6">
             {content}
           </div>

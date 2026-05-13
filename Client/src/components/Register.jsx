@@ -7,6 +7,8 @@ import { registerSchema, validateField } from '../validations/registerValidation
 import { useTenant } from '../context/TenantContext';
 import { useRegister } from '../hooks/userHooks/useRegister';
 import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
+import Terms from './Terms';
+import CaptchaField from './CaptchaField';
 
 /**
  * Register - User registration form component with validation
@@ -21,9 +23,13 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
     email: '',
     phone: '',
     password: '',
+    termsAccepted: false,
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [captchaData, setCaptchaData] = useState({ captchaId: '', captchaText: '' });
+  const [captchaRenderKey, setCaptchaRenderKey] = useState(0);
   const [errors, setErrors] = useState({});
   const [phoneCountry, setPhoneCountry] = useState('in');
 
@@ -55,12 +61,18 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
     try {
       // Validate all fields
       registerSchema.parse(formData);
+      if (!captchaData.captchaId || !captchaData.captchaText) {
+        setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
+        return;
+      }
 
       // Add default name and companyPath for per-company phone uniqueness
       const registrationData = {
         ...formData,
         name: formData.email.split('@')[0], // Use part of email as default name
-        companyPath: tenant?.companyPath
+        companyPath: tenant?.companyPath,
+        captchaId: captchaData.captchaId,
+        captchaText: captchaData.captchaText
       };
 
       // If validation passes, proceed with registration
@@ -71,7 +83,10 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             email: '',
             phone: '',
             password: '',
+            termsAccepted: false,
           });
+          setCaptchaData({ captchaId: '', captchaText: '' });
+          setCaptchaRenderKey(prev => prev + 1);
           setPhoneCountry('in');
           setErrors({});
           // Emit an event to switch to login form
@@ -87,6 +102,10 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             setErrors({ email: 'This email is already registered. Please login instead.' });
           } else if (message.includes('phone number is already registered')) {
             setErrors({ phone: 'This phone number is already registered. Please login instead.' });
+          } else if (message.toLowerCase().includes('captcha')) {
+            setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
+            setCaptchaData({ captchaId: '', captchaText: '' });
+            setCaptchaRenderKey(prev => prev + 1);
           } else if (error.response?.data?.errors) {
             setErrors(error.response.data.errors);
           } else {
@@ -228,6 +247,47 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             </button>
             {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
           </div>
+          <div>
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                id="termsAccepted"
+                name="termsAccepted"
+                type="checkbox"
+                className={`mt-1 h-4 w-4 rounded border ${errors.termsAccepted ? 'border-red-500' : 'border-gray-300'}`}
+                checked={formData.termsAccepted}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                disabled={isPending || isGooglePending}
+              />
+              <span>
+                I agree to the{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="font-medium hover:underline"
+                  style={{ color: accent, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                >
+                  Terms & Conditions
+                </button>
+              </span>
+            </label>
+            {errors.termsAccepted && (
+              <p className="mt-1 text-sm text-red-500">{errors.termsAccepted}</p>
+            )}
+          </div>
+          <CaptchaField
+            accent={accent}
+            recaptchaKey={captchaRenderKey}
+            action="register"
+            onChange={(value) => {
+              setCaptchaData(value || { captchaId: '', captchaText: '' });
+              if (errors.captcha) {
+                setErrors(prev => ({ ...prev, captcha: '' }));
+              }
+            }}
+            error={errors.captcha}
+            disabled={isPending || isGooglePending}
+          />
           {errors.submit && <p className="mt-1 text-sm text-red-500">{errors.submit}</p>}
           <button
             type="submit"
@@ -266,6 +326,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
           />
         </div>
       </div>
+      <Terms isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} compact />
     </>
   );
 };

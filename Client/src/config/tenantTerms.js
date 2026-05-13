@@ -23,7 +23,7 @@ const CONTACT_EMAIL =
 /** @type {TenantTermsDocument} */
 const jkfdsTerms = {
   pageTitle: 'Terms & Conditions',
-  bannerTagline: 'Meal plans, food ordering & kitchen delivery (jkfds)',
+  bannerTagline: 'Meal plans, food ordering & kitchen delivery (jkk fds)',
   lastUpdatedDisplay: '11 May 2026',
   intro: [
     'JAYS KERALA INNOVATIONS PRIVATE LIMITED provides this food ordering and meal plan service.',

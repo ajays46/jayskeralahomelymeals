@@ -5,6 +5,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useTenant } from '../context/TenantContext';
 import { useLogin, getRememberedIdentifier } from '../hooks/userHooks/useLogin';
 import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
+import CaptchaField from './CaptchaField';
 
 /**
  * Login - Authentication form component with validation and error handling
@@ -24,6 +25,10 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [, setFailedAttempts] = useState(0);
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [captchaData, setCaptchaData] = useState({ captchaId: '', captchaText: '' });
+  const [captchaRenderKey, setCaptchaRenderKey] = useState(0);
   /**
    * When a remembered email is restored, password stays read-only until focus so the browser
    * does not auto-fill the password. Users without a saved identifier are unaffected.
@@ -69,20 +74,54 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
     try {
       // Validate all fields
       loginSchema.parse(formData);
+      if (showCaptcha && (!captchaData.captchaId || !captchaData.captchaText)) {
+        setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
+        return;
+      }
 
       // If validation passes, proceed with login (include companyPath for phone login per company)
-      loginMutation({ ...formData, companyPath: tenant?.companyPath }, {
+      loginMutation({
+        ...formData,
+        companyPath: tenant?.companyPath,
+        captchaId: captchaData.captchaId,
+        captchaText: captchaData.captchaText
+      }, {
         onSuccess: (data) => {
-          if (data?.success) onClose?.();
+          if (data?.success) {
+            setFailedAttempts(0);
+            setShowCaptcha(false);
+            setCaptchaData({ captchaId: '', captchaText: '' });
+            onClose?.();
+          }
         },
         onError: (error) => {
           const errorMessage = error.response?.data?.message;
+          const requireCaptcha = Boolean(error.response?.data?.details?.requireCaptcha);
+          const isInvalidCreds = errorMessage?.toLowerCase().includes('invalid');
+
+          if (isInvalidCreds) {
+            setFailedAttempts((prev) => {
+              const next = prev + 1;
+              if (next >= 3) setShowCaptcha(true);
+              return next;
+            });
+          }
+          if (requireCaptcha) {
+            setShowCaptcha(true);
+          }
+
           if (errorMessage?.toLowerCase().includes('invalid')) {
             setErrors(prev => ({ ...prev, password: 'Invalid credentials please try again' }));
+          } else if (errorMessage?.toLowerCase().includes('captcha')) {
+            setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
           } else if (errorMessage?.toLowerCase().includes('not active')) {
             setErrors(prev => ({ ...prev, identifier: 'Your account is not active yet' }));
           } else {
             setErrors(prev => ({ ...prev, submit: errorMessage || 'Login failed' }));
+          }
+          if (showCaptcha || requireCaptcha) {
+            setCaptchaData({ captchaId: '', captchaText: '' });
+            setCaptchaRenderKey(prev => prev + 1);
           }
         }
       });
@@ -211,6 +250,21 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
               Forgot password?
             </button>
           </div>
+          {showCaptcha && (
+            <CaptchaField
+              accent={accent}
+              recaptchaKey={captchaRenderKey}
+              action="login"
+              onChange={(value) => {
+                setCaptchaData(value || { captchaId: '', captchaText: '' });
+                if (errors.captcha) {
+                  setErrors(prev => ({ ...prev, captcha: '' }));
+                }
+              }}
+              error={errors.captcha}
+              disabled={isPending || isGooglePending}
+            />
+          )}
           {errors.submit && <p className="mt-1 text-sm text-red-500">{errors.submit}</p>}
           <button
             type="submit"

@@ -41,6 +41,7 @@
     "nodemailer": "^7.0.3",
     "puppeteer": "^24.37.3",
     "sharp": "^0.34.5",
+    "svg-captcha": "^1.4.0",
     "validator": "^13.15.15"
   },
   "devDependencies": {
