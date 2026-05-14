@@ -14,7 +14,7 @@ import CaptchaField from './CaptchaField';
  * Features: Form validation, password visibility toggle, error handling, loading states
  * @param {() => void} [onSwitchToRegister] - When set (e.g. AuthSlider), shows “Register” link to open registration tab.
  */
-const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentProp, startWithCredentials = false }) => {
+const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentProp, startWithCredentials = false, onShowCredentials }) => {
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const { mutate: loginMutation, isPending } = useLogin();
@@ -208,7 +208,10 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
             </div>
             <button
               type="button"
-              onClick={() => setShowCredentialFormMobile(true)}
+              onClick={() => {
+                setShowCredentialFormMobile(true);
+                onShowCredentials?.();
+              }}
               className="w-full py-3 rounded-xl text-white font-semibold text-base shadow-md transition-colors"
               style={{ backgroundColor: accent }}
             >

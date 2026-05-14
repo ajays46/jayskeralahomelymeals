@@ -22,6 +22,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+  const showMobileHeaderLogo = !(activeTab === 'login' && loginStartView === 'options' && !showForgot);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -94,11 +95,13 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                 </button>
               </div>
               <div className="md:hidden relative flex items-center justify-end min-h-[44px]">
-                <img
-                  src={theme.logoUrl || '/logo.png'}
-                  alt={theme.brandName || 'Company logo'}
-                  className="absolute left-1/2 -translate-x-1/2 w-20 h-20 object-contain rounded-full"
-                />
+                {showMobileHeaderLogo && (
+                  <img
+                    src={theme.logoUrl || '/logo.png'}
+                    alt={theme.brandName || 'Company logo'}
+                    className="absolute left-1/2 -translate-x-1/2 w-20 h-20 object-contain rounded-full"
+                  />
+                )}
                 <button
                   onClick={onClose}
                   className="text-gray-400 hover:text-gray-500 focus:outline-none relative z-10"
@@ -110,7 +113,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
-              <div className="px-4 py-6 sm:px-6">
+              <div className="px-4 py-3 sm:px-6 sm:py-5">
                 {successMessage && (
                   <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg">
                     {successMessage}
@@ -130,6 +133,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                       onClose={onClose}
                       onForgotPassword={() => setShowForgot(true)}
                       startWithCredentials={loginStartView === 'credentials'}
+                      onShowCredentials={() => setLoginStartView('credentials')}
                       onSwitchToRegister={() => {
                         setActiveTab('register');
                         setLoginStartView('options');

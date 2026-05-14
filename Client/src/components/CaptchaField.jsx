@@ -44,23 +44,25 @@ const CaptchaField = ({ accent, onChange, error, disabled = false, recaptchaKey 
         Are you a human? <span className="text-red-500">*</span>
       </label>
       <div className="space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-[170px_auto] items-center gap-2">
-          {captchaImage ? (
-            <img
-              src={captchaImage}
-              alt="CAPTCHA challenge"
-              className={`h-[56px] w-[170px] rounded border bg-white object-cover ${error ? 'border-red-500' : 'border-gray-300'}`}
-            />
-          ) : (
-            <div className={`h-[56px] w-[170px] rounded border bg-gray-50 flex items-center justify-center text-xs text-gray-500 ${error ? 'border-red-500' : 'border-gray-300'}`}>
-              {isLoading ? 'Loading CAPTCHA...' : 'CAPTCHA unavailable'}
-            </div>
-          )}
+        <div className="flex items-center gap-3">
+          <div className="w-[170px] shrink-0">
+            {captchaImage ? (
+              <img
+                src={captchaImage}
+                alt="CAPTCHA challenge"
+                className={`h-[54px] w-full rounded border bg-white object-cover ${error ? 'border-red-500' : 'border-gray-300'}`}
+              />
+            ) : (
+              <div className={`h-[54px] w-full rounded border bg-gray-50 flex items-center justify-center text-xs text-gray-500 ${error ? 'border-red-500' : 'border-gray-300'}`}>
+                {isLoading ? 'Loading CAPTCHA...' : 'CAPTCHA unavailable'}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={fetchCaptcha}
             disabled={disabled || isLoading}
-            className="justify-self-end inline-flex h-[42px] w-[42px] items-center justify-center rounded-lg border transition-colors hover:bg-orange-50 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border transition-colors hover:bg-orange-50 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ color: accent, borderColor: accent }}
             aria-label="Refresh captcha"
             title="Refresh captcha"

@@ -197,10 +197,10 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
 
   return (
     <>
-      <h3 className="md:hidden text-2xl font-bold text-gray-900 text-center mb-3">Create an account</h3>
-      <h2 className="hidden md:block text-3xl font-bold text-gray-900 mb-4 text-center">Create an Account</h2>
-      <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
-        <div className="hidden md:flex justify-center gap-4 mb-6">
+      <h3 className="md:hidden text-xl font-bold text-gray-900 text-center mb-2">Create an account</h3>
+      <h2 className="hidden md:block text-2xl font-bold text-gray-900 mb-3 text-center">Create an Account</h2>
+      <div className="w-full max-w-md mx-auto p-4 pt-0 lg:pt-4 md:p-5 md:pt-4 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
+        <div className="hidden md:flex justify-center gap-4 mb-4">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => setErrors(prev => ({ ...prev, submit: 'Google signup failed. Please try again.' }))}
@@ -208,8 +208,8 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             shape="pill"
           />
         </div>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
+        <form className="space-y-3" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                 Phone Number <span className="text-red-500">*</span>
@@ -255,7 +255,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 py-0.5">
               <div className="h-px flex-1 bg-gray-200" />
               <span className="text-[11px] font-medium tracking-wide text-gray-500 uppercase">OR</span>
               <div className="h-px flex-1 bg-gray-200" />
@@ -347,18 +347,18 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             disabled={isPending || isGooglePending}
           />
           <div>
-            <label className="flex items-start gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-700 leading-tight">
               <input
                 id="termsAccepted"
                 name="termsAccepted"
                 type="checkbox"
-                className={`mt-1 h-4 w-4 rounded border ${errors.termsAccepted ? 'border-red-500' : 'border-gray-300'}`}
+                className={`h-4 w-4 shrink-0 rounded border ${errors.termsAccepted ? 'border-red-500' : 'border-gray-300'}`}
                 checked={formData.termsAccepted}
                 onChange={handleChange}
                 onBlur={handleBlur}
                 disabled={isPending || isGooglePending}
               />
-              <span>
+              <span className="inline-flex flex-wrap items-center gap-1">
                 I agree to the{' '}
                 <button
                   type="button"
@@ -378,14 +378,14 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
           <button
             type="submit"
             disabled={isPending || isGooglePending}
-            className={`w-full py-3 rounded-full text-white font-semibold text-lg shadow-md transition-colors ${isPending || isGooglePending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-full py-2.5 rounded-full text-white font-semibold text-base shadow-md transition-colors ${isPending || isGooglePending ? 'opacity-50 cursor-not-allowed' : ''}`}
             style={{ backgroundColor: accent }}
           >
             {isPending || isGooglePending ? 'Signing up...' : 'Sign Up'}
           </button>
         </form>
         {onSwitchToLogin && (
-          <p className="text-center text-sm text-gray-600 mt-5">
+          <p className="text-center text-sm text-gray-600 mt-3">
             Already have an account?{' '}
             <button
               type="button"

@@ -318,42 +318,36 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
             )}
           </div>
 
-          {/* Mobile: guest shows Sign In icon in bar; Sign Up stays in menu */}
+          {/* Mobile: guest shows only user icon */}
           <div className="md:hidden flex shrink-0 items-center gap-2">
             {!user && onSignInClick ? (
               <motion.button
                 type="button"
                 onClick={onSignInClick}
-                className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
+                className="text-white hover:text-[#FE8C00] focus:outline-none px-2 py-1 rounded-lg hover:bg-white/10 transition-all duration-300 flex flex-col items-center leading-none"
                 whileTap={{ scale: 0.95 }}
                 aria-label="Sign In or Register"
                 title="Sign In or Register"
               >
                 <MdPerson className="w-7 h-7" />
+                <span className="mt-0.5 text-[10px] font-medium">Account</span>
               </motion.button>
             ) : null}
-            {!user ? (
-              <button
+            {user ? (
+              <motion.button
                 type="button"
-                onClick={onRegisterClick || onSignInClick}
-                className="inline-flex items-center justify-center rounded-full border border-white/70 bg-white px-3.5 py-2 min-h-[40px] text-xs font-bold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
+                whileTap={{ scale: 0.95 }}
+                aria-label={menuOpen ? 'Close menu' : 'Open menu'}
               >
-                <span>Sign Up</span>
-              </button>
+                {menuOpen ? (
+                  <MdClose className="w-8 h-8" />
+                ) : (
+                  <MdMenu className="w-8 h-8" />
+                )}
+              </motion.button>
             ) : null}
-            <motion.button
-              type="button"
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
-              whileTap={{ scale: 0.95 }}
-              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            >
-              {menuOpen ? (
-                <MdClose className="w-8 h-8" />
-              ) : (
-                <MdMenu className="w-8 h-8" />
-              )}
-            </motion.button>
           </div>
         </div>
       </div>
