@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { GoogleLogin } from '@react-oauth/google';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
-import { registerSchema, validateField } from '../validations/registerValidation';
+import {
+  PASSWORD_MIN_LENGTH,
+  isStrongPassword,
+  registerSchema,
+  validateField
+} from '../validations/registerValidation';
 import { useTenant } from '../context/TenantContext';
 import { useRegister } from '../hooks/userHooks/useRegister';
 import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
@@ -35,6 +40,9 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
 
   const { mutate: register, isPending } = useRegister();
   const { mutate: googleAuthMutation, isPending: isGooglePending } = useGoogleAuth();
+  const passwordValue = formData.password || '';
+  const hasPasswordInput = passwordValue.length > 0;
+  const passwordIsStrong = isStrongPassword(passwordValue);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -102,7 +110,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
           window.dispatchEvent(switchToLoginEvent);
         },
         onError: (error) => {
-          const message = error.response?.data?.message || '';
+          const message = error.response?.data?.message || error.response?.data?.error?.message || '';
 
           if (message.includes('Email already registered')) {
             setErrors({ email: 'This email is already registered. Please sign in instead.' });
@@ -116,6 +124,8 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             setCaptchaRenderKey(prev => prev + 1);
           } else if (error.response?.data?.errors) {
             setErrors(error.response.data.errors);
+          } else if (message.toLowerCase().includes('password')) {
+            setErrors({ password: message });
           } else {
             setErrors({ submit: 'Registration failed. Please try again.' });
           }
@@ -271,6 +281,20 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" /></svg>
               )}
             </button>
+            {hasPasswordInput && (
+              <>
+                <p
+                  className={`mt-2 text-sm font-medium ${passwordIsStrong ? 'text-green-600' : 'text-amber-600'}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  Password strength: {passwordIsStrong ? 'Strong' : 'Weak'}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Use at least {PASSWORD_MIN_LENGTH} characters with uppercase, lowercase, number, and special character.
+                </p>
+              </>
+            )}
             {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
           </div>
           <CaptchaField
