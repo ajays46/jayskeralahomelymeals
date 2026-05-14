@@ -1,4 +1,5 @@
 import { toast } from 'react-toastify';
+import { PASSWORD_POLICY_MESSAGE } from '../validations/registerValidation';
 
 /**
  * Toast Configuration - Centralized toast notification system
@@ -21,6 +22,15 @@ export const toastConfig = {
   pauseOnFocusLoss: true,
 };
 
+const normalizePasswordErrorMessage = (message) => {
+  const text = String(message || '').trim();
+  if (!text) return '';
+  if (/passwords?\s+must\s+be\s+at\s+least\s+6/i.test(text) || /at\s+least\s+6\s+characters/i.test(text)) {
+    return PASSWORD_POLICY_MESSAGE;
+  }
+  return text;
+};
+
 // Enhanced toast functions with better styling and messages
 export const showSuccessToast = (message, title = "Success!") => {
   toast.success(
@@ -37,10 +47,11 @@ export const showSuccessToast = (message, title = "Success!") => {
 };
 
 export const showErrorToast = (message, title = "Error!") => {
+  const normalizedMessage = normalizePasswordErrorMessage(message);
   toast.error(
     <div>
       <div className="font-semibold text-red-800">{title}</div>
-      <div className="text-red-700">{message}</div>
+      <div className="text-red-700">{normalizedMessage || 'Something went wrong. Please try again.'}</div>
     </div>,
     {
       ...toastConfig,

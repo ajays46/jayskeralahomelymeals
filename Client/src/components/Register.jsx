@@ -4,6 +4,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import {
+  getPasswordChecks,
   PASSWORD_MIN_LENGTH,
   isStrongPassword,
   registerSchema,
@@ -43,6 +44,33 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
   const passwordValue = formData.password || '';
   const hasPasswordInput = passwordValue.length > 0;
   const passwordIsStrong = isStrongPassword(passwordValue);
+  const passwordChecks = getPasswordChecks(passwordValue);
+  const passwordScore = Object.values(passwordChecks).filter(Boolean).length;
+  const strengthLevel = Math.min(5, Math.max(1, Math.ceil((passwordScore / 6) * 5)));
+  const strengthLabelMap = {
+    1: 'Very Weak',
+    2: 'Weak',
+    3: 'Fair',
+    4: 'Good',
+    5: 'Strong'
+  };
+  const strengthToneMap = {
+    1: 'text-red-600',
+    2: 'text-orange-600',
+    3: 'text-yellow-600',
+    4: 'text-lime-600',
+    5: 'text-green-600'
+  };
+  const strengthSegmentColorMap = {
+    1: 'bg-red-500',
+    2: 'bg-orange-500',
+    3: 'bg-yellow-500',
+    4: 'bg-lime-500',
+    5: 'bg-green-500'
+  };
+  const strengthLabel = hasPasswordInput ? strengthLabelMap[strengthLevel] : '';
+  const strengthTone = hasPasswordInput ? strengthToneMap[strengthLevel] : 'text-gray-500';
+  const activeSegmentClass = hasPasswordInput ? strengthSegmentColorMap[strengthLevel] : 'bg-gray-200';
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -281,17 +309,25 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" /></svg>
               )}
             </button>
-            {hasPasswordInput && (
+            {hasPasswordInput && !passwordIsStrong && (
               <>
                 <p
-                  className={`mt-2 text-sm font-medium ${passwordIsStrong ? 'text-green-600' : 'text-amber-600'}`}
+                  className={`mt-1.5 text-[11px] font-medium ${strengthTone}`}
                   role="status"
                   aria-live="polite"
                 >
-                  Password strength: {passwordIsStrong ? 'Strong' : 'Weak'}
+                  Password strength: {strengthLabel}
                 </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  Use at least {PASSWORD_MIN_LENGTH} characters with uppercase, lowercase, number, and special character.
+                <div className="mt-1 flex gap-0.5" aria-hidden="true">
+                  {[1, 2, 3, 4, 5].map((segment) => (
+                    <div
+                      key={segment}
+                      className={`h-1 flex-1 rounded-full ${segment <= strengthLevel ? activeSegmentClass : 'bg-gray-200'}`}
+                    />
+                  ))}
+                </div>
+                <p className="mt-0.5 text-[11px] text-gray-500">
+                  Use at least {PASSWORD_MIN_LENGTH} characters.
                 </p>
               </>
             )}

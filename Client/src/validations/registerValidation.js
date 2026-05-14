@@ -6,7 +6,8 @@ import { z } from 'zod';
  * Features: Strong password validation, email format validation, phone number validation, terms agreement
  */
 
-export const PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_POLICY_MESSAGE = `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include uppercase, lowercase, number, and special character (no spaces).`;
 
 export const getPasswordChecks = (password = '') => {
   const value = String(password);

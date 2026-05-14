@@ -6,6 +6,7 @@ import { clearJWTCookie, setJWTCookie } from '../utils/cookieUtils.js';
 import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 import { logSecurityEvent } from '../middleware/logging.middleware.js';
 import { createTextCaptcha } from '../utils/textCaptcha.js';
 
@@ -335,6 +336,9 @@ export const changePassword = async (req, res, next) => {
 
     if (!currentPassword || !newPassword) {
       throw new AppError('Current password and new password are required', 400);
+    }
+    if (!isStrongPassword(newPassword)) {
+      throw new AppError(PASSWORD_POLICY_MESSAGE, 400);
     }
 
     // Find user with auth details

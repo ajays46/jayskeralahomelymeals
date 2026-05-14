@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
 import nodemailer from 'nodemailer';
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 import { getCompanyByPath, normalizeCompanyPathKey } from './tenant.service.js';
 import { OAuth2Client } from 'google-auth-library';
 import { verifyTextCaptcha } from '../utils/textCaptcha.js';
@@ -16,21 +17,6 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const LOGIN_CAPTCHA_THRESHOLD = 3;
 const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const loginAttemptStore = new Map();
-const PASSWORD_MIN_LENGTH = 12;
-
-const isStrongPassword = (password = '') => {
-    const value = String(password);
-    return (
-        value.length >= PASSWORD_MIN_LENGTH &&
-        /[A-Z]/.test(value) &&
-        /[a-z]/.test(value) &&
-        /[0-9]/.test(value) &&
-        /[^A-Za-z0-9]/.test(value) &&
-        !/\s/.test(value)
-    );
-};
-
-const PASSWORD_POLICY_MESSAGE = `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include uppercase, lowercase, number, and special character (no spaces).`;
 
 const getLoginAttemptKey = (identifier, companyPath) => {
     const normalizedIdentifier = String(identifier || '').trim().toLowerCase();

@@ -1,5 +1,6 @@
 import { validateCustomerToken, getCustomerOrders, getCustomerAddresses, getCustomerOrderSummary, setupCustomerPassword } from '../services/customerAccess.service.js';
 import { logInfo, logError, LOG_CATEGORIES } from '../utils/criticalLogger.js';
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 
 /**
  * Customer Access Controller - Handles customer portal API endpoints
@@ -149,10 +150,10 @@ export const setupCustomerPasswordController = async (req, res, next) => {
       });
     }
 
-    if (password.length < 6) {
+    if (!isStrongPassword(password)) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 6 characters long'
+        message: PASSWORD_POLICY_MESSAGE
       });
     }
 
