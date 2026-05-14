@@ -26,14 +26,34 @@ export const isStrongPassword = (password = '') => {
   return Object.values(checks).every(Boolean);
 };
 
+const hasValidPhoneDigits = (value = '') => {
+  const digitsOnly = String(value || '').replace(/\D/g, '');
+  return digitsOnly.length >= 10;
+};
+
+const isEmailIdentifier = (value = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ''));
+const isPhoneLikeIdentifier = (value = '') => /^\+?[0-9\s-]+$/.test(String(value || ''));
+
 export const registerSchema = z.object({
   identifier: z.string()
     .trim()
     .min(1, 'Email or phone number is required')
-    .refine((value) => {
-      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return true;
-      return /^\+?[0-9\s-]{7,}$/.test(value);
-    }, 'Please enter a valid email or phone number'),
+    .superRefine((value, ctx) => {
+      if (isEmailIdentifier(value)) return;
+      if (isPhoneLikeIdentifier(value)) {
+        if (!hasValidPhoneDigits(value)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Phone number must contain at least 10 digits'
+          });
+        }
+        return;
+      }
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please enter a valid email or phone number'
+      });
+    }),
   password: z.string()
     .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')

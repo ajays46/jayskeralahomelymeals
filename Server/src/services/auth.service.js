@@ -17,6 +17,7 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const LOGIN_CAPTCHA_THRESHOLD = 3;
 const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const loginAttemptStore = new Map();
+const hasValidPhoneDigits = (value = '') => String(value || '').replace(/\D/g, '').length >= 10;
 
 const getLoginAttemptKey = (identifier, companyPath) => {
     const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
@@ -84,6 +85,9 @@ export const registerUser = async ({ email, identifier, password, phone, company
     }
     if (!derivedPhone && !derivedEmail) {
         throw new AppError('Either email or phone number is required for signup', 400);
+    }
+    if (derivedPhone && !hasValidPhoneDigits(derivedPhone)) {
+        throw new AppError('Phone number must contain at least 10 digits', 400);
     }
     const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'register' });
     if (!captchaCheck.success) {
