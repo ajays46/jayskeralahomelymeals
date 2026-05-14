@@ -22,87 +22,90 @@ const CONTACT_EMAIL =
 
 /** @type {TenantTermsDocument} */
 const jkfdsTerms = {
-  pageTitle: 'Terms & Conditions',
-  bannerTagline: 'SAS-based subscription meal platform',
+  pageTitle: 'terms and Conditions',
+  bannerTagline: 'Master Terms for the Jays Kerala innovation ecosystem',
   lastUpdatedDisplay: 'May 14, 2026',
   intro: [
-    'Entity: JAYS KERALA INNOVATIONS PRIVATE LIMITED',
-    'FSSAI License No: [Insert Number]',
+    'Parent Entity: Jays Kerala Innovations Private Limited',
+    'Corporate Identity (CIN): [Insert Your CIN here]',
   ],
   sections: [
     {
-      title: '1. Purpose and Service Overview',
+      title: '1. The Innovation Ecosystem',
       paragraphs: [
-        'JAYS KERALA INNOVATIONS PRIVATE LIMITED (the "Company") operates a SAS-based subscription platform designed to provide scheduled, nutritional meal plans.',
-        'The purpose of this service is to automate healthy eating through a subscription model that optimizes food procurement, reduces waste, and ensures timely delivery to users across [Your Service Cities, e.g., Kochi, Thrissur].',
+        'Jays Kerala Innovations Private Limited (the "Company") is a multi-sector innovation firm specializing in Software-as-a-Service (SaaS) applications.',
+        'The Company operates as an umbrella entity for various proprietary digital platforms and service modules. By accessing any application, website, or service provided by the Company, you agree to be bound by these Master Terms.',
       ],
     },
     {
-      title: '2. Subscription & "No Refund" Policy',
+      title: '2. SaaS Licensing & Digital Standards',
       paragraphs: [
-        'Nature of Subscription: By subscribing, you enter into a service agreement where resources (ingredients and logistics) are committed in advance based on your plan.',
-        'Finality of Payment: All payments are non-refundable. Due to the perishable nature of our products and the SAS procurement model, we cannot offer refunds once a subscription period has commenced.',
-        'No Carryforward: We offer the flexibility to "Pause" or "Stop" a delivery if notified [Insert Hours, e.g., 12 hours] in advance. However, as the daily slot and ingredients were reserved for you, these meals will not be carried forward to future dates, and no credits will be issued.',
+        'All digital products developed by the Company are provided on a subscription basis.',
+      ],
+      bullets: [
+        'Predictive Architecture: Our SaaS platforms utilize automated logic for resource allocation, procurement, and logistical scheduling.',
+        'Proprietary Rights: All software code, algorithms, UI/UX designs, and intellectual property within our applications are the exclusive property of the Company.',
+        'System Maintenance: To maintain our innovation standards, the Company reserves the right to conduct system upgrades. While we strive for maximum uptime, we are not liable for temporary service interruptions during these periods.',
       ],
     },
     {
-      title: '3. Food Safety & FSSAI Compliance',
+      title: '3. Unified Subscription & Financial Policy',
       paragraphs: [
-        'FSSAI Standards: All meals are prepared in facilities compliant with FSSAI 2026 hygiene and safety standards.',
-        'The 2-Hour Rule: Per FSSAI safety guidelines for cooked meals, food must be consumed within two (2) hours of delivery.',
-        'Liability Shift: The Company is not liable for spoilage, food-borne illness, or quality degradation if the food is consumed beyond this 2-hour window or stored improperly (e.g., left in high humidity/heat) after delivery.',
+        'To maintain the efficiency of our automated systems, all services follow a strict financial protocol:',
+      ],
+      bullets: [
+        'Finality of Payment: All subscription payments are final. Due to the high-cost integration of automated systems and advance resource commitments, no refunds will be issued for any reason.',
+        'Resource Allocation (No Carryforward): Our SaaS model reserves specific daily capacity for each active subscriber. If a user chooses to "Pause" or skip a service day via the app interface, that specific daily slot is forfeited. To ensure system sustainability, no credits or carryforwards will be provided.',
       ],
     },
     {
-      title: '4. Localized Delivery & "Force Majeure"',
+      title: '4. Operational & Safety Standards',
       paragraphs: [
-        'Kerala Specifics: We strive for 100% on-time delivery. However, we are not liable for delays caused by extreme weather (heavy monsoons or flooding), state events (hartals, strikes), or localized traffic diversions common in Kerala.',
-        'Non-Delivery: In the rare event the Company cancels a delivery due to its own operational failure, a credit for that specific meal may be applied to your next billing cycle at the Company\'s sole discretion.',
+        'While the Company operates as a technology firm, specific service modules involving physical goods (perishables) follow strict safety protocols:',
+      ],
+      bullets: [
+        'The 2-Hour Safety Rule: For any perishable goods delivered via Company platforms, products must be consumed within two (2) hours of the recorded delivery timestamp.',
+        'Transfer of Liability: The Company’s responsibility for product quality and safety ends at the moment of successful delivery as recorded by our digital tracking system. The Company is not liable for health outcomes or spoilage resulting from improper storage after delivery.',
       ],
     },
     {
-      title: '5. Privacy & Data Protection (DPDP Act 2023)',
+      title: '5. Regional Force Majeure (Kerala Context)',
       paragraphs: [
-        'Consent: We collect only the data necessary (Name, Address, Dietary Preferences) to fulfill your subscription.',
-        'Rights: You have the right to access, correct, or request the erasure of your personal data by contacting our Data Protection Officer.',
-        'Data Storage: Your data is stored on secure Indian servers and is never sold to third-party advertisers.',
+        'Jays Kerala Innovations Private Limited is a Kerala-based entity. Our service commitments are subject to the unique geographical and social realities of the region:',
+      ],
+      bullets: [
+        'Climatic & Social Events: The Company is not liable for service delays or failures caused by extreme weather (Monsoons/Flooding), Hartals, strikes, or localized traffic disruptions common within the state.',
+        'Local Governance: We operate in full compliance with the digital and commercial laws of the State of Kerala and the Republic of India.',
       ],
     },
     {
-      title: '6. Menu & Chef\'s Discretion',
+      title: '6. Data Stewardship (DPDP Act 2023)',
       paragraphs: [
-        'Our culinary team reserves the right to modify the menu without prior notice to ensure the use of the freshest seasonal produce available in the Kerala markets.',
+        'As a Data Fiduciary, the Company prioritizes the security of your digital footprint:',
+      ],
+      bullets: [
+        'Data Minimalism: We collect only the data necessary to fulfill the SaaS functions you have subscribed to.',
+        'Localization: In accordance with the Digital Personal Data Protection Act 2023, all user data is stored on secure servers within the territory of India.',
+        'Inter-Service Synergy: User preferences may be shared across different Company applications under this unified Master Agreement to improve the user experience.',
       ],
     },
     {
       title: '7. Grievance Redressal & Jurisdiction',
-      paragraphs: [
-        'In compliance with E-commerce Rules 2020, we have appointed a Grievance Officer to handle user concerns.',
-      ],
       bullets: [
         'Grievance Officer: [Name of Officer]',
-        'Email: [Support Email Address]',
-        'Timeline: We acknowledge grievances within 48 hours and aim for resolution within 1 month.',
-        'Jurisdiction: These terms are governed by Indian Law. Any legal proceedings shall be subject to the exclusive jurisdiction of the courts in Kochi, Kerala.',
-      ],
-    },
-    {
-      title: 'Compliance Checklist for Website/App',
-      bullets: [
-        'FSSAI Logo & License Number: Must be visible on the footer of every page.',
-        'Mandatory Checkbox during checkout: "I agree to the Terms & Conditions, specifically the No-Refund and 2-hour consumption policy."',
-        'GST Transparency: Invoices must clearly show GST breakdown as a Kerala-registered Private Limited entity.',
+        'Contact: [Official Support Email]',
+        'Jurisdiction: These Terms are governed by the laws of India. Any legal proceedings shall be subject to the exclusive jurisdiction of the courts in Kochi, Kerala.',
       ],
     },
   ],
-  contactTitle: 'Contact & Compliance',
+  contactTitle: 'Contact',
   contact: {
-    legalName: 'JAYS KERALA INNOVATIONS PRIVATE LIMITED',
+    legalName: 'Jays Kerala Innovations Private Limited',
     email: CONTACT_EMAIL,
     extraLines: [
-      'FSSAI License No: [Insert Number]',
+      'Corporate Identity (CIN): [Insert Your CIN here]',
       'Grievance Officer: [Name of Officer]',
-      'Grievance Email: [Support Email Address]',
+      'Official Support Email: [Official Support Email]',
     ],
   },
 };
