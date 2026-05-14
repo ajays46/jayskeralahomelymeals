@@ -13,18 +13,29 @@ import { getThemeForCompany } from '../config/tenantThemes';
  * Features: Tab switching, form validation, success messages, responsive design
  * Uses tenant theme for tab colours (JLG green, jkfds orange).
  */
-const AuthSlider = ({ isOpen, onClose }) => {
+const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
   const [activeTab, setActiveTab] = useState('login');
+  const [loginStartView, setLoginStartView] = useState('options');
   const [showForgot, setShowForgot] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+  const showMobileHeaderLogo = !(activeTab === 'login' && loginStartView === 'options' && !showForgot);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setActiveTab(initialTab === 'register' ? 'register' : 'login');
+    setLoginStartView('options');
+    setShowForgot(false);
+    setSuccessMessage('');
+  }, [isOpen, initialTab]);
 
   useEffect(() => {
     const handleSwitchToLogin = (event) => {
       setActiveTab('login');
+      setLoginStartView('credentials');
       setShowForgot(false);
       setSuccessMessage(event.detail.message);
       // Clear success message after 5 seconds
@@ -51,10 +62,10 @@ const AuthSlider = ({ isOpen, onClose }) => {
           <div className="h-full flex flex-col bg-white shadow-xl">
             {/* Header - theme accent for active tab */}
             <div className="px-4 py-6 bg-white border-b border-gray-200 sm:px-6">
-              <div className="flex justify-between items-center">
+              <div className="hidden md:flex justify-between items-center">
                 <div className="flex space-x-4">
                   <button
-                    onClick={() => { setActiveTab('login'); setShowForgot(false); }}
+                    onClick={() => { setActiveTab('login'); setLoginStartView('options'); setShowForgot(false); }}
                     className={`px-4 py-2 text-sm font-medium rounded-md border-b-2 ${
                       activeTab === 'login' && !showForgot
                         ? ''
@@ -62,7 +73,7 @@ const AuthSlider = ({ isOpen, onClose }) => {
                     }`}
                     style={activeTab === 'login' && !showForgot ? { color: accent, borderColor: accent } : undefined}
                   >
-                    Login
+                    Sign In
                   </button>
                   <button
                     onClick={() => { setActiveTab('register'); setShowForgot(false); }}
@@ -73,7 +84,7 @@ const AuthSlider = ({ isOpen, onClose }) => {
                     }`}
                     style={activeTab === 'register' ? { color: accent, borderColor: accent } : undefined}
                   >
-                    Register
+                    Sign Up
                   </button>
                 </div>
                 <button
@@ -83,11 +94,26 @@ const AuthSlider = ({ isOpen, onClose }) => {
                   <IoClose className="h-6 w-6" />
                 </button>
               </div>
+              <div className="md:hidden relative flex items-center justify-end min-h-[44px]">
+                {showMobileHeaderLogo && (
+                  <img
+                    src={theme.logoUrl || '/logo.png'}
+                    alt={theme.brandName || 'Company logo'}
+                    className="absolute left-1/2 -translate-x-1/2 w-20 h-20 object-contain rounded-full"
+                  />
+                )}
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-500 focus:outline-none relative z-10"
+                >
+                  <IoClose className="h-6 w-6" />
+                </button>
+              </div>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
-              <div className="px-4 py-6 sm:px-6">
+              <div className="px-4 py-3 sm:px-6 sm:py-5">
                 {successMessage && (
                   <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg">
                     {successMessage}
@@ -106,8 +132,11 @@ const AuthSlider = ({ isOpen, onClose }) => {
                     <Login
                       onClose={onClose}
                       onForgotPassword={() => setShowForgot(true)}
+                      startWithCredentials={loginStartView === 'credentials'}
+                      onShowCredentials={() => setLoginStartView('credentials')}
                       onSwitchToRegister={() => {
                         setActiveTab('register');
+                        setLoginStartView('options');
                         setShowForgot(false);
                       }}
                       accent={accent}
@@ -118,6 +147,7 @@ const AuthSlider = ({ isOpen, onClose }) => {
                       onClose={onClose}
                       onSwitchToLogin={() => {
                         setActiveTab('login');
+                        setLoginStartView('credentials');
                         setShowForgot(false);
                       }}
                     />

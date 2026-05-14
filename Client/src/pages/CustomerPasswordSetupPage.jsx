@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MdLock, MdVisibility, MdVisibilityOff, MdCheckCircle } from 'react-icons/md';
 import axios from 'axios';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import { PASSWORD_MIN_LENGTH, PASSWORD_POLICY_MESSAGE, getPasswordChecks, isStrongPassword } from '../validations/registerValidation';
 
 /**
  * CustomerPasswordSetupPage - Password setup page for customers
@@ -27,6 +28,24 @@ const CustomerPasswordSetupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const passwordChecks = getPasswordChecks(formData.password);
+  const hasPasswordInput = formData.password.length > 0;
+  const passwordIsStrong = isStrongPassword(formData.password);
+  const firstUnmetRequirement = [
+    { label: `At least ${PASSWORD_MIN_LENGTH} characters`, met: passwordChecks.minLength },
+    { label: 'One uppercase letter', met: passwordChecks.hasUppercase },
+    { label: 'One lowercase letter', met: passwordChecks.hasLowercase },
+    { label: 'One number', met: passwordChecks.hasNumber },
+    { label: 'One special character', met: passwordChecks.hasSpecialChar },
+    { label: 'No spaces', met: passwordChecks.noSpaces }
+  ].find((rule) => !rule.met)?.label;
+  const normalizePasswordMessage = (message = '') => {
+    const text = String(message || '').trim();
+    if (/passwords?\s+must\s+be\s+at\s+least\s+6/i.test(text) || /at\s+least\s+6\s+characters/i.test(text)) {
+      return PASSWORD_POLICY_MESSAGE;
+    }
+    return text;
+  };
 
   // Get token from URL
   useEffect(() => {
@@ -91,18 +110,13 @@ const CustomerPasswordSetupPage = () => {
 
   // Validate password
   const validatePassword = (password) => {
-    if (password.length < 6) {
-      return 'Password must be at least 6 characters long';
-    }
-    if (!/(?=.*[a-z])/.test(password)) {
-      return 'Password must contain at least one lowercase letter';
-    }
-    if (!/(?=.*[A-Z])/.test(password)) {
-      return 'Password must contain at least one uppercase letter';
-    }
-    if (!/(?=.*\d)/.test(password)) {
-      return 'Password must contain at least one number';
-    }
+    const checks = getPasswordChecks(password);
+    if (!checks.minLength) return `Password must be at least ${PASSWORD_MIN_LENGTH} characters long`;
+    if (!checks.hasUppercase) return 'Password must contain at least one uppercase letter';
+    if (!checks.hasLowercase) return 'Password must contain at least one lowercase letter';
+    if (!checks.hasNumber) return 'Password must contain at least one number';
+    if (!checks.hasSpecialChar) return 'Password must contain at least one special character';
+    if (!checks.noSpaces) return 'Password cannot contain spaces';
     return '';
   };
 
@@ -144,7 +158,7 @@ const CustomerPasswordSetupPage = () => {
       }
     } catch (error) {
       console.error('Error setting up password:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to setup password';
+      const errorMessage = normalizePasswordMessage(error.response?.data?.message || 'Failed to setup password');
       showErrorToast(errorMessage);
       setErrors({ submit: errorMessage });
     } finally {
@@ -265,23 +279,18 @@ const CustomerPasswordSetupPage = () => {
             </div>
 
             {/* Password Requirements */}
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <p className="text-sm font-medium text-gray-900 mb-2">Password requirements:</p>
-              <ul className="text-sm text-gray-700 space-y-1">
-                <li className="flex items-center gap-2">
-                  <span>• At least 6 characters</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span>• Contains uppercase letter</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span>• Contains lowercase letter</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span>• Contains number</span>
-                </li>
-              </ul>
-            </div>
+            {hasPasswordInput && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <p className={`text-sm font-semibold ${passwordIsStrong ? 'text-green-700' : 'text-amber-700'}`}>
+                  Password strength: {passwordIsStrong ? 'Strong' : 'Weak'}
+                </p>
+                {!passwordIsStrong && firstUnmetRequirement && (
+                  <p className="mt-1 text-xs text-gray-600">
+                    Missing: {firstUnmetRequirement}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Error Message */}
             {errors.submit && (

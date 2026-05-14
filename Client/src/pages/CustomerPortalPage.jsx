@@ -172,7 +172,7 @@ const CustomerPortalPage = () => {
         // Token expired or invalid - clear store and redirect to login
         useAuthStore.getState().logout();
         navigate('/customer-login');
-        showErrorToast('Session expired. Please login again.');
+        showErrorToast('Session expired. Please sign in again.');
       } else {
         setError(error.response?.data?.message || 'Failed to load customer data');
         showErrorToast('We couldn\'t load your details. Please try again.');

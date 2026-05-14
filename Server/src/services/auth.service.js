@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
 import nodemailer from 'nodemailer';
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 import { getCompanyByPath, normalizeCompanyPathKey } from './tenant.service.js';
 import { OAuth2Client } from 'google-auth-library';
 import { verifyTextCaptcha } from '../utils/textCaptcha.js';
@@ -68,9 +69,21 @@ async function resolveCompanyPathForUser(user, requestCompanyPath) {
  * Features: User registration, login validation, password management, role assignment, JWT token generation
  */
 
-export const registerUser = async ({ email, password, phone, companyPath, termsAccepted, captchaId, captchaText }) => {
-    if (!email || !password) {
-        throw new AppError('Email and password are required', 400);
+export const registerUser = async ({ email, identifier, password, phone, companyPath, termsAccepted, captchaId, captchaText }) => {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedIdentifier = String(identifier || '').trim();
+    const normalizedPhone = String(phone || '').trim();
+    const derivedEmail = normalizedEmail || (validator.isEmail(normalizedIdentifier) ? normalizedIdentifier.toLowerCase() : '');
+    const derivedPhone = normalizedPhone || (!validator.isEmail(normalizedIdentifier) ? normalizedIdentifier : '');
+
+    if (!password) {
+        throw new AppError('Password is required', 400);
+    }
+    if (!isStrongPassword(password)) {
+        throw new AppError(PASSWORD_POLICY_MESSAGE, 400);
+    }
+    if (!derivedPhone && !derivedEmail) {
+        throw new AppError('Either email or phone number is required for signup', 400);
     }
     const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'register' });
     if (!captchaCheck.success) {
@@ -83,11 +96,13 @@ export const registerUser = async ({ email, password, phone, companyPath, termsA
         throw new AppError('You must accept the Terms & Conditions', 400);
     }
 
-    const existingAuth = await prisma.auth.findUnique({
-        where: { email }
-    });
-    if (existingAuth) {
-        throw new AppError('Email already registered', 409);
+    if (derivedEmail) {
+        const existingAuth = await prisma.auth.findUnique({
+            where: { email: derivedEmail }
+        });
+        if (existingAuth) {
+            throw new AppError('Email already registered', 409);
+        }
     }
 
     // Phone unique per company: when companyPath provided, check only within that company
@@ -96,23 +111,25 @@ export const registerUser = async ({ email, password, phone, companyPath, termsA
         const company = await getCompanyByPath(String(companyPath).trim());
         if (company) companyId = company.id;
     }
-    if (companyId && phone) {
-        const existingPhoneInCompany = await prisma.auth.findFirst({
-            where: {
-                phoneNumber: phone,
-                user: { companyId }
+    if (derivedPhone) {
+        if (companyId) {
+            const existingPhoneInCompany = await prisma.auth.findFirst({
+                where: {
+                    phoneNumber: derivedPhone,
+                    user: { companyId }
+                }
+            });
+            if (existingPhoneInCompany) {
+                throw new AppError('This phone number is already registered in this company. Please login instead.', 400);
             }
-        });
-        if (existingPhoneInCompany) {
-            throw new AppError('This phone number is already registered in this company. Please login instead.', 400);
-        }
-    } else if (phone) {
-        // No company context: global phone check (backward compat for users without company)
-        const existingPhone = await prisma.auth.findFirst({
-            where: { phoneNumber: phone }
-        });
-        if (existingPhone) {
-            throw new AppError('This phone number is already registered. Please login instead.', 400);
+        } else {
+            // No company context: global phone check (backward compat for users without company)
+            const existingPhone = await prisma.auth.findFirst({
+                where: { phoneNumber: derivedPhone }
+            });
+            if (existingPhone) {
+                throw new AppError('This phone number is already registered. Please login instead.', 400);
+            }
         }
     }
 
@@ -122,9 +139,9 @@ export const registerUser = async ({ email, password, phone, companyPath, termsA
     try {
         const auth = await prisma.auth.create({
             data: {
-                email,
+                email: derivedEmail || null,
                 password: hashedPassword,
-                phoneNumber: phone,
+                phoneNumber: derivedPhone || '',
                 termsAccepted: true,
                 termsAcceptedAt: new Date(),
                 apiKey: api_key,

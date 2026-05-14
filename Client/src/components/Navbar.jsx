@@ -20,7 +20,7 @@ import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO
  * @param {boolean} [minimalNav] — When true, hide Home/Menu/Place Order/Help and search (landing-style bar).
  * JLG uses theme.hideMainNavLinks for the same behaviour without passing this prop.
  */
-const Navbar = ({ onSignInClick, minimalNav = false }) => {
+const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -266,18 +266,33 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
                 </AnimatePresence>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={onSignInClick}
-                className={
-                  stripMainNav
-                    ? 'inline-flex items-center justify-center gap-2 rounded-full border border-white/70 bg-white px-6 py-2.5 min-h-[44px] text-sm font-semibold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
-                    : 'text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group'
-                }
-              >
-                <MdPerson className={stripMainNav ? 'text-lg text-gray-800' : 'text-xl group-hover:scale-110 transition-transform duration-300'} />
-                Sign In
-              </button>
+              <div className={`flex items-center ${stripMainNav ? 'gap-3' : 'gap-4'}`}>
+                <button
+                  type="button"
+                  onClick={onSignInClick}
+                  aria-label="Sign In or Register"
+                  title="Sign In or Register"
+                  className={
+                    stripMainNav
+                      ? 'inline-flex items-center justify-center gap-1.5 rounded-full border border-white/70 bg-white/15 px-5 py-2.5 min-h-[44px] text-sm font-semibold text-white transition-all duration-300 hover:bg-white/20 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+                      : 'inline-flex items-center justify-center gap-1.5 rounded-full border border-white/70 bg-white/15 px-4 py-2 min-h-[40px] text-sm font-semibold text-white transition-all duration-300 hover:bg-white/20 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+                  }
+                >
+                  <MdPerson className={stripMainNav ? 'text-base' : 'text-base'} />
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={onRegisterClick || onSignInClick}
+                  className={
+                    stripMainNav
+                      ? 'inline-flex items-center justify-center rounded-full border border-white/70 bg-white px-5 py-2.5 min-h-[44px] text-sm font-bold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+                      : 'inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-bold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+                  }
+                >
+                  Sign Up
+                </button>
+              </div>
             )}
 
             {/* Cart - Commented out
@@ -303,19 +318,22 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
             )}
           </div>
 
-          {/* Mobile: guest + slim nav → Sign In in bar; else hamburger when needed */}
+          {/* Mobile: guest shows only user icon */}
           <div className="md:hidden flex shrink-0 items-center gap-2">
-            {stripMainNav && !user && onSignInClick ? (
-              <button
+            {!user && onSignInClick ? (
+              <motion.button
                 type="button"
                 onClick={onSignInClick}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-white/70 bg-white px-3.5 py-2 min-h-[40px] text-xs font-semibold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                className="text-white hover:text-[#FE8C00] focus:outline-none px-2 py-1 rounded-lg hover:bg-white/10 transition-all duration-300 flex flex-col items-center leading-none"
+                whileTap={{ scale: 0.95 }}
+                aria-label="Sign In or Register"
+                title="Sign In or Register"
               >
-                <MdPerson className="text-base text-gray-800" />
-                <span>Sign In</span>
-              </button>
+                <MdPerson className="w-7 h-7" />
+                <span className="mt-0.5 text-[10px] font-medium">Account</span>
+              </motion.button>
             ) : null}
-            {!(stripMainNav && !user) ? (
+            {user ? (
               <motion.button
                 type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
@@ -548,7 +566,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
                   </div>
                   <motion.button
                     onClick={() => {
-                      onSignInClick();
+                      (onRegisterClick || onSignInClick)?.();
                       setMenuOpen(false);
                     }}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-300 group"
@@ -556,8 +574,7 @@ const Navbar = ({ onSignInClick, minimalNav = false }) => {
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                   >
-                    <MdPerson className="text-base group-hover:scale-110 transition-transform duration-300" /> 
-                    <span className="text-sm">Sign In</span>
+                    <span className="text-sm font-bold">Sign Up</span>
                   </motion.button>
                 </div>
               )}

@@ -23,61 +23,87 @@ const CONTACT_EMAIL =
 /** @type {TenantTermsDocument} */
 const jkfdsTerms = {
   pageTitle: 'Terms & Conditions',
-  bannerTagline: 'Meal plans, food ordering & kitchen delivery (jkk fds)',
-  lastUpdatedDisplay: '11 May 2026',
+  bannerTagline: 'SAS-based subscription meal platform',
+  lastUpdatedDisplay: 'May 14, 2026',
   intro: [
-    'JAYS KERALA INNOVATIONS PRIVATE LIMITED provides this food ordering and meal plan service.',
-    'By using our service, you agree to these Terms.',
+    'Entity: JAYS KERALA INNOVATIONS PRIVATE LIMITED',
+    'FSSAI License No: [Insert Number]',
   ],
   sections: [
     {
-      title: '1. Payments & Refunds',
-      paragraphs: ['All payments are final.', 'No refunds will be provided after purchase.'],
-    },
-    {
-      title: '2. Delivery & Carry Forward',
+      title: '1. Purpose and Service Overview',
       paragraphs: [
-        'If you do not want a scheduled meal, you may request to stop delivery in advance.',
-        'No refunds, credits, or carry forward to another day will be provided.',
+        'JAYS KERALA INNOVATIONS PRIVATE LIMITED (the "Company") operates a SAS-based subscription platform designed to provide scheduled, nutritional meal plans.',
+        'The purpose of this service is to automate healthy eating through a subscription model that optimizes food procurement, reduces waste, and ensures timely delivery to users across [Your Service Cities, e.g., Kochi, Thrissur].',
       ],
     },
     {
-      title: '3. Food Responsibility',
+      title: '2. Subscription & "No Refund" Policy',
       paragraphs: [
-        'Food should be consumed within 2 hours of delivery.',
-        'After delivery, we are not responsible for food quality or safety.',
+        'Nature of Subscription: By subscribing, you enter into a service agreement where resources (ingredients and logistics) are committed in advance based on your plan.',
+        'Finality of Payment: All payments are non-refundable. Due to the perishable nature of our products and the SAS procurement model, we cannot offer refunds once a subscription period has commenced.',
+        'No Carryforward: We offer the flexibility to "Pause" or "Stop" a delivery if notified [Insert Hours, e.g., 12 hours] in advance. However, as the daily slot and ingredients were reserved for you, these meals will not be carried forward to future dates, and no credits will be issued.',
       ],
     },
     {
-      title: '4. Menu Changes',
-      paragraphs: ['The Company may change menu items at any time without prior notice.'],
+      title: '3. Food Safety & FSSAI Compliance',
+      paragraphs: [
+        'FSSAI Standards: All meals are prepared in facilities compliant with FSSAI 2026 hygiene and safety standards.',
+        'The 2-Hour Rule: Per FSSAI safety guidelines for cooked meals, food must be consumed within two (2) hours of delivery.',
+        'Liability Shift: The Company is not liable for spoilage, food-borne illness, or quality degradation if the food is consumed beyond this 2-hour window or stored improperly (e.g., left in high humidity/heat) after delivery.',
+      ],
     },
     {
-      title: '5. Usage Terms',
+      title: '4. Localized Delivery & "Force Majeure"',
+      paragraphs: [
+        'Kerala Specifics: We strive for 100% on-time delivery. However, we are not liable for delays caused by extreme weather (heavy monsoons or flooding), state events (hartals, strikes), or localized traffic diversions common in Kerala.',
+        'Non-Delivery: In the rare event the Company cancels a delivery due to its own operational failure, a credit for that specific meal may be applied to your next billing cycle at the Company\'s sole discretion.',
+      ],
+    },
+    {
+      title: '5. Privacy & Data Protection (DPDP Act 2023)',
+      paragraphs: [
+        'Consent: We collect only the data necessary (Name, Address, Dietary Preferences) to fulfill your subscription.',
+        'Rights: You have the right to access, correct, or request the erasure of your personal data by contacting our Data Protection Officer.',
+        'Data Storage: Your data is stored on secure Indian servers and is never sold to third-party advertisers.',
+      ],
+    },
+    {
+      title: '6. Menu & Chef\'s Discretion',
+      paragraphs: [
+        'Our culinary team reserves the right to modify the menu without prior notice to ensure the use of the freshest seasonal produce available in the Kerala markets.',
+      ],
+    },
+    {
+      title: '7. Grievance Redressal & Jurisdiction',
+      paragraphs: [
+        'In compliance with E-commerce Rules 2020, we have appointed a Grievance Officer to handle user concerns.',
+      ],
       bullets: [
-        'Users must not misuse the service or engage in illegal activity.',
-        'Minimum age to use the service is 18 years.',
+        'Grievance Officer: [Name of Officer]',
+        'Email: [Support Email Address]',
+        'Timeline: We acknowledge grievances within 48 hours and aim for resolution within 1 month.',
+        'Jurisdiction: These terms are governed by Indian Law. Any legal proceedings shall be subject to the exclusive jurisdiction of the courts in Kochi, Kerala.',
       ],
     },
     {
-      title: '6. Liability',
-      paragraphs: [
-        'Service is provided "as is".',
-        'We are not liable for indirect losses or damages.',
-      ],
-    },
-    {
-      title: '7. Governing Law',
-      paragraphs: [
-        'These Terms are governed by Indian law.',
-        'Jurisdiction: Kochi, Kerala, India.',
+      title: 'Compliance Checklist for Website/App',
+      bullets: [
+        'FSSAI Logo & License Number: Must be visible on the footer of every page.',
+        'Mandatory Checkbox during checkout: "I agree to the Terms & Conditions, specifically the No-Refund and 2-hour consumption policy."',
+        'GST Transparency: Invoices must clearly show GST breakdown as a Kerala-registered Private Limited entity.',
       ],
     },
   ],
-  contactTitle: 'Contact',
+  contactTitle: 'Contact & Compliance',
   contact: {
     legalName: 'JAYS KERALA INNOVATIONS PRIVATE LIMITED',
     email: CONTACT_EMAIL,
+    extraLines: [
+      'FSSAI License No: [Insert Number]',
+      'Grievance Officer: [Name of Officer]',
+      'Grievance Email: [Support Email Address]',
+    ],
   },
 };
 

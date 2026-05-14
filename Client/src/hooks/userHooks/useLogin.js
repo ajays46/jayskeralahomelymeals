@@ -252,7 +252,7 @@ export const useRefreshToken = () => {
     },
     onError: (error) => {
       if (!error.config?._retry) {
-        const errorMessage = error.response?.data?.message || 'Session expired. Please login again.';
+        const errorMessage = error.response?.data?.message || 'Session expired. Please sign in again.';
         showLoginError({ response: { data: { message: errorMessage } } });
       }
     }

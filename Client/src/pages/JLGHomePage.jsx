@@ -18,6 +18,7 @@ import useAuthStore from '../stores/Zustand.store';
  */
 const JLGHomePage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState('login');
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
@@ -30,7 +31,14 @@ const JLGHomePage = () => {
   const activeRole = useAuthStore((state) => state.activeRole);
   const showRoleSelector = useAuthStore((state) => state.showRoleSelector);
 
-  const openAuthSlider = useCallback(() => setAuthSliderOpen(true), []);
+  const openSignInSlider = useCallback(() => {
+    setAuthInitialTab('login');
+    setAuthSliderOpen(true);
+  }, []);
+  const openRegisterSlider = useCallback(() => {
+    setAuthInitialTab('register');
+    setAuthSliderOpen(true);
+  }, []);
   const closeAuthSlider = useCallback(() => setAuthSliderOpen(false), []);
 
   useEffect(() => {
@@ -47,8 +55,8 @@ const JLGHomePage = () => {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${gradient}`}>
-      <Navbar onSignInClick={openAuthSlider} />
-      <AuthSlider isOpen={authSliderOpen} onClose={closeAuthSlider} />
+      <Navbar onSignInClick={openSignInSlider} onRegisterClick={openRegisterSlider} />
+      <AuthSlider isOpen={authSliderOpen} onClose={closeAuthSlider} initialTab={authInitialTab} />
 
       <div className="relative overflow-hidden">
         <div
@@ -89,7 +97,7 @@ const JLGHomePage = () => {
                     e.currentTarget.style.backgroundColor = '';
                     e.currentTarget.style.color = 'white';
                   }}
-                  onClick={openAuthSlider}
+                  onClick={openSignInSlider}
                 >
                   Sign In
                 </button>
