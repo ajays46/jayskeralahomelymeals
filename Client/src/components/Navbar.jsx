@@ -13,6 +13,7 @@ import { getThemeForCompany } from '../config/tenantThemes';
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLogout } from '../hooks/userHooks/useLogin';
 import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO } from '../utils/roleUtils';
+import ChangePassword from './ChangePassword';
 
 /**
  * Navbar - Main navigation component with role-based menu and authentication
@@ -24,6 +25,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const navigate = useNavigate();
@@ -79,6 +81,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
   const stripMainNav = minimalNav || theme.hideMainNavLinks === true;
 
   return (
+    <>
     <nav className={`tenant-nav ${theme.navBg || 'bg-[#989494]/50'} shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`} style={{ ['--tenant-accent']: accent }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-3">
         <div className="flex justify-between items-center h-20 lg:h-24">
@@ -182,13 +185,16 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                         </div>
                       </div>
 
-                      {/* User Profile Options */}
-                      <Link to={`${base}/profile`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                        <MdPerson className="text-xl" /> Profile
-                      </Link>
-                      <Link to={`${base}/customer-orders`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                        <MdRestaurantMenu className="text-xl" /> My Orders
-                      </Link>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200 w-full text-left"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setShowChangePassword(true);
+                        }}
+                      >
+                        <MdPerson className="text-xl" /> Change Password
+                      </button>
 
 
                       {/* Admin Options */}
@@ -488,16 +494,18 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                     My Account
                   </h3>
                   
-                  {/* Primary Actions */}
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <Link to={`${base}/profile`} className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-[color:var(--sidebar-accent)]/30 [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
-                      <MdPerson className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
-                      <span className="font-medium text-xs text-center">Profile</span>
-                    </Link>
-                    <Link to={`${base}/customer-orders`} className="flex flex-col items-center gap-1 p-2 text-gray-700 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group border border-gray-100 hover:border-[color:var(--sidebar-accent)]/30 [&:hover]:text-[color:var(--sidebar-accent)]" onClick={() => setMenuOpen(false)}>
-                      <MdRestaurantMenu className="text-lg group-hover:scale-110 transition-transform duration-300" /> 
-                      <span className="font-medium text-xs text-center">Orders</span>
-                    </Link>
+                  <div className="mb-3">
+                    <button
+                      type="button"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setShowChangePassword(true);
+                      }}
+                    >
+                      <MdPerson className="text-base group-hover:scale-110 transition-transform duration-300" />
+                      <span className="font-medium text-xs">Change Password</span>
+                    </button>
                   </div>
 
                   {/* Admin/Seller/Delivery Manager/CEO/CFO Options */}
@@ -584,6 +592,11 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
       </AnimatePresence>
 
     </nav>
+      <ChangePassword
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+      />
+    </>
   );
 };
 

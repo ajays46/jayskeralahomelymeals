@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 import { logSecurityEvent } from '../middleware/logging.middleware.js';
-import { createTextCaptcha } from '../utils/textCaptcha.js';
+import { createTextCaptcha, verifyTextCaptcha } from '../utils/textCaptcha.js';
 
 dotenv.config();
 
@@ -20,7 +20,7 @@ dotenv.config();
 export const getCaptcha = async (req, res, next) => {
   try {
     const purpose = String(req.query?.purpose || 'register').toLowerCase().trim();
-    const allowedPurposes = new Set(['register', 'login']);
+    const allowedPurposes = new Set(['register', 'login', 'change-password']);
     const normalizedPurpose = allowedPurposes.has(purpose) ? purpose : 'register';
     const captcha = createTextCaptcha(normalizedPurpose);
 
@@ -331,11 +331,15 @@ export const checkUserRole = async (req, res, next) => {
 // Change password
 export const changePassword = async (req, res, next) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, captchaId, captchaText } = req.body;
     const userId = req.user.userId; // Get user ID from JWT token
 
     if (!currentPassword || !newPassword) {
       throw new AppError('Current password and new password are required', 400);
+    }
+    const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'change-password' });
+    if (!captchaCheck.success) {
+      throw new AppError('Please complete CAPTCHA verification', 400);
     }
     if (!isStrongPassword(newPassword)) {
       throw new AppError(PASSWORD_POLICY_MESSAGE, 400);
