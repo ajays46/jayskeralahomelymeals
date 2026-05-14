@@ -27,17 +27,13 @@ export const isStrongPassword = (password = '') => {
 };
 
 export const registerSchema = z.object({
-  phone: z.string()
-    .min(4, 'Phone number is required')
-    .regex(/^\+[0-9\s-]+$/, 'Please enter a valid phone number'),
-  email: z.string()
+  identifier: z.string()
     .trim()
-    .optional()
-    .or(z.literal(''))
+    .min(1, 'Email or phone number is required')
     .refine((value) => {
-      if (!value) return true;
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-    }, 'Please enter a valid email address'),
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return true;
+      return /^\+?[0-9\s-]{7,}$/.test(value);
+    }, 'Please enter a valid email or phone number'),
   password: z.string()
     .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')

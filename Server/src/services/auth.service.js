@@ -82,8 +82,8 @@ export const registerUser = async ({ email, identifier, password, phone, company
     if (!isStrongPassword(password)) {
         throw new AppError(PASSWORD_POLICY_MESSAGE, 400);
     }
-    if (!derivedPhone) {
-        throw new AppError('Phone number is required for signup', 400);
+    if (!derivedPhone && !derivedEmail) {
+        throw new AppError('Either email or phone number is required for signup', 400);
     }
     const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'register' });
     if (!captchaCheck.success) {
@@ -111,23 +111,25 @@ export const registerUser = async ({ email, identifier, password, phone, company
         const company = await getCompanyByPath(String(companyPath).trim());
         if (company) companyId = company.id;
     }
-    if (companyId) {
-        const existingPhoneInCompany = await prisma.auth.findFirst({
-            where: {
-                phoneNumber: derivedPhone,
-                user: { companyId }
+    if (derivedPhone) {
+        if (companyId) {
+            const existingPhoneInCompany = await prisma.auth.findFirst({
+                where: {
+                    phoneNumber: derivedPhone,
+                    user: { companyId }
+                }
+            });
+            if (existingPhoneInCompany) {
+                throw new AppError('This phone number is already registered in this company. Please login instead.', 400);
             }
-        });
-        if (existingPhoneInCompany) {
-            throw new AppError('This phone number is already registered in this company. Please login instead.', 400);
-        }
-    } else {
-        // No company context: global phone check (backward compat for users without company)
-        const existingPhone = await prisma.auth.findFirst({
-            where: { phoneNumber: derivedPhone }
-        });
-        if (existingPhone) {
-            throw new AppError('This phone number is already registered. Please login instead.', 400);
+        } else {
+            // No company context: global phone check (backward compat for users without company)
+            const existingPhone = await prisma.auth.findFirst({
+                where: { phoneNumber: derivedPhone }
+            });
+            if (existingPhone) {
+                throw new AppError('This phone number is already registered. Please login instead.', 400);
+            }
         }
     }
 
@@ -139,7 +141,7 @@ export const registerUser = async ({ email, identifier, password, phone, company
             data: {
                 email: derivedEmail || null,
                 password: hashedPassword,
-                phoneNumber: derivedPhone,
+                phoneNumber: derivedPhone || '',
                 termsAccepted: true,
                 termsAcceptedAt: new Date(),
                 apiKey: api_key,

@@ -172,7 +172,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
 
   return (
     <>
-      <h2 className="hidden md:block text-3xl font-bold text-gray-900 mb-4 text-center">Sign In to your account</h2>
+      <h2 className="hidden md:block text-3xl font-bold text-gray-900 mb-5 text-center">Sign In to your account</h2>
       <div className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:bg-white md:rounded-xl md:shadow-md" style={{ ['--auth-accent']: accent }}>
         <div className="hidden md:flex justify-center gap-4 mb-6">
           <GoogleLogin
@@ -228,10 +228,10 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
           </div>
         )}
 
-        <form className={`${showCredentialFormMobile ? 'block' : 'hidden md:block'} space-y-4`} onSubmit={handleSubmit}>
+        <form className={`${showCredentialFormMobile ? 'block' : 'hidden md:block'} space-y-4 mt-1`} onSubmit={handleSubmit}>
           {showCredentialFormMobile && (
-            <div className="md:hidden mb-2">
-              <h3 className="text-2xl font-bold text-gray-900">Sign In to your account</h3>
+            <div className="md:hidden mb-3">
+              <h3 className="text-2xl font-bold text-gray-900 text-center">Sign In to your account</h3>
             </div>
           )}
           <div className="mt-1">
