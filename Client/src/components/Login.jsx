@@ -25,7 +25,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
-    remember: false,
+    remember: true,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
@@ -156,7 +156,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
       {
         credential,
         companyPath: tenant?.companyPath,
-        remember: formData.remember
+        remember: true
       },
       {
         onSuccess: () => {
@@ -291,22 +291,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
               </div>
             )}
           </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember"
-                name="remember"
-                type="checkbox"
-                checked={formData.remember}
-                onChange={handleChange}
-                className="h-4 w-4 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded"
-                style={{ accentColor: accent }}
-                disabled={isPending || isGooglePending}
-              />
-              <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
-                Remember me
-              </label>
-            </div>
+          <div className="flex items-center justify-end">
             <button
               type="button"
               className="text-sm hover:underline bg-transparent border-none p-0"
