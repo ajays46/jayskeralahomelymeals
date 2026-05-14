@@ -38,6 +38,7 @@ import {
   showRequiredFieldError
 } from '../utils/toastConfig.jsx';
 import { saveDraftWithCleanup, cleanExpiredDrafts } from '../utils/draftOrderUtils';
+import { trackGaEvent } from '../utils/analytics';
 import useAuthStore from '../stores/Zustand.store';
 import AddressPicker from '../components/AddressPicker';
 import AdminOrderBlockedModal from '../components/AdminOrderBlockedModal';
@@ -2154,6 +2155,12 @@ const BookingWizardPage = () => {
 
       // Save order data to localStorage for payment page
       localStorage.setItem('savedOrder', JSON.stringify(orderDataForPayment));
+      trackGaEvent('begin_checkout', {
+        currency: 'INR',
+        value: Number(orderDataForPayment.totalPrice || 0),
+        item_count: Array.isArray(orderDataForPayment.selectedDates) ? orderDataForPayment.selectedDates.length : 0,
+        company_path: user?.companyPath || 'unknown',
+      });
       
       // Redirect to payment page with order data
       navigate(`${basePath}/process-payment`, { 

@@ -41,6 +41,7 @@ import axiosInstance from '../api/axios.js';
 import useAuthStore from '../stores/Zustand.store.js';
 import { SkeletonWizardStep, SkeletonLoading } from '../components/Skeleton';
 import AddressPicker from '../components/AddressPicker';
+import { trackGaEvent } from '../utils/analytics';
 
 /**
  * PaymentWizardPage - Multi-step payment processing component
@@ -1083,6 +1084,23 @@ const PaymentWizardPage = () => {
       const response = await createPayment(formData);
       
       if (response.success) {
+        const purchaseValue = Number(
+          currentOrder?.totalAmount || currentOrder?.totalPrice || paymentAmount || 0
+        );
+        const purchaseId =
+          response?.data?.payment?.id ||
+          response?.data?.id ||
+          response?.payment?.id ||
+          response?.paymentId ||
+          currentOrder?.id;
+        trackGaEvent('purchase', {
+          currency: 'INR',
+          value: Number.isFinite(purchaseValue) ? purchaseValue : 0,
+          transaction_id: purchaseId ? String(purchaseId) : undefined,
+          payment_type: paymentMethod || 'unknown',
+          company_path: user?.companyPath || 'unknown',
+        });
+
         // Clear saved order data
         localStorage.removeItem('savedOrder');
         

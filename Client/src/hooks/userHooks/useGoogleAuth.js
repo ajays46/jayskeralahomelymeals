@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDashboardRoute } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { syncRememberMeStorage } from './useLogin';
+import { trackGaEvent } from '../../utils/analytics';
 
 export const useGoogleAuth = () => {
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
@@ -49,6 +50,11 @@ export const useGoogleAuth = () => {
       setActiveRole(primaryRole);
       setUser(data.data);
       setIsAuthenticated(true);
+      trackGaEvent('login', {
+        method: 'google',
+        company_path: data.data?.companyPath || variables?.companyPath || 'unknown',
+        role_count: Array.isArray(roles) ? roles.length : 1,
+      });
 
       if (data.data?.companyId) {
         localStorage.setItem('company_id', data.data.companyId);

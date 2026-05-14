@@ -5,6 +5,7 @@ import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardRoute } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
+import { trackGaEvent } from '../../utils/analytics';
 
 /** Legacy global key (pre–per-company); still read for migration. */
 export const REMEMBERED_LOGIN_IDENTIFIER_KEY = 'remembered_login_identifier';
@@ -186,6 +187,11 @@ export const useLogin = () => {
         setActiveRole(primaryRole);
         setUser(data.data);
         setIsAuthenticated(true);
+        trackGaEvent('login', {
+          method: 'password',
+          company_path: data.data?.companyPath || variables?.companyPath || 'unknown',
+          role_count: Array.isArray(roles) ? roles.length : 1,
+        });
         // Store company_id for multicompany (X-Company-ID header)
         if (data.data?.companyId) {
           localStorage.setItem('company_id', data.data.companyId);
