@@ -1,89 +1,50 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import api from '../api/axios';
+import { useEffect, useMemo, useRef } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 const CaptchaField = ({ accent, onChange, error, disabled = false, recaptchaKey = 0, action = 'register' }) => {
   const onChangeRef = useRef(onChange);
-  const [captchaId, setCaptchaId] = useState('');
-  const [captchaImage, setCaptchaImage] = useState('');
-  const [captchaText, setCaptchaText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const captchaRef = useRef(null);
+  const siteKey = useMemo(() => String(import.meta.env.VITE_RECAPTCHA_SITE_KEY || '').trim(), []);
 
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  const fetchCaptcha = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const { data } = await api.get('/auth/captcha', {
-        params: { purpose: String(action || 'register').toLowerCase() }
-      });
-      const imageData = data?.data?.imageData || '';
-      const nextCaptchaId = data?.data?.captchaId || '';
-      setCaptchaImage(imageData);
-      setCaptchaId(nextCaptchaId);
-      setCaptchaText('');
-      onChangeRef.current?.({ captchaId: nextCaptchaId, captchaText: '' });
-    } catch (e) {
-      setCaptchaImage('');
-      setCaptchaId('');
-      setCaptchaText('');
-      onChangeRef.current?.({ captchaId: '', captchaText: '' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [action]);
-
   useEffect(() => {
-    fetchCaptcha();
-  }, [fetchCaptcha, recaptchaKey]);
+    captchaRef.current?.reset();
+    onChangeRef.current?.({ captchaToken: '' });
+  }, [recaptchaKey]);
+
+  const purpose = String(action || 'register').toLowerCase();
 
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Are you a human? <span className="text-red-500">*</span>
       </label>
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="w-[170px] shrink-0">
-            {captchaImage ? (
-              <img
-                src={captchaImage}
-                alt="CAPTCHA challenge"
-                className={`h-[54px] w-full rounded border bg-white object-cover ${error ? 'border-red-500' : 'border-gray-300'}`}
-              />
-            ) : (
-              <div className={`h-[54px] w-full rounded border bg-gray-50 flex items-center justify-center text-xs text-gray-500 ${error ? 'border-red-500' : 'border-gray-300'}`}>
-                {isLoading ? 'Loading CAPTCHA...' : 'CAPTCHA unavailable'}
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={fetchCaptcha}
-            disabled={disabled || isLoading}
-            className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border transition-colors hover:bg-orange-50 disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ color: accent, borderColor: accent }}
-            aria-label="Refresh captcha"
-            title="Refresh captcha"
-          >
-            <span className="text-xl leading-none text-orange-500" aria-hidden="true">↻</span>
-          </button>
+      {!siteKey ? (
+        <div className={`rounded-lg border px-3 py-2 text-sm ${error ? 'border-red-500 text-red-600' : 'border-amber-300 text-amber-700 bg-amber-50'}`}>
+          CAPTCHA is not configured. Set `VITE_RECAPTCHA_SITE_KEY` in client environment.
         </div>
-        <input
-          type="text"
-          value={captchaText}
-          onChange={(e) => {
-            const value = e.target.value;
-            setCaptchaText(value);
-            onChangeRef.current?.({ captchaId, captchaText: value });
-          }}
-          placeholder="Type the characters above"
-          disabled={disabled || isLoading || !captchaId}
-          className={`block w-full rounded-lg border px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${error ? 'border-red-500' : 'border-gray-300'}`}
-          style={{ ['--tw-ring-color']: accent }}
-        />
-      </div>
+      ) : (
+        <div
+          className={`${disabled ? 'opacity-60 pointer-events-none' : ''} inline-block rounded-lg p-1`}
+          style={{ boxShadow: `inset 0 0 0 1px ${error ? '#ef4444' : `${accent}40`}` }}
+        >
+          <div className="w-[268px] h-[69px] overflow-hidden sm:w-[304px] sm:h-[78px]">
+            <div className="origin-top-left scale-[0.88] sm:scale-100">
+              <ReCAPTCHA
+                key={`${purpose}-${recaptchaKey}`}
+                ref={captchaRef}
+                sitekey={siteKey}
+                onChange={(token) => onChangeRef.current?.({ captchaToken: token || '' })}
+                onExpired={() => onChangeRef.current?.({ captchaToken: '' })}
+                onErrored={() => onChangeRef.current?.({ captchaToken: '' })}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
     </div>
   );

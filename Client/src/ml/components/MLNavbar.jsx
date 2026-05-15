@@ -13,11 +13,13 @@ import { getThemeForCompany } from '../../config/tenantThemes';
 import { useLogout } from '../../hooks/userHooks/useLogin';
 import { isDeliveryPartner, isCEO, isCFO, isAdmin, isDeliveryManager } from '../../utils/roleUtils';
 import MLJaiceChat from './MLJaiceChat';
+import ChangePassword from '../../components/ChangePassword';
 
 const MLNavbar = ({ onSignInClick, onRegisterClick }) => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
   const lastScrollYRef = useRef(0);
   const user = useAuthStore((state) => state.user);
@@ -157,9 +159,16 @@ const MLNavbar = ({ onSignInClick, onRegisterClick }) => {
                           </div>
                         </div>
                       </div>
-                      <Link to={`${base}/profile`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200" style={{ ['--tw-text-opacity']: 1 }} onClick={() => setUserDropdownOpen(false)}>
-                        <MdPerson className="text-xl" /> Profile
-                      </Link>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200 w-full text-left"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setShowChangePassword(true);
+                        }}
+                      >
+                        <MdPerson className="text-xl" /> Change Password
+                      </button>
                       {userIsAdmin && (
                         <Link to={`${base}/admin`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
                           <MdAdminPanelSettings className="text-xl" /> Admin
@@ -252,7 +261,18 @@ const MLNavbar = ({ onSignInClick, onRegisterClick }) => {
                 )}
                 {userIsCXO && <Link to={`${base}/cxo-dashboard`} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium" onClick={() => setMenuOpen(false)}><MdDashboard className="text-xl flex-shrink-0" /> CXO Dashboard</Link>}
                 {userIsAdmin && <Link to={`${base}/admin`} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium" onClick={() => setMenuOpen(false)}><MdAdminPanelSettings className="text-xl flex-shrink-0" /> Admin</Link>}
-                {user && <Link to={`${base}/profile`} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium" onClick={() => setMenuOpen(false)}><MdPerson className="text-xl flex-shrink-0" /> Profile</Link>}
+                {user && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-orange-50 rounded-xl text-base font-medium w-full text-left"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShowChangePassword(true);
+                    }}
+                  >
+                    <MdPerson className="text-xl flex-shrink-0" /> Change Password
+                  </button>
+                )}
                 {user ? (
                   <button onClick={() => { handleLogout(); setMenuOpen(false); }} className="flex items-center gap-3 min-h-[48px] px-4 py-2 text-gray-700 active:bg-red-50 active:text-red-600 w-full text-left rounded-xl text-base font-medium"><MdLogout className="text-xl flex-shrink-0" /> Logout</button>
                 ) : (
@@ -267,6 +287,11 @@ const MLNavbar = ({ onSignInClick, onRegisterClick }) => {
       </AnimatePresence>
 
     </nav>
+
+      <ChangePassword
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+      />
 
       {/* Jaice chat - for CXO / Delivery Manager / Admin */}
       {canUseJaice && <MLJaiceChat />}

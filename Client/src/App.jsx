@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavig
 import { ConfigProvider } from 'antd';
 
 import { initializeDraftCleanup } from './utils/draftOrderUtils';
+import { trackPageView } from './utils/analytics';
 import RoleSelectionSidebar from './components/RoleSelectionSidebar';
 import Footer from './components/Footer';
 import useAuthStore from './stores/Zustand.store';
@@ -84,6 +85,16 @@ const ConditionalFooter = () => {
   if (isHome || isMenu) return <Footer />;
   return null;
 };
+
+function AnalyticsRouteTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackPageView(`${location.pathname}${location.search}${location.hash}`);
+  }, [location.pathname, location.search, location.hash]);
+
+  return null;
+}
 
 /** Wraps tenant routes: resolves company from URL, provides TenantContext, injects theme CSS vars for different UI per company.
  * Redirects authenticated users away from another company's URL (e.g. browser Back after login left /jkfds in history).
@@ -211,6 +222,7 @@ const App = () => {
   return (
     <ConfigProvider getPopupContainer={() => document.body}>
       <Router>
+          <AnalyticsRouteTracker />
           {/* Role Selection Sidebar */}
         <RoleSelectionSidebar 
           isOpen={showRoleSelector}

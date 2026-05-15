@@ -10,7 +10,7 @@ import nodemailer from 'nodemailer';
 import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 import { getCompanyByPath, normalizeCompanyPathKey } from './tenant.service.js';
 import { OAuth2Client } from 'google-auth-library';
-import { verifyTextCaptcha } from '../utils/textCaptcha.js';
+import { verifyCaptchaChallenge } from '../utils/captchaVerification.js';
 dotenv.config();
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -70,7 +70,7 @@ async function resolveCompanyPathForUser(user, requestCompanyPath) {
  * Features: User registration, login validation, password management, role assignment, JWT token generation
  */
 
-export const registerUser = async ({ email, identifier, password, phone, companyPath, termsAccepted, captchaId, captchaText }) => {
+export const registerUser = async ({ email, identifier, password, phone, companyPath, termsAccepted, captchaToken, captchaId, captchaText, remoteIp }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const normalizedIdentifier = String(identifier || '').trim();
     const normalizedPhone = String(phone || '').trim();
@@ -89,7 +89,13 @@ export const registerUser = async ({ email, identifier, password, phone, company
     if (derivedPhone && !hasValidPhoneDigits(derivedPhone)) {
         throw new AppError('Phone number must contain at least 10 digits', 400);
     }
-    const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'register' });
+    const captchaCheck = await verifyCaptchaChallenge({
+        captchaToken,
+        captchaId,
+        captchaText,
+        purpose: 'register',
+        remoteIp
+    });
     if (!captchaCheck.success) {
         throw new AppError('Please complete CAPTCHA verification', 400, {
             requireCaptcha: true,
@@ -192,11 +198,17 @@ export const registerUser = async ({ email, identifier, password, phone, company
     }
 };
 
-export const loginUser = async ({ identifier, password, companyPath, remember = false, captchaId, captchaText }) => {
+export const loginUser = async ({ identifier, password, companyPath, remember = false, captchaToken, captchaId, captchaText, remoteIp }) => {
     const attemptKey = getLoginAttemptKey(identifier, companyPath);
     const failedAttempts = getFailedLoginAttempts(attemptKey);
     if (failedAttempts >= LOGIN_CAPTCHA_THRESHOLD) {
-        const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'login' });
+        const captchaCheck = await verifyCaptchaChallenge({
+            captchaToken,
+            captchaId,
+            captchaText,
+            purpose: 'login',
+            remoteIp
+        });
         if (!captchaCheck.success) {
             throw new AppError('Please complete CAPTCHA verification', 400, {
                 requireCaptcha: true,

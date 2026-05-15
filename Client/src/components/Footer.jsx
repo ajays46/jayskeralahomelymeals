@@ -1,7 +1,9 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { APP_VERSION } from '../config/appVersion';
 import { DEFAULT_COMPANY_PATH } from '../utils/companyPaths';
+import { useTenant } from '../context/TenantContext';
+import { getTermsForCompany } from '../config/tenantTerms';
 
 /**
  * Footer - Copyright footer component
@@ -9,10 +11,21 @@ import { DEFAULT_COMPANY_PATH } from '../utils/companyPaths';
  * Format: © [Year] [Company Name]. All rights reserved.
  */
 const Footer = () => {
+  const tenant = useTenant();
+  const location = useLocation();
   const { companyPath } = useParams();
-  const tenantBase = (companyPath && String(companyPath).trim()) || DEFAULT_COMPANY_PATH;
-  const copyrightYear = 2025;
-  const companyName = 'JAYS KERALA INNOVATIONS PRIVATE LIMITED';
+  const pathSegment = String(location?.pathname || '')
+    .split('/')
+    .filter(Boolean)[0];
+  const tenantBase = (
+    (pathSegment && String(pathSegment).trim()) ||
+    (tenant?.companyPath && String(tenant.companyPath).trim()) ||
+    (companyPath && String(companyPath).trim()) ||
+    DEFAULT_COMPANY_PATH
+  ).toLowerCase();
+  const copyrightYear = new Date().getFullYear();
+  const termsDoc = getTermsForCompany(tenantBase);
+  const companyName = termsDoc?.contact?.legalName || 'JAYS KERALA INNOVATIONS PRIVATE LIMITED';
 
   return (
     <footer className="bg-gray-900 text-gray-300 py-6 mt-auto">

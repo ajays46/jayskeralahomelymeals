@@ -3,6 +3,7 @@ import { MdLock, MdVisibility, MdVisibilityOff, MdClose, MdCheck } from 'react-i
 import api from '../api/axios';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
 import useAuthStore from '../stores/Zustand.store';
+import CaptchaField from './CaptchaField';
 
 /**
  * ChangePassword - Modal component for changing user password
@@ -22,6 +23,8 @@ const ChangePassword = ({ isOpen, onClose }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [captchaData, setCaptchaData] = useState({ captchaToken: '' });
+  const [captchaRenderKey, setCaptchaRenderKey] = useState(0);
 
   // Password strength indicators
   const [passwordStrength, setPasswordStrength] = useState({
@@ -94,6 +97,10 @@ const ChangePassword = ({ isOpen, onClose }) => {
       newErrors.confirmPassword = 'Passwords do not match';
     }
 
+    if (!captchaData.captchaToken) {
+      newErrors.captcha = 'Please complete CAPTCHA verification';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -119,7 +126,8 @@ const ChangePassword = ({ isOpen, onClose }) => {
       // Make the API call to change password
       const response = await api.post('/auth/change-password', {
         currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword
+        newPassword: formData.newPassword,
+        captchaToken: captchaData.captchaToken
       });
       
       if (response.data.success) {
@@ -153,6 +161,12 @@ const ChangePassword = ({ isOpen, onClose }) => {
         errorMessage = error.message || 'An unexpected error occurred';
       }
       
+      if (errorMessage.toLowerCase().includes('captcha')) {
+        setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
+        setCaptchaData({ captchaToken: '' });
+        setCaptchaRenderKey(prev => prev + 1);
+      }
+
       showErrorToast(errorMessage);
     } finally {
       setIsLoading(false);
@@ -171,6 +185,8 @@ const ChangePassword = ({ isOpen, onClose }) => {
       confirm: false
     });
     setErrors({});
+    setCaptchaData({ captchaToken: '' });
+    setCaptchaRenderKey(prev => prev + 1);
     setPasswordStrength({
       length: false,
       uppercase: false,
@@ -184,10 +200,10 @@ const ChangePassword = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50 p-0 sm:p-4">
+      <div className="bg-white w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:rounded-xl sm:shadow-2xl sm:max-w-md mx-auto overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="sticky top-0 z-10 flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-white">
           <h2 className="text-xl font-bold text-gray-800">Change Password</h2>
           <button
             onClick={handleClose}
@@ -198,7 +214,7 @@ const ChangePassword = ({ isOpen, onClose }) => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6 pb-8">
           {/* Current Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -315,6 +331,20 @@ const ChangePassword = ({ isOpen, onClose }) => {
               <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
             )}
           </div>
+
+          <CaptchaField
+            accent="#FE8C00"
+            recaptchaKey={captchaRenderKey}
+            action="change-password"
+            onChange={(value) => {
+              setCaptchaData(value || { captchaToken: '' });
+              if (errors.captcha) {
+                setErrors(prev => ({ ...prev, captcha: '' }));
+              }
+            }}
+            error={errors.captcha}
+            disabled={isLoading}
+          />
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
