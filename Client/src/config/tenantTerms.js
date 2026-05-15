@@ -243,8 +243,9 @@ const mlTerms = {
 
 const tenantTermsByPath = {
   jkfds: jkfdsTerms,
-  jlg: jlgTerms,
-  ml: mlTerms,
+  // Keep all tenants on the same master legal document.
+  jlg: jkfdsTerms,
+  ml: jkfdsTerms,
 };
 
 /**
