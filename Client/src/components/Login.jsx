@@ -31,7 +31,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
   const [errors, setErrors] = useState({});
   const [, setFailedAttempts] = useState(0);
   const [showCaptcha, setShowCaptcha] = useState(false);
-  const [captchaData, setCaptchaData] = useState({ captchaId: '', captchaText: '' });
+  const [captchaData, setCaptchaData] = useState({ captchaToken: '' });
   const [captchaRenderKey, setCaptchaRenderKey] = useState(0);
   const [showCredentialFormMobile, setShowCredentialFormMobile] = useState(false);
   /**
@@ -83,7 +83,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
     try {
       // Validate all fields
       loginSchema.parse(formData);
-      if (showCaptcha && (!captchaData.captchaId || !captchaData.captchaText)) {
+      if (showCaptcha && !captchaData.captchaToken) {
         setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
         return;
       }
@@ -92,14 +92,13 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
       loginMutation({
         ...formData,
         companyPath: tenant?.companyPath,
-        captchaId: captchaData.captchaId,
-        captchaText: captchaData.captchaText
+        captchaToken: captchaData.captchaToken
       }, {
         onSuccess: (data) => {
           if (data?.success) {
             setFailedAttempts(0);
             setShowCaptcha(false);
-            setCaptchaData({ captchaId: '', captchaText: '' });
+            setCaptchaData({ captchaToken: '' });
             onClose?.();
           }
         },
@@ -129,7 +128,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
             setErrors(prev => ({ ...prev, submit: errorMessage || 'Sign-in failed' }));
           }
           if (showCaptcha || requireCaptcha) {
-            setCaptchaData({ captchaId: '', captchaText: '' });
+            setCaptchaData({ captchaToken: '' });
             setCaptchaRenderKey(prev => prev + 1);
           }
         }
@@ -215,7 +214,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
               className="w-full py-3 rounded-xl text-white font-semibold text-base shadow-md transition-colors"
               style={{ backgroundColor: accent }}
             >
-              Login with Email or Phone number
+              Sign in with Email or phone number
             </button>
             <button
               type="button"
@@ -308,7 +307,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
               recaptchaKey={captchaRenderKey}
               action="login"
               onChange={(value) => {
-                setCaptchaData(value || { captchaId: '', captchaText: '' });
+                setCaptchaData(value || { captchaToken: '' });
                 if (errors.captcha) {
                   setErrors(prev => ({ ...prev, captcha: '' }));
                 }

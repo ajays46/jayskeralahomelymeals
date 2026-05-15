@@ -23,7 +23,7 @@ const ChangePassword = ({ isOpen, onClose }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [captchaData, setCaptchaData] = useState({ captchaId: '', captchaText: '' });
+  const [captchaData, setCaptchaData] = useState({ captchaToken: '' });
   const [captchaRenderKey, setCaptchaRenderKey] = useState(0);
 
   // Password strength indicators
@@ -97,7 +97,7 @@ const ChangePassword = ({ isOpen, onClose }) => {
       newErrors.confirmPassword = 'Passwords do not match';
     }
 
-    if (!captchaData.captchaId || !captchaData.captchaText) {
+    if (!captchaData.captchaToken) {
       newErrors.captcha = 'Please complete CAPTCHA verification';
     }
 
@@ -127,8 +127,7 @@ const ChangePassword = ({ isOpen, onClose }) => {
       const response = await api.post('/auth/change-password', {
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
-        captchaId: captchaData.captchaId,
-        captchaText: captchaData.captchaText
+        captchaToken: captchaData.captchaToken
       });
       
       if (response.data.success) {
@@ -164,7 +163,7 @@ const ChangePassword = ({ isOpen, onClose }) => {
       
       if (errorMessage.toLowerCase().includes('captcha')) {
         setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
-        setCaptchaData({ captchaId: '', captchaText: '' });
+        setCaptchaData({ captchaToken: '' });
         setCaptchaRenderKey(prev => prev + 1);
       }
 
@@ -186,7 +185,7 @@ const ChangePassword = ({ isOpen, onClose }) => {
       confirm: false
     });
     setErrors({});
-    setCaptchaData({ captchaId: '', captchaText: '' });
+    setCaptchaData({ captchaToken: '' });
     setCaptchaRenderKey(prev => prev + 1);
     setPasswordStrength({
       length: false,
@@ -338,7 +337,7 @@ const ChangePassword = ({ isOpen, onClose }) => {
             recaptchaKey={captchaRenderKey}
             action="change-password"
             onChange={(value) => {
-              setCaptchaData(value || { captchaId: '', captchaText: '' });
+              setCaptchaData(value || { captchaToken: '' });
               if (errors.captcha) {
                 setErrors(prev => ({ ...prev, captcha: '' }));
               }

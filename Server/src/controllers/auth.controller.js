@@ -8,7 +8,8 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy.js';
 import { logSecurityEvent } from '../middleware/logging.middleware.js';
-import { createTextCaptcha, verifyTextCaptcha } from '../utils/textCaptcha.js';
+import { createTextCaptcha } from '../utils/textCaptcha.js';
+import { verifyCaptchaChallenge } from '../utils/captchaVerification.js';
 
 dotenv.config();
 
@@ -36,7 +37,7 @@ export const getCaptcha = async (req, res, next) => {
 // Register new user (companyPath from frontend for per-company phone uniqueness)
 export const register = async (req, res, next) => {
   try {
-    const { email, identifier, password, phone, companyPath, termsAccepted, captchaId, captchaText } = req.body;
+    const { email, identifier, password, phone, companyPath, termsAccepted, captchaToken, captchaId, captchaText } = req.body;
 
     const user = await registerUser({
       email,
@@ -45,8 +46,10 @@ export const register = async (req, res, next) => {
       phone,
       companyPath,
       termsAccepted,
+      captchaToken,
       captchaId,
-      captchaText
+      captchaText,
+      remoteIp: req.ip || req.connection?.remoteAddress
     });
     res.status(201).json({
       status: 'success',
@@ -60,15 +63,17 @@ export const register = async (req, res, next) => {
 // Login user (companyPath from frontend for phone login when same phone in multiple companies)
 export const login = async (req, res, next) => {
   try {
-    const { identifier, password, companyPath, remember, captchaId, captchaText } = req.body;
+    const { identifier, password, companyPath, remember, captchaToken, captchaId, captchaText } = req.body;
     const rememberMe = remember === true || remember === 'true';
     const userData = await loginUser({
       identifier,
       password,
       companyPath,
       remember: rememberMe,
+      captchaToken,
       captchaId,
-      captchaText
+      captchaText,
+      remoteIp: req.ip || req.connection?.remoteAddress
     });
 
     const { accessToken, refreshToken } = userData.token;
@@ -331,13 +336,19 @@ export const checkUserRole = async (req, res, next) => {
 // Change password
 export const changePassword = async (req, res, next) => {
   try {
-    const { currentPassword, newPassword, captchaId, captchaText } = req.body;
+    const { currentPassword, newPassword, captchaToken, captchaId, captchaText } = req.body;
     const userId = req.user.userId; // Get user ID from JWT token
 
     if (!currentPassword || !newPassword) {
       throw new AppError('Current password and new password are required', 400);
     }
-    const captchaCheck = verifyTextCaptcha({ captchaId, captchaText, purpose: 'change-password' });
+    const captchaCheck = await verifyCaptchaChallenge({
+      captchaToken,
+      captchaId,
+      captchaText,
+      purpose: 'change-password',
+      remoteIp: req.ip || req.connection?.remoteAddress
+    });
     if (!captchaCheck.success) {
       throw new AppError('Please complete CAPTCHA verification', 400);
     }
