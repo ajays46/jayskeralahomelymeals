@@ -31,14 +31,18 @@ const CaptchaField = ({ accent, onChange, error, disabled = false, recaptchaKey 
           className={`${disabled ? 'opacity-60 pointer-events-none' : ''} inline-block rounded-lg p-1`}
           style={{ boxShadow: `inset 0 0 0 1px ${error ? '#ef4444' : `${accent}40`}` }}
         >
-          <ReCAPTCHA
-            key={`${purpose}-${recaptchaKey}`}
-            ref={captchaRef}
-            sitekey={siteKey}
-            onChange={(token) => onChangeRef.current?.({ captchaToken: token || '' })}
-            onExpired={() => onChangeRef.current?.({ captchaToken: '' })}
-            onErrored={() => onChangeRef.current?.({ captchaToken: '' })}
-          />
+          <div className="w-[268px] h-[69px] overflow-hidden sm:w-[304px] sm:h-[78px]">
+            <div className="origin-top-left scale-[0.88] sm:scale-100">
+              <ReCAPTCHA
+                key={`${purpose}-${recaptchaKey}`}
+                ref={captchaRef}
+                sitekey={siteKey}
+                onChange={(token) => onChangeRef.current?.({ captchaToken: token || '' })}
+                onExpired={() => onChangeRef.current?.({ captchaToken: '' })}
+                onErrored={() => onChangeRef.current?.({ captchaToken: '' })}
+              />
+            </div>
+          </div>
         </div>
       )}
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}

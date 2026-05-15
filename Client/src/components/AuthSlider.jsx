@@ -113,7 +113,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
-              <div className="px-4 py-3 sm:px-6 sm:py-5">
+              <div className="px-4 pt-3 pb-1 sm:px-6 sm:py-5">
                 {successMessage && (
                   <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg">
                     {successMessage}
