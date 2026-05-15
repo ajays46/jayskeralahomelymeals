@@ -7,6 +7,7 @@ import { getThemeForCompany } from '../config/tenantThemes';
 import { useLogin, getRememberedIdentifier } from '../hooks/userHooks/useLogin';
 import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
 import CaptchaField from './CaptchaField';
+import { executeRecaptchaV3 } from '../utils/recaptchaV3';
 
 /**
  * Login - Authentication form component with validation and error handling
@@ -87,12 +88,26 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
         setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
         return;
       }
+      const captchaPayload = {
+        captchaToken: '',
+        captchaProvider: 'v3',
+        captchaAction: 'login'
+      };
+      if (showCaptcha) {
+        captchaPayload.captchaToken = captchaData.captchaToken;
+        captchaPayload.captchaProvider = 'v2';
+      } else {
+        const v3Token = await executeRecaptchaV3('login').catch(() => '');
+        if (v3Token) {
+          captchaPayload.captchaToken = v3Token;
+        }
+      }
 
       // If validation passes, proceed with login (include companyPath for phone login per company)
       loginMutation({
         ...formData,
         companyPath: tenant?.companyPath,
-        captchaToken: captchaData.captchaToken
+        ...captchaPayload
       }, {
         onSuccess: (data) => {
           if (data?.success) {

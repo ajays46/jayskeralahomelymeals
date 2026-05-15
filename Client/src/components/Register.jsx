@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
 import { GoogleLogin } from '@react-oauth/google';
 import {
@@ -13,15 +13,7 @@ import { useRegister } from '../hooks/userHooks/useRegister';
 import { useGoogleAuth } from '../hooks/userHooks/useGoogleAuth';
 import Terms from './Terms';
 import CaptchaField from './CaptchaField';
-
-const DEFAULT_COUNTRY_CODE = '+91';
-const COUNTRY_OPTIONS = [
-  { code: '+91', label: 'IN +91' },
-  { code: '+1', label: 'US +1' },
-  { code: '+44', label: 'UK +44' },
-  { code: '+971', label: 'AE +971' },
-  { code: '+61', label: 'AU +61' },
-];
+import { executeRecaptchaV3 } from '../utils/recaptchaV3';
 
 /**
  * Register - User registration form component with validation
@@ -40,13 +32,12 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const [selectedCountryCode, setSelectedCountryCode] = useState(DEFAULT_COUNTRY_CODE);
+  const [emailIdentifier, setEmailIdentifier] = useState('');
+  const [phoneDigits, setPhoneDigits] = useState('');
+  const [showCaptcha, setShowCaptcha] = useState(false);
   const [captchaData, setCaptchaData] = useState({ captchaToken: '' });
   const [captchaRenderKey, setCaptchaRenderKey] = useState(0);
   const [errors, setErrors] = useState({});
-  const textIdentifierInputRef = useRef(null);
-  const phoneIdentifierInputRef = useRef(null);
-  const previousIdentifierTypeRef = useRef('unknown');
 
   const { mutate: register, isPending } = useRegister();
   const { mutate: googleAuthMutation, isPending: isGooglePending } = useGoogleAuth();
@@ -103,106 +94,32 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
     }
   };
 
-  const handleIdentifierInputChange = (e) => {
-    const rawValue = String(e.target.value || '');
-    const trimmed = rawValue.trim();
-
-    if (!trimmed) {
-      setIdentifierValue('');
+  const handleEmailIdentifierChange = (e) => {
+    const nextEmail = e.target.value;
+    setEmailIdentifier(nextEmail);
+    if (nextEmail.trim()) {
+      setPhoneDigits('');
+      setIdentifierValue(nextEmail);
       return;
     }
-
-    if (/^\+?[0-9\s-]*$/.test(trimmed)) {
-      const digitsOnly = trimmed.replace(/\D/g, '');
-      if (!digitsOnly) {
-        setIdentifierValue('');
-        return;
-      }
-      setIdentifierValue(`${selectedCountryCode}${digitsOnly}`);
-      return;
-    }
-
-    setIdentifierValue(rawValue);
+    setIdentifierValue(phoneDigits);
   };
-
-  const getPhoneDigits = (value) => {
-    const compact = String(value || '').replace(/[\s-]/g, '');
-    if (!compact) return '';
-    const matchingCountry = COUNTRY_OPTIONS
-      .map((option) => option.code)
-      .find((code) => compact.startsWith(code));
-    if (matchingCountry) {
-      return compact.slice(matchingCountry.length).replace(/\D/g, '');
-    }
-    if (compact.startsWith('+')) {
-      return compact.slice(1).replace(/\D/g, '');
-    }
-    return compact.replace(/[^\d]/g, '');
-  };
-
-  const phoneDigits = getPhoneDigits(formData.identifier);
 
   const handlePhoneDigitsChange = (e) => {
     const digitsOnly = String(e.target.value || '').replace(/\D/g, '');
-    setIdentifierValue(digitsOnly ? `${selectedCountryCode}${digitsOnly}` : '');
-  };
-
-  const handleCountryCodeChange = (e) => {
-    const nextCode = e.target.value;
-    setSelectedCountryCode(nextCode);
-    const digitsOnly = getPhoneDigits(formData.identifier);
+    setPhoneDigits(digitsOnly);
     if (digitsOnly) {
-      setIdentifierValue(`${nextCode}${digitsOnly}`);
+      setEmailIdentifier('');
+      setIdentifierValue(digitsOnly);
+      return;
     }
-  };
-
-  const clearIdentifier = () => {
-    setIdentifierValue('');
-    requestAnimationFrame(() => {
-      textIdentifierInputRef.current?.focus();
-    });
+    setIdentifierValue(emailIdentifier.trim());
   };
 
   const handleIdentifierBlur = () => {
     const error = validateField(registerSchema, 'identifier', formData.identifier);
     setErrors(prev => ({ ...prev, identifier: error }));
   };
-
-  const detectIdentifierType = (value = '') => {
-    const next = String(value || '').trim();
-    if (!next) return 'unknown';
-    if (next.includes('@')) return 'email';
-    if (/^\+?[0-9\s-]+$/.test(next)) return 'phone';
-    return 'unknown';
-  };
-
-  const identifierType = detectIdentifierType(formData.identifier);
-
-  useEffect(() => {
-    const previousType = previousIdentifierTypeRef.current;
-    if (previousType !== 'phone' && identifierType === 'phone') {
-      requestAnimationFrame(() => {
-        phoneIdentifierInputRef.current?.focus();
-      });
-    }
-    if (previousType === 'phone' && identifierType !== 'phone') {
-      requestAnimationFrame(() => {
-        textIdentifierInputRef.current?.focus();
-      });
-    }
-    previousIdentifierTypeRef.current = identifierType;
-  }, [identifierType]);
-
-  useEffect(() => {
-    if (identifierType !== 'phone') return;
-    const compact = String(formData.identifier || '').replace(/[\s-]/g, '');
-    const matchingCountry = COUNTRY_OPTIONS
-      .map((option) => option.code)
-      .find((code) => compact.startsWith(code));
-    if (matchingCountry && matchingCountry !== selectedCountryCode) {
-      setSelectedCountryCode(matchingCountry);
-    }
-  }, [formData.identifier, identifierType, selectedCountryCode]);
 
   const handleBlur = (e) => {
     const { name, value, type, checked } = e.target;
@@ -217,9 +134,23 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
     try {
       // Validate all fields
       registerSchema.parse(formData);
-      if (!captchaData.captchaToken) {
-        setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
-        return;
+      const captchaPayload = {
+        captchaToken: '',
+        captchaProvider: 'v3',
+        captchaAction: 'register'
+      };
+      if (showCaptcha) {
+        if (!captchaData.captchaToken) {
+          setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
+          return;
+        }
+        captchaPayload.captchaToken = captchaData.captchaToken;
+        captchaPayload.captchaProvider = 'v2';
+      } else {
+        const v3Token = await executeRecaptchaV3('register').catch(() => '');
+        if (v3Token) {
+          captchaPayload.captchaToken = v3Token;
+        }
       }
 
       const normalizedIdentifier = String(formData.identifier || '').trim();
@@ -242,7 +173,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
         termsAccepted: formData.termsAccepted,
         name: normalizedEmail ? normalizedEmail.split('@')[0] : normalizedPhone.replace('+', ''),
         companyPath: tenant?.companyPath,
-        captchaToken: captchaData.captchaToken
+        ...captchaPayload
       };
 
       // If validation passes, proceed with registration
@@ -254,6 +185,9 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             password: '',
             termsAccepted: false,
           });
+          setEmailIdentifier('');
+          setPhoneDigits('');
+          setShowCaptcha(false);
           setCaptchaData({ captchaToken: '' });
           setCaptchaRenderKey(prev => prev + 1);
           setErrors({});
@@ -265,6 +199,12 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
         },
         onError: (error) => {
           const message = error.response?.data?.message || error.response?.data?.error?.message || '';
+          const requireCaptcha = Boolean(error.response?.data?.details?.requireCaptcha);
+          if (requireCaptcha) {
+            setShowCaptcha(true);
+            setCaptchaData({ captchaToken: '' });
+            setCaptchaRenderKey(prev => prev + 1);
+          }
 
           if (message.includes('Email already registered')) {
             setErrors({ identifier: 'This email is already registered. Please sign in instead.' });
@@ -275,6 +215,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
           } else if (message.includes('Either email or phone number is required')) {
             setErrors({ identifier: message });
           } else if (message.toLowerCase().includes('captcha')) {
+            setShowCaptcha(true);
             setErrors(prev => ({ ...prev, captcha: 'Please complete CAPTCHA verification' }));
             setCaptchaData({ captchaToken: '' });
             setCaptchaRenderKey(prev => prev + 1);
@@ -339,73 +280,41 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
         <form className="space-y-3 mt-1" onSubmit={handleSubmit}>
           <div className="space-y-1.5">
             <div>
-              <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">
-                Email or Phone Number <span className="text-red-500">*</span>
+              <label htmlFor="phoneIdentifier" className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number <span className="text-red-500">*</span>
               </label>
-              {identifierType === 'phone' ? (
-                <div
-                  className={`flex items-center w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} bg-white px-3 py-2 focus-within:ring-2 focus-within:ring-[color:var(--auth-accent)]`}
-                >
-                  <span className="mr-3 inline-flex items-center gap-1 text-gray-900 border-r border-gray-200 pr-3 whitespace-nowrap">
-                    <select
-                      value={selectedCountryCode}
-                      onChange={handleCountryCodeChange}
-                      className="bg-transparent text-sm font-medium text-gray-900 outline-none border-none"
-                      aria-label="Select country code"
-                      disabled={isPending || isGooglePending}
-                    >
-                      {COUNTRY_OPTIONS.map((option) => (
-                        <option key={option.code} value={option.code}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </span>
-                  <input
-                    ref={phoneIdentifierInputRef}
-                    id="identifier"
-                    name="identifier"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    className="w-full border-none p-0 text-gray-900 focus:outline-none focus:ring-0"
-                    placeholder="Enter mobile number"
-                    value={phoneDigits}
-                    onChange={handlePhoneDigitsChange}
-                    onBlur={handleIdentifierBlur}
-                    disabled={isPending || isGooglePending}
-                    autoComplete="tel"
-                  />
-                  {phoneDigits ? (
-                    <button
-                      type="button"
-                      onClick={clearIdentifier}
-                      className="ml-2 rounded-full p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                      aria-label="Clear phone number"
-                      title="Clear"
-                      disabled={isPending || isGooglePending}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  ) : null}
-                </div>
-              ) : (
+              <div
+                className={`flex items-center w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} bg-white px-3 py-2 focus-within:ring-2 focus-within:ring-[color:var(--auth-accent)]`}
+              >
                 <input
-                  ref={textIdentifierInputRef}
-                  id="identifier"
-                  name="identifier"
+                  id="phoneIdentifier"
                   type="text"
-                  className={`block w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
-                  placeholder="name@example.com or mobile number"
-                  value={formData.identifier}
-                  onChange={handleIdentifierInputChange}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="w-full border-none p-0 text-gray-900 focus:outline-none focus:ring-0"
+                  placeholder="Enter mobile number"
+                  value={phoneDigits}
+                  onChange={handlePhoneDigitsChange}
                   onBlur={handleIdentifierBlur}
                   disabled={isPending || isGooglePending}
-                  autoComplete="username"
+                  autoComplete="tel"
                 />
-              )}
+              </div>
+              <p className="my-1 text-center text-xs font-medium text-gray-500">OR</p>
+              <label htmlFor="emailIdentifier" className="block text-sm font-medium text-gray-700 mb-0.5">
+                Email
+              </label>
+              <input
+                id="emailIdentifier"
+                type="email"
+                className={`block w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
+                placeholder="name@example.com"
+                value={emailIdentifier}
+                onChange={handleEmailIdentifierChange}
+                onBlur={handleIdentifierBlur}
+                disabled={isPending || isGooglePending}
+                autoComplete="email"
+              />
               {errors.identifier && (
                 <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
                   {errors.identifier}
@@ -464,19 +373,21 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             )}
             {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
           </div>
-          <CaptchaField
-            accent={accent}
-            recaptchaKey={captchaRenderKey}
-            action="register"
-            onChange={(value) => {
-              setCaptchaData(value || { captchaToken: '' });
-              if (errors.captcha) {
-                setErrors(prev => ({ ...prev, captcha: '' }));
-              }
-            }}
-            error={errors.captcha}
-            disabled={isPending || isGooglePending}
-          />
+          {showCaptcha && (
+            <CaptchaField
+              accent={accent}
+              recaptchaKey={captchaRenderKey}
+              action="register"
+              onChange={(value) => {
+                setCaptchaData(value || { captchaToken: '' });
+                if (errors.captcha) {
+                  setErrors(prev => ({ ...prev, captcha: '' }));
+                }
+              }}
+              error={errors.captcha}
+              disabled={isPending || isGooglePending}
+            />
+          )}
           <div>
             <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-700 leading-tight">
               <input

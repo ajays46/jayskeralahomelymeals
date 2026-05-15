@@ -324,18 +324,19 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
             )}
           </div>
 
-          {/* Mobile auth/menu controls */}
+          {/* Mobile: guest shows only user icon */}
           <div className="md:hidden flex shrink-0 items-center gap-2">
             {!user && onSignInClick ? (
               <motion.button
                 type="button"
                 onClick={onSignInClick}
-                className="inline-flex items-center justify-center rounded-full bg-white/15 border border-white/70 p-1.5 text-white hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 transition-all duration-300"
+                className="text-white hover:text-[#FE8C00] focus:outline-none px-2 py-1 rounded-lg hover:bg-white/10 transition-all duration-300 flex flex-col items-center leading-none"
                 whileTap={{ scale: 0.95 }}
                 aria-label="Sign In or Register"
                 title="Sign In or Register"
               >
-                <FaUserCircle className="w-7 h-7" />
+                <MdPerson className="w-7 h-7" />
+                <span className="mt-0.5 text-[10px] font-medium">Account</span>
               </motion.button>
             ) : null}
             {user ? (

@@ -37,7 +37,7 @@ export const getCaptcha = async (req, res, next) => {
 // Register new user (companyPath from frontend for per-company phone uniqueness)
 export const register = async (req, res, next) => {
   try {
-    const { email, identifier, password, phone, companyPath, termsAccepted, captchaToken, captchaId, captchaText } = req.body;
+    const { email, identifier, password, phone, companyPath, termsAccepted, captchaToken, captchaProvider, captchaAction, captchaId, captchaText } = req.body;
 
     const user = await registerUser({
       email,
@@ -47,6 +47,8 @@ export const register = async (req, res, next) => {
       companyPath,
       termsAccepted,
       captchaToken,
+      captchaProvider,
+      captchaAction,
       captchaId,
       captchaText,
       remoteIp: req.ip || req.connection?.remoteAddress
@@ -63,7 +65,7 @@ export const register = async (req, res, next) => {
 // Login user (companyPath from frontend for phone login when same phone in multiple companies)
 export const login = async (req, res, next) => {
   try {
-    const { identifier, password, companyPath, remember, captchaToken, captchaId, captchaText } = req.body;
+    const { identifier, password, companyPath, remember, captchaToken, captchaProvider, captchaAction, captchaId, captchaText } = req.body;
     const rememberMe = remember === true || remember === 'true';
     const userData = await loginUser({
       identifier,
@@ -71,6 +73,8 @@ export const login = async (req, res, next) => {
       companyPath,
       remember: rememberMe,
       captchaToken,
+      captchaProvider,
+      captchaAction,
       captchaId,
       captchaText,
       remoteIp: req.ip || req.connection?.remoteAddress
