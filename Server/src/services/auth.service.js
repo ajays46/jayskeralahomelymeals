@@ -19,6 +19,42 @@ const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const loginAttemptStore = new Map();
 const hasValidPhoneDigits = (value = '') => String(value || '').replace(/\D/g, '').length >= 10;
 
+const normalizePhoneForStorage = (value = '') => {
+    const raw = String(value || '').trim();
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length === 10) return `+91${digits}`;
+    if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+    return `+${digits}`;
+};
+
+const getPhoneLookupCandidates = (value = '') => {
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+    const compact = raw.replace(/[\s-]/g, '');
+    const digits = raw.replace(/\D/g, '');
+    const normalized = normalizePhoneForStorage(raw);
+
+    const candidates = new Set();
+    if (raw) candidates.add(raw);
+    if (compact) candidates.add(compact);
+    if (digits) {
+        candidates.add(digits);
+        candidates.add(`+${digits}`);
+    }
+    if (digits.length === 10) {
+        candidates.add(`+91${digits}`);
+    }
+    if (digits.length >= 12 && digits.startsWith('91')) {
+        const local10 = digits.slice(-10);
+        candidates.add(local10);
+        candidates.add(`+91${local10}`);
+    }
+    if (normalized) candidates.add(normalized);
+
+    return [...candidates];
+};
+
 const getLoginAttemptKey = (identifier, companyPath) => {
     const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
     const normalizedCompanyPath = normalizeCompanyPathKey(companyPath || '');
@@ -70,12 +106,12 @@ async function resolveCompanyPathForUser(user, requestCompanyPath) {
  * Features: User registration, login validation, password management, role assignment, JWT token generation
  */
 
-export const registerUser = async ({ email, identifier, password, phone, companyPath, termsAccepted, captchaToken, captchaId, captchaText, remoteIp }) => {
+export const registerUser = async ({ email, identifier, password, phone, companyPath, termsAccepted, captchaToken, captchaProvider, captchaAction, captchaId, captchaText, remoteIp }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const normalizedIdentifier = String(identifier || '').trim();
-    const normalizedPhone = String(phone || '').trim();
+    const normalizedPhone = normalizePhoneForStorage(phone);
     const derivedEmail = normalizedEmail || (validator.isEmail(normalizedIdentifier) ? normalizedIdentifier.toLowerCase() : '');
-    const derivedPhone = normalizedPhone || (!validator.isEmail(normalizedIdentifier) ? normalizedIdentifier : '');
+    const derivedPhone = normalizedPhone || (!validator.isEmail(normalizedIdentifier) ? normalizePhoneForStorage(normalizedIdentifier) : '');
 
     if (!password) {
         throw new AppError('Password is required', 400);
@@ -91,6 +127,8 @@ export const registerUser = async ({ email, identifier, password, phone, company
     }
     const captchaCheck = await verifyCaptchaChallenge({
         captchaToken,
+        captchaProvider,
+        captchaAction: captchaAction || 'register',
         captchaId,
         captchaText,
         purpose: 'register',
@@ -99,7 +137,9 @@ export const registerUser = async ({ email, identifier, password, phone, company
     if (!captchaCheck.success) {
         throw new AppError('Please complete CAPTCHA verification', 400, {
             requireCaptcha: true,
-            reason: captchaCheck.reason || 'verification_failed'
+            reason: captchaCheck.reason || 'verification_failed',
+            preferredCaptchaProvider: 'v2',
+            score: captchaCheck.score
         });
     }
     if (termsAccepted !== true) {
@@ -198,12 +238,14 @@ export const registerUser = async ({ email, identifier, password, phone, company
     }
 };
 
-export const loginUser = async ({ identifier, password, companyPath, remember = false, captchaToken, captchaId, captchaText, remoteIp }) => {
+export const loginUser = async ({ identifier, password, companyPath, remember = false, captchaToken, captchaProvider, captchaAction, captchaId, captchaText, remoteIp }) => {
     const attemptKey = getLoginAttemptKey(identifier, companyPath);
     const failedAttempts = getFailedLoginAttempts(attemptKey);
     if (failedAttempts >= LOGIN_CAPTCHA_THRESHOLD) {
         const captchaCheck = await verifyCaptchaChallenge({
             captchaToken,
+            captchaProvider,
+            captchaAction: captchaAction || 'login',
             captchaId,
             captchaText,
             purpose: 'login',
@@ -213,7 +255,9 @@ export const loginUser = async ({ identifier, password, companyPath, remember = 
             throw new AppError('Please complete CAPTCHA verification', 400, {
                 requireCaptcha: true,
                 failedAttempts,
-                reason: captchaCheck.reason || 'verification_failed'
+                reason: captchaCheck.reason || 'verification_failed',
+                preferredCaptchaProvider: 'v2',
+                score: captchaCheck.score
             });
         }
     }
@@ -223,22 +267,32 @@ export const loginUser = async ({ identifier, password, companyPath, remember = 
         if (validator.isEmail(identifier)) {
             auth = await prisma.auth.findUnique({ where: { email: identifier } });
         } else {
+            const phoneCandidates = getPhoneLookupCandidates(identifier);
+            const phoneDigits = String(identifier || '').replace(/\D/g, '');
+            const phoneWhere = phoneDigits.length >= 10
+                ? {
+                    OR: [
+                        { phoneNumber: { in: phoneCandidates } },
+                        { phoneNumber: { endsWith: phoneDigits.slice(-10) } }
+                    ]
+                }
+                : { phoneNumber: { in: phoneCandidates } };
             // Phone login: scope by company when companyPath provided (same phone can exist in multiple companies)
             if (companyPath && String(companyPath).trim()) {
                 const company = await getCompanyByPath(String(companyPath).trim());
                 if (company) {
                     auth = await prisma.auth.findFirst({
                         where: {
-                            phoneNumber: identifier,
+                            ...phoneWhere,
                             user: { companyId: company.id }
                         }
                     });
                 }
                 if (!auth) {
-                    auth = await prisma.auth.findFirst({ where: { phoneNumber: identifier } });
+                    auth = await prisma.auth.findFirst({ where: phoneWhere });
                 }
             } else {
-                auth = await prisma.auth.findFirst({ where: { phoneNumber: identifier } });
+                auth = await prisma.auth.findFirst({ where: phoneWhere });
             }
         }
 

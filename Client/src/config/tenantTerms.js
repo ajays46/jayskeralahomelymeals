@@ -26,14 +26,14 @@ const jkfdsTerms = {
   bannerTagline: 'Terms for Jays Kerala Kitchen food delivey serivce',
   lastUpdatedDisplay: 'May 14, 2026',
   intro: [
-    'Parent Entity: Jays Kerala Innovations Private Limited',
+    'Company: Jays Kerala kitchen food delivery service',
     'Corporate Identity (CIN): [Insert Your CIN here]',
   ],
   sections: [
     {
       title: '1. The Innovation Ecosystem',
       paragraphs: [
-        'Jays Kerala Innovations Private Limited (the "Company") is a multi-sector innovation firm specializing in Software-as-a-Service (SaaS) applications.',
+        'Jays Kerala kitchen food delivery service (the "Company") is a food delivery service provider.',
         'The Company operates as a legal umbrella for the following proprietary brands and service modules:',
       ],
       bullets: [
@@ -107,7 +107,7 @@ const jkfdsTerms = {
   ],
   contactTitle: 'Contact Information',
   contact: {
-    legalName: 'Jays Kerala Innovations Private Limited',
+    legalName: 'Jays Kerala kitchen food delivery service',
     email: CONTACT_EMAIL,
     extraLines: [
       'Corporate Identity (CIN): [Insert Your CIN here]',
@@ -123,14 +123,14 @@ const jlgTerms = {
   bannerTagline: 'Terms for Jays Leafy Greens',
   lastUpdatedDisplay: 'May 14, 2026',
   intro: [
-    'Parent Entity: Jays Kerala Innovations Private Limited',
+    'Company: Jays leefy greens',
     'Corporate Identity (CIN): [Insert Your CIN here]',
   ],
   sections: [
     {
       title: '1. The Innovation Ecosystem',
       paragraphs: [
-        'Jays Kerala Innovations Private Limited (the "Company") is a multi-sector innovation firm specializing in Software-as-a-Service (SaaS) applications.',
+        'Jays leefy greens (the "Company") is a food delivery service provider.',
         'The Company operates as a legal umbrella for the following proprietary brands and service modules:',
         'By accessing any application, website, or service provided by these brands, you agree to be bound by these Terms.',
       ],
@@ -199,7 +199,7 @@ const jlgTerms = {
   ],
   contactTitle: 'Contact Information',
   contact: {
-    legalName: 'Jays Kerala Innovations Private Limited',
+    legalName: 'Jays leefy greens',
     email: CONTACT_EMAIL,
     extraLines: [
       'Corporate Identity (CIN): [Insert Your CIN here]',
@@ -215,14 +215,14 @@ const mlTerms = {
   bannerTagline: 'Terms for Maxhub Logistics',
   lastUpdatedDisplay: 'May 14, 2026',
   intro: [
-    'Parent Entity: Jays Kerala Innovations Private Limited',
+    'Company: Maxhub logistcis',
     'Corporate Identity (CIN): [Insert Your CIN here]',
   ],
   sections: [
     {
       title: '1. The Innovation Ecosystem',
       paragraphs: [
-        'Jays Kerala Innovations Private Limited (the "Company") is a multi-sector innovation firm specializing in Software-as-a-Service (SaaS) applications.',
+        'Maxhub logistcis (the "Company") is a logistics service provider.',
         'The Company operates as a legal umbrella for the following proprietary brands and service modules:',
         'By accessing any application, website, or service provided by these brands, you agree to be bound by these Terms.',
       ],
@@ -291,7 +291,7 @@ const mlTerms = {
   ],
   contactTitle: 'Contact Information',
   contact: {
-    legalName: 'Jays Kerala Innovations Private Limited',
+    legalName: 'Maxhub logistcis',
     email: CONTACT_EMAIL,
     extraLines: [
       'Corporate Identity (CIN): [Insert Your CIN here]',

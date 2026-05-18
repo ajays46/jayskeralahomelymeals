@@ -25,7 +25,16 @@ const Footer = () => {
   ).toLowerCase();
   const copyrightYear = new Date().getFullYear();
   const termsDoc = getTermsForCompany(tenantBase);
-  const companyName = termsDoc?.contact?.legalName || 'JAYS KERALA INNOVATIONS PRIVATE LIMITED';
+  const footerCompanyNamesByPath = {
+    jkfds: 'Jays Kerala kitchen food delivery service',
+    jkkfds: 'Jays Kerala kitchen food delivery service',
+    jlg: 'Jays leefy greens',
+    ml: 'Maxhub logistcis',
+  };
+  const companyName =
+    footerCompanyNamesByPath[tenantBase] ||
+    termsDoc?.contact?.legalName ||
+    'JAYS KERALA INNOVATIONS PRIVATE LIMITED';
 
   return (
     <footer className="bg-gray-900 text-gray-300 py-6 mt-auto">
@@ -43,7 +52,7 @@ const Footer = () => {
             © {copyrightYear} {companyName}. All rights reserved.
           </p>
           <p className="text-xs text-gray-500" aria-label={`Application version ${APP_VERSION}`}>
-            v{APP_VERSION}
+            V {APP_VERSION}
           </p>
         </div>
       </div>

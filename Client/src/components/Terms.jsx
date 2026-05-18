@@ -96,9 +96,6 @@ const Terms = ({ isOpen, onClose, compact = false }) => {
           </div>
         ) : (
           <>
-            <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest opacity-90">
-              Tenant / URL: <span className="font-mono">{effectivePath}</span>
-            </p>
             <p
               className={`text-xl sm:text-2xl mt-1 leading-snug text-white ${theme.brandDisplayFontClass || 'font-bold'}`}
               style={theme.brandDisplayTextShadow ? { textShadow: theme.brandDisplayTextShadow } : undefined}
