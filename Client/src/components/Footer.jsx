@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { APP_VERSION } from '../config/appVersion';
 import { DEFAULT_COMPANY_PATH } from '../utils/companyPaths';
 import { useTenant } from '../context/TenantContext';
@@ -26,8 +26,8 @@ const Footer = () => {
   const copyrightYear = new Date().getFullYear();
   const termsDoc = getTermsForCompany(tenantBase);
   const footerCompanyNamesByPath = {
-    jkfds: 'Jays Kerala kitchen food delivery service',
-    jkkfds: 'Jays Kerala kitchen food delivery service',
+    jkfds: 'Jays Kerala kitchen',
+    jkkfds: 'Jays Kerala kitchen',
     jlg: 'Jays leefy greens',
     ml: 'Maxhub logistcis',
   };
@@ -40,14 +40,6 @@ const Footer = () => {
     <footer className="bg-gray-900 text-gray-300 py-6 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center space-y-2">
-          <div className="flex justify-center items-center gap-4 flex-wrap">
-            <Link
-              to={`/${tenantBase}/terms`}
-              className="text-sm hover:text-white transition-colors duration-200 underline-offset-2 hover:underline"
-            >
-              Terms and Conditions
-            </Link>
-          </div>
           <p className="text-sm">
             © {copyrightYear} {companyName}. All rights reserved.
           </p>
