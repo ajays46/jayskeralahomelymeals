@@ -330,13 +330,12 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
               <motion.button
                 type="button"
                 onClick={onSignInClick}
-                className="text-white hover:text-[#FE8C00] focus:outline-none px-2 py-1 rounded-lg hover:bg-white/10 transition-all duration-300 flex flex-col items-center leading-none"
+                className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
                 whileTap={{ scale: 0.95 }}
                 aria-label="Sign In or Register"
                 title="Sign In or Register"
               >
-                <MdPerson className="w-7 h-7" />
-                <span className="mt-0.5 text-[10px] font-medium">Account</span>
+                <FaUserCircle className="w-7 h-7" />
               </motion.button>
             ) : null}
             {user ? (
