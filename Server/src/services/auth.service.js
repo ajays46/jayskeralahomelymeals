@@ -353,6 +353,8 @@ export const loginUser = async ({ identifier, password, companyPath, remember = 
                 id: user.id,
                 email: auth.email,
                 phone: auth.phoneNumber,
+                termsAccepted: Boolean(auth.termsAccepted),
+                isGoogleAuth: auth.password === 'NO_PASSWORD_NEEDED',
                 api_key: auth.apiKey,
                 status: auth.status,
                 role: primaryRole.name,
@@ -410,7 +412,9 @@ export const loginWithGoogle = async ({ credential, companyPath, remember = fals
         auth = await prisma.auth.create({
             data: {
                 email,
+                phoneNumber: '',
                 password: 'NO_PASSWORD_NEEDED',
+                termsAccepted: false,
                 apiKey: api_key,
                 status: 'ACTIVE'
             }
@@ -483,6 +487,8 @@ export const loginWithGoogle = async ({ credential, companyPath, remember = fals
             id: user.id,
             email: auth.email,
             phone: auth.phoneNumber,
+            termsAccepted: Boolean(auth.termsAccepted),
+            isGoogleAuth: auth.password === 'NO_PASSWORD_NEEDED',
             api_key: auth.apiKey,
             status: auth.status,
             role: primaryRole.name,
@@ -821,4 +827,146 @@ export const createUserWithContact = async ({ firstName, lastName, phoneNumber, 
         }
         throw new AppError('Database error occurred: ' + err.message, 500);
     }
+};
+
+export const completeGoogleUserProfile = async ({ userId, phone, termsAccepted }) => {
+    const normalizedPhone = normalizePhoneForStorage(phone);
+    if (!hasValidPhoneDigits(normalizedPhone)) {
+        throw new AppError('Please enter a valid 10-digit mobile number', 400);
+    }
+    if (termsAccepted !== true) {
+        throw new AppError('You must accept the Terms & Conditions', 400);
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+            auth: true,
+            userRoles: true,
+            company: { select: { id: true, name: true } }
+        }
+    });
+
+    if (!user || !user.auth) {
+        throw new AppError('User not found', 404);
+    }
+    if (user.auth.password !== 'NO_PASSWORD_NEEDED') {
+        throw new AppError('Profile completion is only available for Google-authenticated users', 400);
+    }
+
+    const duplicatePhone = await prisma.auth.findFirst({
+        where: {
+            phoneNumber: normalizedPhone,
+            NOT: { id: user.auth.id },
+            ...(user.companyId
+                ? { user: { companyId: user.companyId } }
+                : {})
+        },
+        select: { id: true }
+    });
+
+    if (duplicatePhone) {
+        throw new AppError(
+            user.companyId
+                ? 'This phone number is already registered in this company. Please use a different number.'
+                : 'This phone number is already registered. Please use a different number.',
+            409
+        );
+    }
+
+    const updatedAuth = await prisma.auth.update({
+        where: { id: user.auth.id },
+        data: {
+            phoneNumber: normalizedPhone,
+            termsAccepted: true,
+            termsAcceptedAt: new Date()
+        }
+    });
+
+    return {
+        id: user.id,
+        email: updatedAuth.email,
+        phone: updatedAuth.phoneNumber,
+        termsAccepted: Boolean(updatedAuth.termsAccepted),
+        isGoogleAuth: updatedAuth.password === 'NO_PASSWORD_NEEDED',
+        role: user.userRoles?.[0]?.name || 'USER',
+        roles: user.userRoles?.map((role) => role.name) || ['USER'],
+        companyId: user.companyId ?? undefined,
+        companyPath: user.company?.name ? normalizeCompanyPathKey(user.company.name) : null
+    };
+};
+
+export const setupGoogleAccount = async ({ userId, phone, termsAccepted, newPassword }) => {
+    const normalizedPhone = normalizePhoneForStorage(phone);
+    if (!hasValidPhoneDigits(normalizedPhone)) {
+        throw new AppError('Please enter a valid 10-digit mobile number', 400);
+    }
+    if (termsAccepted !== true) {
+        throw new AppError('You must accept the Terms & Conditions', 400);
+    }
+    if (!newPassword) {
+        throw new AppError('New password is required', 400);
+    }
+    if (!isStrongPassword(newPassword)) {
+        throw new AppError(PASSWORD_POLICY_MESSAGE, 400);
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+            auth: true,
+            userRoles: true,
+            company: { select: { id: true, name: true } }
+        }
+    });
+
+    if (!user || !user.auth) {
+        throw new AppError('User not found', 404);
+    }
+    if (user.auth.password !== 'NO_PASSWORD_NEEDED') {
+        throw new AppError('Account already has a password. Please use Change Password.', 400);
+    }
+
+    const duplicatePhone = await prisma.auth.findFirst({
+        where: {
+            phoneNumber: normalizedPhone,
+            NOT: { id: user.auth.id },
+            ...(user.companyId
+                ? { user: { companyId: user.companyId } }
+                : {})
+        },
+        select: { id: true }
+    });
+
+    if (duplicatePhone) {
+        throw new AppError(
+            user.companyId
+                ? 'This phone number is already registered in this company. Please use a different number.'
+                : 'This phone number is already registered. Please use a different number.',
+            409
+        );
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const updatedAuth = await prisma.auth.update({
+        where: { id: user.auth.id },
+        data: {
+            phoneNumber: normalizedPhone,
+            termsAccepted: true,
+            termsAcceptedAt: new Date(),
+            password: hashedPassword
+        }
+    });
+
+    return {
+        id: user.id,
+        email: updatedAuth.email,
+        phone: updatedAuth.phoneNumber,
+        termsAccepted: Boolean(updatedAuth.termsAccepted),
+        isGoogleAuth: false,
+        role: user.userRoles?.[0]?.name || 'USER',
+        roles: user.userRoles?.map((role) => role.name) || ['USER'],
+        companyId: user.companyId ?? undefined,
+        companyPath: user.company?.name ? normalizeCompanyPathKey(user.company.name) : null
+    };
 };

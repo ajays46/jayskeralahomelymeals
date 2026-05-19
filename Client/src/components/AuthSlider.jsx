@@ -59,9 +59,12 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
       {/* Slider Panel */}
       <div className="absolute inset-y-0 right-0 max-w-full flex">
         <div className="relative w-screen max-w-md">
-          <div className="h-full flex flex-col bg-white shadow-xl">
+          <div
+            className="h-full flex flex-col shadow-xl"
+            style={{ background: `linear-gradient(180deg, #0f172a 0%, #111827 52%, ${accent}1F 100%)` }}
+          >
             {/* Header - theme accent for active tab */}
-            <div className="px-4 py-6 bg-white border-b border-gray-200 sm:px-6">
+            <div className="px-4 py-6 bg-black/15 border-b border-white/15 sm:px-6 backdrop-blur-sm">
               <div className="hidden md:flex justify-between items-center">
                 <div className="flex space-x-4">
                   <button
@@ -69,7 +72,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                     className={`px-4 py-2 text-sm font-medium rounded-md border-b-2 ${
                       activeTab === 'login' && !showForgot
                         ? ''
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        : 'border-transparent text-white/70 hover:text-white'
                     }`}
                     style={activeTab === 'login' && !showForgot ? { color: accent, borderColor: accent } : undefined}
                   >
@@ -80,7 +83,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                     className={`px-4 py-2 text-sm font-medium rounded-md border-b-2 ${
                       activeTab === 'register'
                         ? ''
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        : 'border-transparent text-white/70 hover:text-white'
                     }`}
                     style={activeTab === 'register' ? { color: accent, borderColor: accent } : undefined}
                   >
@@ -89,7 +92,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                 </div>
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                  className="text-white/70 hover:text-white focus:outline-none"
                 >
                   <IoClose className="h-6 w-6" />
                 </button>
@@ -104,7 +107,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                 )}
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-500 focus:outline-none relative z-10"
+                  className="text-white/70 hover:text-white focus:outline-none relative z-10"
                 >
                   <IoClose className="h-6 w-6" />
                 </button>
@@ -121,7 +124,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                 )}
                 <Suspense
                   fallback={
-                    <div className="flex justify-center py-16 text-gray-500 text-sm" aria-busy="true">
+                    <div className="flex justify-center py-16 text-white/70 text-sm" aria-busy="true">
                       Loading…
                     </div>
                   }

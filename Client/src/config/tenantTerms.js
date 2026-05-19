@@ -26,7 +26,7 @@ const jkfdsTerms = {
   bannerTagline: 'Terms for Jays Kerala Kitchen food delivey serivce',
   lastUpdatedDisplay: 'May 14, 2026',
   intro: [
-    'Company: Jays Kerala kitchen food delivery service',
+    'Company: Jays Kerala kitchen',
     'Corporate Identity (CIN): [Insert Your CIN here]',
   ],
   sections: [

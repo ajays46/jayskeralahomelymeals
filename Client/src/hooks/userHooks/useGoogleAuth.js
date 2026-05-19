@@ -48,7 +48,12 @@ export const useGoogleAuth = () => {
       setAccessToken(data.accessToken);
       setRoles(roles);
       setActiveRole(primaryRole);
-      setUser(data.data);
+      setUser({
+        ...data.data,
+        // Fallback for stale backend responses that might omit this field.
+        // If this mutation succeeded, user authenticated through Google for this session.
+        isGoogleAuth: data.data?.isGoogleAuth ?? true,
+      });
       setIsAuthenticated(true);
       trackGaEvent('login', {
         method: 'google',

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getCaptcha, register, login, googleAuth, refreshToken, usersList, forgotPassword, resetPassword, logout, addRoleToUser, removeRoleFromUser, getUserRolesController, checkUserRole, changePassword } from '../controllers/auth.controller.js';
+import { getCaptcha, register, login, googleAuth, completeGoogleProfile, setupGoogleAccountController, refreshToken, usersList, forgotPassword, resetPassword, logout, addRoleToUser, removeRoleFromUser, getUserRolesController, checkUserRole, changePassword } from '../controllers/auth.controller.js';
 import { authenticateToken } from '../middleware/authHandler.js';
 
 const router = express.Router();
@@ -9,6 +9,8 @@ router.post('/register', register);
 router.post('/login', login);
 router.get('/captcha', getCaptcha);
 router.post('/google', googleAuth);
+router.post('/google/complete-profile', authenticateToken, completeGoogleProfile);
+router.post('/google/setup-account', authenticateToken, setupGoogleAccountController);
 router.post('/refresh-token', refreshToken);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);

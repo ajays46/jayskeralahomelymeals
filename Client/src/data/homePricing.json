@@ -1,0 +1,92 @@
+{
+  "monthly": [
+    {
+      "title": "Popular Monthly",
+      "veg": "Rs 6900 / month",
+      "nonVeg": "Rs 8100 / month",
+      "vegHint": "Includes full daily meal schedule for a month.",
+      "nonVegHint": "Includes full daily non-veg supported meal schedule."
+    },
+    {
+      "title": "Premium Monthly",
+      "veg": "Rs 9000 / month",
+      "nonVeg": "Rs 10500 / month",
+      "vegHint": "Premium monthly menu with richer rotating options.",
+      "nonVegHint": "Premium monthly non-veg plan with richer rotations."
+    }
+  ],
+  "weekly": [
+    {
+      "title": "Popular Weekly (Mon-Sun)",
+      "veg": "Rs 1610",
+      "nonVeg": "Rs 1890",
+      "vegHint": "7-day weekly plan with balanced home-style meals.",
+      "nonVegHint": "7-day weekly plan with non-veg meal combinations."
+    },
+    {
+      "title": "Popular Weekly (Mon-Fri)",
+      "veg": "Rs 1150",
+      "nonVeg": "Rs 1350",
+      "vegHint": "Weekday-only meal plan for working schedules.",
+      "nonVegHint": "Weekday-only non-veg meal plan for working schedules."
+    },
+    {
+      "title": "Premium Weekly (Mon-Sun)",
+      "veg": "Rs 2100",
+      "nonVeg": "Rs 2450",
+      "vegHint": "Premium 7-day plan with upgraded menu variety.",
+      "nonVegHint": "Premium 7-day non-veg plan with upgraded variety."
+    },
+    {
+      "title": "Premium Weekly (Mon-Fri)",
+      "veg": "Rs 1500",
+      "nonVeg": "Rs 1750",
+      "vegHint": "Premium weekday plan with curated rotating meals.",
+      "nonVegHint": "Premium weekday non-veg plan with curated variety."
+    }
+  ],
+  "daily": [
+    {
+      "title": "Popular Daily Full Day",
+      "veg": "Rs 230",
+      "nonVeg": "Rs 270",
+      "vegHint": "Includes Breakfast + Lunch + Dinner.",
+      "nonVegHint": "Includes Breakfast + Lunch + Dinner (non-veg option)."
+    },
+    {
+      "title": "Premium Daily Full Day",
+      "veg": "Rs 300",
+      "nonVeg": "Rs 350",
+      "vegHint": "Includes premium Breakfast + Lunch + Dinner.",
+      "nonVegHint": "Includes premium Breakfast + Lunch + Dinner (non-veg)."
+    },
+    {
+      "title": "Popular Lunch",
+      "veg": "Rs 90",
+      "nonVeg": "Rs 110",
+      "vegHint": "Single packed lunch delivered by 1:00 PM.",
+      "nonVegHint": "Single packed non-veg lunch delivered by 1:00 PM."
+    },
+    {
+      "title": "Premium Lunch",
+      "veg": "Rs 130",
+      "nonVeg": "Rs 160",
+      "vegHint": "Premium packed lunch with richer side options.",
+      "nonVegHint": "Premium packed non-veg lunch with richer sides."
+    },
+    {
+      "title": "Popular Dinner",
+      "veg": "Rs 80",
+      "nonVeg": "Rs 100",
+      "vegHint": "Fresh evening dinner delivered hot.",
+      "nonVegHint": "Fresh non-veg evening dinner delivered hot."
+    },
+    {
+      "title": "Premium Dinner",
+      "veg": "Rs 110",
+      "nonVeg": "Rs 140",
+      "vegHint": "Premium dinner with upgraded menu choices.",
+      "nonVegHint": "Premium non-veg dinner with upgraded choices."
+    }
+  ]
+}

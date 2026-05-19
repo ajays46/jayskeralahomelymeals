@@ -200,7 +200,7 @@ const Terms = ({ isOpen, onClose, compact = false }) => {
     if (!isOpen) return null;
 
     return (
-      <div className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex ${compact ? 'items-center justify-end p-2 sm:p-4' : 'items-center justify-center p-4'}`}>
+      <div className={`fixed inset-0 bg-black bg-opacity-50 z-[140] flex ${compact ? 'items-center justify-end p-2 sm:p-4' : 'items-center justify-center p-4'}`}>
         <div className={`bg-white shadow-lg overflow-y-auto ${compact ? 'w-full max-w-sm max-h-[85vh] rounded-xl' : 'w-full max-w-4xl max-h-[90vh] rounded-xl'}`}>
           <div className="p-6">
             {content}
