@@ -13,7 +13,8 @@ import { getCompanyBasePathFallback } from './utils/companyPaths';
 
 const Terms = lazy(() => import('./components/Terms'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
-const HomePage = lazy(() => import('./pages/HomePage'));
+const TenantHome = lazy(() => import('./pages/TenantHome'));
+const PublicPage = lazy(() => import('./pages/Public'));
 const JLGHomePage = lazy(() => import('./pages/JLGHomePage'));
 const MLHomePage = lazy(() => import('./ml/pages/MLHomePage'));
 const MLDeliveryPartnerDashboard = lazy(() => import('./ml/pages/MLDeliveryPartnerDashboard'));
@@ -71,7 +72,7 @@ function TenantAwareHome() {
   const path = tenant?.companyPath?.toLowerCase() ?? '';
   if (path === 'ml') return <MLHomePage />;
   if (path === 'jlg') return <JLGHomePage />;
-  return <HomePage />;
+  return <TenantHome />;
 }
 
 /**
@@ -79,10 +80,11 @@ function TenantAwareHome() {
  */
 const ConditionalFooter = () => {
   const location = useLocation();
-  const pathname = location.pathname;
+  const pathname = location.pathname.replace(/\/+$/, '') || '/';
   const isHome = /^\/[^/]+$/.test(pathname);
   const isMenu = /^\/[^/]+\/menu$/.test(pathname);
-  if (isHome || isMenu) return <Footer />;
+  const isPublic = /^\/[^/]+\/public$/.test(pathname);
+  if (isHome || isMenu || isPublic) return <Footer />;
   return null;
 };
 
@@ -245,6 +247,7 @@ const App = () => {
           {/* Multi-tenant: /:companyPath (e.g. /jkfds, /jlg) - TenantProvider resolves company by name */}
           <Route path="/:companyPath" element={<TenantProviderWrapper />}>
             <Route index element={<TenantAwareHome />} />
+            <Route path="public" element={<PublicPage />} />
             <Route path="terms" element={<Terms />} />
             <Route path="menu" element={<MenuPage />} />
             <Route path="place-order" element={<BookingWizardPage />} />

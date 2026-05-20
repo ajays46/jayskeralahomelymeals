@@ -52,7 +52,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+        className="absolute inset-0 bg-[#1f2b27]/45 transition-opacity"
         onClick={onClose}
       />
 
@@ -61,18 +61,18 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
         <div className="relative w-screen max-w-md">
           <div
             className="h-full flex flex-col shadow-xl"
-            style={{ background: `linear-gradient(180deg, #0f172a 0%, #111827 52%, ${accent}1F 100%)` }}
+            style={{ background: `linear-gradient(180deg, #fbf8f2 0%, #f6f1e7 68%, ${accent}12 100%)` }}
           >
             {/* Header - theme accent for active tab */}
-            <div className="px-4 py-6 bg-black/15 border-b border-white/15 sm:px-6 backdrop-blur-sm">
+            <div className="px-4 py-6 bg-white/70 border-b border-[#d8cebe] sm:px-6 backdrop-blur-sm">
               <div className="hidden md:flex justify-between items-center">
                 <div className="flex space-x-4">
                   <button
                     onClick={() => { setActiveTab('login'); setLoginStartView('options'); setShowForgot(false); }}
-                    className={`px-4 py-2 text-sm font-medium rounded-md border-b-2 ${
+                    className={`px-4 py-2 text-sm font-semibold rounded-md border-b-2 ${
                       activeTab === 'login' && !showForgot
                         ? ''
-                        : 'border-transparent text-white/70 hover:text-white'
+                        : 'border-transparent text-[#5c6f68] hover:text-[#1f4e45]'
                     }`}
                     style={activeTab === 'login' && !showForgot ? { color: accent, borderColor: accent } : undefined}
                   >
@@ -80,10 +80,10 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                   </button>
                   <button
                     onClick={() => { setActiveTab('register'); setShowForgot(false); }}
-                    className={`px-4 py-2 text-sm font-medium rounded-md border-b-2 ${
+                    className={`px-4 py-2 text-sm font-semibold rounded-md border-b-2 ${
                       activeTab === 'register'
                         ? ''
-                        : 'border-transparent text-white/70 hover:text-white'
+                        : 'border-transparent text-[#5c6f68] hover:text-[#1f4e45]'
                     }`}
                     style={activeTab === 'register' ? { color: accent, borderColor: accent } : undefined}
                   >
@@ -92,7 +92,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                 </div>
                 <button
                   onClick={onClose}
-                  className="text-white/70 hover:text-white focus:outline-none"
+                  className="text-[#5c6f68] hover:text-[#1f4e45] focus:outline-none"
                 >
                   <IoClose className="h-6 w-6" />
                 </button>
@@ -107,7 +107,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                 )}
                 <button
                   onClick={onClose}
-                  className="text-white/70 hover:text-white focus:outline-none relative z-10"
+                  className="text-[#5c6f68] hover:text-[#1f4e45] focus:outline-none relative z-10"
                 >
                   <IoClose className="h-6 w-6" />
                 </button>
@@ -124,7 +124,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
                 )}
                 <Suspense
                   fallback={
-                    <div className="flex justify-center py-16 text-white/70 text-sm" aria-busy="true">
+                    <div className="flex justify-center py-16 text-[#5c6f68] text-sm" aria-busy="true">
                       Loading…
                     </div>
                   }

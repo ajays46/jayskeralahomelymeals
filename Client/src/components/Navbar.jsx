@@ -82,39 +82,42 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
   const brandName = theme.brandName || "Jay's Kerala Kitchen";
   const brandSubtitle = theme.brandSubtitle || '';
   const stripMainNav = minimalNav || theme.hideMainNavLinks === true;
-  const navBgClass = stripMainNav ? 'bg-black/20 backdrop-blur-md' : (theme.navBg || 'bg-[#989494]/50');
+  const minimalTextColor = '#1f4e45';
+  const navBgClass = stripMainNav
+    ? 'bg-gradient-to-r from-[#f7f2e8]/95 via-[#eef4e9]/92 to-[#f3efe6]/95 backdrop-blur-md border-b border-[#dacfbf] shadow-[0_8px_24px_rgba(31,78,69,0.10)]'
+    : (theme.navBg || 'bg-[#989494]/50');
 
   return (
     <>
-    <nav className={`tenant-nav ${navBgClass} shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`} style={{ ['--tenant-accent']: accent }}>
+    <nav className={`tenant-nav ${navBgClass} w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`} style={{ ['--tenant-accent']: accent }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-3">
-        <div className="flex justify-between items-center h-20 lg:h-24">
+        <div className={`flex justify-between items-center ${stripMainNav ? 'h-16 sm:h-[72px]' : 'h-20 lg:h-24'}`}>
           {/* Logo - company theme */}
           <div className="flex items-center">
             <Link to={base} className="flex items-center group">
               <motion.img
                 src={theme.logoUrl || '/logo.png'}
                 alt="Logo"
-                className="w-16 h-16 lg:w-20 lg:h-20 object-contain rounded-full shadow-lg group-hover:scale-105 transition-transform duration-300"
+                className={`${stripMainNav ? 'w-12 h-12 sm:w-14 sm:h-14' : 'w-16 h-16 lg:w-20 lg:h-20'} object-contain rounded-full shadow-lg group-hover:scale-105 transition-transform duration-300`}
                 whileHover={{ rotate: 5 }}
               />
-              <span className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 ml-3">
+              <span className={`${stripMainNav ? 'text-[#1f4e45]' : 'text-white'} hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 ml-3`}>
                 <span
                   className="flex flex-col leading-tight"
                 >
                   <span
-                    className={`text-lg sm:text-xl md:text-[26px] whitespace-nowrap ${
+                    className={`${stripMainNav ? 'text-base sm:text-lg md:text-xl' : 'text-lg sm:text-xl md:text-[26px]'} whitespace-nowrap ${
                       theme.brandDisplayFontClass || 'font-leagueSpartan font-black tracking-wider'
                     }`}
                     style={{
-                      textShadow: theme.brandDisplayTextShadow || '2px 2px 8px rgba(0,0,0,0.5)',
-                      color: theme.brandDisplayColor || accent,
+                      textShadow: stripMainNav ? 'none' : (theme.brandDisplayTextShadow || '2px 2px 8px rgba(0,0,0,0.5)'),
+                      color: stripMainNav ? '#1f4e45' : (theme.brandDisplayColor || accent),
                     }}
                   >
                     {brandName}
                   </span>
                   {brandSubtitle ? (
-                    <span className="text-xs sm:text-sm text-white/85 font-medium normal-case mt-0.5">
+                    <span className={`text-xs sm:text-sm ${stripMainNav ? 'text-[#4e6a61]' : 'text-white/85'} font-medium normal-case mt-0.5`}>
                       {brandSubtitle}
                     </span>
                   ) : null}
@@ -293,8 +296,18 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                   title="Sign In or Register"
                   className={
                     stripMainNav
-                      ? 'inline-flex items-center justify-center gap-1.5 rounded-full border border-white/70 bg-white/15 px-5 py-2.5 min-h-[44px] text-sm font-semibold text-white transition-all duration-300 hover:bg-white/20 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+                      ? 'inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-2.5 min-h-[44px] text-sm font-semibold transition-all duration-300 hover:brightness-95 active:scale-[0.98] focus:outline-none focus-visible:ring-2'
                       : 'inline-flex items-center justify-center gap-1.5 rounded-full border border-white/70 bg-white/15 px-4 py-2 min-h-[40px] text-sm font-semibold text-white transition-all duration-300 hover:bg-white/20 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+                  }
+                  style={
+                    stripMainNav
+                      ? {
+                          color: minimalTextColor,
+                          borderColor: `${accent}66`,
+                          backgroundColor: `${accent}1A`,
+                          boxShadow: `0 2px 10px ${accent}22`,
+                        }
+                      : undefined
                   }
                 >
                   <MdPerson className={stripMainNav ? 'text-base' : 'text-base'} />
@@ -305,8 +318,17 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                   onClick={onRegisterClick || onSignInClick}
                   className={
                     stripMainNav
-                      ? 'inline-flex items-center justify-center rounded-full border border-white/70 bg-white px-5 py-2.5 min-h-[44px] text-sm font-bold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+                      ? 'inline-flex items-center justify-center rounded-full border px-5 py-2.5 min-h-[44px] text-sm font-bold text-white shadow-md transition-all duration-300 hover:brightness-95 active:scale-[0.98] focus:outline-none focus-visible:ring-2'
                       : 'inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-bold text-gray-900 shadow-md transition-all duration-300 hover:bg-white/95 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+                  }
+                  style={
+                    stripMainNav
+                      ? {
+                          borderColor: accent,
+                          backgroundColor: accent,
+                          boxShadow: `0 8px 20px ${accent}44`,
+                        }
+                      : undefined
                   }
                 >
                   Sign Up
@@ -343,7 +365,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
               <motion.button
                 type="button"
                 onClick={onSignInClick}
-                className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
+                className={`${stripMainNav ? 'text-[#1f4e45] hover:text-[#1f6f5f] hover:bg-[#e9f0ea]' : 'text-white hover:text-[#FE8C00] hover:bg-white/10'} focus:outline-none p-2 rounded-lg transition-all duration-300`}
                 whileTap={{ scale: 0.95 }}
                 aria-label="Sign In or Register"
                 title="Sign In or Register"
@@ -355,7 +377,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
               <motion.button
                 type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="text-white hover:text-[#FE8C00] focus:outline-none p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
+                className={`${stripMainNav ? 'text-[#1f4e45] hover:text-[#1f6f5f] hover:bg-[#e9f0ea]' : 'text-white hover:text-[#FE8C00] hover:bg-white/10'} focus:outline-none p-2 rounded-lg transition-all duration-300`}
                 whileTap={{ scale: 0.95 }}
                 aria-label={menuOpen ? 'Close menu' : 'Open menu'}
               >
