@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { FiArrowLeft, FiLogOut, FiMapPin, FiPlay } from 'react-icons/fi';
 import { MdLocalShipping } from 'react-icons/md';
 import { message } from 'antd';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import {

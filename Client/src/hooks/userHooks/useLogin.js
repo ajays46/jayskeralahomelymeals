@@ -1,6 +1,6 @@
 import { useMutation,useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
-import { showLoginError } from '../../utils/toastConfig.jsx';
+import { showLoginError, showLoginSuccess } from '../../utils/toastConfig.jsx';
 import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardRoute } from '../../utils/roleBasedRouting';
@@ -187,6 +187,7 @@ export const useLogin = () => {
         setActiveRole(primaryRole);
         setUser(data.data);
         setIsAuthenticated(true);
+        showLoginSuccess();
         trackGaEvent('login', {
           method: 'password',
           company_path: data.data?.companyPath || variables?.companyPath || 'unknown',

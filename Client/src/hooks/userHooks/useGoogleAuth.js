@@ -6,6 +6,7 @@ import { getDashboardRoute } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { syncRememberMeStorage } from './useLogin';
 import { trackGaEvent } from '../../utils/analytics';
+import { showLoginError, showLoginSuccess } from '../../utils/toastConfig';
 
 export const useGoogleAuth = () => {
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
@@ -48,8 +49,14 @@ export const useGoogleAuth = () => {
       setAccessToken(data.accessToken);
       setRoles(roles);
       setActiveRole(primaryRole);
-      setUser(data.data);
+      setUser({
+        ...data.data,
+        // Fallback for stale backend responses that might omit this field.
+        // If this mutation succeeded, user authenticated through Google for this session.
+        isGoogleAuth: data.data?.isGoogleAuth ?? true,
+      });
       setIsAuthenticated(true);
+      showLoginSuccess();
       trackGaEvent('login', {
         method: 'google',
         company_path: data.data?.companyPath || variables?.companyPath || 'unknown',
@@ -76,6 +83,9 @@ export const useGoogleAuth = () => {
           navigate(dashboardRoute, { replace: true });
         }
       }, 100);
+    },
+    onError: (error) => {
+      showLoginError(error);
     }
   });
 };

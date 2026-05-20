@@ -1,4 +1,4 @@
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { PASSWORD_POLICY_MESSAGE } from '../validations/registerValidation';
 
 /**
@@ -9,17 +9,8 @@ import { PASSWORD_POLICY_MESSAGE } from '../validations/registerValidation';
 
 // Enhanced Toast configuration
 export const toastConfig = {
-  position: "top-right",
-  autoClose: 4000,
-  hideProgressBar: false,
-  closeOnClick: true,
-  pauseOnHover: true,
-  draggable: true,
-  progress: undefined,
-  theme: "light",
-  newestOnTop: true,
-  rtl: false,
-  pauseOnFocusLoss: true,
+  position: 'top-right',
+  duration: 4000,
 };
 
 const normalizePasswordErrorMessage = (message) => {
@@ -33,61 +24,33 @@ const normalizePasswordErrorMessage = (message) => {
 
 // Enhanced toast functions with better styling and messages
 export const showSuccessToast = (message, title = "Success!") => {
-  toast.success(
-    <div>
-      <div className="font-semibold text-green-800">{title}</div>
-      <div className="text-green-700">{message}</div>
-    </div>,
-    {
-      ...toastConfig,
-      icon: "✅",
-      className: "bg-green-50 border border-green-200",
-    }
-  );
+  toast.success(title, {
+    ...toastConfig,
+    description: message,
+  });
 };
 
 export const showErrorToast = (message, title = "Error!") => {
   const normalizedMessage = normalizePasswordErrorMessage(message);
-  toast.error(
-    <div>
-      <div className="font-semibold text-red-800">{title}</div>
-      <div className="text-red-700">{normalizedMessage || 'Something went wrong. Please try again.'}</div>
-    </div>,
-    {
-      ...toastConfig,
-      icon: "❌",
-      className: "bg-red-50 border border-red-200",
-      autoClose: 5000, // Keep error messages longer
-    }
-  );
+  toast.error(title, {
+    ...toastConfig,
+    description: normalizedMessage || 'Something went wrong. Please try again.',
+    duration: 5000,
+  });
 };
 
 export const showWarningToast = (message, title = "Warning!") => {
-  toast.warning(
-    <div>
-      <div className="font-semibold text-yellow-800">{title}</div>
-      <div className="text-yellow-700">{message}</div>
-    </div>,
-    {
-      ...toastConfig,
-      icon: "⚠️",
-      className: "bg-yellow-50 border border-yellow-200",
-    }
-  );
+  toast.warning(title, {
+    ...toastConfig,
+    description: message,
+  });
 };
 
 export const showInfoToast = (message, title = "Info") => {
-  toast.info(
-    <div>
-      <div className="font-semibold text-blue-800">{title}</div>
-      <div className="text-blue-700">{message}</div>
-    </div>,
-    {
-      ...toastConfig,
-      icon: "ℹ️",
-      className: "bg-blue-50 border border-blue-200",
-    }
-  );
+  toast.info(title, {
+    ...toastConfig,
+    description: message,
+  });
 };
 
 // Authentication specific toasts
@@ -220,21 +183,28 @@ export const showUpdated = (item = "item") => {
 
 // Loading and processing toasts
 export const showProcessing = (message = "Processing your request...") => {
-  return toast.loading(message, {
+  return toast.loading('Please wait', {
     ...toastConfig,
-    autoClose: false,
-    closeButton: false,
+    description: message,
+    duration: Infinity,
   });
 };
 
 export const updateProcessingToast = (toastId, message, type = "success") => {
-  toast.update(toastId, {
-    render: message,
-    type: type,
-    isLoading: false,
-    autoClose: 3000,
-    closeButton: true,
-  });
+  const normalizedType = String(type || 'success').toLowerCase();
+  if (normalizedType === 'error') {
+    toast.error('Error', { ...toastConfig, id: toastId, description: message, duration: 5000 });
+    return;
+  }
+  if (normalizedType === 'warning') {
+    toast.warning('Notice', { ...toastConfig, id: toastId, description: message, duration: 4000 });
+    return;
+  }
+  if (normalizedType === 'info') {
+    toast.info('Info', { ...toastConfig, id: toastId, description: message, duration: 4000 });
+    return;
+  }
+  toast.success('Done', { ...toastConfig, id: toastId, description: message, duration: 3000 });
 };
 
 // Dismiss all toasts

@@ -2,9 +2,10 @@
  * Copyright (c) 2025 JAYS KERALA INNOVATIONS PRIVATE LIMITED. All rights reserved.
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
+import useAuthStore from '../stores/Zustand.store';
 import { useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
 import vegBreakfastData from '../data/veg-breakfast.json';
@@ -16,7 +17,7 @@ import nonVegDinnerData from '../data/non-veg-dinner.json';
 import { FiChevronRight, FiX, FiGrid, FiHeart, FiZap } from 'react-icons/fi';
 import CategoryGridModal from '../components/CategoryGridModal';
 
-const MenuPage = () => {
+const MenuPage = ({ minimalNav = false }) => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedMealType, setSelectedMealType] = useState('All');
@@ -25,10 +26,18 @@ const MenuPage = () => {
   const [itemsToShow, setItemsToShow] = useState(8);
 
   const tenant = useTenant();
+  const user = useAuthStore((state) => state.user);
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
   const gradient = theme.homeGradient || 'from-orange-50 via-white to-orange-50';
   const isJlgMenu = theme.featuredProducts?.length > 0;
+  const isPhonePasswordCustomer = useMemo(() => {
+    const hasPhone = String(user?.phone || '').replace(/\D/g, '').length >= 10;
+    const hasEmail = Boolean(String(user?.email || '').trim());
+    const isGoogleUser = Boolean(user?.isGoogleAuth);
+    return Boolean(user) && hasPhone && !hasEmail && !isGoogleUser;
+  }, [user]);
+  const shouldUseMinimalNav = minimalNav || isPhonePasswordCustomer;
 
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);
   const handleCloseAuthSlider = () => setAuthSliderOpen(false);
@@ -114,7 +123,7 @@ const MenuPage = () => {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${gradient}`}>
-      <Navbar onSignInClick={handleOpenAuthSlider} />
+      <Navbar onSignInClick={handleOpenAuthSlider} minimalNav={shouldUseMinimalNav} />
       <AuthSlider isOpen={authSliderOpen} onClose={handleCloseAuthSlider} />
       
       {/* Hero Section - theme-driven */}

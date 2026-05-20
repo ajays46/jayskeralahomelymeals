@@ -2,15 +2,19 @@
  * Copyright (c) 2025 JAYS KERALA INNOVATIONS PRIVATE LIMITED. All rights reserved.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiUserPlus, FiCheckCircle, FiTruck } from 'react-icons/fi';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
+import Terms from '../components/Terms';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
 import { getDashboardRoute, resolveSelectedRoleForDashboard } from '../utils/roleBasedRouting';
 import useAuthStore from '../stores/Zustand.store';
 import { showSuccessToast, showValidationError } from '../utils/toastConfig';
+import pricingData from '../data/homePricing.json';
+import { useCompleteGoogleProfile } from '../hooks/userHooks/useCompleteGoogleProfile';
 
 /**
  * HomePage — Kerala marketing landing with banner hero and inline newsletter cards.
@@ -18,60 +22,59 @@ import { showSuccessToast, showValidationError } from '../utils/toastConfig';
  */
 const MOBILE_PATTERN = /^\d{10}$/;
 
-const NEWSLETTER_VARIANTS = [
+const PRICING_BY_PERIOD = pricingData;
+
+const HOW_IT_WORKS_STEPS = [
   {
-    key: 'freeDelivery',
-    title: "JAY'S KERALA KITCHEN",
-    subtitle: 'FOOD DELIVERY SERVICE',
-    highlight: 'HUNGRY? 🔥',
-    message:
-      'Get Free Delivery On Your First Order! Join our Premium list to claim your free delivery code, plus receive our weekly rotating Veg & Non-Veg menus every Sunday night.',
-    namePlaceholder: 'Enter your Name...',
-    mobilePlaceholder: 'Enter Mobile Number (for WhatsApp/SMS codes)',
-    consentLabel: 'Send my discount code and weekly menus via WhatsApp',
-    requiresName: true,
-    requiresConsent: true,
-    cta: 'CLAIM MY FREE DELIVERY',
-    ctaClass:
-      'bg-yellow-400 hover:bg-yellow-300 text-black shadow-[0_8px_20px_rgba(0,0,0,0.25)]',
-    finePrint: 'No spam. Just hot, home-cooked Kerala food.',
+    title: 'Sign Up',
+    cue: 'Choose plan',
+    icon: FiUserPlus,
   },
   {
-    key: 'biryaniAlert',
-    title: "JAY'S KERALA KITCHEN",
-    subtitle: 'FOOD DELIVERY SERVICE',
-    highlight: '🍛 NEVER MISS BIRYANI WEDNESDAY! 🍛',
-    message:
-      "Our delicious Chicken & Veg Biryanis sell out fast every Wednesday! Don't miss out on your favorite mid-week treat. Sign up to get next week's menu sent straight to your phone via WhatsApp every Sunday evening before anyone else.",
-    mobilePlaceholder: 'Enter Mobile Number...',
-    consentLabel: 'Remind me on WhatsApp before Biryani sells out!',
-    requiresConsent: true,
-    cta: 'SEND ME WHATSAPP ALERTS',
-    ctaClass:
-      'bg-yellow-400 hover:bg-yellow-300 text-black shadow-[0_8px_20px_rgba(0,0,0,0.25)]',
-    finePrint: '*Note: We deliver fresh daily. Consume food within 2 hours of delivery.',
+    title: 'Confirm',
+    cue: 'One-click booking',
+    icon: FiCheckCircle,
   },
+  {
+    title: 'Enjoy Meals',
+    cue: 'Daily doorstep delivery',
+    icon: FiTruck,
+  },
+];
+
+const PLAN_COMMON_HIGHLIGHTS = [
+  'Lunch meal included',
+  'Freshly cooked and delivered for your selected day',
+  'Authentic home-style Kerala taste',
+  'Free doorstep delivery across Kochi',
 ];
 
 const HomePage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState('login');
-  const [newsletterForms, setNewsletterForms] = useState({
-    freeDelivery: { name: '', mobile: '', preference: 'vegetarian', consent: true },
-    biryaniAlert: { name: '', mobile: '', preference: 'vegetarian', consent: true },
-    weeklyDeals: { name: '', mobile: '', preference: 'vegetarian', consent: true },
+  const [heroPrompt, setHeroPrompt] = useState('');
+  const [quickOrderSheetOpen, setQuickOrderSheetOpen] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [selectedDiet, setSelectedDiet] = useState('veg');
+  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
+  const [hasPromptedGoogleSetup, setHasPromptedGoogleSetup] = useState(false);
+  const [leadForm, setLeadForm] = useState({
+    mobile: '',
+    termsAccepted: false,
   });
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
   const gradient = theme.homeGradient || 'from-orange-50 via-white to-orange-50';
+  const supportEmail = import.meta.env.VITE_TERMS_CONTACT_EMAIL || 'support@jayskerala.com';
 
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const activeRole = useAuthStore((state) => state.activeRole);
   const showRoleSelector = useAuthStore((state) => state.showRoleSelector);
+  const { mutate: completeGoogleProfile, isPending: isCompletingGoogleProfile } = useCompleteGoogleProfile();
 
   const openSignInSlider = useCallback(() => {
     setAuthInitialTab('login');
@@ -82,6 +85,105 @@ const HomePage = () => {
     setAuthSliderOpen(true);
   }, []);
   const closeAuthSlider = useCallback(() => setAuthSliderOpen(false), []);
+  const pricingRef = useRef(null);
+  const supportRef = useRef(null);
+
+  const scrollToSection = useCallback((sectionRef) => {
+    sectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const handleHeroPromptSubmit = useCallback((event) => {
+    event.preventDefault();
+    const normalizedPrompt = String(heroPrompt || '').trim().toLowerCase();
+    if (normalizedPrompt.includes('sign in') || normalizedPrompt.includes('login')) {
+      openSignInSlider();
+      return;
+    }
+    setQuickOrderSheetOpen(true);
+  }, [heroPrompt, openSignInSlider]);
+
+  const isGoogleUser = Boolean(user?.isGoogleAuth);
+  const hasUserPhone = useMemo(() => {
+    const digits = String(user?.phone || '').replace(/\D/g, '');
+    return digits.length >= 10;
+  }, [user?.phone]);
+  const shouldUseCustomerMenu = useMemo(() => {
+    if (!user) return false;
+    if (!hasUserPhone || user?.termsAccepted !== true) return false;
+
+    const roleArray = Array.isArray(roles) ? roles : roles ? [roles] : [];
+    const normalizedRoles = roleArray
+      .map((role) => String(role || '').toUpperCase())
+      .filter(Boolean);
+
+    // Keep operational/admin roles on their own dashboards, not the customer menu.
+    const hasOperationalRole = normalizedRoles.some((role) => (
+      [
+        'CEO',
+        'CFO',
+        'ADMIN',
+        'DELIVERY_MANAGER',
+        'SELLER',
+        'DELIVERY_EXECUTIVE',
+        'DELIVERY_PARTNER',
+        'PARTNER_MANAGER',
+      ].includes(role)
+    ));
+
+    return !hasOperationalRole;
+  }, [user, hasUserPhone, user?.termsAccepted, roles]);
+  const needsGoogleProfileCompletion = Boolean(user && isGoogleUser && (!hasUserPhone || user?.termsAccepted !== true));
+
+  useEffect(() => {
+    if (!user || !needsGoogleProfileCompletion || hasPromptedGoogleSetup) return;
+
+    const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
+    setLeadForm({
+      mobile: phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '',
+      termsAccepted: Boolean(user?.termsAccepted),
+    });
+    setQuickOrderSheetOpen(true);
+    setHasPromptedGoogleSetup(true);
+  }, [user, needsGoogleProfileCompletion, hasPromptedGoogleSetup, user?.phone, user?.termsAccepted]);
+
+  useEffect(() => {
+    if (!user) {
+      setHasPromptedGoogleSetup(false);
+    }
+  }, [user]);
+
+  const handlePricingCardAction = useCallback(() => {
+    if (!user) {
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        openSignInSlider();
+        return;
+      }
+      openRegisterSlider();
+      return;
+    }
+
+    if (needsGoogleProfileCompletion) {
+      const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
+      setLeadForm({
+        mobile: phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '',
+        termsAccepted: Boolean(user?.termsAccepted),
+      });
+      setQuickOrderSheetOpen(true);
+      return;
+    }
+
+    if (shouldUseCustomerMenu) {
+      navigate(`${base}/menu`);
+      return;
+    }
+
+    navigate(`${base}/place-order`);
+  }, [user, needsGoogleProfileCompletion, shouldUseCustomerMenu, openSignInSlider, openRegisterSlider, navigate, base, user?.phone, user?.termsAccepted]);
+
+  const visiblePricingCards = useMemo(
+    () => (PRICING_BY_PERIOD[selectedPeriod] || []),
+    [selectedPeriod]
+  );
 
   useEffect(() => {
     if (!user || !roles || roles.length === 0) return;
@@ -93,227 +195,320 @@ const HomePage = () => {
     }
   }, [user, roles, base, navigate, activeRole, showRoleSelector]);
 
-  const updateNewsletterForm = useCallback((variant, field, value) => {
-    setNewsletterForms((prev) => ({
-      ...prev,
-      [variant]: {
-        ...prev[variant],
-        [field]: value,
-      },
-    }));
-  }, []);
+  useEffect(() => {
+    if (!shouldUseCustomerMenu) return;
+    navigate(`${base}/menu`, { replace: true });
+  }, [shouldUseCustomerMenu, navigate, base]);
 
-  const submitNewsletter = useCallback((event, variantConfig) => {
+  const submitLeadForm = useCallback((event) => {
     event.preventDefault();
-    const variant = variantConfig.key;
-    const form = newsletterForms[variant];
-    const mobile = String(form?.mobile || '').replace(/\D/g, '');
-
-    if (variantConfig.requiresName && !(form?.name || '').trim()) {
-      showValidationError('Please enter your name.');
-      return;
-    }
+    const mobile = String(leadForm.mobile || '').replace(/\D/g, '');
     if (!MOBILE_PATTERN.test(mobile)) {
       showValidationError('Please enter a valid 10-digit mobile number.');
       return;
     }
-    if (variantConfig.requiresConsent && !form?.consent) {
-      showValidationError('Please check the WhatsApp/SMS consent option to continue.');
+    if (!leadForm.termsAccepted) {
+      showValidationError('Please accept the Terms & Conditions to continue.');
       return;
     }
 
-    showSuccessToast('You are subscribed. We will keep you updated on WhatsApp/SMS.', 'Thank you!');
-
-    setNewsletterForms((prev) => ({
-      ...prev,
-      [variant]: {
-        name: '',
-        mobile: '',
-        preference: variantConfig.showPreference ? prev[variant].preference : 'vegetarian',
-        consent: true,
-      },
-    }));
-  }, [newsletterForms]);
+    completeGoogleProfile(
+      { phone: mobile, termsAccepted: true },
+      {
+        onSuccess: (response) => {
+          if (!response?.success) return;
+          showSuccessToast('Your profile is updated. Continue to the menu.', 'Done');
+          setLeadForm({ mobile: '', termsAccepted: false });
+          setQuickOrderSheetOpen(false);
+          navigate(`${base}/menu`);
+        },
+        onError: (error) => {
+          const message = error?.response?.data?.message || 'Unable to update your profile. Please try again.';
+          showValidationError(message);
+        }
+      }
+    );
+  }, [leadForm, completeGoogleProfile, navigate, base]);
 
   return (
     <div
-      className={`min-h-screen bg-gradient-to-br ${gradient}`}
+      className={`min-h-screen overflow-x-hidden bg-gradient-to-br ${gradient}`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Navbar minimalNav onSignInClick={openSignInSlider} onRegisterClick={openRegisterSlider} />
       <AuthSlider isOpen={authSliderOpen} onClose={closeAuthSlider} initialTab={authInitialTab} />
 
       <main>
-        <section className="relative overflow-hidden">
+        <section className="relative isolate overflow-hidden px-0 pb-0 pt-0">
           <div
-            className="bg-cover bg-center bg-no-repeat h-[300px] sm:h-[340px] md:h-[390px] lg:h-[430px] flex items-center justify-center pt-16 sm:pt-20"
-            style={{ backgroundImage: `url('${theme.heroImage || '/banner_one.jpg'}')` }}
+            className="relative flex min-h-[320px] w-full items-center overflow-hidden sm:min-h-[400px]"
+            style={{
+              background: `linear-gradient(135deg, ${accent}10 0%, #111827 30%, #1f2937 100%)`,
+            }}
           >
-            <div className="absolute inset-0 bg-black/45" />
-            <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 text-center">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3">
-                {theme.heroTitle || 'Discover Authentic'}
-                <span
-                  className={`block mt-1 ${theme.brandDisplayFontClass || ''}`}
-                  style={{ color: theme.brandDisplayColor || accent }}
+            <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-black/15 to-transparent" />
+            <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute -bottom-24 -right-12 h-72 w-72 rounded-full blur-3xl" style={{ backgroundColor: `${accent}50` }} />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent via-[#111827]/80 to-[#111827]" />
+
+            <div className="relative z-10 w-full px-5 py-16 sm:px-10 sm:py-20 lg:px-14">
+              <div className="mx-auto mt-6 max-w-3xl text-center sm:mt-8">
+                <h1 className="text-3xl font-black leading-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
+                  {theme.heroTitle || 'Everything fresh from Kerala.'}
+                  <span
+                    className={`mt-2 block ${theme.brandDisplayFontClass || ''}`}
+                    style={{ color: theme.brandDisplayColor || accent }}
+                  >
+                    {theme.heroSubtitle || 'No compromise on taste.'}
+                  </span>
+                </h1>
+
+                <p className="mt-5 max-w-2xl text-sm leading-relaxed text-white/85 sm:text-base md:text-lg">
+                  {theme.heroDescription ||
+                    "Order home-cooked Kerala favorites for every mood in one place. Freshly prepared meals, quick delivery, and weekly curated menus that keep your routine delicious."}
+                </p>
+
+                <form
+                  onSubmit={handleHeroPromptSubmit}
+                  className="mx-auto mt-8 w-full max-w-2xl rounded-2xl border border-white/35 bg-black/25 p-2 backdrop-blur-md"
                 >
-                  {theme.heroSubtitle || 'Kerala Cuisine'}
-                </span>
-              </h1>
-              <p className="text-white/90 text-sm sm:text-base md:text-lg leading-relaxed max-w-3xl mx-auto">
-                {theme.heroDescription ||
-                  "Experience the rich flavors and traditional recipes from God's Own Country. From spicy curries to aromatic rice dishes, every bite tells a story."}
-              </p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="text"
+                      value={heroPrompt}
+                      onChange={(event) => setHeroPrompt(event.target.value)}
+                      placeholder="Ask anything... e.g. 'I want a weekly non-veg plan'"
+                      className="h-12 w-full rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/65 outline-none transition focus:border-white/55 focus:bg-white/15"
+                    />
+                    <button
+                      type="submit"
+                      className="h-12 shrink-0 rounded-xl px-5 text-sm font-bold text-black transition hover:brightness-105"
+                      style={{ backgroundColor: accent }}
+                    >
+                      Go
+                    </button>
+                  </div>
+                </form>
+                <p className="mt-3 text-xs text-white/75">
+                  Try: &quot;Show monthly plans&quot;, &quot;Order today&quot;, or &quot;Sign in&quot;.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <section className="relative overflow-hidden px-4 pb-12 pt-0 sm:px-6 sm:pb-14 sm:pt-0 lg:pb-16 lg:pt-0">
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: `linear-gradient(180deg, #111827 0%, #111827 42%, ${accent}1F 100%)` }}
+          />
+          <div className="relative mx-auto max-w-6xl">
+            <div ref={pricingRef} className="mt-10 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/65">Plans and pricing</p>
+              <h3 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
+                JAY&apos;S KERALA KITCHEN
+              </h3>
+            </div>
+
+            <div className="mx-auto mt-4 w-full max-w-2xl rounded-xl border border-white/20 bg-white/10 p-2 shadow-sm backdrop-blur md:w-fit md:max-w-full md:p-1.5">
+              <div className="grid w-full grid-cols-2 gap-1.5 md:flex md:flex-wrap md:items-center md:justify-center md:gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDiet('veg')}
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition md:px-3 ${
+                    selectedDiet === 'veg' ? 'text-white' : 'bg-white/20 text-white/85'
+                  }`}
+                  style={selectedDiet === 'veg' ? { backgroundColor: accent } : undefined}
+                >
+                  Veg
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDiet('nonVeg')}
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition md:px-3 ${
+                    selectedDiet === 'nonVeg' ? 'text-white' : 'bg-white/20 text-white/85'
+                  }`}
+                  style={selectedDiet === 'nonVeg' ? { backgroundColor: accent } : undefined}
+                >
+                  Non-Veg
+                </button>
+              </div>
+              <div className="mt-1.5 grid w-full grid-cols-3 gap-1.5 md:mt-1 md:flex md:flex-wrap md:items-center md:gap-1">
+                {['daily', 'weekly', 'monthly'].map((period) => (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => setSelectedPeriod(period)}
+                    className={`rounded-full px-3 py-1.5 text-sm font-semibold capitalize transition md:px-2.5 ${
+                      selectedPeriod === period ? 'text-white' : 'bg-white/20 text-white/85'
+                    }`}
+                    style={selectedPeriod === period ? { backgroundColor: accent } : undefined}
+                  >
+                    {period}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">What&apos;s included</p>
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {PLAN_COMMON_HIGHLIGHTS.map((point) => (
+                  <li
+                    key={point}
+                    className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/85"
+                  >
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+              {visiblePricingCards.map((card) => (
+                <button
+                  type="button"
+                  key={card.title}
+                  onClick={handlePricingCardAction}
+                  className="group rounded-3xl border border-white/70 bg-white/95 p-3.5 text-left shadow-[0_10px_30px_rgba(15,23,42,0.10)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(15,23,42,0.16)] active:scale-[0.99]"
+                >
+                  <h3 className="text-sm font-black text-gray-900 md:text-base">{card.title}</h3>
+                  <p className="mt-2 inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
+                    {selectedDiet === 'veg' ? 'Veg plan' : 'Non-veg plan'}
+                  </p>
+                  <p className="mt-1.5 text-xl font-black text-gray-900 md:text-2xl">
+                    {selectedDiet === 'veg' ? card.veg : card.nonVeg}
+                  </p>
+                  <div className="mt-3 flex">
+                    <span
+                      className="ml-auto inline-flex items-center justify-center rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all group-hover:translate-x-0.5"
+                      style={{ color: accent, borderColor: `${accent}66`, backgroundColor: `${accent}1A` }}
+                    >
+                      Book Now →
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+          </div>
+        </section>
+
+        <section className="bg-gradient-to-b from-[#eadbc8]/70 via-[#dddad5]/60 to-transparent px-4 pb-4 pt-3 sm:px-6 lg:pb-6">
+          <div className="mx-auto max-w-5xl rounded-3xl bg-gray-100/90 p-4 shadow-sm ring-1 ring-gray-200 sm:p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">How It Works</p>
+            <h2 className="mt-2 text-xl font-black tracking-tight text-gray-900 sm:text-2xl">
+              Start your meal plan in 3 simple steps
+            </h2>
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              {HOW_IT_WORKS_STEPS.map((step, index) => (
+                <article key={step.title} className="rounded-2xl border border-gray-200 bg-gray-100 p-3.5 text-center">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: accent }}>
+                    Step {index + 1}
+                  </p>
+                  <div className="mx-auto mt-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-white ring-1 ring-gray-200">
+                    <step.icon className="h-5 w-5 text-gray-800" aria-hidden="true" />
+                  </div>
+                  <h3 className="mt-2 text-base font-bold text-gray-900">{step.title}</h3>
+                  <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.1em] text-gray-500">{step.cue}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>
 
-        <section className="relative py-10 sm:py-12 lg:py-14 px-4 sm:px-6 overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/pattern.jpg')] bg-repeat opacity-5 pointer-events-none" />
-          <div className="relative max-w-6xl mx-auto">
-            <div
-              className="max-w-6xl mx-auto mb-8 rounded-2xl border border-yellow-300 bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 p-5 sm:p-6 shadow-[0_10px_40px_rgba(0,0,0,0.12)]"
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-5 lg:gap-6 items-center">
-                <div className="text-center lg:text-left">
-                  <h3 className="text-xl sm:text-2xl font-extrabold text-gray-900">JAY&apos;S KERALA KITCHEN</h3>
-                  <p className="mt-1 text-xs sm:text-sm font-semibold tracking-wider text-gray-600 uppercase">
-                    FOOD DELIVERY SERVICE
-                  </p>
-                  <p className="mt-3 text-lg sm:text-2xl font-bold text-gray-900">
-                    🥗 EAT CLEAN. FEEL LIGHT. STAY NOURISHED. 🥗
-                  </p>
-                  <p className="mt-2 text-sm sm:text-base text-gray-700 leading-relaxed">
-                  Subscribe to our weekly WhatsApp menu updates and enjoy balanced, hygienic, home-cooked
-                  Kerala meals made fresh daily to support your health and energy.
-                  </p>
-                </div>
-
-                <div className="bg-white/80 backdrop-blur rounded-2xl border border-white p-4 sm:p-5">
-                  <button
-                    type="button"
-                    onClick={openRegisterSlider}
-                    className="w-full rounded-xl bg-yellow-400 px-4 py-3 text-sm sm:text-base font-bold text-black shadow-[0_8px_20px_rgba(0,0,0,0.25)] transition hover:bg-yellow-300"
-                  >
-                    SUBSCRIBE &amp; ORDER NOW →
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center mb-8">
-              <p className="mt-2 text-sm sm:text-base text-gray-600">
-                Get weekly menus and offers directly on WhatsApp/SMS.
+        <section className="mt-8 px-4 pb-14 sm:mt-10 sm:px-6 lg:pb-16">
+          <div className="mx-auto flex max-w-6xl flex-col gap-4 rounded-3xl bg-gray-900 p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Quick links and support</p>
+              <h3 className="mt-2 text-2xl font-black">Need help before ordering?</h3>
+              <p className="mt-2 text-sm text-white/80">
+                Manage your food bookings, check subscription support, and contact us for delivery updates.
               </p>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-              {NEWSLETTER_VARIANTS.map((variant) => {
-                const form = newsletterForms[variant.key];
-                return (
-                  <form
-                    key={variant.key}
-                    onSubmit={(event) => submitNewsletter(event, variant)}
-                    className="rounded-2xl bg-white shadow-lg border border-gray-100 p-5 sm:p-6"
-                  >
-                    <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-5 lg:gap-6 items-start">
-                      <div className="text-center lg:text-left">
-                        <h3 className="text-lg sm:text-xl font-extrabold text-gray-900">{variant.title}</h3>
-                        <p className="mt-1 text-xs font-semibold tracking-wider text-gray-500 uppercase">
-                          {variant.subtitle}
-                        </p>
-                        <p className="mt-3 text-lg font-bold text-gray-900">{variant.highlight}</p>
-                        <p className="mt-3 text-sm leading-relaxed text-gray-700">{variant.message}</p>
-                        {variant.finePrint ? (
-                          <p className="mt-3 text-xs text-gray-500">{variant.finePrint}</p>
-                        ) : null}
-                      </div>
-
-                      <div className="bg-gray-50 rounded-xl border border-gray-100 p-4">
-                        {variant.requiresName ? (
-                          <input
-                            type="text"
-                            value={form.name}
-                            onChange={(event) => updateNewsletterForm(variant.key, 'name', event.target.value)}
-                            placeholder={variant.namePlaceholder}
-                            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                            autoComplete="name"
-                            required
-                          />
-                        ) : null}
-
-                        <div className={`${variant.requiresName ? 'mt-3' : ''} flex items-center gap-2`}>
-                          <span className="rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm font-semibold text-gray-700">
-                            +91
-                          </span>
-                          <input
-                            type="tel"
-                            inputMode="numeric"
-                            value={form.mobile}
-                            onChange={(event) => updateNewsletterForm(variant.key, 'mobile', event.target.value)}
-                            placeholder={variant.mobilePlaceholder}
-                            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                            required
-                          />
-                        </div>
-
-                        {variant.showPreference ? (
-                          <div className="mt-4">
-                            <p className="text-sm font-semibold text-gray-700">Choose your preference:</p>
-                            <div className="mt-2 space-y-2">
-                              <label className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                <input
-                                  type="radio"
-                                  name={`dietPreference-${variant.key}`}
-                                  value="vegetarian"
-                                  checked={form.preference === 'vegetarian'}
-                                  onChange={() => updateNewsletterForm(variant.key, 'preference', 'vegetarian')}
-                                />
-                                <span>🟢 Vegetarian Only</span>
-                              </label>
-                              <label className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                <input
-                                  type="radio"
-                                  name={`dietPreference-${variant.key}`}
-                                  value="mixed"
-                                  checked={form.preference === 'mixed'}
-                                  onChange={() => updateNewsletterForm(variant.key, 'preference', 'mixed')}
-                                />
-                                <span>🔴 Non-Vegetarian / Mix</span>
-                              </label>
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {variant.requiresConsent ? (
-                          <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(form.consent)}
-                              onChange={(event) =>
-                                updateNewsletterForm(variant.key, 'consent', event.target.checked)
-                              }
-                              className="mt-1"
-                            />
-                            <span>{variant.consentLabel}</span>
-                          </label>
-                        ) : null}
-
-                        <button
-                          type="submit"
-                          className={`mt-5 w-full rounded-xl px-4 py-3 text-sm font-bold transition ${variant.ctaClass}`}
-                        >
-                          {variant.cta}
-                        </button>
-                      </div>
-                    </div>
-                  </form>
-                );
-              })}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(`${base}/terms`)}
+                className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+              >
+                Terms & Conditions
+              </button>
+              <a
+                href={`mailto:${supportEmail}`}
+                className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+              >
+                Contact Support
+              </a>
             </div>
           </div>
         </section>
       </main>
+
+      {quickOrderSheetOpen ? (
+        <div className="fixed inset-0 z-[70] bg-black/50" onClick={() => setQuickOrderSheetOpen(false)}>
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-5 shadow-2xl md:bottom-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Setup account</p>
+            <h4 className="mt-2 text-xl font-black text-gray-900">Get started with your mobile number</h4>
+            <form onSubmit={submitLeadForm} className="mt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm font-semibold text-gray-700">+91</span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={leadForm.mobile}
+                  onChange={(event) => setLeadForm((prev) => ({ ...prev, mobile: event.target.value }))}
+                  placeholder="Enter Mobile Number"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                  required
+                />
+              </div>
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={leadForm.termsAccepted}
+                  onChange={(event) => setLeadForm((prev) => ({ ...prev, termsAccepted: event.target.checked }))}
+                  className="mt-1"
+                  required
+                />
+                <span>
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    className="font-semibold text-orange-600 underline"
+                    onClick={() => setTermsModalOpen(true)}
+                  >
+                    Terms & Conditions
+                  </button>
+                  .
+                </span>
+              </label>
+              <button
+                type="submit"
+                disabled={isCompletingGoogleProfile}
+                className="w-full rounded-xl px-4 py-3 text-sm font-bold text-black transition hover:brightness-105"
+                style={{ backgroundColor: accent }}
+              >
+                {isCompletingGoogleProfile ? 'Saving...' : 'Continue'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickOrderSheetOpen(false)}
+                disabled={isCompletingGoogleProfile}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Skip for now
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
+      <Terms isOpen={termsModalOpen} onClose={() => setTermsModalOpen(false)} />
+
     </div>
   );
 };

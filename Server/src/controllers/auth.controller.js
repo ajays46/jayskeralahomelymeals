@@ -1,4 +1,4 @@
-import { registerUser, loginUser, loginWithGoogle, forgotPasswordService, resetPasswordService, adminLoginService, addUserRole, removeUserRole, getUserRoles, hasRole } from '../services/auth.service.js';
+import { registerUser, loginUser, loginWithGoogle, forgotPasswordService, resetPasswordService, adminLoginService, addUserRole, removeUserRole, getUserRoles, hasRole, completeGoogleUserProfile, setupGoogleAccount } from '../services/auth.service.js';
 import AppError from '../utils/AppError.js';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateRefreshToken, REFRESH_REMEMBER_COOKIE_MAX_MS } from '../utils/jwt.config.js';
@@ -115,6 +115,38 @@ export const googleAuth = async (req, res, next) => {
       message: 'Google authentication successful',
       accessToken,
       data: userData.user
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const completeGoogleProfile = async (req, res, next) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const { phone, termsAccepted } = req.body || {};
+    const updatedUser = await completeGoogleUserProfile({ userId, phone, termsAccepted });
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedUser
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const setupGoogleAccountController = async (req, res, next) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const { phone, termsAccepted, newPassword } = req.body || {};
+    const updatedUser = await setupGoogleAccount({ userId, phone, termsAccepted, newPassword });
+
+    res.status(200).json({
+      success: true,
+      message: 'Account setup completed successfully',
+      data: updatedUser
     });
   } catch (error) {
     next(error);
