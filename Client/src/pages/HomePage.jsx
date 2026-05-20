@@ -8,7 +8,6 @@ import { FiUserPlus, FiCheckCircle, FiTruck } from 'react-icons/fi';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
 import Terms from '../components/Terms';
-import MenuPage from './MenuPage';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
 import { getDashboardRoute, resolveSelectedRoleForDashboard } from '../utils/roleBasedRouting';
@@ -108,11 +107,31 @@ const HomePage = () => {
     const digits = String(user?.phone || '').replace(/\D/g, '');
     return digits.length >= 10;
   }, [user?.phone]);
-  const isPhonePasswordCustomer = useMemo(() => {
+  const shouldUseCustomerMenu = useMemo(() => {
     if (!user) return false;
-    const hasEmail = Boolean(String(user?.email || '').trim());
-    return hasUserPhone && !isGoogleUser && !hasEmail;
-  }, [user, hasUserPhone, isGoogleUser]);
+    if (!hasUserPhone || user?.termsAccepted !== true) return false;
+
+    const roleArray = Array.isArray(roles) ? roles : roles ? [roles] : [];
+    const normalizedRoles = roleArray
+      .map((role) => String(role || '').toUpperCase())
+      .filter(Boolean);
+
+    // Keep operational/admin roles on their own dashboards, not the customer menu.
+    const hasOperationalRole = normalizedRoles.some((role) => (
+      [
+        'CEO',
+        'CFO',
+        'ADMIN',
+        'DELIVERY_MANAGER',
+        'SELLER',
+        'DELIVERY_EXECUTIVE',
+        'DELIVERY_PARTNER',
+        'PARTNER_MANAGER',
+      ].includes(role)
+    ));
+
+    return !hasOperationalRole;
+  }, [user, hasUserPhone, user?.termsAccepted, roles]);
   const needsGoogleProfileCompletion = Boolean(user && isGoogleUser && (!hasUserPhone || user?.termsAccepted !== true));
 
   useEffect(() => {
@@ -153,8 +172,13 @@ const HomePage = () => {
       return;
     }
 
+    if (shouldUseCustomerMenu) {
+      navigate(`${base}/menu`);
+      return;
+    }
+
     navigate(`${base}/place-order`);
-  }, [user, needsGoogleProfileCompletion, openSignInSlider, openRegisterSlider, navigate, base, user?.phone, user?.termsAccepted]);
+  }, [user, needsGoogleProfileCompletion, shouldUseCustomerMenu, openSignInSlider, openRegisterSlider, navigate, base, user?.phone, user?.termsAccepted]);
 
   const visiblePricingCards = useMemo(
     () => (PRICING_BY_PERIOD[selectedPeriod] || []),
@@ -170,6 +194,11 @@ const HomePage = () => {
       navigate(dashboardRoute, { replace: true });
     }
   }, [user, roles, base, navigate, activeRole, showRoleSelector]);
+
+  useEffect(() => {
+    if (!shouldUseCustomerMenu) return;
+    navigate(`${base}/menu`, { replace: true });
+  }, [shouldUseCustomerMenu, navigate, base]);
 
   const submitLeadForm = useCallback((event) => {
     event.preventDefault();
@@ -188,10 +217,10 @@ const HomePage = () => {
       {
         onSuccess: (response) => {
           if (!response?.success) return;
-          showSuccessToast('Your profile is updated. Continue booking your plan.', 'Done');
+          showSuccessToast('Your profile is updated. Continue to the menu.', 'Done');
           setLeadForm({ mobile: '', termsAccepted: false });
           setQuickOrderSheetOpen(false);
-          navigate(`${base}/place-order`);
+          navigate(`${base}/menu`);
         },
         onError: (error) => {
           const message = error?.response?.data?.message || 'Unable to update your profile. Please try again.';
@@ -200,10 +229,6 @@ const HomePage = () => {
       }
     );
   }, [leadForm, completeGoogleProfile, navigate, base]);
-
-  if (isPhonePasswordCustomer) {
-    return <MenuPage minimalNav />;
-  }
 
   return (
     <div

@@ -150,7 +150,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                   className="text-white font-medium flex items-center gap-2 hover:text-[#FE8C00] cursor-pointer transition-all duration-300 group"
                 >
                   <FaUserCircle className="text-2xl group-hover:scale-110 transition-transform duration-300" />
-                  <span>{user.name?.split(' ')[0] || 'User'}</span>
+                  <span> Account</span>
                 </button>
 
                 {/* Dropdown Menu */}
@@ -168,11 +168,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                         <div className="flex items-center gap-2">
                           <FaUserCircle className="text-2xl text-[#FE8C00] flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-800 text-sm truncate">
-                              {user?.name || user?.contacts?.[0]?.firstName 
-                                ? `${user?.contacts?.[0]?.firstName || ''} ${user?.contacts?.[0]?.lastName || ''}`.trim() || user?.name || 'User'
-                                : 'User'}
-                            </div>
+                            <div className="font-semibold text-gray-800 text-sm truncate">Welcome!</div>
                             {user?.email && (
                               <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-1">
                                 <MdEmail className="w-3 h-3 flex-shrink-0" />
@@ -484,11 +480,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                     <div className="flex items-center gap-2">
                       <FaUserCircle className="text-2xl flex-shrink-0" style={{ color: accent }} />
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-800 text-sm truncate">
-                          {user?.name || user?.contacts?.[0]?.firstName 
-                            ? `${user?.contacts?.[0]?.firstName || ''} ${user?.contacts?.[0]?.lastName || ''}`.trim() || user?.name || 'User'
-                            : 'User'}
-                        </div>
+                        <div className="font-semibold text-gray-800 text-sm truncate">Welcome!</div>
                         {user?.email && (
                           <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-1">
                             <MdEmail className="w-3 h-3 flex-shrink-0" />
