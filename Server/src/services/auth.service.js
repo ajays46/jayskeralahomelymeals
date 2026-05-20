@@ -850,10 +850,6 @@ export const completeGoogleUserProfile = async ({ userId, phone, termsAccepted }
     if (!user || !user.auth) {
         throw new AppError('User not found', 404);
     }
-    if (user.auth.password !== 'NO_PASSWORD_NEEDED') {
-        throw new AppError('Profile completion is only available for Google-authenticated users', 400);
-    }
-
     const duplicatePhone = await prisma.auth.findFirst({
         where: {
             phoneNumber: normalizedPhone,

@@ -19,6 +19,14 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
   const pathSegment = location.pathname.split('/')[1];
   const companyHome = pathSegment ? `/${pathSegment}` : getCompanyBasePathFallback();
+  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  const isAccountSetupRoute = /^\/[^/]+\/account-setup$/.test(normalizedPath);
+  const isMlTenant = String(pathSegment || '').toLowerCase() === 'ml';
+  const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
+  const needsAccountSetup =
+    Boolean(user) &&
+    !isMlTenant &&
+    (phoneDigits.length < 10 || user?.termsAccepted !== true);
 
   const hasUserNoToken = !!(user && isAuthenticated && !accessToken);
   const [checkingSession, setCheckingSession] = useState(hasUserNoToken);
@@ -56,6 +64,10 @@ const ProtectedRoute = ({ children }) => {
       return <Navigate to={companyHome} replace />;
     }
     return <Navigate to={companyHome} replace />;
+  }
+
+  if (needsAccountSetup && !isAccountSetupRoute) {
+    return <Navigate to={`${companyHome}/account-setup`} replace />;
   }
 
   return children ? children : <Outlet />;

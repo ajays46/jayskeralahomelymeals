@@ -15,6 +15,7 @@ const Terms = lazy(() => import('./components/Terms'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
 const TenantHome = lazy(() => import('./pages/TenantHome'));
 const PublicPage = lazy(() => import('./pages/Public'));
+const AccountSetupPage = lazy(() => import('./pages/AccountSetupPage'));
 const JLGHomePage = lazy(() => import('./pages/JLGHomePage'));
 const MLHomePage = lazy(() => import('./ml/pages/MLHomePage'));
 const MLDeliveryPartnerDashboard = lazy(() => import('./ml/pages/MLDeliveryPartnerDashboard'));
@@ -84,7 +85,8 @@ const ConditionalFooter = () => {
   const isHome = /^\/[^/]+$/.test(pathname);
   const isMenu = /^\/[^/]+\/menu$/.test(pathname);
   const isPublic = /^\/[^/]+\/public$/.test(pathname);
-  if (isHome || isMenu || isPublic) return <Footer />;
+  const isAccountSetup = /^\/[^/]+\/account-setup$/.test(pathname);
+  if (isHome || isMenu || isPublic || isAccountSetup) return <Footer />;
   return null;
 };
 
@@ -125,6 +127,31 @@ function TenantLayout() {
     location.pathname,
     location.search,
     location.hash,
+    navigate,
+  ]);
+
+  // Global setup gate: after login (email or Google), keep user on account-setup until phone + terms are completed.
+  useLayoutEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const urlSeg = String(tenant?.companyPath || user?.companyPath || '').toLowerCase().trim();
+    if (!urlSeg) return;
+    if (urlSeg === 'ml') return;
+
+    const normalizedPath = String(location.pathname || '').replace(/\/+$/, '') || '/';
+    const isAccountSetupPage = normalizedPath === `/${urlSeg}/account-setup`;
+    const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
+    const needsAccountSetup = phoneDigits.length < 10 || user?.termsAccepted !== true;
+
+    if (!needsAccountSetup || isAccountSetupPage) return;
+    navigate(`/${urlSeg}/account-setup`, { replace: true });
+  }, [
+    isAuthenticated,
+    user,
+    user?.phone,
+    user?.termsAccepted,
+    user?.companyPath,
+    tenant?.companyPath,
+    location.pathname,
     navigate,
   ]);
 
@@ -254,6 +281,7 @@ const App = () => {
             <Route path="process-payment" element={<PaymentWizardPage />} />
 
             <Route element={<ProtectedRoute />}>
+              <Route path="account-setup" element={<AccountSetupPage />} />
               <Route path="dashboard" element={<MLRouteGuard><MLDeliveryPartnerDashboard /></MLRouteGuard>} />
               <Route path="trips" element={<MLRouteGuard><MLMyTripsPage /></MLRouteGuard>} />
               <Route path="trips/add" element={<MLRouteGuard><MLAddTripPage /></MLRouteGuard>} />

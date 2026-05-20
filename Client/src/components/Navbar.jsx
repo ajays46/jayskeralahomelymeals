@@ -14,7 +14,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useLogout } from '../hooks/userHooks/useLogin';
 import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO } from '../utils/roleUtils';
 import ChangePassword from './ChangePassword';
-import SetupAccountModal from './SetupAccountModal';
 
 /**
  * Navbar - Main navigation component with role-based menu and authentication
@@ -27,7 +26,6 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
   const [search, setSearch] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [showSetupAccount, setShowSetupAccount] = useState(false);
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const navigate = useNavigate();
@@ -43,6 +41,8 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
   const userIsCEO = isCEO(roles);
   const userIsCFO = isCFO(roles);
   const isGoogleAuthUser = Boolean(user?.isGoogleAuth);
+  const hasEmail = Boolean(String(user?.email || '').trim());
+  const canChangePassword = Boolean(user) && !isGoogleAuthUser && !hasEmail;
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
@@ -150,7 +150,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
               <div className="relative">
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="text-white font-medium flex items-center gap-2 hover:text-[#FE8C00] cursor-pointer transition-all duration-300 group"
+                  className={`${stripMainNav ? 'text-[#1f4e45] hover:text-[#1f6f5f]' : 'text-white hover:text-[#FE8C00]'} font-medium flex items-center gap-2 cursor-pointer transition-all duration-300 group`}
                 >
                   <FaUserCircle className="text-2xl group-hover:scale-110 transition-transform duration-300" />
                   <span> Account</span>
@@ -188,18 +188,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                         </div>
                       </div>
 
-                      {isGoogleAuthUser ? (
-                        <button
-                          type="button"
-                          className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200 w-full text-left"
-                          onClick={() => {
-                            setUserDropdownOpen(false);
-                            setShowSetupAccount(true);
-                          }}
-                        >
-                          <MdPerson className="text-xl" /> Setup Account
-                        </button>
-                      ) : (
+                      {canChangePassword ? (
                         <button
                           type="button"
                           className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200 w-full text-left"
@@ -210,8 +199,7 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                         >
                           <MdPerson className="text-xl" /> Change Password
                         </button>
-                      )}
-
+                      ) : null}
 
                       {/* Admin Options */}
                       {userIsAdmin && (
@@ -412,26 +400,33 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="md:hidden fixed top-0 right-0 w-80 h-screen z-50 bg-gradient-to-b from-white to-gray-50 shadow-2xl overflow-y-auto"
+              className={`md:hidden fixed top-0 right-0 h-screen z-50 shadow-2xl overflow-y-auto ${
+                stripMainNav
+                  ? 'w-full bg-[#e7edcf]'
+                  : 'w-80 bg-gradient-to-b from-white to-gray-50'
+              }`}
               style={{ ['--sidebar-accent']: accent }}
             >
               {/* Header with Logo and Close button - theme colors & brand */}
-              <div className="flex justify-between items-center p-6 border-b border-gray-100" style={{ background: `linear-gradient(to right, ${accent}, ${accent})` }}>
+              <div
+                className={`flex justify-between items-center px-4 py-3 border-b ${
+                  stripMainNav ? 'border-[#d2dbb8] bg-[#dde7bf]' : 'border-gray-200 bg-white'
+                }`}
+              >
                 <div className="flex items-center">
                   <img
                     src={theme.logoUrl || '/logo.png'}
                     alt="Logo"
-                    className="w-14 h-14 object-contain rounded-full shadow-lg"
+                    className={`${stripMainNav ? 'w-11 h-11' : 'w-12 h-12'} object-contain rounded-full shadow-md`}
                   />
                   <span className="ml-3 flex flex-col leading-tight">
                     <span
-                      className={`font-bold text-white text-lg ${theme.brandDisplayFontClass || 'font-leagueSpartan'}`}
-                      style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.45)' }}
+                      className={`font-bold text-lg ${stripMainNav ? 'text-[#2a6a42]' : 'text-gray-900'} ${theme.brandDisplayFontClass || 'font-leagueSpartan'}`}
                     >
                       {brandName}
                     </span>
                     {brandSubtitle ? (
-                      <span className="text-[11px] text-white/90 font-medium mt-0.5">
+                      <span className={`text-[11px] font-medium mt-0.5 ${stripMainNav ? 'text-[#3c6b50]' : 'text-gray-500'}`}>
                         {brandSubtitle}
                       </span>
                     ) : null}
@@ -439,7 +434,11 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                 </div>
                 <motion.button
                   onClick={() => setMenuOpen(false)}
-                  className="text-white hover:text-gray-200 focus:outline-none p-2 rounded-full hover:bg-white/20 transition-all duration-300"
+                  className={`focus:outline-none p-2 rounded-full transition-all duration-300 ${
+                    stripMainNav
+                      ? 'text-[#2a6a42] hover:bg-[#d2ddb5]'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
                   whileTap={{ scale: 0.95 }}
                 >
                   <MdClose className="w-6 h-6" />
@@ -494,23 +493,37 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
               </div>
               )}
 
-                            {/* User Section */}
-                            {user ? (
-                <div className="border-t border-gray-100 p-4 bg-gradient-to-b from-gray-50/50 to-white">
+              {/* User Section */}
+              {user ? (
+                <div
+                  className={`border-t p-4 ${
+                    stripMainNav
+                      ? 'border-[#d5ddbe] bg-[#eef3df]'
+                      : 'border-gray-100 bg-gradient-to-b from-gray-50/50 to-white'
+                  }`}
+                >
                   {/* User Info in Mobile Menu */}
-                  <div className="mb-4 pb-3 border-b border-gray-200">
-                    <div className="flex items-center gap-2">
+                  <div
+                    className={`mb-4 ${
+                      stripMainNav
+                        ? 'rounded-2xl border border-[#d4ddb6] bg-white/90 p-3'
+                        : 'pb-3 border-b border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
                       <FaUserCircle className="text-2xl flex-shrink-0" style={{ color: accent }} />
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-800 text-sm truncate">Welcome!</div>
+                        <div className={`font-semibold text-sm truncate ${stripMainNav ? 'text-[#234f3e]' : 'text-gray-800'}`}>
+                          Welcome!
+                        </div>
                         {user?.email && (
-                          <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-1">
+                          <div className={`flex items-center gap-1 text-xs truncate mt-1 ${stripMainNav ? 'text-[#3f6b57]' : 'text-gray-600'}`}>
                             <MdEmail className="w-3 h-3 flex-shrink-0" />
                             <span className="truncate">{user.email}</span>
                           </div>
                         )}
                         {user?.phone && (
-                          <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-0.5">
+                          <div className={`flex items-center gap-1 text-xs truncate mt-0.5 ${stripMainNav ? 'text-[#3f6b57]' : 'text-gray-600'}`}>
                             <MdPhone className="w-3 h-3 flex-shrink-0" />
                             <span className="truncate">{user.phone}</span>
                           </div>
@@ -518,29 +531,16 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                       </div>
                     </div>
                   </div>
-                  
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <MdPerson className="text-base" />
-                    My Account
-                  </h3>
-                  
-                  <div className="mb-3">
-                    {isGoogleAuthUser ? (
+
+                  {canChangePassword ? (
+                    <div className="mb-3">
                       <button
                         type="button"
-                        className="w-full flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setShowSetupAccount(true);
-                        }}
-                      >
-                        <MdPerson className="text-base group-hover:scale-110 transition-transform duration-300" />
-                        <span className="font-medium text-xs">Setup Account</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="w-full flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 rounded-lg transition-all duration-300 group [&:hover]:text-[color:var(--sidebar-accent)]"
+                        className={`group w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 ${
+                          stripMainNav
+                            ? 'border border-[#d7e0b8] bg-white text-[#2f5f4d] hover:bg-[#f4f8e9]'
+                            : 'text-gray-600 hover:bg-[color:var(--sidebar-accent)]/10 [&:hover]:text-[color:var(--sidebar-accent)]'
+                        }`}
                         onClick={() => {
                           setMenuOpen(false);
                           setShowChangePassword(true);
@@ -549,9 +549,9 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                         <MdPerson className="text-base group-hover:scale-110 transition-transform duration-300" />
                         <span className="font-medium text-xs">Change Password</span>
                       </button>
-                    )}
-                  </div>
-
+                    </div>
+                  ) : null}
+                  
                   {/* Admin/Seller/Delivery Manager/CEO/CFO Options */}
                   {(userIsAdmin || userIsSeller || userIsDeliveryManager || userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
                     <div className="mb-3">
@@ -600,7 +600,11 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
                   {/* Logout Button */}
                   <motion.button
                     onClick={handleLogout}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-red-600 hover:text-white hover:bg-red-500 rounded-lg transition-all duration-300 group border border-red-200 hover:border-red-500"
+                    className={`group w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 ${
+                      stripMainNav
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'text-red-600 hover:text-white hover:bg-red-500 group border border-red-200 hover:border-red-500'
+                    }`}
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                   >
@@ -639,10 +643,6 @@ const Navbar = ({ onSignInClick, onRegisterClick, minimalNav = false }) => {
       <ChangePassword
         isOpen={showChangePassword}
         onClose={() => setShowChangePassword(false)}
-      />
-      <SetupAccountModal
-        isOpen={showSetupAccount}
-        onClose={() => setShowSetupAccount(false)}
       />
     </>
   );
