@@ -29,8 +29,8 @@ const Footer = () => {
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const footerAccent = theme?.accentColor || theme?.primaryColor || '#FE8C00';
   const footerCompanyNamesByPath = {
-    jkfds: 'Jays Kerala kitchen',
-    jkkfds: 'Jays Kerala kitchen',
+    jkfds: 'Jays Kerala Kitchen',
+    jkkfds: 'Jays Kerala Kitchen',
     jlg: 'Jays leefy greens',
     ml: 'Maxhub logistcis',
   };

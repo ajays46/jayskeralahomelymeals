@@ -4,9 +4,11 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiUserPlus, FiCheckCircle, FiTruck } from 'react-icons/fi';
 import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
 import Terms from '../components/Terms';
+import MenuPage from './MenuPage';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
 import { getDashboardRoute, resolveSelectedRoleForDashboard } from '../utils/roleBasedRouting';
@@ -23,6 +25,31 @@ const MOBILE_PATTERN = /^\d{10}$/;
 
 const PRICING_BY_PERIOD = pricingData;
 
+const HOW_IT_WORKS_STEPS = [
+  {
+    title: 'Sign Up',
+    cue: 'Choose plan',
+    icon: FiUserPlus,
+  },
+  {
+    title: 'Confirm',
+    cue: 'One-click booking',
+    icon: FiCheckCircle,
+  },
+  {
+    title: 'Enjoy Meals',
+    cue: 'Daily doorstep delivery',
+    icon: FiTruck,
+  },
+];
+
+const PLAN_COMMON_HIGHLIGHTS = [
+  'Lunch meal included',
+  'Freshly cooked and delivered for your selected day',
+  'Authentic home-style Kerala taste',
+  'Free doorstep delivery across Kochi',
+];
+
 const HomePage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState('login');
@@ -31,6 +58,7 @@ const HomePage = () => {
   const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [selectedDiet, setSelectedDiet] = useState('veg');
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
+  const [hasPromptedGoogleSetup, setHasPromptedGoogleSetup] = useState(false);
   const [leadForm, setLeadForm] = useState({
     mobile: '',
     termsAccepted: false,
@@ -40,6 +68,7 @@ const HomePage = () => {
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
   const gradient = theme.homeGradient || 'from-orange-50 via-white to-orange-50';
+  const supportEmail = import.meta.env.VITE_TERMS_CONTACT_EMAIL || 'support@jayskerala.com';
 
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -79,7 +108,30 @@ const HomePage = () => {
     const digits = String(user?.phone || '').replace(/\D/g, '');
     return digits.length >= 10;
   }, [user?.phone]);
+  const isPhonePasswordCustomer = useMemo(() => {
+    if (!user) return false;
+    const hasEmail = Boolean(String(user?.email || '').trim());
+    return hasUserPhone && !isGoogleUser && !hasEmail;
+  }, [user, hasUserPhone, isGoogleUser]);
   const needsGoogleProfileCompletion = Boolean(user && isGoogleUser && (!hasUserPhone || user?.termsAccepted !== true));
+
+  useEffect(() => {
+    if (!user || !needsGoogleProfileCompletion || hasPromptedGoogleSetup) return;
+
+    const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
+    setLeadForm({
+      mobile: phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '',
+      termsAccepted: Boolean(user?.termsAccepted),
+    });
+    setQuickOrderSheetOpen(true);
+    setHasPromptedGoogleSetup(true);
+  }, [user, needsGoogleProfileCompletion, hasPromptedGoogleSetup, user?.phone, user?.termsAccepted]);
+
+  useEffect(() => {
+    if (!user) {
+      setHasPromptedGoogleSetup(false);
+    }
+  }, [user]);
 
   const handlePricingCardAction = useCallback(() => {
     if (!user) {
@@ -149,28 +201,30 @@ const HomePage = () => {
     );
   }, [leadForm, completeGoogleProfile, navigate, base]);
 
+  if (isPhonePasswordCustomer) {
+    return <MenuPage minimalNav />;
+  }
+
   return (
     <div
-      className={`min-h-screen bg-gradient-to-br ${gradient}`}
+      className={`min-h-screen overflow-x-hidden bg-gradient-to-br ${gradient}`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Navbar minimalNav onSignInClick={openSignInSlider} onRegisterClick={openRegisterSlider} />
       <AuthSlider isOpen={authSliderOpen} onClose={closeAuthSlider} initialTab={authInitialTab} />
 
       <main>
-        <section
-          className="relative isolate overflow-hidden px-0 pb-0 pt-0"
-          style={{ marginLeft: 'calc(50% - 50vw)', marginRight: 'calc(50% - 50vw)' }}
-        >
+        <section className="relative isolate overflow-hidden px-0 pb-0 pt-0">
           <div
-            className="relative flex min-h-[320px] w-full items-center overflow-hidden shadow-[0_20px_70px_rgba(0,0,0,0.20)] sm:min-h-[400px]"
+            className="relative flex min-h-[320px] w-full items-center overflow-hidden sm:min-h-[400px]"
             style={{
-              background: `linear-gradient(135deg, ${accent}20 0%, #111827 35%, #1f2937 100%)`,
+              background: `linear-gradient(135deg, ${accent}10 0%, #111827 30%, #1f2937 100%)`,
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-black/15 to-transparent" />
             <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute -bottom-24 -right-12 h-72 w-72 rounded-full blur-3xl" style={{ backgroundColor: `${accent}50` }} />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent via-[#111827]/80 to-[#111827]" />
 
             <div className="relative z-10 w-full px-5 py-16 sm:px-10 sm:py-20 lg:px-14">
               <div className="mx-auto mt-6 max-w-3xl text-center sm:mt-8">
@@ -206,14 +260,13 @@ const HomePage = () => {
                       className="h-12 shrink-0 rounded-xl px-5 text-sm font-bold text-black transition hover:brightness-105"
                       style={{ backgroundColor: accent }}
                     >
-                      Continue
+                      Go
                     </button>
                   </div>
                 </form>
                 <p className="mt-3 text-xs text-white/75">
                   Try: &quot;Show monthly plans&quot;, &quot;Order today&quot;, or &quot;Sign in&quot;.
                 </p>
-
               </div>
             </div>
           </div>
@@ -223,7 +276,7 @@ const HomePage = () => {
         <section className="relative overflow-hidden px-4 pb-12 pt-0 sm:px-6 sm:pb-14 sm:pt-0 lg:pb-16 lg:pt-0">
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ background: `linear-gradient(180deg, #1f2937 0%, #111827 40%, ${accent}1F 100%)` }}
+            style={{ background: `linear-gradient(180deg, #111827 0%, #111827 42%, ${accent}1F 100%)` }}
           />
           <div className="relative mx-auto max-w-6xl">
             <div ref={pricingRef} className="mt-10 text-center">
@@ -233,12 +286,12 @@ const HomePage = () => {
               </h3>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-white/20 bg-white/10 p-3 shadow-sm backdrop-blur">
-              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <div className="mx-auto mt-4 w-full max-w-2xl rounded-xl border border-white/20 bg-white/10 p-2 shadow-sm backdrop-blur md:w-fit md:max-w-full md:p-1.5">
+              <div className="grid w-full grid-cols-2 gap-1.5 md:flex md:flex-wrap md:items-center md:justify-center md:gap-1">
                 <button
                   type="button"
                   onClick={() => setSelectedDiet('veg')}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition sm:w-auto ${
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition md:px-3 ${
                     selectedDiet === 'veg' ? 'text-white' : 'bg-white/20 text-white/85'
                   }`}
                   style={selectedDiet === 'veg' ? { backgroundColor: accent } : undefined}
@@ -248,7 +301,7 @@ const HomePage = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedDiet('nonVeg')}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition sm:w-auto ${
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition md:px-3 ${
                     selectedDiet === 'nonVeg' ? 'text-white' : 'bg-white/20 text-white/85'
                   }`}
                   style={selectedDiet === 'nonVeg' ? { backgroundColor: accent } : undefined}
@@ -256,13 +309,13 @@ const HomePage = () => {
                   Non-Veg
                 </button>
               </div>
-              <div className="mt-2 grid w-full grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center">
+              <div className="mt-1.5 grid w-full grid-cols-3 gap-1.5 md:mt-1 md:flex md:flex-wrap md:items-center md:gap-1">
                 {['daily', 'weekly', 'monthly'].map((period) => (
                   <button
                     key={period}
                     type="button"
                     onClick={() => setSelectedPeriod(period)}
-                    className={`rounded-full px-3 py-2 text-sm font-semibold capitalize transition sm:w-auto ${
+                    className={`rounded-full px-3 py-1.5 text-sm font-semibold capitalize transition md:px-2.5 ${
                       selectedPeriod === period ? 'text-white' : 'bg-white/20 text-white/85'
                     }`}
                     style={selectedPeriod === period ? { backgroundColor: accent } : undefined}
@@ -273,26 +326,40 @@ const HomePage = () => {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">What&apos;s included</p>
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {PLAN_COMMON_HIGHLIGHTS.map((point) => (
+                  <li
+                    key={point}
+                    className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/85"
+                  >
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
               {visiblePricingCards.map((card) => (
                 <button
                   type="button"
                   key={card.title}
                   onClick={handlePricingCardAction}
-                  className="group rounded-2xl border border-gray-200/80 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:shadow-[0_12px_28px_rgba(0,0,0,0.12)] active:scale-[0.99] active:shadow-[0_0_0_2px_rgba(251,146,60,0.25)]"
+                  className="group rounded-3xl border border-white/70 bg-white/95 p-3.5 text-left shadow-[0_10px_30px_rgba(15,23,42,0.10)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(15,23,42,0.16)] active:scale-[0.99]"
                 >
-                  <h3 className="text-base font-black text-gray-900 md:text-lg">{card.title}</h3>
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 md:hidden">
+                  <h3 className="text-sm font-black text-gray-900 md:text-base">{card.title}</h3>
+                  <p className="mt-2 inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
                     {selectedDiet === 'veg' ? 'Veg plan' : 'Non-veg plan'}
                   </p>
-                  <p className="mt-2 text-2xl font-black text-gray-900 md:mt-3">
+                  <p className="mt-1.5 text-xl font-black text-gray-900 md:text-2xl">
                     {selectedDiet === 'veg' ? card.veg : card.nonVeg}
                   </p>
-                  <p className="mt-2 text-xs leading-relaxed text-gray-500 md:hidden">
-                    {selectedDiet === 'veg' ? card.vegHint : card.nonVegHint}
-                  </p>
-                  <div className="mt-5 hidden border-t border-gray-200 pt-3 md:flex md:items-center md:justify-center">
-                    <span className="text-sm font-medium text-gray-500 transition-colors group-hover:text-gray-700">
+                  <div className="mt-3 flex">
+                    <span
+                      className="ml-auto inline-flex items-center justify-center rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all group-hover:translate-x-0.5"
+                      style={{ color: accent, borderColor: `${accent}66`, backgroundColor: `${accent}1A` }}
+                    >
                       Book Now →
                     </span>
                   </div>
@@ -300,6 +367,56 @@ const HomePage = () => {
               ))}
             </div>
 
+          </div>
+        </section>
+
+        <section className="bg-gradient-to-b from-[#eadbc8]/70 via-[#dddad5]/60 to-transparent px-4 pb-4 pt-3 sm:px-6 lg:pb-6">
+          <div className="mx-auto max-w-5xl rounded-3xl bg-gray-100/90 p-4 shadow-sm ring-1 ring-gray-200 sm:p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">How It Works</p>
+            <h2 className="mt-2 text-xl font-black tracking-tight text-gray-900 sm:text-2xl">
+              Start your meal plan in 3 simple steps
+            </h2>
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              {HOW_IT_WORKS_STEPS.map((step, index) => (
+                <article key={step.title} className="rounded-2xl border border-gray-200 bg-gray-100 p-3.5 text-center">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: accent }}>
+                    Step {index + 1}
+                  </p>
+                  <div className="mx-auto mt-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-white ring-1 ring-gray-200">
+                    <step.icon className="h-5 w-5 text-gray-800" aria-hidden="true" />
+                  </div>
+                  <h3 className="mt-2 text-base font-bold text-gray-900">{step.title}</h3>
+                  <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.1em] text-gray-500">{step.cue}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-8 px-4 pb-14 sm:mt-10 sm:px-6 lg:pb-16">
+          <div className="mx-auto flex max-w-6xl flex-col gap-4 rounded-3xl bg-gray-900 p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Quick links and support</p>
+              <h3 className="mt-2 text-2xl font-black">Need help before ordering?</h3>
+              <p className="mt-2 text-sm text-white/80">
+                Manage your food bookings, check subscription support, and contact us for delivery updates.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(`${base}/terms`)}
+                className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+              >
+                Terms & Conditions
+              </button>
+              <a
+                href={`mailto:${supportEmail}`}
+                className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+              >
+                Contact Support
+              </a>
+            </div>
           </div>
         </section>
       </main>
@@ -310,8 +427,8 @@ const HomePage = () => {
             className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-5 shadow-2xl md:bottom-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Complete profile</p>
-            <h4 className="mt-2 text-xl font-black text-gray-900">Add your mobile number</h4>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Setup account</p>
+            <h4 className="mt-2 text-xl font-black text-gray-900">Get started with your mobile number</h4>
             <form onSubmit={submitLeadForm} className="mt-4 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm font-semibold text-gray-700">+91</span>
@@ -352,6 +469,14 @@ const HomePage = () => {
                 style={{ backgroundColor: accent }}
               >
                 {isCompletingGoogleProfile ? 'Saving...' : 'Continue'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickOrderSheetOpen(false)}
+                disabled={isCompletingGoogleProfile}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Skip for now
               </button>
             </form>
           </div>
