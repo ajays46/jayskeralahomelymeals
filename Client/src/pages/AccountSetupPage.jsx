@@ -110,7 +110,7 @@ const AccountSetupPage = () => {
             <div className="relative z-10">
               <h2 className="mt-2 text-3xl font-black leading-[1.05] text-[#f3f1de] sm:text-4xl">Exclusive Workday Batches</h2>
               <p className="mt-3 text-sm font-semibold text-[#d9e8de]">
-                ✨ Welcome back! You have unlocked today&apos;s exclusive, chef-crafted midday fuel.
+                ✨ Welcome back! You are one quick step away. Tap any batch below to verify your mobile number and instantly secure your delivery slot.
               </p>
               <div className="mt-4 overflow-x-auto scrollbar-hide">
                 <div className="inline-flex min-w-full items-center gap-2 sm:flex sm:flex-wrap sm:justify-center">
@@ -124,10 +124,37 @@ const AccountSetupPage = () => {
                   ))}
                 </div>
               </div>
+              {!isSetupComplete ? (
+                <div className="mt-4 rounded-2xl border border-[#d6e4dc] bg-[#f6fbf8] p-4 text-[#1f4e45] shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
+                  <p className="text-sm font-bold">🔒 Account Status: Mobile Verification Pending</p>
+                  <p className="mt-1 text-xs text-[#4a5f58] sm:text-sm">
+                    To maintain peak kitchen freshness, active ordering is reserved for verified profiles.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleReserveClick}
+                    className="mt-3 rounded-full bg-[#1f6f5f] px-4 py-2 text-xs font-bold text-white transition hover:brightness-105 sm:text-sm"
+                  >
+                    👉 🔒 Tap here to instantly verify your phone number and open checkout
+                  </button>
+                </div>
+              ) : null}
 
               <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {lunchHighlights.map((item) => (
-                <article key={item.title} className="overflow-hidden rounded-2xl border border-[#ded5c7] bg-white shadow-[0_10px_22px_rgba(15,23,42,0.08)]">
+                <article
+                  key={item.title}
+                  onClick={handleReserveClick}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleReserveClick();
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer overflow-hidden rounded-2xl border border-[#ded5c7] bg-white shadow-[0_10px_22px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] focus:outline-none focus:ring-2 focus:ring-[#1f6f5f]/30"
+                >
                   <div className="relative h-36 w-full">
                     <img
                       src={item.image}
@@ -146,13 +173,9 @@ const AccountSetupPage = () => {
                   <p className="mt-2 text-sm text-[#3f4a46]">
                     <span className="font-semibold text-[#234b43]">The Energy:</span> {item.energy}
                   </p>
-                  <button
-                    type="button"
-                    onClick={handleReserveClick}
-                    className="mt-3 rounded-full border border-[#d1c7b8] bg-[#f7f2e8] px-3.5 py-1.5 text-xs font-semibold text-[#234b43] transition hover:bg-[#eee8dd]"
-                  >
+                  <p className="mt-3 inline-flex rounded-full border border-[#d1c7b8] bg-[#f7f2e8] px-3.5 py-1.5 text-xs font-semibold text-[#234b43]">
                     {isSetupComplete ? 'Reserve Today\'s Batch' : '🔒 Reserve Today\'s Batch'}
-                  </button>
+                  </p>
                   </div>
                 </article>
               ))}
