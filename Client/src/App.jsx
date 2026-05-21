@@ -10,7 +10,7 @@ import useAuthStore from './stores/Zustand.store';
 import api from './api/axios';
 import { TenantProvider, useTenant } from './context/TenantContext';
 import { getCompanyBasePathFallback } from './utils/companyPaths';
-import { shouldEnforceAccountSetup } from './utils/roleBasedRouting';
+import { shouldForceProtectedPage } from './utils/roleBasedRouting';
 
 const Terms = lazy(() => import('./components/Terms'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
@@ -141,12 +141,9 @@ function TenantLayout() {
 
     const normalizedPath = String(location.pathname || '').replace(/\/+$/, '') || '/';
     const isAccountSetupPage = normalizedPath === `/${urlSeg}/account-setup`;
-    const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
-    const needsAccountSetup =
-      shouldEnforceAccountSetup(roles) &&
-      (phoneDigits.length < 10 || user?.termsAccepted !== true);
+    const shouldStayOnProtectedPage = shouldForceProtectedPage(roles, user);
 
-    if (!needsAccountSetup || isAccountSetupPage) return;
+    if (!shouldStayOnProtectedPage || isAccountSetupPage) return;
     navigate(`/${urlSeg}/account-setup`, { replace: true });
   }, [
     isAuthenticated,

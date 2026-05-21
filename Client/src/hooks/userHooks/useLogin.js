@@ -3,7 +3,7 @@ import api from '../../api/axios';
 import { showLoginError, showLoginSuccess } from '../../utils/toastConfig.jsx';
 import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
-import { getDashboardRoute, shouldEnforceAccountSetup } from '../../utils/roleBasedRouting';
+import { getDashboardRoute, shouldForceProtectedPage } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { trackGaEvent } from '../../utils/analytics';
 
@@ -199,11 +199,8 @@ export const useLogin = () => {
         }
         const targetBasePath = data.data?.companyPath ? `/${String(data.data.companyPath).trim()}` : basePath;
         const isMl = (data.data?.companyPath || '').toLowerCase() === 'ml';
-        const phoneDigits = String(data.data?.phone || '').replace(/\D/g, '');
-        const needsAccountSetup =
-          shouldEnforceAccountSetup(roles) &&
-          (phoneDigits.length < 10 || data.data?.termsAccepted !== true);
-        if (!isMl && needsAccountSetup) {
+        const shouldLandOnProtectedPage = shouldForceProtectedPage(roles, data.data);
+        if (!isMl && shouldLandOnProtectedPage) {
           navigate(`${targetBasePath}/account-setup`, { replace: true });
           return;
         }
