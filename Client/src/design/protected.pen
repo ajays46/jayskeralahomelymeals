@@ -1,0 +1,14 @@
+{
+  "version": "2.11",
+  "children": [
+    {
+      "type": "rectangle",
+      "id": "VwrME",
+      "x": -184,
+      "y": -145,
+      "fill": "#CCCCCC",
+      "width": 433,
+      "height": 319
+    }
+  ]
+}

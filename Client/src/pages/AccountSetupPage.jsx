@@ -12,37 +12,29 @@ const MOBILE_PATTERN = /^\d{10}$/;
 
 const lunchHighlights = [
   {
-    title: 'The Power Combo',
-    performance:
-      'High-protein traditional curry, clean complex carbs, and fresh seasonal microgreens.',
-    energy:
-      'Cultivated with authentic Kerala roots and engineered specifically to defeat the afternoon slump.',
+    title: 'Signature Veg Plan',
+    cta: 'Select Veg Plan',
+    badge: '🟢 Veg',
+    badgeColor: '#2d7a5f',
+    icon1: '🥗',
+    line1: 'Authentic Nadan curries infused with fresh microgreens & mushrooms.',
+    icon2: '⚡',
+    line2: 'Clean carbs engineered for sustained mental focus.',
     image: '/oonu.jpg',
   },
   {
-    title: 'The Clean Fuel Bowl',
-    performance:
-      'An ultra-low-oil, fiber-rich smart office meal featuring light preparations and rotating seasonal sides.',
-    energy:
-      'Designed for zero bloating and sustained mental focus during heavy afternoon corporate meetings.',
-    image: '/rice.png',
-  },
-  {
-    title: 'The Premium Wellness Plate',
-    performance:
-      'Fresh, organic farm-to-table soup and super salad pairings, packed strictly in non-plastic, eco-friendly paper packaging.',
-    energy:
-      'Tailored for health-conscious senior staff who refuse to compromise on clean, elite ingredients.',
-    image: '/combo%20(2).png',
+    title: 'Signature Non-Veg Plan',
+    cta: 'Select Non-Veg Plan',
+    badge: '🔴 Non-Veg',
+    badgeColor: '#b94040',
+    icon1: '🍗',
+    line1: 'High-protein traditional chicken or fish curries.',
+    icon2: '🚀',
+    line2: 'Built with Kerala roots to defeat the afternoon slump.',
+    image: '/banner1.png',
   },
 ];
 
-const trustBadges = [
-  '🌱 100% Microgreen Infused',
-  '🚫 Zero Plastic (Packed in Eco-Friendly Premium Paper)',
-  '⚡ Precise Workday Delivery Windows',
-  '🍲 Chef-Crafted, Ultra-Low Oil',
-];
 
 const AccountSetupPage = () => {
   const navigate = useNavigate();
@@ -103,83 +95,122 @@ const AccountSetupPage = () => {
   return (
     <div className="min-h-screen bg-[#f6f1e7]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <Navbar minimalNav />
-      <main className="pt-16 sm:pt-[72px] pb-28 sm:pb-10">
+      <main
+        className={`pt-16 sm:pt-[72px] sm:pb-10 ${!showPhoneGate && !isSetupComplete ? 'pb-16' : 'pb-8'}`}
+      >
+
+        {/* ── HERO ── */}
+        <section className="relative w-full overflow-hidden border-b border-[#ddd8cc] bg-[#f4f3ed] px-4 pb-8 pt-8 sm:px-6 sm:pb-10 sm:pt-10 lg:px-8"
+          style={{
+            backgroundImage: `radial-gradient(circle, #1f6f5f22 1.5px, transparent 1.5px)`,
+            backgroundSize: '22px 22px',
+          }}
+        >
+          <div className="mx-auto max-w-4xl">
+
+            {/* brand + headline */}
+            <div className="text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#1f6f5f]">Jay's Kerala Kitchen</p>
+              <h1 className="mt-2 text-2xl font-black leading-[1.1] text-[#183f38] sm:text-3xl lg:text-[2.4rem]">
+                Healthy Kerala Food. Made for Busy Days.
+              </h1>
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-[#5f5f57] sm:text-base">
+                Chef-crafted traditional lunches delivered fresh to your space. Authentic flavors made light and healthy to keep you energized all afternoon.
+              </p>
+            </div>
+
+          </div>
+        </section>
+
+        {/* ── PLAN SELECTION ── */}
         <section className="relative w-full overflow-hidden border-y border-[#275447] bg-gradient-to-r from-[#12392f] via-[#154338] to-[#11352d] px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <div className="pointer-events-none absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
             <div className="relative z-10">
-              <h2 className="mt-2 text-3xl font-black leading-[1.05] text-[#f3f1de] sm:text-4xl">Exclusive Workday Batches</h2>
-              <p className="mt-3 text-sm font-semibold text-[#d9e8de]">
-                ✨ Welcome back! You are one quick step away. Tap any batch below to verify your mobile number and instantly secure your delivery slot.
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8fbfb2]">🥗 Essential Workday Nutrition</p>
+              <p className="mt-2 text-sm font-semibold text-[#d9e8de]">
+                ✨ Welcome back! Choose your baseline to unlock today's menu.
               </p>
-              <div className="mt-4 overflow-x-auto scrollbar-hide">
-                <div className="inline-flex min-w-full items-center gap-2 sm:flex sm:flex-wrap sm:justify-center">
-                  {trustBadges.map((badge) => (
-                    <span
-                      key={badge}
-                      className="whitespace-nowrap rounded-full border border-[#3a6a5d] bg-[#123a31]/80 px-3 py-1.5 text-[11px] font-semibold text-[#e6efe9] sm:text-xs"
-                    >
-                      {badge}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              {!isSetupComplete ? (
-                <div className="mt-4 rounded-2xl border border-[#d6e4dc] bg-[#f6fbf8] p-4 text-[#1f4e45] shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
-                  <p className="text-sm font-bold">🔒 Account Status: Mobile Verification Pending</p>
-                  <p className="mt-1 text-xs text-[#4a5f58] sm:text-sm">
-                    To maintain peak kitchen freshness, active ordering is reserved for verified profiles.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleReserveClick}
-                    className="mt-3 rounded-full bg-[#1f6f5f] px-4 py-2 text-xs font-bold text-white transition hover:brightness-105 sm:text-sm"
-                  >
-                    👉 🔒 Tap here to instantly verify your phone number and open checkout
-                  </button>
-                </div>
-              ) : null}
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {lunchHighlights.map((item) => (
-                <article
-                  key={item.title}
-                  onClick={handleReserveClick}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      handleReserveClick();
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  className="cursor-pointer overflow-hidden rounded-2xl border border-[#ded5c7] bg-white shadow-[0_10px_22px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] focus:outline-none focus:ring-2 focus:ring-[#1f6f5f]/30"
-                >
-                  <div className="relative h-36 w-full">
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0f2d25]/60 via-[#1f5a4b]/20 to-transparent" />
-                  </div>
-                  <div className="p-4">
-                  <h3 className="text-lg font-bold text-[#244f46]">{item.title}</h3>
-                  <p className="mt-2 text-sm text-[#3f4a46]">
-                    <span className="font-semibold text-[#234b43]">The Performance:</span> {item.performance}
-                  </p>
-                  <p className="mt-2 text-sm text-[#3f4a46]">
-                    <span className="font-semibold text-[#234b43]">The Energy:</span> {item.energy}
-                  </p>
-                  <p className="mt-3 inline-flex rounded-full border border-[#d1c7b8] bg-[#f7f2e8] px-3.5 py-1.5 text-xs font-semibold text-[#234b43]">
-                    {isSetupComplete ? 'Reserve Today\'s Batch' : '🔒 Reserve Today\'s Batch'}
-                  </p>
-                  </div>
-                </article>
-              ))}
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                {lunchHighlights.map((item) => (
+                  <article
+                    key={item.title}
+                    onClick={handleReserveClick}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handleReserveClick();
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer overflow-hidden rounded-2xl bg-white shadow-[0_10px_28px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,23,42,0.18)] focus:outline-none focus:ring-2 focus:ring-[#1f6f5f]/30"
+                  >
+                    {/* image */}
+                    <div className="relative h-40 w-full sm:h-44">
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b22]/70 via-[#1a4a3b]/20 to-transparent" />
+                      {/* pill badge */}
+                      <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white"
+                        style={{ backgroundColor: item.badgeColor }}>
+                        {item.badge}
+                      </span>
+                    </div>
+
+                    {/* body */}
+                    <div className="p-5">
+                      <h3 className="text-lg font-black text-[#183f38]">{item.title}</h3>
+
+                      <p className="mt-3 flex items-start gap-2 text-sm text-[#3f4a46]">
+                        <span className="mt-0.5 shrink-0 text-base">{item.icon1}</span>
+                        <span>{item.line1}</span>
+                      </p>
+                      <p className="mt-2 flex items-start gap-2 text-sm text-[#3f4a46]">
+                        <span className="mt-0.5 shrink-0 text-base">{item.icon2}</span>
+                        <span>{item.line2}</span>
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleReserveClick(); }}
+                        className="mt-5 w-full rounded-full py-2.5 text-sm font-bold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
+                        style={{ backgroundColor: '#1f6f5f' }}
+                      >
+                        {isSetupComplete ? `${item.cta} →` : `🔒 ${item.cta}`}
+                      </button>
+                    </div>
+                  </article>
+                ))}
               </div>
+
+            </div>
+          </div>
+        </section>
+
+        <section className="w-full border-b border-[#ddd8cc] bg-[#f4f3ed] px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { icon: '📋', title: 'Daily, Weekly & Monthly Subscription' },
+                { icon: '🛵', title: 'Direct Delivery' },
+                { icon: '🌿', title: 'Healthy Ingredients' },
+                { icon: '♻️', title: 'Plastic-Free Packaging' },
+              ].map((f) => (
+                <div
+                  key={f.title}
+                  className="rounded-xl border border-[#e2dccf] bg-white p-3 text-[#244f46] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
+                >
+                  <p className="text-lg">{f.icon}</p>
+                  <p className="mt-1 text-xs font-semibold sm:text-sm">{f.title}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
