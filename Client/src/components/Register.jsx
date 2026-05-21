@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
 import { GoogleLogin } from '@react-oauth/google';
 import {
@@ -40,11 +40,6 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
   const [captchaData, setCaptchaData] = useState({ captchaToken: '' });
   const [captchaRenderKey, setCaptchaRenderKey] = useState(0);
   const [errors, setErrors] = useState({});
-  const [showGoogleConsentInline, setShowGoogleConsentInline] = useState(false);
-  const [showGoogleConsentStatic, setShowGoogleConsentStatic] = useState(false);
-  const [hasShownGoogleConsentNotice, setHasShownGoogleConsentNotice] = useState(false);
-  const [isGoogleConsentReady, setIsGoogleConsentReady] = useState(false);
-  const googleConsentTimerRef = useRef(null);
 
   const { mutate: register, isPending } = useRegister();
   const { mutate: googleAuthMutation, isPending: isGooglePending } = useGoogleAuth();
@@ -78,35 +73,6 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
   const strengthLabel = hasPasswordInput ? strengthLabelMap[strengthLevel] : '';
   const strengthTone = hasPasswordInput ? strengthToneMap[strengthLevel] : 'text-gray-500';
   const activeSegmentClass = hasPasswordInput ? strengthSegmentColorMap[strengthLevel] : 'bg-gray-200';
-
-  useEffect(() => () => {
-    if (googleConsentTimerRef.current) {
-      clearTimeout(googleConsentTimerRef.current);
-    }
-  }, []);
-
-  const triggerGoogleConsentNotice = () => {
-    if (hasShownGoogleConsentNotice) return;
-
-    setHasShownGoogleConsentNotice(true);
-    setShowGoogleConsentInline(true);
-    setShowGoogleConsentStatic(false);
-    if (googleConsentTimerRef.current) {
-      clearTimeout(googleConsentTimerRef.current);
-    }
-    googleConsentTimerRef.current = setTimeout(() => {
-      setShowGoogleConsentInline(false);
-      setShowGoogleConsentStatic(true);
-      setIsGoogleConsentReady(true);
-    }, 1000);
-  };
-
-  const handleGoogleClickCapture = (event) => {
-    if (isGoogleConsentReady) return;
-    event.preventDefault();
-    event.stopPropagation();
-    triggerGoogleConsentNotice();
-  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -308,19 +274,15 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
         className="w-full max-w-md mx-auto rounded-3xl border border-[#d8cebe] bg-[#f7f2e8]/95 p-4 pt-0 lg:pt-4 md:p-5 md:pt-4 shadow-[0_18px_50px_rgba(31,78,69,0.14)]"
         style={{ ['--auth-accent']: accent }}
       >
-        <div className="hidden md:flex justify-center gap-4 mb-4">
-          <div
-            onClickCapture={handleGoogleClickCapture}
-          >
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => {
-                setErrors(prev => ({ ...prev, submit: 'Google signup failed. Please try again.' }));
-              }}
-              text="signup_with"
-              shape="pill"
-            />
-          </div>
+        <div className="flex justify-center gap-4 mt-3 mb-4">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => {
+              setErrors(prev => ({ ...prev, submit: 'Google signup failed. Please try again.' }));
+            }}
+            text="signup_with"
+            shape="pill"
+          />
         </div>
         <form className="space-y-3 mt-1" onSubmit={handleSubmit}>
           <div className="space-y-1.5">
