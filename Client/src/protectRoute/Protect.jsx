@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuthStore from "../stores/Zustand.store";
 import { getCompanyBasePathFallback } from "../utils/companyPaths";
 import api from "../api/axios";
-import { shouldEnforceAccountSetup } from "../utils/roleBasedRouting";
+import { shouldForceProtectedPage } from "../utils/roleBasedRouting";
 
 /**
  * ProtectedRoute - Route protection component with authentication guard.
@@ -24,12 +24,10 @@ const ProtectedRoute = ({ children }) => {
   const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
   const isAccountSetupRoute = /^\/[^/]+\/account-setup$/.test(normalizedPath);
   const isMlTenant = String(pathSegment || '').toLowerCase() === 'ml';
-  const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
-  const needsAccountSetup =
+  const shouldStayOnProtectedPage =
     Boolean(user) &&
     !isMlTenant &&
-    shouldEnforceAccountSetup(roles) &&
-    (phoneDigits.length < 10 || user?.termsAccepted !== true);
+    shouldForceProtectedPage(roles, user);
 
   const hasUserNoToken = !!(user && isAuthenticated && !accessToken);
   const [checkingSession, setCheckingSession] = useState(hasUserNoToken);
@@ -69,7 +67,7 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to={companyHome} replace />;
   }
 
-  if (needsAccountSetup && !isAccountSetupRoute) {
+  if (shouldStayOnProtectedPage && !isAccountSetupRoute) {
     return <Navigate to={`${companyHome}/account-setup`} replace />;
   }
 

@@ -15,6 +15,17 @@ export function shouldEnforceAccountSetup(roles) {
 }
 
 /**
+ * Customer users authenticated via email/Google should always land on protected page.
+ * Staff roles continue to their role-specific dashboards.
+ */
+export function shouldForceProtectedPage(roles, user) {
+  if (!shouldEnforceAccountSetup(roles)) return false;
+  const hasEmail = Boolean(String(user?.email || '').trim());
+  const isGoogleAuth = Boolean(user?.isGoogleAuth);
+  return hasEmail || isGoogleAuth;
+}
+
+/**
  * Whether persisted `activeRole` should drive `getDashboardRoute` (third arg).
  * CXO may use DM/Seller/DE dashboards without those roles in the JWT list.
  */
