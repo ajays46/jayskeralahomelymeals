@@ -322,11 +322,6 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             />
           </div>
         </div>
-        {(showGoogleConsentInline || showGoogleConsentStatic) && (
-          <p className={`hidden md:block text-center text-xs mb-3 ${showGoogleConsentInline ? 'text-amber-700 font-medium' : 'text-gray-500'}`}>
-            By clicking above, you agree to our Terms and Privacy Policy.
-          </p>
-        )}
         <form className="space-y-3 mt-1" onSubmit={handleSubmit}>
           <div className="space-y-1.5">
             <div>

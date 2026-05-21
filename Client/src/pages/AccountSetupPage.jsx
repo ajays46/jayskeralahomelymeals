@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Terms from '../components/Terms';
@@ -13,25 +13,35 @@ const MOBILE_PATTERN = /^\d{10}$/;
 const lunchHighlights = [
   {
     title: 'The Power Combo',
-    description:
-      'High-protein traditional curry, clean complex carbs, and fresh seasonal microgreens. Engineered to fight the afternoon slump.',
-    image:
-      'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=1200&q=80',
+    performance:
+      'High-protein traditional curry, clean complex carbs, and fresh seasonal microgreens.',
+    energy:
+      'Cultivated with authentic Kerala roots and engineered specifically to defeat the afternoon slump.',
+    image: '/oonu.jpg',
   },
   {
     title: 'The Clean Fuel Bowl',
-    description:
-      'An ultra-low-oil, fiber-rich corporate meal designed for zero bloating and sustained mental focus.',
-    image:
-      'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=80',
+    performance:
+      'An ultra-low-oil, fiber-rich smart office meal featuring light preparations and rotating seasonal sides.',
+    energy:
+      'Designed for zero bloating and sustained mental focus during heavy afternoon corporate meetings.',
+    image: '/rice.png',
   },
   {
-    title: 'The Clean Slate Soup & Salad Combo',
-    description:
-      'Fresh, organic produce packed strictly in non-plastic, eco-friendly paper packaging.',
-    image:
-      'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?auto=format&fit=crop&w=1200&q=80',
+    title: 'The Premium Wellness Plate',
+    performance:
+      'Fresh, organic farm-to-table soup and super salad pairings, packed strictly in non-plastic, eco-friendly paper packaging.',
+    energy:
+      'Tailored for health-conscious senior staff who refuse to compromise on clean, elite ingredients.',
+    image: '/combo%20(2).png',
   },
+];
+
+const trustBadges = [
+  '🌱 100% Microgreen Infused',
+  '🚫 Zero Plastic (Packed in Eco-Friendly Premium Paper)',
+  '⚡ Precise Workday Delivery Windows',
+  '🍲 Chef-Crafted, Ultra-Low Oil',
 ];
 
 const AccountSetupPage = () => {
@@ -41,25 +51,25 @@ const AccountSetupPage = () => {
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
   const { mutate: completeProfile, isPending } = useCompleteGoogleProfile();
+  const initialPhoneDigits = String(user?.phone || '').replace(/\D/g, '');
+  const initialSetupComplete = initialPhoneDigits.length >= 10 && user?.termsAccepted === true;
 
   const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [showPhoneGate, setShowPhoneGate] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
+  const [isSetupComplete, setIsSetupComplete] = useState(initialSetupComplete);
   const [form, setForm] = useState({
-    phone: String(user?.phone || '').replace(/\D/g, '').slice(-10),
+    phone: initialPhoneDigits.slice(-10),
     termsAccepted: Boolean(user?.termsAccepted),
   });
 
-  const needsSetup = useMemo(() => {
-    const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
-    return phoneDigits.length < 10 || user?.termsAccepted !== true;
-  }, [user?.phone, user?.termsAccepted]);
-
-  useEffect(() => {
-    if (needsSetup) return;
-    navigate(`${tenant?.companyPath ? `/${tenant.companyPath}` : ''}/menu`, { replace: true });
-  }, [needsSetup, navigate, tenant?.companyPath]);
-
-  if (!needsSetup) return null;
+  const handleReserveClick = () => {
+    if (isSetupComplete) {
+      setShowComingSoon(true);
+      return;
+    }
+    setShowPhoneGate(true);
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -79,8 +89,8 @@ const AccountSetupPage = () => {
         onSuccess: (response) => {
           if (!response?.success) return;
           showSuccessToast('Account activated successfully.', 'Done');
+          setIsSetupComplete(true);
           setShowPhoneGate(false);
-          navigate(`${tenant?.companyPath ? `/${tenant.companyPath}` : ''}/menu`, { replace: true });
         },
         onError: (error) => {
           const message = error?.response?.data?.message || 'Unable to update account details.';
@@ -93,15 +103,27 @@ const AccountSetupPage = () => {
   return (
     <div className="min-h-screen bg-[#f6f1e7]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <Navbar minimalNav />
-      <main className="pt-16 sm:pt-[72px] pb-10">
+      <main className="pt-16 sm:pt-[72px] pb-28 sm:pb-10">
         <section className="relative w-full overflow-hidden border-y border-[#275447] bg-gradient-to-r from-[#12392f] via-[#154338] to-[#11352d] px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <div className="pointer-events-none absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
             <div className="relative z-10">
-              <h2 className="mt-2 text-3xl font-black leading-[1.05] text-[#f3f1de] sm:text-4xl">Exclusive Healthy Combos</h2>
+              <h2 className="mt-2 text-3xl font-black leading-[1.05] text-[#f3f1de] sm:text-4xl">Exclusive Workday Batches</h2>
               <p className="mt-3 text-sm font-semibold text-[#d9e8de]">
-                ✨ Welcome back! You have unlocked today&apos;s exclusive kitchen batches.
+                ✨ Welcome back! You have unlocked today&apos;s exclusive, chef-crafted midday fuel.
               </p>
+              <div className="mt-4 overflow-x-auto scrollbar-hide">
+                <div className="inline-flex min-w-full items-center gap-2 sm:flex sm:flex-wrap sm:justify-center">
+                  {trustBadges.map((badge) => (
+                    <span
+                      key={badge}
+                      className="whitespace-nowrap rounded-full border border-[#3a6a5d] bg-[#123a31]/80 px-3 py-1.5 text-[11px] font-semibold text-[#e6efe9] sm:text-xs"
+                    >
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              </div>
 
               <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {lunchHighlights.map((item) => (
@@ -118,15 +140,18 @@ const AccountSetupPage = () => {
                   </div>
                   <div className="p-4">
                   <h3 className="text-lg font-bold text-[#244f46]">{item.title}</h3>
-                  <p className="mt-2 text-sm text-[#3f4a46]">{item.description}</p>
+                  <p className="mt-2 text-sm text-[#3f4a46]">
+                    <span className="font-semibold text-[#234b43]">The Performance:</span> {item.performance}
+                  </p>
+                  <p className="mt-2 text-sm text-[#3f4a46]">
+                    <span className="font-semibold text-[#234b43]">The Energy:</span> {item.energy}
+                  </p>
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowPhoneGate(true);
-                    }}
+                    onClick={handleReserveClick}
                     className="mt-3 rounded-full border border-[#d1c7b8] bg-[#f7f2e8] px-3.5 py-1.5 text-xs font-semibold text-[#234b43] transition hover:bg-[#eee8dd]"
                   >
-                    🔒 Reserve Today&apos;s Batch
+                    {isSetupComplete ? 'Reserve Today\'s Batch' : '🔒 Reserve Today\'s Batch'}
                   </button>
                   </div>
                 </article>
@@ -201,6 +226,39 @@ const AccountSetupPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+      {!showPhoneGate && !isSetupComplete ? (
+        <div className="fixed inset-x-0 bottom-0 z-[120] px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 sm:hidden">
+          <div className="mx-auto flex max-w-xl items-center justify-between gap-2 rounded-2xl border border-[#d8cebe] bg-[#fff9ed]/95 px-3 py-2.5 shadow-[0_10px_24px_rgba(15,23,42,0.16)] backdrop-blur">
+            <p className="text-xs font-semibold text-[#244f46]">📱 Ready to experience clean energy?</p>
+            <button
+              type="button"
+              onClick={() => setShowPhoneGate(true)}
+              className="rounded-full bg-[#1f6f5f] px-3 py-1.5 text-[11px] font-bold text-white"
+            >
+              🔒 Verify Mobile to Unlock Menus
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {showComingSoon ? (
+        <div className="fixed inset-0 z-[145] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-[#d9cfbf] bg-white p-5 text-center shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6b60]">Reserve</p>
+            <h3 className="mt-2 text-xl font-black text-[#183f38]">Coming Soon</h3>
+            <p className="mt-2 text-sm text-[#5f5f57]">
+              Batch reservation will be enabled shortly. Stay tuned.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowComingSoon(false)}
+              className="mt-5 rounded-xl px-4 py-2 text-sm font-semibold text-white"
+              style={{ backgroundColor: accent }}
+            >
+              Close
+            </button>
           </div>
         </div>
       ) : null}

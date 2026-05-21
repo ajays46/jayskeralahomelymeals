@@ -19,7 +19,7 @@ const TenantHome = () => {
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
-  const heroImage = theme.heroImage || '/banner_one.jpg';
+  const heroImage = '/banner%20.webp';
 
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);

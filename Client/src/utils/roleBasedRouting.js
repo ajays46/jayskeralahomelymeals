@@ -5,12 +5,13 @@ import { isCXO } from './roleUtils';
 const CXO_HAT_ROLES_FOR_ROUTING = ['DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE'];
 
 /**
- * Account-setup gate is disabled for role-based flows.
- * All roles navigate to their own dashboard/pages after login.
+ * Account-setup gate is only for customer-only users.
+ * Staff/admin roles continue to role dashboards immediately after login.
  */
 export function shouldEnforceAccountSetup(roles) {
-  void roles;
-  return false;
+  const roleArray = roles && Array.isArray(roles) ? roles : roles ? [roles] : [];
+  if (!roleArray.length) return true;
+  return roleArray.every((role) => String(role || '').toUpperCase() === 'USER');
 }
 
 /**
