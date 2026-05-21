@@ -10,10 +10,13 @@ import useAuthStore from './stores/Zustand.store';
 import api from './api/axios';
 import { TenantProvider, useTenant } from './context/TenantContext';
 import { getCompanyBasePathFallback } from './utils/companyPaths';
+import { shouldEnforceAccountSetup } from './utils/roleBasedRouting';
 
 const Terms = lazy(() => import('./components/Terms'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
-const HomePage = lazy(() => import('./pages/HomePage'));
+const TenantHome = lazy(() => import('./pages/TenantHome'));
+const PublicPage = lazy(() => import('./pages/Public'));
+const AccountSetupPage = lazy(() => import('./pages/AccountSetupPage'));
 const JLGHomePage = lazy(() => import('./pages/JLGHomePage'));
 const MLHomePage = lazy(() => import('./ml/pages/MLHomePage'));
 const MLDeliveryPartnerDashboard = lazy(() => import('./ml/pages/MLDeliveryPartnerDashboard'));
@@ -71,7 +74,7 @@ function TenantAwareHome() {
   const path = tenant?.companyPath?.toLowerCase() ?? '';
   if (path === 'ml') return <MLHomePage />;
   if (path === 'jlg') return <JLGHomePage />;
-  return <HomePage />;
+  return <TenantHome />;
 }
 
 /**
@@ -79,10 +82,12 @@ function TenantAwareHome() {
  */
 const ConditionalFooter = () => {
   const location = useLocation();
-  const pathname = location.pathname;
+  const pathname = location.pathname.replace(/\/+$/, '') || '/';
   const isHome = /^\/[^/]+$/.test(pathname);
   const isMenu = /^\/[^/]+\/menu$/.test(pathname);
-  if (isHome || isMenu) return <Footer />;
+  const isPublic = /^\/[^/]+\/public$/.test(pathname);
+  const isAccountSetup = /^\/[^/]+\/account-setup$/.test(pathname);
+  if (isHome || isMenu || isPublic || isAccountSetup) return <Footer />;
   return null;
 };
 
@@ -104,6 +109,7 @@ function TenantLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const roles = useAuthStore((state) => state.roles);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const theme = tenant?.theme ?? {};
   const primary = theme.primaryColor || theme.buttonPrimary || '#FE8C00';
@@ -123,6 +129,34 @@ function TenantLayout() {
     location.pathname,
     location.search,
     location.hash,
+    navigate,
+  ]);
+
+  // Global setup gate: after login (email or Google), keep user on account-setup until phone + terms are completed.
+  useLayoutEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const urlSeg = String(tenant?.companyPath || user?.companyPath || '').toLowerCase().trim();
+    if (!urlSeg) return;
+    if (urlSeg === 'ml') return;
+
+    const normalizedPath = String(location.pathname || '').replace(/\/+$/, '') || '/';
+    const isAccountSetupPage = normalizedPath === `/${urlSeg}/account-setup`;
+    const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
+    const needsAccountSetup =
+      shouldEnforceAccountSetup(roles) &&
+      (phoneDigits.length < 10 || user?.termsAccepted !== true);
+
+    if (!needsAccountSetup || isAccountSetupPage) return;
+    navigate(`/${urlSeg}/account-setup`, { replace: true });
+  }, [
+    isAuthenticated,
+    user,
+    user?.phone,
+    user?.termsAccepted,
+    user?.companyPath,
+    roles,
+    tenant?.companyPath,
+    location.pathname,
     navigate,
   ]);
 
@@ -245,12 +279,14 @@ const App = () => {
           {/* Multi-tenant: /:companyPath (e.g. /jkfds, /jlg) - TenantProvider resolves company by name */}
           <Route path="/:companyPath" element={<TenantProviderWrapper />}>
             <Route index element={<TenantAwareHome />} />
+            <Route path="public" element={<PublicPage />} />
             <Route path="terms" element={<Terms />} />
             <Route path="menu" element={<MenuPage />} />
             <Route path="place-order" element={<BookingWizardPage />} />
             <Route path="process-payment" element={<PaymentWizardPage />} />
 
             <Route element={<ProtectedRoute />}>
+              <Route path="account-setup" element={<AccountSetupPage />} />
               <Route path="dashboard" element={<MLRouteGuard><MLDeliveryPartnerDashboard /></MLRouteGuard>} />
               <Route path="trips" element={<MLRouteGuard><MLMyTripsPage /></MLRouteGuard>} />
               <Route path="trips/add" element={<MLRouteGuard><MLAddTripPage /></MLRouteGuard>} />

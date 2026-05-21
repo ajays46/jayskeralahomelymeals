@@ -3,7 +3,7 @@ import api from '../../api/axios';
 import { showLoginError, showLoginSuccess } from '../../utils/toastConfig.jsx';
 import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
-import { getDashboardRoute } from '../../utils/roleBasedRouting';
+import { getDashboardRoute, shouldEnforceAccountSetup } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { trackGaEvent } from '../../utils/analytics';
 
@@ -199,6 +199,15 @@ export const useLogin = () => {
         }
         const targetBasePath = data.data?.companyPath ? `/${String(data.data.companyPath).trim()}` : basePath;
         const isMl = (data.data?.companyPath || '').toLowerCase() === 'ml';
+        const phoneDigits = String(data.data?.phone || '').replace(/\D/g, '');
+        const needsAccountSetup =
+          shouldEnforceAccountSetup(roles) &&
+          (phoneDigits.length < 10 || data.data?.termsAccepted !== true);
+        if (!isMl && needsAccountSetup) {
+          navigate(`${targetBasePath}/account-setup`, { replace: true });
+          return;
+        }
+
         if (!isMl && roles.length > 1) {
           // Same tick as auth writes so RoleSelectionSidebar opens before persist rehydration / navigation
           setShowRoleSelector(true);

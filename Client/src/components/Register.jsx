@@ -25,7 +25,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
   const tenant = useTenant();
   const accent = accentProp || '#FE8C00';
   const inputClass =
-    'block w-full rounded-xl border border-slate-300/90 bg-white/90 px-3.5 py-2.5 text-gray-900 shadow-sm transition-all duration-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)]/60 focus:border-[color:var(--auth-accent)] md:border-white/20 md:bg-white/10 md:text-white md:placeholder:text-white/55';
+    'block w-full rounded-xl border border-[#d3c8b8] bg-white px-3.5 py-2.5 text-[#223b36] shadow-sm transition-all duration-200 placeholder:text-[#8a877f] focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)]/55 focus:border-[color:var(--auth-accent)]';
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
@@ -303,9 +303,9 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
   return (
     <>
       <h3 className="md:hidden mb-3 text-center text-2xl font-black tracking-tight text-gray-900">Create an account</h3>
-      <h2 className="hidden md:block mb-4 text-center text-3xl font-black tracking-tight text-gray-900 md:text-white">Create an Account</h2>
+      <h2 className="hidden md:block mb-4 text-center text-3xl font-black tracking-tight text-[#1f4e45]">Create an Account</h2>
       <div
-        className="w-full max-w-md mx-auto p-4 pt-0 lg:pt-4 md:p-5 md:pt-4 md:rounded-2xl md:border md:border-white/15 md:bg-white/5 md:shadow-[0_18px_50px_rgba(2,6,23,0.5)] md:backdrop-blur-xl"
+        className="w-full max-w-md mx-auto rounded-3xl border border-[#d8cebe] bg-[#f7f2e8]/95 p-4 pt-0 lg:pt-4 md:p-5 md:pt-4 shadow-[0_18px_50px_rgba(31,78,69,0.14)]"
         style={{ ['--auth-accent']: accent }}
       >
         <div className="hidden md:flex justify-center gap-4 mb-4">
@@ -322,26 +322,21 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             />
           </div>
         </div>
-        {(showGoogleConsentInline || showGoogleConsentStatic) && (
-          <p className={`hidden md:block text-center text-xs mb-3 ${showGoogleConsentInline ? 'text-amber-700 font-medium' : 'text-gray-500'}`}>
-            By clicking above, you agree to our Terms and Privacy Policy.
-          </p>
-        )}
         <form className="space-y-3 mt-1" onSubmit={handleSubmit}>
           <div className="space-y-1.5">
             <div>
-              <label htmlFor="phoneIdentifier" className="block text-sm font-medium text-gray-700 mb-1 md:text-white/80">
+              <label htmlFor="phoneIdentifier" className="block text-sm font-medium text-[#2b4f47] mb-1">
                 Phone Number <span className="text-red-500">*</span>
               </label>
               <div
-              className={`flex w-full items-center rounded-xl border bg-white/90 px-3.5 py-2.5 shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-[color:var(--auth-accent)]/60 focus-within:border-[color:var(--auth-accent)] md:border-white/20 md:bg-white/10 ${errors.identifier ? 'border-red-500 focus-within:ring-red-200 focus-within:border-red-500' : 'border-slate-300/90'}`}
+              className={`flex w-full items-center rounded-xl border bg-white px-3.5 py-2.5 shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-[color:var(--auth-accent)]/55 focus-within:border-[color:var(--auth-accent)] ${errors.identifier ? 'border-red-500 focus-within:ring-red-200 focus-within:border-red-500' : 'border-[#d3c8b8]'}`}
               >
                 <input
                   id="phoneIdentifier"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  className="w-full border-none bg-transparent p-0 text-gray-900 focus:outline-none focus:ring-0 placeholder:text-gray-400 md:text-white md:placeholder:text-white/55"
+                  className="w-full border-none bg-transparent p-0 text-[#223b36] focus:outline-none focus:ring-0 placeholder:text-[#8a877f]"
                   placeholder="Enter mobile number"
                   value={phoneDigits}
                   onChange={handlePhoneDigitsChange}
@@ -350,8 +345,8 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
                   autoComplete="tel"
                 />
               </div>
-              <p className="my-1 text-center text-xs font-medium text-gray-500 md:text-white/60">OR</p>
-              <label htmlFor="emailIdentifier" className="block text-sm font-medium text-gray-700 mb-0.5 md:text-white/80">
+              <p className="my-1 text-center text-xs font-medium text-[#6d746f]">OR</p>
+              <label htmlFor="emailIdentifier" className="block text-sm font-medium text-[#2b4f47] mb-0.5">
                 Email
               </label>
               <input
@@ -373,7 +368,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             </div>
           </div>
           <div className="relative">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1 md:text-white/80">
+            <label htmlFor="password" className="block text-sm font-medium text-[#2b4f47] mb-1">
               Password <span className="text-red-500">*</span>
             </label>
             <input
@@ -388,7 +383,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             />
             <button
               type="button"
-              className="absolute right-3 top-9 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors md:text-white/70 md:hover:text-white"
+              className="absolute right-3 top-9 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors"
               onClick={() => setShowPassword(!showPassword)}
               tabIndex={-1}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -439,7 +434,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
             />
           )}
           <div>
-            <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-700 leading-tight md:text-white/90">
+            <label className="flex items-center gap-2 text-xs sm:text-sm text-[#2b4f47] leading-tight">
               <input
                 id="termsAccepted"
                 name="termsAccepted"
@@ -477,7 +472,7 @@ const Register = ({ accent: accentProp, onClose, onSwitchToLogin }) => {
           </button>
         </form>
         {onSwitchToLogin && (
-          <p className="text-center text-sm text-gray-600 mt-3 md:text-white/75">
+          <p className="text-center text-sm text-[#5f6e69] mt-3">
             Already have an account?{' '}
             <button
               type="button"

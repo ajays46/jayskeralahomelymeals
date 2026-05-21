@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuthStore from "../stores/Zustand.store";
 import { getCompanyBasePathFallback } from "../utils/companyPaths";
 import api from "../api/axios";
+import { shouldEnforceAccountSetup } from "../utils/roleBasedRouting";
 
 /**
  * ProtectedRoute - Route protection component with authentication guard.
@@ -13,12 +14,22 @@ import api from "../api/axios";
 const ProtectedRoute = ({ children }) => {
   const accessToken = useAuthStore((state) => state.accessToken);
   const user = useAuthStore((state) => state.user);
+  const roles = useAuthStore((state) => state.roles);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const logout = useAuthStore((state) => state.logout);
   const location = useLocation();
   const pathSegment = location.pathname.split('/')[1];
   const companyHome = pathSegment ? `/${pathSegment}` : getCompanyBasePathFallback();
+  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  const isAccountSetupRoute = /^\/[^/]+\/account-setup$/.test(normalizedPath);
+  const isMlTenant = String(pathSegment || '').toLowerCase() === 'ml';
+  const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
+  const needsAccountSetup =
+    Boolean(user) &&
+    !isMlTenant &&
+    shouldEnforceAccountSetup(roles) &&
+    (phoneDigits.length < 10 || user?.termsAccepted !== true);
 
   const hasUserNoToken = !!(user && isAuthenticated && !accessToken);
   const [checkingSession, setCheckingSession] = useState(hasUserNoToken);
@@ -56,6 +67,10 @@ const ProtectedRoute = ({ children }) => {
       return <Navigate to={companyHome} replace />;
     }
     return <Navigate to={companyHome} replace />;
+  }
+
+  if (needsAccountSetup && !isAccountSetupRoute) {
+    return <Navigate to={`${companyHome}/account-setup`} replace />;
   }
 
   return children ? children : <Outlet />;

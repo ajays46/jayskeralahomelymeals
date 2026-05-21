@@ -31,8 +31,8 @@ const Footer = () => {
   const footerCompanyNamesByPath = {
     jkfds: 'Jays Kerala Kitchen',
     jkkfds: 'Jays Kerala Kitchen',
-    jlg: 'Jays leefy greens',
-    ml: 'Maxhub logistcis',
+    jlg: 'Jays Leefy Greens',
+    ml: 'Maxhub Logistcis',
   };
   const companyName =
     footerCompanyNamesByPath[tenantBase] ||

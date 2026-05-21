@@ -24,7 +24,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
   const brandName = theme?.brandName || "Jay's Kerala Kitchen";
   const logoUrl = theme?.logoUrl || '/logo.png';
   const inputClass =
-    'block w-full rounded-xl border border-slate-300/90 bg-white/90 px-3.5 py-2.5 text-gray-900 shadow-sm transition-all duration-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)]/60 focus:border-[color:var(--auth-accent)] md:border-white/20 md:bg-white/10 md:text-white md:placeholder:text-white/55';
+    'block w-full rounded-xl border border-[#d3c8b8] bg-white px-3.5 py-2.5 text-[#223b36] shadow-sm transition-all duration-200 placeholder:text-[#8a877f] focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)]/55 focus:border-[color:var(--auth-accent)]';
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
@@ -188,9 +188,9 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
 
   return (
     <>
-      <h2 className="hidden md:block text-3xl font-black tracking-tight text-gray-900 mb-5 text-center md:text-white">Sign In to your account</h2>
+      <h2 className="hidden md:block text-3xl font-black tracking-tight text-[#1f4e45] mb-5 text-center">Sign In to your account</h2>
       <div
-        className="w-full max-w-md mx-auto p-6 pt-0 lg:pt-6 md:rounded-2xl md:border md:border-white/15 md:bg-white/5 md:shadow-[0_18px_50px_rgba(2,6,23,0.5)] md:backdrop-blur-xl"
+        className="w-full max-w-md mx-auto rounded-3xl border border-[#d8cebe] bg-[#f7f2e8]/95 p-6 pt-0 lg:pt-6 shadow-[0_18px_50px_rgba(31,78,69,0.14)]"
         style={{ ['--auth-accent']: accent }}
       >
         <div className="hidden md:flex justify-center gap-4 mb-6">
@@ -254,7 +254,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
             </div>
           )}
           <div className="mt-1">
-            <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1 md:text-white/80">
+            <label htmlFor="identifier" className="block text-sm font-medium text-[#2b4f47] mb-1">
               Email or Phone Number <span className="text-red-500">*</span>
             </label>
             <input
@@ -272,7 +272,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
             {errors.identifier && <p className="mt-1 text-sm text-red-500">{errors.identifier}</p>}
           </div>
           <div className="relative">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1 md:text-white/80">
+            <label htmlFor="password" className="block text-sm font-medium text-[#2b4f47] mb-1">
               Password <span className="text-red-500">*</span>
             </label>
             <input
@@ -292,7 +292,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
             />
             <button
               type="button"
-              className="absolute right-3 top-9 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors md:text-white/70 md:hover:text-white"
+              className="absolute right-3 top-9 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors"
               onClick={() => setShowPassword(!showPassword)}
               tabIndex={-1}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -357,7 +357,7 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
           </button>
         </form>
         {onSwitchToRegister && (
-          <p className={`${showCredentialFormMobile ? 'block' : 'hidden md:block'} mt-5 text-center text-sm text-gray-600 md:text-white/75`}>
+          <p className={`${showCredentialFormMobile ? 'block' : 'hidden md:block'} mt-5 text-center text-sm text-[#5f6e69]`}>
             Don&apos;t have an account?{' '}
             <button
               type="button"

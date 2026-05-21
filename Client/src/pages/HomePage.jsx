@@ -13,7 +13,6 @@ import { getThemeForCompany } from '../config/tenantThemes';
 import { getDashboardRoute, resolveSelectedRoleForDashboard } from '../utils/roleBasedRouting';
 import useAuthStore from '../stores/Zustand.store';
 import { showSuccessToast, showValidationError } from '../utils/toastConfig';
-import pricingData from '../data/homePricing.json';
 import { useCompleteGoogleProfile } from '../hooks/userHooks/useCompleteGoogleProfile';
 
 /**
@@ -21,8 +20,6 @@ import { useCompleteGoogleProfile } from '../hooks/userHooks/useCompleteGooglePr
  * Footer remains global in App (ConditionalFooter). Logged-in users redirect to role dashboard.
  */
 const MOBILE_PATTERN = /^\d{10}$/;
-
-const PRICING_BY_PERIOD = pricingData;
 
 const HOW_IT_WORKS_STEPS = [
   {
@@ -42,21 +39,12 @@ const HOW_IT_WORKS_STEPS = [
   },
 ];
 
-const PLAN_COMMON_HIGHLIGHTS = [
-  'Lunch meal included',
-  'Freshly cooked and delivered for your selected day',
-  'Authentic home-style Kerala taste',
-  'Free doorstep delivery across Kochi',
-];
-
 const HomePage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState('login');
   const [heroPrompt, setHeroPrompt] = useState('');
   const [quickOrderSheetOpen, setQuickOrderSheetOpen] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
-  const [selectedDiet, setSelectedDiet] = useState('veg');
-  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [hasPromptedGoogleSetup, setHasPromptedGoogleSetup] = useState(false);
   const [leadForm, setLeadForm] = useState({
     mobile: '',
@@ -85,13 +73,6 @@ const HomePage = () => {
     setAuthSliderOpen(true);
   }, []);
   const closeAuthSlider = useCallback(() => setAuthSliderOpen(false), []);
-  const pricingRef = useRef(null);
-  const supportRef = useRef(null);
-
-  const scrollToSection = useCallback((sectionRef) => {
-    sectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
-
   const handleHeroPromptSubmit = useCallback((event) => {
     event.preventDefault();
     const normalizedPrompt = String(heroPrompt || '').trim().toLowerCase();
@@ -151,39 +132,6 @@ const HomePage = () => {
       setHasPromptedGoogleSetup(false);
     }
   }, [user]);
-
-  const handlePricingCardAction = useCallback(() => {
-    if (!user) {
-      if (typeof window !== 'undefined' && window.innerWidth < 768) {
-        openSignInSlider();
-        return;
-      }
-      openRegisterSlider();
-      return;
-    }
-
-    if (needsGoogleProfileCompletion) {
-      const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
-      setLeadForm({
-        mobile: phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '',
-        termsAccepted: Boolean(user?.termsAccepted),
-      });
-      setQuickOrderSheetOpen(true);
-      return;
-    }
-
-    if (shouldUseCustomerMenu) {
-      navigate(`${base}/menu`);
-      return;
-    }
-
-    navigate(`${base}/place-order`);
-  }, [user, needsGoogleProfileCompletion, shouldUseCustomerMenu, openSignInSlider, openRegisterSlider, navigate, base, user?.phone, user?.termsAccepted]);
-
-  const visiblePricingCards = useMemo(
-    () => (PRICING_BY_PERIOD[selectedPeriod] || []),
-    [selectedPeriod]
-  );
 
   useEffect(() => {
     if (!user || !roles || roles.length === 0) return;
@@ -296,103 +244,6 @@ const HomePage = () => {
             </div>
           </div>
 
-        </section>
-
-        <section className="relative overflow-hidden px-4 pb-12 pt-0 sm:px-6 sm:pb-14 sm:pt-0 lg:pb-16 lg:pt-0">
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: `linear-gradient(180deg, #111827 0%, #111827 42%, ${accent}1F 100%)` }}
-          />
-          <div className="relative mx-auto max-w-6xl">
-            <div ref={pricingRef} className="mt-10 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/65">Plans and pricing</p>
-              <h3 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
-                JAY&apos;S KERALA KITCHEN
-              </h3>
-            </div>
-
-            <div className="mx-auto mt-4 w-full max-w-2xl rounded-xl border border-white/20 bg-white/10 p-2 shadow-sm backdrop-blur md:w-fit md:max-w-full md:p-1.5">
-              <div className="grid w-full grid-cols-2 gap-1.5 md:flex md:flex-wrap md:items-center md:justify-center md:gap-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedDiet('veg')}
-                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition md:px-3 ${
-                    selectedDiet === 'veg' ? 'text-white' : 'bg-white/20 text-white/85'
-                  }`}
-                  style={selectedDiet === 'veg' ? { backgroundColor: accent } : undefined}
-                >
-                  Veg
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDiet('nonVeg')}
-                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition md:px-3 ${
-                    selectedDiet === 'nonVeg' ? 'text-white' : 'bg-white/20 text-white/85'
-                  }`}
-                  style={selectedDiet === 'nonVeg' ? { backgroundColor: accent } : undefined}
-                >
-                  Non-Veg
-                </button>
-              </div>
-              <div className="mt-1.5 grid w-full grid-cols-3 gap-1.5 md:mt-1 md:flex md:flex-wrap md:items-center md:gap-1">
-                {['daily', 'weekly', 'monthly'].map((period) => (
-                  <button
-                    key={period}
-                    type="button"
-                    onClick={() => setSelectedPeriod(period)}
-                    className={`rounded-full px-3 py-1.5 text-sm font-semibold capitalize transition md:px-2.5 ${
-                      selectedPeriod === period ? 'text-white' : 'bg-white/20 text-white/85'
-                    }`}
-                    style={selectedPeriod === period ? { backgroundColor: accent } : undefined}
-                  >
-                    {period}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">What&apos;s included</p>
-              <ul className="mt-2 flex flex-wrap gap-1.5">
-                {PLAN_COMMON_HIGHLIGHTS.map((point) => (
-                  <li
-                    key={point}
-                    className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/85"
-                  >
-                    {point}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
-              {visiblePricingCards.map((card) => (
-                <button
-                  type="button"
-                  key={card.title}
-                  onClick={handlePricingCardAction}
-                  className="group rounded-3xl border border-white/70 bg-white/95 p-3.5 text-left shadow-[0_10px_30px_rgba(15,23,42,0.10)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(15,23,42,0.16)] active:scale-[0.99]"
-                >
-                  <h3 className="text-sm font-black text-gray-900 md:text-base">{card.title}</h3>
-                  <p className="mt-2 inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
-                    {selectedDiet === 'veg' ? 'Veg plan' : 'Non-veg plan'}
-                  </p>
-                  <p className="mt-1.5 text-xl font-black text-gray-900 md:text-2xl">
-                    {selectedDiet === 'veg' ? card.veg : card.nonVeg}
-                  </p>
-                  <div className="mt-3 flex">
-                    <span
-                      className="ml-auto inline-flex items-center justify-center rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all group-hover:translate-x-0.5"
-                      style={{ color: accent, borderColor: `${accent}66`, backgroundColor: `${accent}1A` }}
-                    >
-                      Book Now →
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-          </div>
         </section>
 
         <section className="bg-gradient-to-b from-[#eadbc8]/70 via-[#dddad5]/60 to-transparent px-4 pb-4 pt-3 sm:px-6 lg:pb-6">

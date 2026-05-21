@@ -5,6 +5,16 @@ import { isCXO } from './roleUtils';
 const CXO_HAT_ROLES_FOR_ROUTING = ['DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE'];
 
 /**
+ * Account-setup gate is only for customer-only users.
+ * Staff/admin roles continue to role dashboards immediately after login.
+ */
+export function shouldEnforceAccountSetup(roles) {
+  const roleArray = roles && Array.isArray(roles) ? roles : roles ? [roles] : [];
+  if (!roleArray.length) return true;
+  return roleArray.every((role) => String(role || '').toUpperCase() === 'USER');
+}
+
+/**
  * Whether persisted `activeRole` should drive `getDashboardRoute` (third arg).
  * CXO may use DM/Seller/DE dashboards without those roles in the JWT list.
  */

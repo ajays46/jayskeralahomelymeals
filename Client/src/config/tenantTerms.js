@@ -123,7 +123,7 @@ const jlgTerms = {
   bannerTagline: 'Terms for Jays Leafy Greens',
   lastUpdatedDisplay: 'May 14, 2026',
   intro: [
-    'Company: Jays leefy greens',
+    'Company: Jays Leefy Greens',
     'Corporate Identity (CIN): [Insert Your CIN here]',
   ],
   sections: [
