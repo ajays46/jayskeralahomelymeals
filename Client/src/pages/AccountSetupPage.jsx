@@ -31,7 +31,7 @@ const lunchHighlights = [
     line1: 'High-protein traditional chicken or fish curries.',
     icon2: '🚀',
     line2: 'Built with Kerala roots to defeat the afternoon slump.',
-    image: '/banner1.png',
+    image: '/card%20two.jpeg',
   },
 ];
 
@@ -54,6 +54,8 @@ const AccountSetupPage = () => {
     phone: initialPhoneDigits.slice(-10),
     termsAccepted: Boolean(user?.termsAccepted),
   });
+  const isPhoneValid = MOBILE_PATTERN.test(String(form.phone || '').replace(/\D/g, ''));
+  const canSubmitProfile = isPhoneValid && form.termsAccepted && !isPending;
 
   const handleReserveClick = () => {
     if (isSetupComplete) {
@@ -128,10 +130,6 @@ const AccountSetupPage = () => {
             <div className="pointer-events-none absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
             <div className="relative z-10">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8fbfb2]">🥗 Essential Workday Nutrition</p>
-              <p className="mt-2 text-sm font-semibold text-[#d9e8de]">
-                ✨ Welcome back! Choose your baseline to unlock today's menu.
-              </p>
-
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 {lunchHighlights.map((item) => (
                   <article
@@ -219,10 +217,9 @@ const AccountSetupPage = () => {
       {showPhoneGate ? (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl border border-[#d9cfbf] bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6b60]">Account Setup (Final Step)</p>
             <h3 className="mt-2 text-xl font-black text-[#183f38]">Almost there!</h3>
             <p className="mt-2 text-sm text-[#5f5f57]">
-              Enter your mobile number to instantly verify your delivery zone and unlock active ordering.
+              Enter your mobile number to see today's fresh delivery slots and view the menu.
             </p>
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <label className="block text-sm font-semibold text-[#244f46]">Mobile Number:</label>
@@ -272,8 +269,8 @@ const AccountSetupPage = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isPending}
-                  className="flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:opacity-60"
+                  disabled={!canSubmitProfile}
+                  className="flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                   style={{ backgroundColor: accent }}
                 >
                   {isPending ? 'Saving...' : 'Submit & Continue'}
