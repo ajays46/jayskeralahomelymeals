@@ -5,6 +5,15 @@ import { isCXO } from './roleUtils';
 const CXO_HAT_ROLES_FOR_ROUTING = ['DELIVERY_MANAGER', 'SELLER', 'DELIVERY_EXECUTIVE'];
 
 /**
+ * Account-setup gate is disabled for role-based flows.
+ * All roles navigate to their own dashboard/pages after login.
+ */
+export function shouldEnforceAccountSetup(roles) {
+  void roles;
+  return false;
+}
+
+/**
  * Whether persisted `activeRole` should drive `getDashboardRoute` (third arg).
  * CXO may use DM/Seller/DE dashboards without those roles in the JWT list.
  */

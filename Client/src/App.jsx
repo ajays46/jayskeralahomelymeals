@@ -10,6 +10,7 @@ import useAuthStore from './stores/Zustand.store';
 import api from './api/axios';
 import { TenantProvider, useTenant } from './context/TenantContext';
 import { getCompanyBasePathFallback } from './utils/companyPaths';
+import { shouldEnforceAccountSetup } from './utils/roleBasedRouting';
 
 const Terms = lazy(() => import('./components/Terms'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
@@ -108,6 +109,7 @@ function TenantLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const roles = useAuthStore((state) => state.roles);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const theme = tenant?.theme ?? {};
   const primary = theme.primaryColor || theme.buttonPrimary || '#FE8C00';
@@ -140,7 +142,9 @@ function TenantLayout() {
     const normalizedPath = String(location.pathname || '').replace(/\/+$/, '') || '/';
     const isAccountSetupPage = normalizedPath === `/${urlSeg}/account-setup`;
     const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
-    const needsAccountSetup = phoneDigits.length < 10 || user?.termsAccepted !== true;
+    const needsAccountSetup =
+      shouldEnforceAccountSetup(roles) &&
+      (phoneDigits.length < 10 || user?.termsAccepted !== true);
 
     if (!needsAccountSetup || isAccountSetupPage) return;
     navigate(`/${urlSeg}/account-setup`, { replace: true });
@@ -150,6 +154,7 @@ function TenantLayout() {
     user?.phone,
     user?.termsAccepted,
     user?.companyPath,
+    roles,
     tenant?.companyPath,
     location.pathname,
     navigate,

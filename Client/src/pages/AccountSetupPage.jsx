@@ -43,7 +43,6 @@ const AccountSetupPage = () => {
   const { mutate: completeProfile, isPending } = useCompleteGoogleProfile();
 
   const [termsModalOpen, setTermsModalOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState('');
   const [showPhoneGate, setShowPhoneGate] = useState(false);
   const [form, setForm] = useState({
     phone: String(user?.phone || '').replace(/\D/g, '').slice(-10),
@@ -99,9 +98,11 @@ const AccountSetupPage = () => {
           <div className="mx-auto max-w-7xl">
             <div className="pointer-events-none absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
             <div className="relative z-10">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#cfe3d8]">The Menu</p>
-              <h2 className="mt-2 text-4xl font-black leading-[1.05] text-[#f3f1de] sm:text-5xl">Build your bowl.</h2>
-              <p className="mt-3 text-sm font-semibold text-[#d9e8de]">Exclusive Healthy Combos</p>
+              <h2 className="mt-2 text-3xl font-black leading-[1.05] text-[#f3f1de] sm:text-4xl">Exclusive Healthy Combos</h2>
+              <p className="mt-3 text-sm font-semibold text-[#d9e8de]">
+                ✨ Welcome back! You have unlocked today&apos;s exclusive kitchen batches.
+              </p>
+
               <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {lunchHighlights.map((item) => (
                 <article key={item.title} className="overflow-hidden rounded-2xl border border-[#ded5c7] bg-white shadow-[0_10px_22px_rgba(15,23,42,0.08)]">
@@ -111,6 +112,7 @@ const AccountSetupPage = () => {
                       alt={item.title}
                       className="h-full w-full object-cover"
                       loading="lazy"
+                      decoding="async"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0f2d25]/60 via-[#1f5a4b]/20 to-transparent" />
                   </div>
@@ -120,7 +122,6 @@ const AccountSetupPage = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedService(item.title);
                       setShowPhoneGate(true);
                     }}
                     className="mt-3 rounded-full border border-[#d1c7b8] bg-[#f7f2e8] px-3.5 py-1.5 text-xs font-semibold text-[#234b43] transition hover:bg-[#eee8dd]"

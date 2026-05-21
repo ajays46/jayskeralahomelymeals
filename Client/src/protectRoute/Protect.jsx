@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuthStore from "../stores/Zustand.store";
 import { getCompanyBasePathFallback } from "../utils/companyPaths";
 import api from "../api/axios";
+import { shouldEnforceAccountSetup } from "../utils/roleBasedRouting";
 
 /**
  * ProtectedRoute - Route protection component with authentication guard.
@@ -13,6 +14,7 @@ import api from "../api/axios";
 const ProtectedRoute = ({ children }) => {
   const accessToken = useAuthStore((state) => state.accessToken);
   const user = useAuthStore((state) => state.user);
+  const roles = useAuthStore((state) => state.roles);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const logout = useAuthStore((state) => state.logout);
@@ -26,6 +28,7 @@ const ProtectedRoute = ({ children }) => {
   const needsAccountSetup =
     Boolean(user) &&
     !isMlTenant &&
+    shouldEnforceAccountSetup(roles) &&
     (phoneDigits.length < 10 || user?.termsAccepted !== true);
 
   const hasUserNoToken = !!(user && isAuthenticated && !accessToken);

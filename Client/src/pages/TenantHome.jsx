@@ -20,7 +20,6 @@ const TenantHome = () => {
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const heroImage = theme.heroImage || '/banner_one.jpg';
-  const mobileHeroImage = theme.heroMobileImage || heroImage;
 
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -115,17 +114,14 @@ const TenantHome = () => {
                   <div className="absolute -left-6 -top-6 h-28 w-28 rounded-full bg-[#e4d9c7]/80 blur-2xl" />
                   <div className="absolute -bottom-6 -right-4 h-28 w-28 rounded-full bg-[#cde3d8]/70 blur-2xl" />
                   <div className="relative overflow-hidden rounded-[28px] border border-[#d8cebe] bg-[#ece4d7] shadow-[0_20px_45px_rgba(27,66,58,0.18)]">
-                    <picture>
-                      <source media="(max-width: 640px)" srcSet={mobileHeroImage} />
-                      <img
-                        src={heroImage}
-                        alt={`${theme.brandName || "Jay's Kerala Kitchen"} healthy meal`}
-                        className="h-[360px] w-full object-cover sm:h-[430px] lg:h-[500px]"
-                        loading="eager"
-                        fetchPriority="high"
-                        decoding="async"
-                      />
-                    </picture>
+                    <img
+                      src={heroImage}
+                      alt={`${theme.brandName || "Jay's Kerala Kitchen"} healthy meal`}
+                      className="h-[360px] w-full object-cover sm:h-[430px] lg:h-[500px]"
+                      loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#15352f]/35 via-transparent to-transparent" />
                   </div>
                 </div>

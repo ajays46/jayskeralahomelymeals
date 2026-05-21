@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import api from '../../api/axios';
 import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
-import { getDashboardRoute } from '../../utils/roleBasedRouting';
+import { getDashboardRoute, shouldEnforceAccountSetup } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { syncRememberMeStorage } from './useLogin';
 import { trackGaEvent } from '../../utils/analytics';
@@ -69,7 +69,9 @@ export const useGoogleAuth = () => {
       const targetBasePath = data.data?.companyPath ? `/${String(data.data.companyPath).trim()}` : basePath;
       const isMl = (data.data?.companyPath || '').toLowerCase() === 'ml';
       const phoneDigits = String(data.data?.phone || '').replace(/\D/g, '');
-      const needsAccountSetup = phoneDigits.length < 10 || data.data?.termsAccepted !== true;
+      const needsAccountSetup =
+        shouldEnforceAccountSetup(roles) &&
+        (phoneDigits.length < 10 || data.data?.termsAccepted !== true);
       if (!isMl && needsAccountSetup) {
         navigate(`${targetBasePath}/account-setup`, { replace: true });
         return;
