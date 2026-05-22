@@ -12,26 +12,11 @@ const MOBILE_PATTERN = /^\d{10}$/;
 
 const lunchHighlights = [
   {
-    title: 'Signature Veg Plan',
-    cta: 'Select Veg Plan',
-    badge: '🟢 Veg',
-    badgeColor: '#2d7a5f',
-    icon1: '🥗',
-    line1: 'Authentic Nadan curries infused with fresh microgreens & mushrooms.',
-    icon2: '⚡',
-    line2: 'Clean carbs engineered for sustained mental focus.',
+    title: '🥗 OUR SIGNATURE SERVICE',
+    planName: 'Daily Wellness Meal Plan',
+    description: 'Wholesome, authentic Nadan food crafted for daily health.',
+    cta: '[ Select & Check Availability ]',
     image: '/oonu.jpg',
-  },
-  {
-    title: 'Signature Non-Veg Plan',
-    cta: 'Select Non-Veg Plan',
-    badge: '🔴 Non-Veg',
-    badgeColor: '#b94040',
-    icon1: '🍗',
-    line1: 'High-protein traditional chicken or fish curries.',
-    icon2: '🚀',
-    line2: 'Built with Kerala roots to defeat the afternoon slump.',
-    image: '/card%20two.jpeg',
   },
 ];
 
@@ -101,36 +86,15 @@ const AccountSetupPage = () => {
         className={`pt-16 sm:pt-[72px] sm:pb-10 ${!showPhoneGate && !isSetupComplete ? 'pb-16' : 'pb-8'}`}
       >
 
-        {/* ── HERO ── */}
-        <section className="relative w-full overflow-hidden border-b border-[#ddd8cc] bg-[#f4f3ed] px-4 pb-8 pt-8 sm:px-6 sm:pb-10 sm:pt-10 lg:px-8"
-          style={{
-            backgroundImage: `radial-gradient(circle, #1f6f5f22 1.5px, transparent 1.5px)`,
-            backgroundSize: '22px 22px',
-          }}
-        >
-          <div className="mx-auto max-w-4xl">
-
-            {/* brand + headline */}
-            <div className="text-center">
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#1f6f5f]">Jay's Kerala Kitchen</p>
-              <h1 className="mt-2 text-2xl font-black leading-[1.1] text-[#183f38] sm:text-3xl lg:text-[2.4rem]">
-                Healthy Kerala Food. Made for Busy Days.
-              </h1>
-              <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-[#5f5f57] sm:text-base">
-                Chef-crafted traditional lunches delivered fresh to your space. Authentic flavors made light and healthy to keep you energized all afternoon.
-              </p>
-            </div>
-
-          </div>
-        </section>
-
         {/* ── PLAN SELECTION ── */}
         <section className="relative w-full overflow-hidden border-y border-[#275447] bg-gradient-to-r from-[#12392f] via-[#154338] to-[#11352d] px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <div className="pointer-events-none absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
             <div className="relative z-10">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8fbfb2]">🥗 Essential Workday Nutrition</p>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <p className="text-center text-base font-bold uppercase tracking-[0.12em] text-[#8fbfb2]">
+                Balanced Daily Meals
+              </p>
+              <div className="mx-auto mt-2 max-w-xl">
                 {lunchHighlights.map((item) => (
                   <article
                     key={item.title}
@@ -145,43 +109,30 @@ const AccountSetupPage = () => {
                     tabIndex={0}
                     className="cursor-pointer overflow-hidden rounded-2xl bg-white shadow-[0_10px_28px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,23,42,0.18)] focus:outline-none focus:ring-2 focus:ring-[#1f6f5f]/30"
                   >
-                    {/* image */}
-                    <div className="relative h-40 w-full sm:h-44">
+                    <div className="relative h-48 w-full sm:h-52">
                       <img
                         src={item.image}
-                        alt={item.title}
+                        alt={item.planName}
                         className="h-full w-full object-cover"
                         loading="lazy"
                         decoding="async"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b22]/70 via-[#1a4a3b]/20 to-transparent" />
-                      {/* pill badge */}
-                      <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white"
-                        style={{ backgroundColor: item.badgeColor }}>
-                        {item.badge}
-                      </span>
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b22]/55 via-transparent to-transparent" />
                     </div>
 
-                    {/* body */}
-                    <div className="p-5">
-                      <h3 className="text-lg font-black text-[#183f38]">{item.title}</h3>
-
-                      <p className="mt-3 flex items-start gap-2 text-sm text-[#3f4a46]">
-                        <span className="mt-0.5 shrink-0 text-base">{item.icon1}</span>
-                        <span>{item.line1}</span>
+                    <div className="p-6 sm:p-7">
+                      <h3 className="text-2xl font-black text-[#183f38]">{item.title}</h3>
+                      <h4 className="mt-3 text-xl font-bold text-[#1e4a42]">{item.planName}</h4>
+                      <p className="mt-4 text-base leading-relaxed text-[#3f4a46]">
+                        {item.description}
                       </p>
-                      <p className="mt-2 flex items-start gap-2 text-sm text-[#3f4a46]">
-                        <span className="mt-0.5 shrink-0 text-base">{item.icon2}</span>
-                        <span>{item.line2}</span>
-                      </p>
-
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleReserveClick(); }}
-                        className="mt-5 w-full rounded-full py-2.5 text-sm font-bold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
+                        className="mt-5 w-full rounded-full px-4 py-3.5 text-base font-bold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
                         style={{ backgroundColor: '#1f6f5f' }}
                       >
-                        {isSetupComplete ? `${item.cta} →` : `🔒 ${item.cta}`}
+                        {item.cta}
                       </button>
                     </div>
                   </article>
@@ -206,7 +157,7 @@ const AccountSetupPage = () => {
                   className="rounded-xl border border-[#e2dccf] bg-white p-3 text-[#244f46] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
                 >
                   <p className="text-lg">{f.icon}</p>
-                  <p className="mt-1 text-xs font-semibold sm:text-sm">{f.title}</p>
+                  <p className="mt-1 text-base font-semibold">{f.title}</p>
                 </div>
               ))}
             </div>
@@ -218,25 +169,25 @@ const AccountSetupPage = () => {
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl border border-[#d9cfbf] bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
             <h3 className="mt-2 text-xl font-black text-[#183f38]">Almost there!</h3>
-            <p className="mt-2 text-sm text-[#5f5f57]">
+            <p className="mt-2 text-base text-[#5f5f57]">
               Enter your mobile number to see today's fresh delivery slots and view the menu.
             </p>
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-              <label className="block text-sm font-semibold text-[#244f46]">Mobile Number:</label>
+              <label className="block text-base font-semibold text-[#244f46]">Mobile Number:</label>
               <div className="flex items-center gap-2">
-                <span className="rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm font-semibold text-gray-700">+91</span>
+                <span className="rounded-xl border border-gray-300 bg-white px-3 py-3 text-base font-semibold text-gray-700">+91</span>
                 <input
                   type="tel"
                   inputMode="numeric"
                   value={form.phone}
                   onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
                   placeholder="Enter Phone Number"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                   required
                 />
               </div>
 
-              <label className="flex items-start gap-2 text-sm text-gray-700">
+              <label className="flex items-start gap-2 text-base text-gray-700">
                 <input
                   type="checkbox"
                   checked={form.termsAccepted}
@@ -263,14 +214,14 @@ const AccountSetupPage = () => {
                   type="button"
                   onClick={() => setShowPhoneGate(false)}
                   disabled={isPending}
-                  className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  className="flex-1 rounded-xl border border-gray-300 px-4 py-3.5 text-base font-semibold text-gray-700 hover:bg-gray-50"
                 >
                   Back
                 </button>
                 <button
                   type="submit"
                   disabled={!canSubmitProfile}
-                  className="flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex-1 rounded-xl px-4 py-3.5 text-base font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                   style={{ backgroundColor: accent }}
                 >
                   {isPending ? 'Saving...' : 'Submit & Continue'}
@@ -283,11 +234,11 @@ const AccountSetupPage = () => {
       {!showPhoneGate && !isSetupComplete ? (
         <div className="fixed inset-x-0 bottom-0 z-[120] px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 sm:hidden">
           <div className="mx-auto flex max-w-xl items-center justify-between gap-2 rounded-2xl border border-[#d8cebe] bg-[#fff9ed]/95 px-3 py-2.5 shadow-[0_10px_24px_rgba(15,23,42,0.16)] backdrop-blur">
-            <p className="text-xs font-semibold text-[#244f46]">📱 Ready to experience clean energy?</p>
+            <p className="text-base font-semibold text-[#244f46]">📱 Ready to experience clean energy?</p>
             <button
               type="button"
               onClick={() => setShowPhoneGate(true)}
-              className="rounded-full bg-[#1f6f5f] px-3 py-1.5 text-[11px] font-bold text-white"
+              className="rounded-full bg-[#1f6f5f] px-4 py-2.5 text-base font-bold text-white"
             >
               🔒 Verify Mobile to Unlock Menus
             </button>
@@ -297,15 +248,15 @@ const AccountSetupPage = () => {
       {showComingSoon ? (
         <div className="fixed inset-0 z-[145] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl border border-[#d9cfbf] bg-white p-5 text-center shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6b60]">Reserve</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#6f6b60]">Reserve</p>
             <h3 className="mt-2 text-xl font-black text-[#183f38]">Coming Soon</h3>
-            <p className="mt-2 text-sm text-[#5f5f57]">
+            <p className="mt-2 text-base text-[#5f5f57]">
               Batch reservation will be enabled shortly. Stay tuned.
             </p>
             <button
               type="button"
               onClick={() => setShowComingSoon(false)}
-              className="mt-5 rounded-xl px-4 py-2 text-sm font-semibold text-white"
+              className="mt-5 rounded-xl px-4 py-2.5 text-base font-semibold text-white"
               style={{ backgroundColor: accent }}
             >
               Close

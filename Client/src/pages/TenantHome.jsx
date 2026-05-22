@@ -81,7 +81,7 @@ const TenantHome = () => {
                     className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
                     style={{ color: '#1f4e45', borderColor: '#c5b9a6', backgroundColor: '#fffdf7' }}
                   >
-                    Healthy Cloud Kitchen
+                    Healthy Food Hub
                   </p>
                   <h1 className="mt-4 text-4xl font-black leading-[1.02] text-[#183f38] sm:text-5xl lg:text-6xl">
                     Healthy Food.
@@ -92,10 +92,7 @@ const TenantHome = () => {
                     Built for Busy Days.
                   </p>
                   <p className="mt-6 max-w-xl text-sm leading-relaxed text-[#5f5f57] sm:text-base">
-                  Chef-crafted, high-energy midday subscription meals delivered fresh straight to your door. Clean ingredients designed for sustained mental focus.
-                  </p>
-                  <p className="mt-3 text-sm font-semibold text-[#2f5a51] sm:text-base">
-                    Unlock today&apos;s exclusive menu instantly.
+                    Chef-crafted, high-energy delivered fresh straight to your door.
                   </p>
 
                   <div className="mt-7">
@@ -133,9 +130,6 @@ const TenantHome = () => {
         <section className="relative w-full overflow-hidden border-y border-[#275447] bg-gradient-to-r from-[#143f34] via-[#1a4f41] to-[#143f34] px-4 py-14 text-center sm:px-6 lg:px-8">
           <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.12) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
           <div className="relative z-10 mx-auto max-w-6xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#d4e7dd]">
-              Jay&apos;s Kerala Kitchen
-            </p>
             <h2 className="mt-3 text-4xl font-black leading-[1.05] text-[#f3f1de] sm:text-5xl">
               Stop dieting.
               <br />
@@ -149,7 +143,7 @@ const TenantHome = () => {
               onClick={openRegisterSlider}
               className="mt-7 rounded-full bg-[#eef0d7] px-7 py-3 text-sm font-bold text-[#1f4e45] shadow-[0_12px_24px_rgba(0,0,0,0.2)] transition hover:brightness-95"
             >
-              Activate Daily Subscription →
+              KNOW MORE →
             </button>
           </div>
         </section>
