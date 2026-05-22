@@ -188,12 +188,13 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
 
   return (
     <>
+      <h3 className="md:hidden mb-3 text-center text-2xl font-black tracking-tight text-gray-900">Sign In to your account</h3>
       <h2 className="hidden md:block text-3xl font-black tracking-tight text-[#1f4e45] mb-5 text-center">Sign In to your account</h2>
       <div
         className="w-full max-w-md mx-auto rounded-3xl border border-[#d8cebe] bg-[#f7f2e8]/95 p-6 pt-0 lg:pt-6 shadow-[0_18px_50px_rgba(31,78,69,0.14)]"
         style={{ ['--auth-accent']: accent }}
       >
-        <div className="hidden md:flex justify-center gap-4 mb-6">
+        <div className={`${showCredentialFormMobile ? 'flex' : 'hidden md:flex'} justify-center gap-4 mt-3 mb-4`}>
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => setErrors(prev => ({ ...prev, submit: 'Google sign-in failed. Please try again.' }))}
@@ -248,11 +249,6 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
         )}
 
         <form className={`${showCredentialFormMobile ? 'block' : 'hidden md:block'} space-y-4 mt-1`} onSubmit={handleSubmit}>
-          {showCredentialFormMobile && (
-            <div className="md:hidden mb-3">
-              <h3 className="text-2xl font-bold text-gray-900 text-center">Sign In to your account</h3>
-            </div>
-          )}
           <div className="mt-1">
             <label htmlFor="identifier" className="block text-sm font-medium text-[#2b4f47] mb-1">
               Email or Phone Number <span className="text-red-500">*</span>
@@ -370,14 +366,6 @@ const Login = ({ onClose, onForgotPassword, onSwitchToRegister, accent: accentPr
             </button>
           </p>
         )}
-        <div className={`${showCredentialFormMobile ? 'flex md:hidden' : 'hidden'} justify-center gap-4 mt-4 mb-4`}>
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setErrors(prev => ({ ...prev, submit: 'Google sign-in failed. Please try again.' }))}
-            text="signin_with"
-            shape="pill"
-          />
-        </div>
       </div>
     </>
   );

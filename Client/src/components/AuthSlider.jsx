@@ -15,7 +15,7 @@ import { getThemeForCompany } from '../config/tenantThemes';
  */
 const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
   const [activeTab, setActiveTab] = useState('login');
-  const [loginStartView, setLoginStartView] = useState('options');
+  const [loginStartView, setLoginStartView] = useState('credentials');
   const [showForgot, setShowForgot] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -27,7 +27,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
   useEffect(() => {
     if (!isOpen) return;
     setActiveTab(initialTab === 'register' ? 'register' : 'login');
-    setLoginStartView('options');
+    setLoginStartView('credentials');
     setShowForgot(false);
     setSuccessMessage('');
   }, [isOpen, initialTab]);
@@ -68,7 +68,7 @@ const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
               <div className="hidden md:flex justify-between items-center">
                 <div className="flex space-x-4">
                   <button
-                    onClick={() => { setActiveTab('login'); setLoginStartView('options'); setShowForgot(false); }}
+                    onClick={() => { setActiveTab('login'); setLoginStartView('credentials'); setShowForgot(false); }}
                     className={`px-4 py-2 text-sm font-semibold rounded-md border-b-2 ${
                       activeTab === 'login' && !showForgot
                         ? ''

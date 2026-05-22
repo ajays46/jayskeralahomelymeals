@@ -19,7 +19,7 @@ const TenantHome = () => {
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
-  const heroImage = '/banner%20.webp';
+  const heroImage = '/banner1.png';
 
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -92,7 +92,7 @@ const TenantHome = () => {
                     Built for Busy Days.
                   </p>
                   <p className="mt-6 max-w-xl text-sm leading-relaxed text-[#5f5f57] sm:text-base">
-                    Chef-crafted, high-energy healthy combos delivered to your doorstep in minutes.
+                  Chef-crafted, high-energy midday subscription meals delivered fresh straight to your door. Clean ingredients designed for sustained mental focus.
                   </p>
                   <p className="mt-3 text-sm font-semibold text-[#2f5a51] sm:text-base">
                     Unlock today&apos;s exclusive menu instantly.
@@ -118,6 +118,7 @@ const TenantHome = () => {
                       src={heroImage}
                       alt={`${theme.brandName || "Jay's Kerala Kitchen"} healthy meal`}
                       className="h-[360px] w-full object-cover sm:h-[430px] lg:h-[500px]"
+                      style={{ objectPosition: '18% center' }}
                       loading="eager"
                       fetchPriority="high"
                       decoding="async"
@@ -148,7 +149,7 @@ const TenantHome = () => {
               onClick={openRegisterSlider}
               className="mt-7 rounded-full bg-[#eef0d7] px-7 py-3 text-sm font-bold text-[#1f4e45] shadow-[0_12px_24px_rgba(0,0,0,0.2)] transition hover:brightness-95"
             >
-              Reserve Your Combo →
+              Activate Daily Subscription →
             </button>
           </div>
         </section>
