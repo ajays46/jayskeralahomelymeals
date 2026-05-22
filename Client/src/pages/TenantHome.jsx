@@ -92,7 +92,7 @@ const TenantHome = () => {
                     Built for Busy Days.
                   </p>
                   <p className="mt-6 max-w-xl text-sm leading-relaxed text-[#5f5f57] sm:text-base">
-                  Chef-crafted, high-energy midday subscription meals delivered fresh to your workplace. Clean ingredients designed for sustained mental focus.
+                  Chef-crafted, high-energy midday subscription meals delivered fresh straight to your door. Clean ingredients designed for sustained mental focus.
                   </p>
                   <p className="mt-3 text-sm font-semibold text-[#2f5a51] sm:text-base">
                     Unlock today&apos;s exclusive menu instantly.
