@@ -22,7 +22,9 @@ const ProtectedRoute = ({ children }) => {
   const pathSegment = location.pathname.split('/')[1];
   const companyHome = pathSegment ? `/${pathSegment}` : getCompanyBasePathFallback();
   const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
-  const isAccountSetupRoute = /^\/[^/]+\/account-setup$/.test(normalizedPath);
+  const isProtectedSetupRoute =
+    /^\/[^/]+\/account-setup$/.test(normalizedPath) ||
+    /^\/[^/]+\/dashboard$/.test(normalizedPath);
   const isMlTenant = String(pathSegment || '').toLowerCase() === 'ml';
   const shouldStayOnProtectedPage =
     Boolean(user) &&
@@ -67,8 +69,8 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to={companyHome} replace />;
   }
 
-  if (shouldStayOnProtectedPage && !isAccountSetupRoute) {
-    return <Navigate to={`${companyHome}/account-setup`} replace />;
+  if (shouldStayOnProtectedPage && !isProtectedSetupRoute) {
+    return <Navigate to={`${companyHome}/dashboard`} replace />;
   }
 
   return children ? children : <Outlet />;

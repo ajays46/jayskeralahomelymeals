@@ -112,12 +112,14 @@ const AccountSetupPage = () => {
 
             {/* brand + headline */}
             <div className="text-center">
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#1f6f5f]">Jay's Kerala Kitchen</p>
               <h1 className="mt-2 text-2xl font-black leading-[1.1] text-[#183f38] sm:text-3xl lg:text-[2.4rem]">
-                Healthy Kerala Food. Made for Busy Days.
+                Welcome to Jay&apos;s Kerala Kitchen 👋
               </h1>
               <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-[#5f5f57] sm:text-base">
-                Chef-crafted traditional lunches delivered fresh to your space. Authentic flavors made light and healthy to keep you energized all afternoon.
+                Ready for today&apos;s healthy Kerala lunch?
+              </p>
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-[#5f5f57] sm:text-base">
+                Fresh home-style lunches designed to keep you energized through the afternoon.
               </p>
             </div>
 
@@ -297,11 +299,7 @@ const AccountSetupPage = () => {
       {showComingSoon ? (
         <div className="fixed inset-0 z-[145] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl border border-[#d9cfbf] bg-white p-5 text-center shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6b60]">Reserve</p>
-            <h3 className="mt-2 text-xl font-black text-[#183f38]">Coming Soon</h3>
-            <p className="mt-2 text-sm text-[#5f5f57]">
-              Batch reservation will be enabled shortly. Stay tuned.
-            </p>
+            <h3 className="text-xl font-black text-[#183f38]">Coming Soon</h3>
             <button
               type="button"
               onClick={() => setShowComingSoon(false)}

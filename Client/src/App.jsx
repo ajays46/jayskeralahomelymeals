@@ -77,6 +77,20 @@ function TenantAwareHome() {
   return <TenantHome />;
 }
 
+/** Shared /:companyPath/dashboard route: ML keeps logistics dashboard, others use protected customer setup page. */
+function TenantDashboardPage() {
+  const tenant = useTenant();
+  const path = tenant?.companyPath?.toLowerCase() ?? '';
+  if (path === 'ml') {
+    return (
+      <MLRouteGuard>
+        <MLDeliveryPartnerDashboard />
+      </MLRouteGuard>
+    );
+  }
+  return <AccountSetupPage />;
+}
+
 /**
  * ConditionalFooter - Renders Footer on tenant home and menu (any company path)
  */
@@ -87,7 +101,8 @@ const ConditionalFooter = () => {
   const isMenu = /^\/[^/]+\/menu$/.test(pathname);
   const isPublic = /^\/[^/]+\/public$/.test(pathname);
   const isAccountSetup = /^\/[^/]+\/account-setup$/.test(pathname);
-  if (isHome || isMenu || isPublic || isAccountSetup) return <Footer />;
+  const isDashboardProtected = /^\/(?!ml\/)[^/]+\/dashboard$/.test(pathname);
+  if (isHome || isMenu || isPublic || isAccountSetup || isDashboardProtected) return <Footer />;
   return null;
 };
 
@@ -141,10 +156,11 @@ function TenantLayout() {
 
     const normalizedPath = String(location.pathname || '').replace(/\/+$/, '') || '/';
     const isAccountSetupPage = normalizedPath === `/${urlSeg}/account-setup`;
+    const isDashboardSetupPage = normalizedPath === `/${urlSeg}/dashboard`;
     const shouldStayOnProtectedPage = shouldForceProtectedPage(roles, user);
 
-    if (!shouldStayOnProtectedPage || isAccountSetupPage) return;
-    navigate(`/${urlSeg}/account-setup`, { replace: true });
+    if (!shouldStayOnProtectedPage || isAccountSetupPage || isDashboardSetupPage) return;
+    navigate(`/${urlSeg}/dashboard`, { replace: true });
   }, [
     isAuthenticated,
     user,
@@ -283,8 +299,8 @@ const App = () => {
             <Route path="process-payment" element={<PaymentWizardPage />} />
 
             <Route element={<ProtectedRoute />}>
-              <Route path="account-setup" element={<AccountSetupPage />} />
-              <Route path="dashboard" element={<MLRouteGuard><MLDeliveryPartnerDashboard /></MLRouteGuard>} />
+              <Route path="account-setup" element={<Navigate to="../dashboard" replace />} />
+              <Route path="dashboard" element={<TenantDashboardPage />} />
               <Route path="trips" element={<MLRouteGuard><MLMyTripsPage /></MLRouteGuard>} />
               <Route path="trips/add" element={<MLRouteGuard><MLAddTripPage /></MLRouteGuard>} />
               <Route path="trips/:tripId" element={<MLRouteGuard><MLTripDetailPage /></MLRouteGuard>} />

@@ -201,7 +201,7 @@ export const useLogin = () => {
         const isMl = (data.data?.companyPath || '').toLowerCase() === 'ml';
         const shouldLandOnProtectedPage = shouldForceProtectedPage(roles, data.data);
         if (!isMl && shouldLandOnProtectedPage) {
-          navigate(`${targetBasePath}/account-setup`, { replace: true });
+          navigate(`${targetBasePath}/dashboard`, { replace: true });
           return;
         }
 
