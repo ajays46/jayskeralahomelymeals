@@ -13,9 +13,8 @@ const MOBILE_PATTERN = /^\d{10}$/;
 const lunchHighlights = [
   {
     title: '🥗 OUR SIGNATURE SERVICE',
-    planName: 'Daily Wellness Meal Plan',
-    description: 'Wholesome, authentic Nadan food crafted for daily health.',
-    cta: '[ Select & Check Availability ]',
+    description: 'Clean, Authentic Nadan food designed to keep you sharp and active all day.',
+    cta: 'Try Today\'s Clean Picks',
     image: '/oonu.jpg',
   },
 ];
@@ -92,7 +91,7 @@ const AccountSetupPage = () => {
             <div className="pointer-events-none absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
             <div className="relative z-10">
               <p className="text-center text-base font-bold uppercase tracking-[0.12em] text-[#8fbfb2]">
-                Balanced Daily Meals
+                Step Into the Healthy Hub
               </p>
               <div className="mx-auto mt-2 max-w-xl">
                 {lunchHighlights.map((item) => (
@@ -122,7 +121,6 @@ const AccountSetupPage = () => {
 
                     <div className="p-6 sm:p-7">
                       <h3 className="text-2xl font-black text-[#183f38]">{item.title}</h3>
-                      <h4 className="mt-3 text-xl font-bold text-[#1e4a42]">{item.planName}</h4>
                       <p className="mt-4 text-base leading-relaxed text-[#3f4a46]">
                         {item.description}
                       </p>
@@ -147,7 +145,7 @@ const AccountSetupPage = () => {
           <div className="mx-auto max-w-7xl">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { icon: '📋', title: 'Daily, Weekly & Monthly Subscription' },
+                { icon: '📋', title: 'Flexible Choices' },
                 { icon: '🛵', title: 'Direct Delivery' },
                 { icon: '🌿', title: 'Healthy Ingredients' },
                 { icon: '♻️', title: 'Plastic-Free Packaging' },
