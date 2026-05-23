@@ -19,7 +19,7 @@ const TenantHome = () => {
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
-  const heroImage = '/banner1.png';
+  const heroImage = '/hero/heroo.png';
 
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -107,15 +107,15 @@ const TenantHome = () => {
                   </div>
                 </div>
 
-                <div className="relative">
+                <div className="relative mx-auto w-full max-w-[560px]">
                   <div className="absolute -left-6 -top-6 h-28 w-28 rounded-full bg-[#e4d9c7]/80 blur-2xl" />
                   <div className="absolute -bottom-6 -right-4 h-28 w-28 rounded-full bg-[#cde3d8]/70 blur-2xl" />
                   <div className="relative overflow-hidden rounded-[28px] border border-[#d8cebe] bg-[#ece4d7] shadow-[0_20px_45px_rgba(27,66,58,0.18)]">
                     <img
                       src={heroImage}
                       alt={`${theme.brandName || "Jay's Kerala Kitchen"} healthy meal`}
-                      className="h-[360px] w-full object-cover sm:h-[430px] lg:h-[500px]"
-                      style={{ objectPosition: '18% center' }}
+                      className="h-[290px] w-full object-cover sm:h-[350px] lg:h-[400px]"
+                      style={{ objectPosition: 'center' }}
                       loading="eager"
                       fetchPriority="high"
                       decoding="async"
