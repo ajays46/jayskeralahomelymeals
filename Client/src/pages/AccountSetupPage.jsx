@@ -12,26 +12,10 @@ const MOBILE_PATTERN = /^\d{10}$/;
 
 const lunchHighlights = [
   {
-    title: 'Signature Veg Plan',
-    cta: 'Select Veg Plan',
-    badge: '🟢 Veg',
-    badgeColor: '#2d7a5f',
-    icon1: '🥗',
-    line1: 'Authentic Nadan curries infused with fresh microgreens & mushrooms.',
-    icon2: '⚡',
-    line2: 'Clean carbs engineered for sustained mental focus.',
-    image: '/oonu.jpg',
-  },
-  {
-    title: 'Signature Non-Veg Plan',
-    cta: 'Select Non-Veg Plan',
-    badge: '🔴 Non-Veg',
-    badgeColor: '#b94040',
-    icon1: '🍗',
-    line1: 'High-protein traditional chicken or fish curries.',
-    icon2: '🚀',
-    line2: 'Built with Kerala roots to defeat the afternoon slump.',
-    image: '/card%20two.jpeg',
+    title: '🥗 OUR SIGNATURE SERVICE',
+    description: 'Clean, Authentic Nadan food designed to keep you sharp and active all day.',
+    cta: 'Try Today\'s Clean Picks',
+    image: '/hero/heroo.png',
   },
 ];
 
@@ -101,38 +85,15 @@ const AccountSetupPage = () => {
         className={`pt-16 sm:pt-[72px] sm:pb-10 ${!showPhoneGate && !isSetupComplete ? 'pb-16' : 'pb-8'}`}
       >
 
-        {/* ── HERO ── */}
-        <section className="relative w-full overflow-hidden border-b border-[#ddd8cc] bg-[#f4f3ed] px-4 pb-8 pt-8 sm:px-6 sm:pb-10 sm:pt-10 lg:px-8"
-          style={{
-            backgroundImage: `radial-gradient(circle, #1f6f5f22 1.5px, transparent 1.5px)`,
-            backgroundSize: '22px 22px',
-          }}
-        >
-          <div className="mx-auto max-w-4xl">
-
-            {/* brand + headline */}
-            <div className="text-center">
-              <h1 className="mt-2 text-2xl font-black leading-[1.1] text-[#183f38] sm:text-3xl lg:text-[2.4rem]">
-                Welcome to Jay&apos;s Kerala Kitchen 👋
-              </h1>
-              <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-[#5f5f57] sm:text-base">
-                Ready for today&apos;s healthy Kerala lunch?
-              </p>
-              <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-[#5f5f57] sm:text-base">
-                Fresh home-style lunches designed to keep you energized through the afternoon.
-              </p>
-            </div>
-
-          </div>
-        </section>
-
         {/* ── PLAN SELECTION ── */}
         <section className="relative w-full overflow-hidden border-y border-[#275447] bg-gradient-to-r from-[#12392f] via-[#154338] to-[#11352d] px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <div className="pointer-events-none absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
             <div className="relative z-10">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8fbfb2]">🥗 Essential Workday Nutrition</p>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <p className="text-center text-sm font-bold uppercase tracking-[0.12em] text-[#8fbfb2]">
+                Step Into the Healthy Hub
+              </p>
+              <div className="mx-auto mt-2 max-w-xl">
                 {lunchHighlights.map((item) => (
                   <article
                     key={item.title}
@@ -147,43 +108,29 @@ const AccountSetupPage = () => {
                     tabIndex={0}
                     className="cursor-pointer overflow-hidden rounded-2xl bg-white shadow-[0_10px_28px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,23,42,0.18)] focus:outline-none focus:ring-2 focus:ring-[#1f6f5f]/30"
                   >
-                    {/* image */}
-                    <div className="relative h-40 w-full sm:h-44">
+                    <div className="relative h-36 w-full bg-[#0f2f27] sm:h-40">
                       <img
                         src={item.image}
                         alt={item.title}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover object-center"
                         loading="lazy"
                         decoding="async"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b22]/70 via-[#1a4a3b]/20 to-transparent" />
-                      {/* pill badge */}
-                      <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white"
-                        style={{ backgroundColor: item.badgeColor }}>
-                        {item.badge}
-                      </span>
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b22]/55 via-transparent to-transparent" />
                     </div>
 
-                    {/* body */}
-                    <div className="p-5">
-                      <h3 className="text-lg font-black text-[#183f38]">{item.title}</h3>
-
-                      <p className="mt-3 flex items-start gap-2 text-sm text-[#3f4a46]">
-                        <span className="mt-0.5 shrink-0 text-base">{item.icon1}</span>
-                        <span>{item.line1}</span>
+                    <div className="p-4 sm:p-5">
+                      <h3 className="text-xl font-black text-[#183f38]">{item.title}</h3>
+                      <p className="mt-3 text-sm leading-relaxed text-[#3f4a46]">
+                        {item.description}
                       </p>
-                      <p className="mt-2 flex items-start gap-2 text-sm text-[#3f4a46]">
-                        <span className="mt-0.5 shrink-0 text-base">{item.icon2}</span>
-                        <span>{item.line2}</span>
-                      </p>
-
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleReserveClick(); }}
-                        className="mt-5 w-full rounded-full py-2.5 text-sm font-bold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
+                        className="mt-4 w-full rounded-full px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
                         style={{ backgroundColor: '#1f6f5f' }}
                       >
-                        {isSetupComplete ? `${item.cta} →` : `🔒 ${item.cta}`}
+                        {item.cta}
                       </button>
                     </div>
                   </article>
@@ -198,7 +145,7 @@ const AccountSetupPage = () => {
           <div className="mx-auto max-w-7xl">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { icon: '📋', title: 'Daily, Weekly & Monthly Subscription' },
+                { icon: '📋', title: 'Flexible Choices' },
                 { icon: '🛵', title: 'Direct Delivery' },
                 { icon: '🌿', title: 'Healthy Ingredients' },
                 { icon: '♻️', title: 'Plastic-Free Packaging' },
@@ -208,7 +155,7 @@ const AccountSetupPage = () => {
                   className="rounded-xl border border-[#e2dccf] bg-white p-3 text-[#244f46] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
                 >
                   <p className="text-lg">{f.icon}</p>
-                  <p className="mt-1 text-xs font-semibold sm:text-sm">{f.title}</p>
+                  <p className="mt-1 text-sm font-semibold">{f.title}</p>
                 </div>
               ))}
             </div>
@@ -282,24 +229,14 @@ const AccountSetupPage = () => {
           </div>
         </div>
       ) : null}
-      {!showPhoneGate && !isSetupComplete ? (
-        <div className="fixed inset-x-0 bottom-0 z-[120] px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 sm:hidden">
-          <div className="mx-auto flex max-w-xl items-center justify-between gap-2 rounded-2xl border border-[#d8cebe] bg-[#fff9ed]/95 px-3 py-2.5 shadow-[0_10px_24px_rgba(15,23,42,0.16)] backdrop-blur">
-            <p className="text-xs font-semibold text-[#244f46]">📱 Ready to experience clean energy?</p>
-            <button
-              type="button"
-              onClick={() => setShowPhoneGate(true)}
-              className="rounded-full bg-[#1f6f5f] px-3 py-1.5 text-[11px] font-bold text-white"
-            >
-              🔒 Verify Mobile to Unlock Menus
-            </button>
-          </div>
-        </div>
-      ) : null}
       {showComingSoon ? (
         <div className="fixed inset-0 z-[145] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl border border-[#d9cfbf] bg-white p-5 text-center shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
-            <h3 className="text-xl font-black text-[#183f38]">Coming Soon</h3>
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#6f6b60]">Reserve</p>
+            <h3 className="mt-2 text-xl font-black text-[#183f38]">Coming Soon</h3>
+            <p className="mt-2 text-sm text-[#5f5f57]">
+              Batch reservation will be enabled shortly. Stay tuned.
+            </p>
             <button
               type="button"
               onClick={() => setShowComingSoon(false)}
