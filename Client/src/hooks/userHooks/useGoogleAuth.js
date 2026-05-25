@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import api from '../../api/axios';
 import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
-import { getDashboardRoute, shouldForceProtectedPage } from '../../utils/roleBasedRouting';
+import { getDashboardRoute, getProtectedPageRoute, shouldForceProtectedPage } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { syncRememberMeStorage } from './useLogin';
 import { trackGaEvent } from '../../utils/analytics';
@@ -25,6 +25,8 @@ export const useGoogleAuth = () => {
     },
     onSuccess: (data, variables) => {
       if (!data.success) return;
+      const resolvedCompanyPathRaw = variables?.companyPath || data.data?.companyPath || '';
+      const resolvedCompanyPath = String(resolvedCompanyPathRaw).trim().toLowerCase();
 
       const rememberRaw = variables?.remember;
       const rememberOn =
@@ -39,7 +41,7 @@ export const useGoogleAuth = () => {
         syncRememberMeStorage({
           remember: rememberOn,
           identifier: id,
-          companyPath: variables?.companyPath || data.data?.companyPath,
+          companyPath: resolvedCompanyPath,
         });
       }
 
@@ -51,6 +53,7 @@ export const useGoogleAuth = () => {
       setActiveRole(primaryRole);
       setUser({
         ...data.data,
+        companyPath: resolvedCompanyPath || data.data?.companyPath,
         // Fallback for stale backend responses that might omit this field.
         // If this mutation succeeded, user authenticated through Google for this session.
         isGoogleAuth: data.data?.isGoogleAuth ?? true,
@@ -59,18 +62,21 @@ export const useGoogleAuth = () => {
       showLoginSuccess();
       trackGaEvent('login', {
         method: 'google',
-        company_path: data.data?.companyPath || variables?.companyPath || 'unknown',
+        company_path: resolvedCompanyPath || 'unknown',
         role_count: Array.isArray(roles) ? roles.length : 1,
       });
 
       if (data.data?.companyId) {
         localStorage.setItem('company_id', data.data.companyId);
       }
-      const targetBasePath = data.data?.companyPath ? `/${String(data.data.companyPath).trim()}` : basePath;
-      const isMl = (data.data?.companyPath || '').toLowerCase() === 'ml';
-      const shouldLandOnProtectedPage = shouldForceProtectedPage(roles, data.data);
+      const targetBasePath = resolvedCompanyPath ? `/${resolvedCompanyPath}` : basePath;
+      const isMl = resolvedCompanyPath === 'ml';
+      const shouldLandOnProtectedPage = shouldForceProtectedPage(roles, {
+        ...data.data,
+        companyPath: resolvedCompanyPath || data.data?.companyPath,
+      });
       if (!isMl && shouldLandOnProtectedPage) {
-        navigate(`${targetBasePath}/account-setup`, { replace: true });
+        navigate(getProtectedPageRoute(targetBasePath, resolvedCompanyPath), { replace: true });
         return;
       }
 
@@ -82,7 +88,7 @@ export const useGoogleAuth = () => {
           const dashboardRoute = getDashboardRoute(roles, targetBasePath);
           navigate(dashboardRoute, { replace: true });
         } else if (roles.length > 1) {
-          if (data.data?.companyPath) navigate(targetBasePath, { replace: true });
+          if (resolvedCompanyPath) navigate(targetBasePath, { replace: true });
         } else {
           const dashboardRoute = getDashboardRoute(roles, targetBasePath);
           navigate(dashboardRoute, { replace: true });

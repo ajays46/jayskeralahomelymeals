@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuthStore from "../stores/Zustand.store";
 import { getCompanyBasePathFallback } from "../utils/companyPaths";
 import api from "../api/axios";
-import { shouldForceProtectedPage } from "../utils/roleBasedRouting";
+import { getProtectedPageRoute, shouldForceProtectedPage } from "../utils/roleBasedRouting";
 
 /**
  * ProtectedRoute - Route protection component with authentication guard.
@@ -22,7 +22,8 @@ const ProtectedRoute = ({ children }) => {
   const pathSegment = location.pathname.split('/')[1];
   const companyHome = pathSegment ? `/${pathSegment}` : getCompanyBasePathFallback();
   const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
-  const isAccountSetupRoute = /^\/[^/]+\/account-setup$/.test(normalizedPath);
+  const protectedRoute = getProtectedPageRoute(companyHome, pathSegment);
+  const isProtectedRoute = normalizedPath === protectedRoute;
   const isMlTenant = String(pathSegment || '').toLowerCase() === 'ml';
   const shouldStayOnProtectedPage =
     Boolean(user) &&
@@ -67,8 +68,8 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to={companyHome} replace />;
   }
 
-  if (shouldStayOnProtectedPage && !isAccountSetupRoute) {
-    return <Navigate to={`${companyHome}/account-setup`} replace />;
+  if (shouldStayOnProtectedPage && !isProtectedRoute) {
+    return <Navigate to={protectedRoute} replace />;
   }
 
   return children ? children : <Outlet />;
