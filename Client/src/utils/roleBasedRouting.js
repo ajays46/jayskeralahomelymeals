@@ -15,11 +15,15 @@ export function shouldEnforceAccountSetup(roles) {
 }
 
 /**
- * Customer users authenticated via email/Google should always land on protected page.
+ * Customer users authenticated via email/Google should stay on protected page
+ * only until phone + terms are completed.
  * Staff roles continue to their role-specific dashboards.
  */
 export function shouldForceProtectedPage(roles, user) {
   if (!shouldEnforceAccountSetup(roles)) return false;
+  const phoneDigits = String(user?.phone || '').replace(/\D/g, '');
+  const isSetupComplete = phoneDigits.length >= 10 && user?.termsAccepted === true;
+  if (isSetupComplete) return false;
   const hasEmail = Boolean(String(user?.email || '').trim());
   const isGoogleAuth = Boolean(user?.isGoogleAuth);
   return hasEmail || isGoogleAuth;
@@ -36,6 +40,13 @@ export function getProtectedPageRoute(basePath, companyPath) {
   const cp = String(companyPath || normalizedBase.replace(/^\//, '')).toLowerCase().trim();
   if (cp === 'jlg') return `${normalizedBase}/protected`;
   return `${normalizedBase}/account-setup`;
+}
+
+export function getOrderPageRoute(basePath) {
+  const normalizedBase = basePath && typeof basePath === 'string' && basePath.trim()
+    ? (basePath.trim().startsWith('/') ? basePath.trim() : `/${basePath.trim()}`)
+    : getCompanyBasePathFallback();
+  return `${normalizedBase}/order`;
 }
 
 /**

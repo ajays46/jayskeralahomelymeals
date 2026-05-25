@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Modal } from 'antd';
 import { 
@@ -218,12 +218,37 @@ const BookingWizardPage = () => {
   const menus = menusData?.data || [];
   const productQuantities = productQuantitiesData?.data || {};
 
-  const steps = [
+  const allSteps = [
     { id: 1, title: 'Select Customer', icon: MdPeople, color: 'blue' },
     { id: 2, title: 'Choose Menu', icon: MdRestaurant, color: 'green' },
     { id: 3, title: 'Delivery Address', icon: MdLocationOn, color: 'purple' },
     { id: 4, title: 'Schedule & Save', icon: MdSchedule, color: 'indigo' }
   ];
+  const normalizedPath = (location.pathname || '').replace(/\/+$/, '') || '/';
+  const isOrderRoute = /^\/[^/]+\/order$/.test(normalizedPath);
+  const useOrderQuickFlow = isOrderRoute && !isSeller;
+  const stepSequence = useMemo(
+    () => (useOrderQuickFlow ? [2, 4, 3] : [1, 2, 3, 4]),
+    [useOrderQuickFlow]
+  );
+  const steps = useMemo(() => {
+    const byId = new Map(allSteps.map((step) => [step.id, step]));
+    return stepSequence
+      .map((id) => {
+        const base = byId.get(id);
+        if (!base) return null;
+        if (useOrderQuickFlow && id === 4) {
+          return { ...base, title: 'Date Selection' };
+        }
+        return base;
+      })
+      .filter(Boolean);
+  }, [allSteps, stepSequence, useOrderQuickFlow]);
+  const currentStepIndex = stepSequence.indexOf(currentStep);
+  const safeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
+  const isFirstStep = safeStepIndex === 0;
+  const isFinalStep = safeStepIndex === steps.length - 1;
+  const showCompactOrderDesign = useOrderQuickFlow;
 
   // Helper function to format address display names (handles Google Maps URLs)
   const formatAddressDisplay = (addressName) => {
@@ -694,15 +719,21 @@ const BookingWizardPage = () => {
     }
   }, [location.state?.draftOrder, location.state?.resumeDraft, location.state?.editMode, isSeller, navigate]);
 
+  useEffect(() => {
+    if (!stepSequence.includes(currentStep)) {
+      setCurrentStep(stepSequence[0]);
+    }
+  }, [currentStep, stepSequence]);
+
   const nextStep = () => {
-    if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1);
+    if (currentStepIndex >= 0 && currentStepIndex < stepSequence.length - 1) {
+      setCurrentStep(stepSequence[currentStepIndex + 1]);
     }
   };
 
   const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+    if (currentStepIndex > 0) {
+      setCurrentStep(stepSequence[currentStepIndex - 1]);
     }
   };
 
@@ -2183,18 +2214,39 @@ const BookingWizardPage = () => {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 ${isModalOpen ? 'modal-open' : ''}`}>
-      <div className="max-w-7xl mx-auto px-3 py-4 pt-8">
+    <div
+      className={`min-h-screen ${showCompactOrderDesign ? 'bg-[#f6f1e7]' : 'bg-gradient-to-br from-slate-50 to-slate-100'} ${isModalOpen ? 'modal-open' : ''}`}
+    >
+      <div className={`${showCompactOrderDesign ? 'max-w-6xl' : 'max-w-7xl'} mx-auto px-3 py-4 pt-8`}>
         {/* Professional Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 mb-4">
+        <div className={`relative overflow-hidden bg-white ${showCompactOrderDesign ? 'rounded-[24px] border border-[#d8cebe] bg-[#f9f6ee] shadow-[0_20px_45px_rgba(27,66,58,0.14)]' : 'rounded-lg shadow-sm border border-slate-200'} mb-4`}>
+          {showCompactOrderDesign ? (
+            <div
+              className="pointer-events-none absolute inset-0 opacity-70"
+              aria-hidden="true"
+              style={{
+                backgroundImage: `
+                  radial-gradient(circle at 1px 1px, rgba(31, 78, 69, 0.08) 1px, transparent 0),
+                  linear-gradient(120deg, rgba(31, 78, 69, 0.03), rgba(140, 118, 86, 0.03))
+                `,
+                backgroundSize: '20px 20px, 100% 100%',
+              }}
+            />
+          ) : null}
           <div className="px-3 sm:px-4 py-3 border-b border-slate-200">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className={`relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${showCompactOrderDesign ? 'border-[#d9cfbf]' : ''}`}>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl font-semibold text-slate-800">Create Customer Order</h1>
-                <p className="text-slate-600 mt-1 text-xs sm:text-sm">Set up a new order for your customer</p>
+                <h1 className="text-lg sm:text-xl font-semibold text-slate-800">
+                  {showCompactOrderDesign ? 'Create Your Order' : 'Create Customer Order'}
+                </h1>
+                <p className="text-slate-600 mt-1 text-xs sm:text-sm">
+                  {showCompactOrderDesign
+                    ? 'Choose menu items, select delivery dates, and add address details.'
+                    : 'Set up a new order for your customer'}
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {currentStep >= 3 && (
+                {!showCompactOrderDesign && currentStep >= 3 && (
                   <button
                     onClick={() => {
                       // Blur any currently focused elements to prevent form validation
@@ -2212,15 +2264,17 @@ const BookingWizardPage = () => {
                     <span className="sm:hidden">Cancel</span>
                   </button>
                 )}
-                <button
-                  onClick={() => navigate(`${basePath}/seller`)}
-                  className="px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
-                >
-                  <MdDashboard className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">Dashboard</span>
-                  <span className="sm:hidden">Home</span>
-                </button>
-                {isSeller && (
+                {!showCompactOrderDesign && (
+                  <button
+                    onClick={() => navigate(`${basePath}/seller`)}
+                    className="px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
+                  >
+                    <MdDashboard className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Dashboard</span>
+                    <span className="sm:hidden">Home</span>
+                  </button>
+                )}
+                {isSeller && !showCompactOrderDesign && (
                   <button
                     onClick={() => navigate(`${basePath}/seller/customers`)}
                     className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 shadow-sm min-h-[44px] sm:min-h-0"
@@ -2236,70 +2290,75 @@ const BookingWizardPage = () => {
           
           {/* Professional Step Progress */}
           <div className="px-3 sm:px-4 py-3">
-            <div className="flex items-center justify-between">
-              {steps.map((step, index) => (
-                <div key={step.id} className="flex items-center flex-1">
+            <div className={showCompactOrderDesign ? 'relative z-10 grid grid-cols-1 gap-2 sm:grid-cols-3' : 'flex items-center justify-between'}>
+              {steps.map((step, index) => {
+                const isStepActiveOrCompleted = safeStepIndex >= index;
+                const isStepCompleted = safeStepIndex > index;
+                return (
+                <div key={step.id} className={showCompactOrderDesign ? 'rounded-xl border border-[#e5e1d7] px-3 py-2 bg-[#fbfaf7]' : 'flex items-center flex-1'}>
                   <div className="flex items-center">
                     <div className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 transition-all duration-200 ${
-                      currentStep >= step.id
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
-                        : 'bg-white border-slate-300 text-slate-400'
+                      isStepActiveOrCompleted
+                        ? (showCompactOrderDesign ? 'bg-[#1f6f5f] border-[#1f6f5f] text-white shadow-lg' : 'bg-blue-600 border-blue-600 text-white shadow-lg')
+                        : (showCompactOrderDesign ? 'bg-white border-[#c8bcaa] text-[#7d7b74]' : 'bg-white border-slate-300 text-slate-400')
                     }`}>
-                      {currentStep > step.id ? (
+                      {isStepCompleted ? (
                         <MdCheckCircle className="text-xs sm:text-sm" />
                       ) : (
                         <step.icon className="text-xs sm:text-sm" />
                       )}
                     </div>
                     
-                    <div className="ml-1 sm:ml-2 hidden md:block">
+                    <div className={`ml-1 sm:ml-2 ${showCompactOrderDesign ? 'block' : 'hidden md:block'}`}>
                       <div className={`text-xs font-medium transition-colors ${
-                        currentStep >= step.id ? 'text-slate-800' : 'text-slate-500'
+                        isStepActiveOrCompleted ? 'text-slate-800' : 'text-slate-500'
                       }`}>
                         {step.title}
                       </div>
                     </div>
                   </div>
                   
-                  {index < steps.length - 1 && (
+                  {!showCompactOrderDesign && index < steps.length - 1 && (
                     <div className={`flex-1 h-0.5 mx-1 sm:mx-2 transition-colors ${
-                      currentStep > step.id ? 'bg-blue-600' : 'bg-slate-200'
+                      isStepCompleted ? 'bg-blue-600' : 'bg-slate-200'
                     }`} />
                   )}
                 </div>
-              ))}
+              )})}
             </div>
             
             {/* Mobile Step Title */}
             <div className="mt-2 md:hidden">
               <div className={`text-xs font-medium text-center transition-colors ${
-                currentStep >= 1 ? 'text-slate-800' : 'text-slate-500'
+                steps[safeStepIndex] ? 'text-slate-800' : 'text-slate-500'
               }`}>
-                {steps[currentStep - 1]?.title}
+                {steps[safeStepIndex]?.title}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className={showCompactOrderDesign ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 lg:grid-cols-4 gap-4'}>
           {/* Left Column - Wizard Content */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+          <div className={showCompactOrderDesign ? '' : 'lg:col-span-3'}>
+            <div className={`bg-white ${showCompactOrderDesign ? 'rounded-[24px] border border-[#d8cebe] bg-[#fffdf7] shadow-[0_14px_30px_rgba(27,66,58,0.08)]' : 'rounded-lg shadow-sm border border-slate-200'}`}>
               <div className="p-3 sm:p-4">
                 {renderStepContent()}
               </div>
               
               {/* Professional Navigation */}
-              <div className="px-3 sm:px-4 py-3 bg-slate-50 border-t border-slate-200 rounded-b-lg">
+              <div className={`px-3 sm:px-4 py-3 ${showCompactOrderDesign ? 'bg-[#f4f1e8] border-t border-[#ded3c2] rounded-b-[24px]' : 'bg-slate-50 border-t border-slate-200 rounded-b-lg'}`}>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
                       onClick={prevStep}
-                      disabled={currentStep === 1}
-                      className={`flex items-center justify-center px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
-                        currentStep === 1
+                      disabled={isFirstStep}
+                      className={`flex items-center justify-center px-3 py-2 ${showCompactOrderDesign ? 'rounded-full' : 'rounded-md'} text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
+                        isFirstStep
                           ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400'
+                          : (showCompactOrderDesign
+                              ? 'bg-white text-[#1f4e45] border border-[#c5b9a6] hover:bg-[#fffaf0] hover:border-[#b9ad9a]'
+                              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400')
                       }`}
                     >
                       <MdArrowBack className="mr-1 text-sm sm:text-base" />
@@ -2308,17 +2367,17 @@ const BookingWizardPage = () => {
                     </button>
                     
                     <div className="text-xs text-slate-500 px-2 sm:px-3 whitespace-nowrap">
-                      Step {currentStep} of {steps.length}
+                      Step {safeStepIndex + 1} of {steps.length}
                     </div>
                     
-                    {currentStep < steps.length ? (
+                    {!isFinalStep ? (
                       <button
                         onClick={nextStep}
                         disabled={!canProceed()}
-                        className={`flex items-center justify-center px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
+                        className={`flex items-center justify-center px-3 sm:px-4 py-2 ${showCompactOrderDesign ? 'rounded-full' : 'rounded-md'} text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
                           !canProceed()
                             ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                              : `${showCompactOrderDesign ? 'bg-[#1f6f5f] hover:brightness-105' : 'bg-blue-600 hover:bg-blue-700'} text-white shadow-sm`
                         }`}
                       >
                         <span className="hidden sm:inline">Next</span>
@@ -2348,10 +2407,10 @@ const BookingWizardPage = () => {
                         <button
                           onClick={handleSaveOrder}
                           disabled={!canProceed() || isCreating}
-                          className={`flex items-center justify-center px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
+                          className={`flex items-center justify-center px-3 sm:px-4 py-2 ${showCompactOrderDesign ? 'rounded-full' : 'rounded-md'} text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none min-h-[44px] sm:min-h-0 ${
                             !canProceed() || isCreating
                               ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
+                              : `${showCompactOrderDesign ? 'bg-[#1f6f5f] hover:brightness-105' : 'bg-green-600 hover:bg-green-700'} text-white shadow-sm`
                           }`}
                         >
                           {isCreating ? (
@@ -2375,6 +2434,7 @@ const BookingWizardPage = () => {
           </div>
 
           {/* Right Column - Professional Summary */}
+          {!showCompactOrderDesign ? (
           <div className="lg:col-span-1">
             <div className="sticky top-4 space-y-4">
 
@@ -2597,6 +2657,7 @@ const BookingWizardPage = () => {
               </div>
             </div>
           </div>
+          ) : null}
         </div>
       </div>
 

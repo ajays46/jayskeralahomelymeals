@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Terms from '../components/Terms';
-import { useTenant } from '../context/TenantContext';
+import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
 import { useCompleteGoogleProfile } from '../hooks/userHooks/useCompleteGoogleProfile';
 import useAuthStore from '../stores/Zustand.store';
@@ -12,9 +12,9 @@ const MOBILE_PATTERN = /^\d{10}$/;
 
 const defaultHighlights = [
   {
-    title: 'OUR SIGNATURE SERVICE',
-    description: 'Clean, Authentic Nadan food designed to keep you sharp and active all day.',
-    cta: 'Try Today\'s Clean Picks',
+    title: 'VEG LUNCH',
+    description: '',
+    cta: 'Go',
     image: '/hero/heroo.png',
   },
 ];
@@ -32,15 +32,13 @@ const AccountSetupPage = ({ variant = 'default' }) => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const tenant = useTenant();
+  const basePath = useCompanyBasePath();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
   const isJlgView = variant === 'jlg' || String(tenant?.companyPath || '').toLowerCase().trim() === 'jlg';
   const pageCopy = {
     sectionTitle: isJlgView ? 'Step Into Jay\'s Leafy Greens' : 'Step Into the Healthy Hub',
     highlightItems: isJlgView ? jlgHighlights : defaultHighlights,
-    setupBlurb: isJlgView
-      ? "Enter your mobile number to see today's fresh delivery slots and view the menu."
-      : "Enter your mobile number to see today's fresh delivery slots and view the menu.",
     features: isJlgView
       ? [
           { icon: '🥬', title: 'Fresh Microgreens' },
@@ -48,12 +46,7 @@ const AccountSetupPage = ({ variant = 'default' }) => {
           { icon: '🌱', title: 'Farm Fresh Quality' },
           { icon: '♻️', title: 'Eco Packaging' },
         ]
-      : [
-          { icon: '📋', title: 'Flexible Choices' },
-          { icon: '🛵', title: 'Direct Delivery' },
-          { icon: '🌿', title: 'Healthy Ingredients' },
-          { icon: '♻️', title: 'Plastic-Free Packaging' },
-        ],
+      : [],
   };
   const { mutate: completeProfile, isPending } = useCompleteGoogleProfile();
   const initialPhoneDigits = String(user?.phone || '').replace(/\D/g, '');
@@ -98,6 +91,7 @@ const AccountSetupPage = ({ variant = 'default' }) => {
           showSuccessToast('Account activated successfully.', 'Done');
           setIsSetupComplete(true);
           setShowPhoneGate(false);
+          navigate(`${basePath}/order`, { replace: true });
         },
         onError: (error) => {
           const message = error?.response?.data?.message || 'Unable to update account details.';
@@ -108,10 +102,10 @@ const AccountSetupPage = ({ variant = 'default' }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f1e7]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div className="min-h-[calc(100vh-88px)] bg-[#f6f1e7]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <Navbar minimalNav />
       <main
-        className={`pt-16 sm:pt-[72px] sm:pb-10 ${!showPhoneGate && !isSetupComplete ? 'pb-16' : 'pb-8'}`}
+        className={`pt-16 sm:pt-[72px] ${!showPhoneGate && !isSetupComplete ? 'pb-4' : 'pb-2'}`}
       >
 
         {/* ── PLAN SELECTION ── */}
@@ -150,13 +144,15 @@ const AccountSetupPage = ({ variant = 'default' }) => {
 
                     <div className="p-4 sm:p-5">
                       <h3 className="text-xl font-black text-[#183f38]">{item.title}</h3>
-                      <p className="mt-3 text-sm leading-relaxed text-[#3f4a46]">
-                        {item.description}
-                      </p>
+                      {item.description ? (
+                        <p className="mt-3 text-sm leading-relaxed text-[#3f4a46]">
+                          {item.description}
+                        </p>
+                      ) : null}
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleReserveClick(); }}
-                        className="mt-4 w-full rounded-full px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
+                        className="mt-3 w-full rounded-full px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
                         style={{ backgroundColor: '#1f6f5f' }}
                       >
                         {item.cta}
@@ -170,40 +166,47 @@ const AccountSetupPage = ({ variant = 'default' }) => {
           </div>
         </section>
 
-        <section className="w-full border-b border-[#ddd8cc] bg-[#f4f3ed] px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {pageCopy.features.map((f) => (
-                <div
-                  key={f.title}
-                  className="rounded-xl border border-[#e2dccf] bg-white p-3 text-[#244f46] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
-                >
-                  <p className="text-lg">{f.icon}</p>
-                  <p className="mt-1 text-sm font-semibold">{f.title}</p>
-                </div>
-              ))}
+        {pageCopy.features.length ? (
+          <section className="w-full border-b border-[#ddd8cc] bg-[#f4f3ed] px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {pageCopy.features.map((f) => (
+                  <div
+                    key={f.title}
+                    className="rounded-xl border border-[#e2dccf] bg-white p-3 text-[#244f46] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
+                  >
+                    <p className="text-lg">{f.icon}</p>
+                    <p className="mt-1 text-sm font-semibold">{f.title}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
       </main>
 
       {showPhoneGate ? (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-[#d9cfbf] bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
+          <div className="relative w-full max-w-md rounded-2xl border border-[#d9cfbf] bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
+            <button
+              type="button"
+              onClick={() => setShowPhoneGate(false)}
+              disabled={isPending}
+              aria-label="Close"
+              className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-xl leading-none text-[#5f5f57] transition hover:bg-[#f4f3ed]"
+            >
+              ×
+            </button>
             <h3 className="mt-2 text-xl font-black text-[#183f38]">Almost there!</h3>
-            <p className="mt-2 text-sm text-[#5f5f57]">
-              {pageCopy.setupBlurb}
-            </p>
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <label className="block text-sm font-semibold text-[#244f46]">Mobile Number:</label>
-              <div className="flex items-center gap-2">
-                <span className="rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm font-semibold text-gray-700">+91</span>
+              <div>
                 <input
                   type="tel"
                   inputMode="numeric"
                   value={form.phone}
                   onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                  placeholder="Enter Phone Number"
+                  placeholder="Enter Mobile Number"
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                   required
                 />
@@ -231,22 +234,14 @@ const AccountSetupPage = ({ variant = 'default' }) => {
                 </span>
               </label>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPhoneGate(false)}
-                  disabled={isPending}
-                  className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Back
-                </button>
+              <div className="flex">
                 <button
                   type="submit"
                   disabled={!canSubmitProfile}
-                  className="flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                   style={{ backgroundColor: accent }}
                 >
-                  {isPending ? 'Saving...' : 'Submit & Continue'}
+                  {isPending ? 'Saving...' : 'Continue'}
                 </button>
               </div>
             </form>

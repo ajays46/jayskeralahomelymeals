@@ -3,7 +3,13 @@ import api from '../../api/axios';
 import { showLoginError, showLoginSuccess } from '../../utils/toastConfig.jsx';
 import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
-import { getDashboardRoute, getProtectedPageRoute, shouldForceProtectedPage } from '../../utils/roleBasedRouting';
+import {
+  getDashboardRoute,
+  getOrderPageRoute,
+  getProtectedPageRoute,
+  shouldEnforceAccountSetup,
+  shouldForceProtectedPage
+} from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { trackGaEvent } from '../../utils/analytics';
 
@@ -204,6 +210,7 @@ export const useLogin = () => {
         }
         const targetBasePath = resolvedCompanyPath ? `/${resolvedCompanyPath}` : basePath;
         const isMl = resolvedCompanyPath === 'ml';
+        const isCustomerOnly = shouldEnforceAccountSetup(roles);
         const shouldLandOnProtectedPage = shouldForceProtectedPage(roles, {
           ...data.data,
           companyPath: resolvedCompanyPath || data.data?.companyPath,
@@ -222,6 +229,8 @@ export const useLogin = () => {
           if (isMl) {
             const dashboardRoute = getDashboardRoute(roles, targetBasePath);
             navigate(dashboardRoute, { replace: true });
+          } else if (isCustomerOnly) {
+            navigate(getOrderPageRoute(targetBasePath), { replace: true });
           } else if (roles.length > 1) {
             if (resolvedCompanyPath) navigate(targetBasePath, { replace: true });
           } else {

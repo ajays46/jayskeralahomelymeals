@@ -17,6 +17,7 @@ const ResetPassword = lazy(() => import('./components/ResetPassword'));
 const TenantHome = lazy(() => import('./pages/TenantHome'));
 const PublicPage = lazy(() => import('./pages/Public'));
 const AccountSetupPage = lazy(() => import('./pages/AccountSetupPage'));
+const OrderPage = lazy(() => import('./pages/OrderPage'));
 const JLGProtectedPage = lazy(() => import('./pages/JLGProtectedPage'));
 const JLGHomePage = lazy(() => import('./pages/JLGHomePage'));
 const MLHomePage = lazy(() => import('./ml/pages/MLHomePage'));
@@ -288,6 +289,7 @@ const App = () => {
             <Route element={<ProtectedRoute />}>
               <Route path="account-setup" element={<AccountSetupPage />} />
               <Route path="protected" element={<JLGProtectedPage />} />
+              <Route path="order" element={<OrderPage />} />
               <Route path="dashboard" element={<MLRouteGuard><MLDeliveryPartnerDashboard /></MLRouteGuard>} />
               <Route path="trips" element={<MLRouteGuard><MLMyTripsPage /></MLRouteGuard>} />
               <Route path="trips/add" element={<MLRouteGuard><MLAddTripPage /></MLRouteGuard>} />
