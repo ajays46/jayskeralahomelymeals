@@ -10,13 +10,14 @@ import useAuthStore from './stores/Zustand.store';
 import api from './api/axios';
 import { TenantProvider, useTenant } from './context/TenantContext';
 import { getCompanyBasePathFallback } from './utils/companyPaths';
-import { shouldForceProtectedPage } from './utils/roleBasedRouting';
+import { getProtectedPageRoute, shouldForceProtectedPage } from './utils/roleBasedRouting';
 
 const Terms = lazy(() => import('./components/Terms'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
 const TenantHome = lazy(() => import('./pages/TenantHome'));
 const PublicPage = lazy(() => import('./pages/Public'));
 const AccountSetupPage = lazy(() => import('./pages/AccountSetupPage'));
+const JLGProtectedPage = lazy(() => import('./pages/JLGProtectedPage'));
 const JLGHomePage = lazy(() => import('./pages/JLGHomePage'));
 const MLHomePage = lazy(() => import('./ml/pages/MLHomePage'));
 const MLDeliveryPartnerDashboard = lazy(() => import('./ml/pages/MLDeliveryPartnerDashboard'));
@@ -101,8 +102,8 @@ const ConditionalFooter = () => {
   const isMenu = /^\/[^/]+\/menu$/.test(pathname);
   const isPublic = /^\/[^/]+\/public$/.test(pathname);
   const isAccountSetup = /^\/[^/]+\/account-setup$/.test(pathname);
-  const isDashboardProtected = /^\/(?!ml\/)[^/]+\/dashboard$/.test(pathname);
-  if (isHome || isMenu || isPublic || isAccountSetup || isDashboardProtected) return <Footer />;
+  const isProtected = /^\/[^/]+\/protected$/.test(pathname);
+  if (isHome || isMenu || isPublic || isAccountSetup || isProtected) return <Footer />;
   return null;
 };
 
@@ -155,12 +156,12 @@ function TenantLayout() {
     if (urlSeg === 'ml') return;
 
     const normalizedPath = String(location.pathname || '').replace(/\/+$/, '') || '/';
-    const isAccountSetupPage = normalizedPath === `/${urlSeg}/account-setup`;
-    const isDashboardSetupPage = normalizedPath === `/${urlSeg}/dashboard`;
+    const protectedRoute = getProtectedPageRoute(`/${urlSeg}`, urlSeg);
+    const isProtectedPage = normalizedPath === protectedRoute;
     const shouldStayOnProtectedPage = shouldForceProtectedPage(roles, user);
 
-    if (!shouldStayOnProtectedPage || isAccountSetupPage || isDashboardSetupPage) return;
-    navigate(`/${urlSeg}/dashboard`, { replace: true });
+    if (!shouldStayOnProtectedPage || isProtectedPage) return;
+    navigate(protectedRoute, { replace: true });
   }, [
     isAuthenticated,
     user,
@@ -299,8 +300,9 @@ const App = () => {
             <Route path="process-payment" element={<PaymentWizardPage />} />
 
             <Route element={<ProtectedRoute />}>
-              <Route path="account-setup" element={<Navigate to="../dashboard" replace />} />
-              <Route path="dashboard" element={<TenantDashboardPage />} />
+              <Route path="account-setup" element={<AccountSetupPage />} />
+              <Route path="protected" element={<JLGProtectedPage />} />
+              <Route path="dashboard" element={<MLRouteGuard><MLDeliveryPartnerDashboard /></MLRouteGuard>} />
               <Route path="trips" element={<MLRouteGuard><MLMyTripsPage /></MLRouteGuard>} />
               <Route path="trips/add" element={<MLRouteGuard><MLAddTripPage /></MLRouteGuard>} />
               <Route path="trips/:tripId" element={<MLRouteGuard><MLTripDetailPage /></MLRouteGuard>} />

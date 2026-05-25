@@ -3,7 +3,7 @@ import api from '../../api/axios';
 import { showLoginError, showLoginSuccess } from '../../utils/toastConfig.jsx';
 import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
-import { getDashboardRoute, shouldForceProtectedPage } from '../../utils/roleBasedRouting';
+import { getDashboardRoute, getProtectedPageRoute, shouldForceProtectedPage } from '../../utils/roleBasedRouting';
 import { useCompanyBasePath } from '../../context/TenantContext';
 import { trackGaEvent } from '../../utils/analytics';
 
@@ -162,6 +162,8 @@ export const useLogin = () => {
     },
     onSuccess: (data, variables) => {
       if (data.success) {
+        const resolvedCompanyPathRaw = variables?.companyPath || data.data?.companyPath || '';
+        const resolvedCompanyPath = String(resolvedCompanyPathRaw).trim().toLowerCase();
         const roles = data.data.roles || [data.data.role];
         const primaryRole = roles[0];
         const rememberRaw = variables?.remember;
@@ -178,30 +180,36 @@ export const useLogin = () => {
           syncRememberMeStorage({
             remember: rememberOn,
             identifier: variables?.identifier,
-            companyPath: variables?.companyPath || data.data?.companyPath,
+            companyPath: resolvedCompanyPath,
           });
         }
 
         setAccessToken(data.accessToken);
         setRoles(roles);
         setActiveRole(primaryRole);
-        setUser(data.data);
+        setUser({
+          ...data.data,
+          companyPath: resolvedCompanyPath || data.data?.companyPath,
+        });
         setIsAuthenticated(true);
         showLoginSuccess();
         trackGaEvent('login', {
           method: 'password',
-          company_path: data.data?.companyPath || variables?.companyPath || 'unknown',
+          company_path: resolvedCompanyPath || 'unknown',
           role_count: Array.isArray(roles) ? roles.length : 1,
         });
         // Store company_id for multicompany (X-Company-ID header)
         if (data.data?.companyId) {
           localStorage.setItem('company_id', data.data.companyId);
         }
-        const targetBasePath = data.data?.companyPath ? `/${String(data.data.companyPath).trim()}` : basePath;
-        const isMl = (data.data?.companyPath || '').toLowerCase() === 'ml';
-        const shouldLandOnProtectedPage = shouldForceProtectedPage(roles, data.data);
+        const targetBasePath = resolvedCompanyPath ? `/${resolvedCompanyPath}` : basePath;
+        const isMl = resolvedCompanyPath === 'ml';
+        const shouldLandOnProtectedPage = shouldForceProtectedPage(roles, {
+          ...data.data,
+          companyPath: resolvedCompanyPath || data.data?.companyPath,
+        });
         if (!isMl && shouldLandOnProtectedPage) {
-          navigate(`${targetBasePath}/dashboard`, { replace: true });
+          navigate(getProtectedPageRoute(targetBasePath, resolvedCompanyPath), { replace: true });
           return;
         }
 
@@ -215,7 +223,7 @@ export const useLogin = () => {
             const dashboardRoute = getDashboardRoute(roles, targetBasePath);
             navigate(dashboardRoute, { replace: true });
           } else if (roles.length > 1) {
-            if (data.data?.companyPath) navigate(targetBasePath, { replace: true });
+            if (resolvedCompanyPath) navigate(targetBasePath, { replace: true });
           } else {
             const dashboardRoute = getDashboardRoute(roles, targetBasePath);
             navigate(dashboardRoute, { replace: true });

@@ -26,6 +26,19 @@ export function shouldForceProtectedPage(roles, user) {
 }
 
 /**
+ * Tenant-aware protected page destination.
+ * JLG uses a dedicated protected page, while other tenants use account setup.
+ */
+export function getProtectedPageRoute(basePath, companyPath) {
+  const normalizedBase = basePath && typeof basePath === 'string' && basePath.trim()
+    ? (basePath.trim().startsWith('/') ? basePath.trim() : `/${basePath.trim()}`)
+    : getCompanyBasePathFallback();
+  const cp = String(companyPath || normalizedBase.replace(/^\//, '')).toLowerCase().trim();
+  if (cp === 'jlg') return `${normalizedBase}/protected`;
+  return `${normalizedBase}/account-setup`;
+}
+
+/**
  * Whether persisted `activeRole` should drive `getDashboardRoute` (third arg).
  * CXO may use DM/Seller/DE dashboards without those roles in the JWT list.
  */

@@ -10,22 +10,51 @@ import { showSuccessToast, showValidationError } from '../utils/toastConfig';
 
 const MOBILE_PATTERN = /^\d{10}$/;
 
-const lunchHighlights = [
+const defaultHighlights = [
   {
-    title: '🥗 OUR SIGNATURE SERVICE',
+    title: 'OUR SIGNATURE SERVICE',
     description: 'Clean, Authentic Nadan food designed to keep you sharp and active all day.',
     cta: 'Try Today\'s Clean Picks',
     image: '/hero/heroo.png',
   },
 ];
 
+const jlgHighlights = [
+  {
+    title: 'OUR SIGNATURE GREENS',
+    description: 'Fresh, clean microgreens grown to keep you healthy and active all day.',
+    cta: "Get Today's Greens",
+    image: '/JLG.png',
+  },
+];
 
-const AccountSetupPage = () => {
+const AccountSetupPage = ({ variant = 'default' }) => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+  const isJlgView = variant === 'jlg' || String(tenant?.companyPath || '').toLowerCase().trim() === 'jlg';
+  const pageCopy = {
+    sectionTitle: isJlgView ? 'Step Into Jay\'s Leafy Greens' : 'Step Into the Healthy Hub',
+    highlightItems: isJlgView ? jlgHighlights : defaultHighlights,
+    setupBlurb: isJlgView
+      ? "Enter your mobile number to see today's fresh delivery slots and view the menu."
+      : "Enter your mobile number to see today's fresh delivery slots and view the menu.",
+    features: isJlgView
+      ? [
+          { icon: '🥬', title: 'Fresh Microgreens' },
+          { icon: '🚚', title: 'Daily Delivery' },
+          { icon: '🌱', title: 'Farm Fresh Quality' },
+          { icon: '♻️', title: 'Eco Packaging' },
+        ]
+      : [
+          { icon: '📋', title: 'Flexible Choices' },
+          { icon: '🛵', title: 'Direct Delivery' },
+          { icon: '🌿', title: 'Healthy Ingredients' },
+          { icon: '♻️', title: 'Plastic-Free Packaging' },
+        ],
+  };
   const { mutate: completeProfile, isPending } = useCompleteGoogleProfile();
   const initialPhoneDigits = String(user?.phone || '').replace(/\D/g, '');
   const initialSetupComplete = initialPhoneDigits.length >= 10 && user?.termsAccepted === true;
@@ -91,10 +120,10 @@ const AccountSetupPage = () => {
             <div className="pointer-events-none absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
             <div className="relative z-10">
               <p className="text-center text-sm font-bold uppercase tracking-[0.12em] text-[#8fbfb2]">
-                Step Into the Healthy Hub
+                {pageCopy.sectionTitle}
               </p>
               <div className="mx-auto mt-2 max-w-xl">
-                {lunchHighlights.map((item) => (
+                {pageCopy.highlightItems.map((item) => (
                   <article
                     key={item.title}
                     onClick={handleReserveClick}
@@ -144,12 +173,7 @@ const AccountSetupPage = () => {
         <section className="w-full border-b border-[#ddd8cc] bg-[#f4f3ed] px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[
-                { icon: '📋', title: 'Flexible Choices' },
-                { icon: '🛵', title: 'Direct Delivery' },
-                { icon: '🌿', title: 'Healthy Ingredients' },
-                { icon: '♻️', title: 'Plastic-Free Packaging' },
-              ].map((f) => (
+              {pageCopy.features.map((f) => (
                 <div
                   key={f.title}
                   className="rounded-xl border border-[#e2dccf] bg-white p-3 text-[#244f46] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
@@ -168,7 +192,7 @@ const AccountSetupPage = () => {
           <div className="w-full max-w-md rounded-2xl border border-[#d9cfbf] bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
             <h3 className="mt-2 text-xl font-black text-[#183f38]">Almost there!</h3>
             <p className="mt-2 text-sm text-[#5f5f57]">
-              Enter your mobile number to see today's fresh delivery slots and view the menu.
+              {pageCopy.setupBlurb}
             </p>
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <label className="block text-sm font-semibold text-[#244f46]">Mobile Number:</label>
