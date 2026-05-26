@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FiNavigation } from 'react-icons/fi';
 import Navbar from '../components/Navbar';
 import { useCompanyBasePath } from '../context/TenantContext';
@@ -31,10 +31,17 @@ const getInitialName = (user) => {
 
 const OrderAddressPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const basePath = useCompanyBasePath();
   const { user } = useAuthStore();
-  const { createAddress, isCreating } = useAddress();
-  const [customerName, setCustomerName] = useState(() => getInitialName(user));
+  const { createAddress, updateAddress, addresses, isLoadingAddresses, isCreating, isUpdating } = useAddress();
+  const editAddressId = String(
+    location.state?.editAddressId || location.state?.prefilledAddressId || ''
+  ).trim();
+  const isEditMode = Boolean(editAddressId);
+  const [customerName, setCustomerName] = useState(
+    () => String(location.state?.prefilledCustomerName || '').trim() || getInitialName(user)
+  );
   const [addressForm, setAddressForm] = useState({
     housename: '',
     street: '',
@@ -47,14 +54,42 @@ const OrderAddressPage = () => {
   const [locationError, setLocationError] = useState('');
   const [locationResult, setLocationResult] = useState('');
   const [showManualFields, setShowManualFields] = useState(false);
+  const [hasLoadedEditAddress, setHasLoadedEditAddress] = useState(false);
+  const isSaving = isCreating || isUpdating;
 
   useEffect(() => {
     setCustomerName((prev) => {
       if (String(prev || '').trim()) return prev;
-      return getInitialName(user);
+      const stateCustomerName = String(location.state?.prefilledCustomerName || '').trim();
+      return stateCustomerName || getInitialName(user);
     });
-  }, [user]);
+  }, [user, location.state?.prefilledCustomerName]);
   const hasCurrentLocationSelected = Boolean(addressForm.geoLocation && addressForm.city && addressForm.pincode);
+  const editingAddress = useMemo(
+    () => (Array.isArray(addresses) ? addresses.find((address) => address?.id === editAddressId) : null),
+    [addresses, editAddressId]
+  );
+
+  useEffect(() => {
+    if (!isEditMode || hasLoadedEditAddress || isLoadingAddresses) return;
+    if (!editingAddress) return;
+
+    const nextStreet = String(editingAddress.street || '').trim();
+    const nextGeo = String(editingAddress.geoLocation || '').trim();
+    const isLikelyGpsOnly = Boolean(nextGeo) && (!nextStreet || nextStreet.toLowerCase() === 'current location');
+
+    setAddressForm({
+      housename: String(editingAddress.housename || ''),
+      street: nextStreet,
+      city: String(editingAddress.city || ''),
+      pincode: toSixDigitPincode(editingAddress.pincode),
+      geoLocation: nextGeo,
+      addressType: String(editingAddress.addressType || 'HOME'),
+    });
+    setShowManualFields(!isLikelyGpsOnly);
+    setLocationResult(isLikelyGpsOnly ? [editingAddress.city, editingAddress.pincode].filter(Boolean).join(', ') : '');
+    setHasLoadedEditAddress(true);
+  }, [isEditMode, hasLoadedEditAddress, isLoadingAddresses, editingAddress]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -149,14 +184,17 @@ const OrderAddressPage = () => {
 
     try {
       const streetValue = addressForm.street.trim() || (addressForm.geoLocation ? 'Current Location' : '');
-      const savedAddress = await createAddress({
+      const payload = {
         street: streetValue,
         housename: addressForm.housename.trim(),
         city: addressForm.city.trim(),
         pincode: addressForm.pincode ? Number(addressForm.pincode) : 0,
         geoLocation: addressForm.geoLocation,
         addressType: addressForm.addressType,
-      });
+      };
+      const savedAddress = isEditMode
+        ? await updateAddress(editAddressId, payload)
+        : await createAddress(payload);
 
       const displayName = `${savedAddress.housename ? `${savedAddress.housename}, ` : ''}${savedAddress.street}, ${savedAddress.city} - ${savedAddress.pincode}`;
 
@@ -303,10 +341,10 @@ const OrderAddressPage = () => {
                 </div>
                 <button
                   type="submit"
-                  disabled={isCreating}
+                  disabled={isSaving}
                   className="mt-4 w-full rounded-xl bg-[#1f6f5f] px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isCreating ? 'Saving address...' : 'Continue'}
+                  {isSaving ? 'Saving address...' : isEditMode ? 'Update Address' : 'Continue'}
                 </button>
               </div>
             ) : null}
@@ -389,10 +427,10 @@ const OrderAddressPage = () => {
 
                 <button
                   type="submit"
-                  disabled={isCreating}
+                  disabled={isSaving}
                   className="w-full rounded-xl bg-[#1f6f5f] px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isCreating ? 'Saving address...' : 'Continue'}
+                  {isSaving ? 'Saving address...' : isEditMode ? 'Update Address' : 'Continue'}
                 </button>
               </>
             )}

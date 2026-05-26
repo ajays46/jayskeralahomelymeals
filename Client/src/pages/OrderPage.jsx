@@ -44,6 +44,14 @@ const isAddonProduct = (product) => {
   );
 };
 
+const formatAddressDisplay = (address) => {
+  if (!address) return '';
+  if (address.googleMapsUrl && !address.street) return 'Saved map location';
+  const parts = [address.housename, address.street, address.city].filter(Boolean);
+  const pin = address.pincode ? ` - ${address.pincode}` : '';
+  return `${parts.join(', ')}${pin}`.trim();
+};
+
 const OrderPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -103,6 +111,26 @@ const OrderPage = () => {
   }, [products]);
   const hasStateAddress = Boolean(location.state?.prefilledAddressId);
   const hasSavedAddress = Array.isArray(userAddresses) && userAddresses.length > 0;
+  const currentAddressDisplay = useMemo(() => {
+    const stateDisplay = String(location.state?.prefilledAddressDisplay || '').trim();
+    if (stateDisplay) return stateDisplay;
+
+    const stateAddressId = location.state?.prefilledAddressId;
+    if (stateAddressId && Array.isArray(userAddresses) && userAddresses.length > 0) {
+      const matchedAddress = userAddresses.find((address) => address?.id === stateAddressId);
+      const matchedDisplay = formatAddressDisplay(matchedAddress);
+      if (matchedDisplay) return matchedDisplay;
+    }
+
+    if (!hasSavedAddress) return '';
+    return formatAddressDisplay(userAddresses[0]);
+  }, [location.state?.prefilledAddressDisplay, location.state?.prefilledAddressId, hasSavedAddress, userAddresses]);
+  const currentAddressId = useMemo(() => {
+    const stateAddressId = String(location.state?.prefilledAddressId || '').trim();
+    if (stateAddressId) return stateAddressId;
+    if (!hasSavedAddress) return '';
+    return String(userAddresses[0]?.id || '').trim();
+  }, [location.state?.prefilledAddressId, hasSavedAddress, userAddresses]);
 
   useEffect(() => {
     if (isLoadingAddresses) return;
@@ -153,15 +181,12 @@ const OrderPage = () => {
     [separateAddonOptions, selectedAddonKeys, addonQuantities]
   );
 
-  const getTotalPrice = (item) => {
-    const qty = getQuantity(item.id);
-    const basePrice = Number(item.price || 0);
-    const addonsTotal = selectedAddons.reduce(
-      (sum, addon) => sum + Number(addon.price || 0) * Number(addon.quantity || 1),
-      0
-    );
-    return (basePrice + addonsTotal) * qty;
-  };
+  const getAddonsTotal = () =>
+    selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0) * Number(addon.quantity || 1), 0);
+
+  const getMealTotal = (item) => Number(item.price || 0) * getQuantity(item.id);
+
+  const getTotalPrice = (item) => getMealTotal(item) + getAddonsTotal();
 
   const handleOrder = (item) => {
     setSelectedItemId(item.id);
@@ -193,6 +218,7 @@ const OrderPage = () => {
     () => orderedMainItems.find((item) => item.id === selectedItemId) || null,
     [orderedMainItems, selectedItemId]
   );
+  const showAddressCard = hasStateAddress || hasSavedAddress;
 
   return (
     <div className="min-h-screen bg-[#f6f1e7]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -200,13 +226,39 @@ const OrderPage = () => {
       <main className="pt-16 sm:pt-[72px] pb-8">
         <section className="px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
-            <div className="mt-2 flex items-end justify-between">
+            <div className="mt-2 flex items-start justify-between gap-4">
               <div>
                 <h2 className="inline-flex items-center gap-2 text-2xl font-black text-[#1f2e2a]">
                   <MdLocalFireDepartment className="text-[#ff6c3b]" />
                   Trending Now
                 </h2>
               </div>
+              {showAddressCard && (
+                <div className="hidden w-full max-w-sm rounded-2xl border border-[#ddd8cc] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)] lg:block">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#6f6c64]">Delivery Address</p>
+                      <p className="mt-1 text-sm font-medium text-[#1f2e2a]">
+                        {currentAddressDisplay || (isLoadingAddresses ? 'Loading saved address...' : 'Saved address available')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(`${basePath}/order-address`, {
+                          state: {
+                            editAddressId: currentAddressId || undefined,
+                            prefilledCustomerName: location.state?.prefilledCustomerName,
+                          },
+                        })
+                      }
+                      className="rounded-lg border border-[#1f6f5f] px-3 py-1.5 text-xs font-semibold text-[#1f6f5f] transition hover:bg-[#eef7f4]"
+                    >
+                      Edit Address
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-4">
@@ -242,11 +294,6 @@ const OrderPage = () => {
                               e.currentTarget.src = fallbackImages[index % fallbackImages.length];
                             }}
                           />
-                          {isSelected && (
-                            <span className="absolute right-3 top-3 rounded-full bg-[#1f6f5f] px-2.5 py-1 text-[11px] font-bold text-white shadow">
-                              Selected
-                            </span>
-                          )}
                         </div>
 
                         <div className="p-4">
@@ -291,6 +338,33 @@ const OrderPage = () => {
                 </div>
               )}
             </div>
+
+            {showAddressCard && (
+              <div className="mt-4 rounded-2xl border border-[#ddd8cc] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)] lg:hidden">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#6f6c64]">Delivery Address</p>
+                    <p className="mt-1 text-sm font-medium text-[#1f2e2a]">
+                      {currentAddressDisplay || (isLoadingAddresses ? 'Loading saved address...' : 'Saved address available')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`${basePath}/order-address`, {
+                        state: {
+                          editAddressId: currentAddressId || undefined,
+                          prefilledCustomerName: location.state?.prefilledCustomerName,
+                        },
+                      })
+                    }
+                    className="rounded-lg border border-[#1f6f5f] px-3 py-1.5 text-xs font-semibold text-[#1f6f5f] transition hover:bg-[#eef7f4]"
+                  >
+                    Edit Address
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 rounded-2xl border border-[#ddd8cc] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
               <h3 className="text-base font-bold text-[#1f2e2a]">Add-ons</h3>
@@ -359,31 +433,29 @@ const OrderPage = () => {
 
             {selectedItem && (
               <div className="mt-4 rounded-2xl border border-[#ddd8cc] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
-                <p className="text-sm text-[#6f6c64]">
-                  Selected item:{' '}
-                  <span className="font-semibold text-[#1f2e2a]">{selectedItem.product?.productName || selectedItem.name}</span>
-                </p>
-                {selectedAddons.length > 0 && (
-                  <div className="mt-2 rounded-lg border border-[#ece3d3] bg-[#fbf7ef] p-2.5">
-                    <p className="text-xs font-semibold text-[#3b4642]">Selected add-ons:</p>
-                    <div className="mt-1.5 space-y-1">
-                      {selectedAddons.map((addon) => (
-                        <p key={addon.key} className="text-xs text-[#4a5550]">
-                          {addon.name} x {addon.quantity}
-                        </p>
-                      ))}
-                    </div>
-                    <p className="mt-1.5 text-xs font-semibold text-[#3b4642]">
-                      Add-ons total: ₹
-                      {selectedAddons.reduce(
-                        (sum, addon) => sum + Number(addon.price || 0) * Number(addon.quantity || 1),
-                        0,
-                      )}
-                    </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between gap-3 text-[#1f2e2a]">
+                    <span className="font-semibold">
+                      {selectedItem.product?.productName || selectedItem.name}
+                      {getQuantity(selectedItem.id) > 1 ? ` x${getQuantity(selectedItem.id)}` : ''}
+                    </span>
+                    <span className="font-semibold">₹{getMealTotal(selectedItem)}</span>
                   </div>
-                )}
-                <p className="mt-1 text-lg font-semibold text-[#2f3d39]">
-                  Total:{' '}
+                  {selectedAddons.map((addon) => (
+                    <div key={addon.key} className="flex items-center justify-between gap-3 text-[#4a5550]">
+                      <span>
+                        {addon.name} x{addon.quantity}
+                      </span>
+                      <span>₹{Number(addon.price || 0) * Number(addon.quantity || 1)}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between gap-3 text-[#4a5550]">
+                    <span>Free Delivery</span>
+                    <span>₹0</span>
+                  </div>
+                </div>
+                <p className="mt-3 flex items-center justify-between text-lg font-semibold text-[#2f3d39]">
+                  <span>Total</span>
                   <span className="font-black" style={{ color: accent }}>
                     ₹{getTotalPrice(selectedItem)}
                   </span>
