@@ -36,15 +36,18 @@ export const productSchema = z.object({
       if (!val || val === '') {
         return true;
       }
-      // Check if it's a valid base64 image or URL
+      // Check if it's a valid base64 image, absolute URL, or app/public relative path
       if (val.startsWith('data:image/')) {
         return true;
       }
       if (val.startsWith('http://') || val.startsWith('https://')) {
         return true;
       }
+      if (val.startsWith('/') || val.startsWith('./') || val.startsWith('../')) {
+        return true;
+      }
       return false;
-    }, 'Please upload a valid image file'),
+    }, 'Please upload a valid image or provide a valid image URL/path'),
   
   // Category information
   productCategoryName: z.string()

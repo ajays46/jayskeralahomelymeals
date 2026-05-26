@@ -430,6 +430,23 @@ export const updateProductService = async (productId, productData) => {
       quantity
     } = productData;
 
+    // Save image to uploads folder if update payload contains base64 image
+    let savedImageUrl = imageUrl;
+    if (imageUrl && imageUrl.startsWith('data:image/')) {
+      try {
+        const cleanProductName = productName
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .substring(0, 20);
+
+        const filename = saveBase64Image(imageUrl, `${cleanProductName}-${Date.now()}.jpg`);
+        savedImageUrl = `/uploads/${filename}`;
+      } catch (error) {
+        throw new Error(`Failed to save image: ${error.message}`);
+      }
+    }
+
     // Use transaction to ensure all related records are updated together
     return await prisma.$transaction(async (tx) => {
       logTransaction('Product Update Transaction Started', {
@@ -481,7 +498,7 @@ export const updateProductService = async (productId, productData) => {
         data: {
           productName,
           code,
-          imageUrl,
+          imageUrl: savedImageUrl,
           companyId,
           status,
         },

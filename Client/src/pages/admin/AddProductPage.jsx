@@ -82,6 +82,9 @@ const AddProductPage = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
+    if (name === 'imageUrl' && value && uploadedImage) {
+      setUploadedImage(null);
+    }
     
     // Mark field as touched
     setTouchedFields(prev => ({ ...prev, [name]: true }));
@@ -457,6 +460,22 @@ const AddProductPage = () => {
                       {getFieldError('imageUrl') && (
                         <p className="text-red-400 text-xs mb-2">{getFieldError('imageUrl')}</p>
                       )}
+
+                      <div className="mb-3">
+                        <input
+                          type="text"
+                          name="imageUrl"
+                          value={form.imageUrl}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          className={getFieldClassName('imageUrl', "w-full bg-gray-700 border border-gray-600 rounded-lg p-2 sm:p-3 text-gray-100 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors")}
+                          placeholder="Optional: paste image URL or public path (e.g. /products/omelette.jpg)"
+                          disabled={isCreating || isUpdating || productLoading}
+                        />
+                        <p className="mt-1 text-xs text-gray-400">
+                          You can upload a file below or paste a git/public image path.
+                        </p>
+                      </div>
                       
                       {/* Image Upload Area */}
                       {!uploadedImage ? (
@@ -526,11 +545,13 @@ const AddProductPage = () => {
                       )}
 
                       {/* Final Product Image Preview */}
-                      {uploadedImage && (
+                      {form.imageUrl && (
                         <div className="mt-4 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-lg p-4 border border-blue-500/30">
                           <div className="text-center mb-3">
                             <h4 className="text-sm font-medium text-blue-300 mb-1">Final Product Image</h4>
-                            <p className="text-xs text-gray-400">This image will be used for your product</p>
+                            <p className="text-xs text-gray-400">
+                              {uploadedImage ? 'This uploaded image will be used for your product' : 'This URL/path image will be used for your product'}
+                            </p>
                           </div>
                           <div className="flex justify-center">
                             <div className="relative group">

@@ -601,6 +601,23 @@ const BookingWizardPage = () => {
     setDeliveryLocationNames((prev) => ({ ...prev, full: prefilledAddressDisplay || '' }));
   }, [location.state?.prefilledAddressId, location.state?.prefilledAddressDisplay, isSeller, userAddresses]);
 
+  // Handle preselected menu and quantity coming from order page cards
+  useEffect(() => {
+    if (!location.state?.selectedMenuFromOrder) return;
+    const incomingMenu = location.state.selectedMenuFromOrder;
+    const matchedMenu = menus.find((menu) => menu.id === incomingMenu.id) || incomingMenu;
+    setSelectedMenu(matchedMenu);
+
+    const requestedQty = Number(location.state?.menuQuantityFromOrder);
+    if (Number.isFinite(requestedQty) && requestedQty > 0) {
+      setMenuQuantity(Math.max(1, Math.floor(requestedQty)));
+    }
+
+    if (stepSequence.includes(2)) {
+      setCurrentStep(2);
+    }
+  }, [location.state?.selectedMenuFromOrder, location.state?.menuQuantityFromOrder, menus, stepSequence]);
+
   // Handle selected user from navigation state
   useEffect(() => {
     if (location.state?.selectedUser && isSeller) {

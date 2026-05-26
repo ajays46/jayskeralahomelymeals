@@ -90,9 +90,10 @@ const ConditionalFooter = () => {
   const isMenu = /^\/[^/]+\/menu$/.test(pathname);
   const isPublic = /^\/[^/]+\/public$/.test(pathname);
   const isAccountSetup = /^\/[^/]+\/account-setup$/.test(pathname);
+  const isOrder = /^\/[^/]+\/order$/.test(pathname);
   const isOrderAddress = /^\/[^/]+\/order-address$/.test(pathname);
   const isProtected = /^\/[^/]+\/protected$/.test(pathname);
-  if (isHome || isMenu || isPublic || isAccountSetup || isOrderAddress || isProtected) return <Footer />;
+  if (isHome || isMenu || isPublic || isAccountSetup || isOrder || isOrderAddress || isProtected) return <Footer />;
   return null;
 };
 
