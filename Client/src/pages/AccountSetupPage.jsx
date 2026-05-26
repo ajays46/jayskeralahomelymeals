@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiPhone } from 'react-icons/fi';
 import Navbar from '../components/Navbar';
 import Terms from '../components/Terms';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
@@ -15,7 +16,7 @@ const defaultHighlights = [
     title: 'VEG LUNCH',
     description: '',
     cta: 'Go',
-    image: '/hero/heroo.png',
+    image: '/food-package.png',
   },
 ];
 
@@ -102,18 +103,58 @@ const AccountSetupPage = ({ variant = 'default' }) => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-88px)] bg-[#f6f1e7]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div
+      className="relative min-h-screen overflow-hidden bg-[#f6f1e7] flex flex-col"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden="true"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(246,241,231,0.85) 35%, rgba(246,241,231,1) 100%)',
+        }}
+      />
+      <svg
+        className="pointer-events-none absolute left-0 top-0 h-24 w-full sm:h-32"
+        viewBox="0 0 1440 320"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path
+          fill="#1f6f5f"
+          fillOpacity="0.18"
+          d="M0,128L48,133.3C96,139,192,149,288,160C384,171,480,181,576,170.7C672,160,768,128,864,128C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"
+        />
+        <path
+          fill="#fe8c00"
+          fillOpacity="0.14"
+          d="M0,192L60,186.7C120,181,240,171,360,176C480,181,600,203,720,208C840,213,960,203,1080,181.3C1200,160,1320,128,1380,112L1440,96L1440,0L1380,0C1320,0,1200,0,1080,0C960,0,840,0,720,0C600,0,480,0,360,0C240,0,120,0,60,0L0,0Z"
+        />
+      </svg>
+      <svg
+        className="pointer-events-none absolute bottom-0 left-0 h-24 w-full sm:h-32"
+        viewBox="0 0 1440 320"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path
+          fill="#1f6f5f"
+          fillOpacity="0.12"
+          d="M0,224L40,224C80,224,160,224,240,202.7C320,181,400,139,480,117.3C560,96,640,96,720,122.7C800,149,880,203,960,202.7C1040,203,1120,149,1200,117.3C1280,85,1360,75,1400,69.3L1440,64L1440,320L1400,320C1360,320,1280,320,1200,320C1120,320,1040,320,960,320C880,320,800,320,720,320C640,320,560,320,480,320C400,320,320,320,240,320C160,320,80,320,40,320L0,320Z"
+        />
+      </svg>
       <Navbar minimalNav />
       <main
-        className={`pt-16 sm:pt-[72px] ${!showPhoneGate && !isSetupComplete ? 'pb-4' : 'pb-2'}`}
+        className={`relative z-10 pt-16 sm:pt-[72px] ${!showPhoneGate && !isSetupComplete ? 'pb-4' : 'pb-2'}`}
       >
 
         {/* ── PLAN SELECTION ── */}
-        <section className="relative w-full overflow-hidden border-y border-[#275447] bg-gradient-to-r from-[#12392f] via-[#154338] to-[#11352d] px-4 py-6 sm:px-6 lg:px-8">
+        <section className="relative w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
-            <div className="pointer-events-none absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
+            <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(31,78,69,0.08) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
             <div className="relative z-10">
-              <p className="text-center text-sm font-bold uppercase tracking-[0.12em] text-[#8fbfb2]">
+              <p className="text-center text-sm font-bold uppercase tracking-[0.12em] text-[#2c5d54]">
                 {pageCopy.sectionTitle}
               </p>
               <div className="mx-auto mt-2 max-w-xl">
@@ -131,15 +172,14 @@ const AccountSetupPage = ({ variant = 'default' }) => {
                     tabIndex={0}
                     className="cursor-pointer overflow-hidden rounded-2xl bg-white shadow-[0_10px_28px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,23,42,0.18)] focus:outline-none focus:ring-2 focus:ring-[#1f6f5f]/30"
                   >
-                    <div className="relative h-36 w-full bg-[#0f2f27] sm:h-40">
+                    <div className="relative flex h-56 w-full items-center justify-center bg-[#f7f4ee] sm:h-64">
                       <img
                         src={item.image}
                         alt={item.title}
-                        className="h-full w-full object-cover object-center"
+                        className="max-h-full w-auto scale-105 object-contain"
                         loading="lazy"
                         decoding="async"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b22]/55 via-transparent to-transparent" />
                     </div>
 
                     <div className="p-4 sm:p-5">
@@ -200,14 +240,17 @@ const AccountSetupPage = ({ variant = 'default' }) => {
             <h3 className="mt-2 text-xl font-black text-[#183f38]">Almost there!</h3>
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <label className="block text-sm font-semibold text-[#244f46]">Mobile Number:</label>
-              <div>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-[#5f5f57]">
+                  <FiPhone className="h-4 w-4" aria-hidden="true" />
+                </span>
                 <input
                   type="tel"
                   inputMode="numeric"
                   value={form.phone}
                   onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
                   placeholder="Enter Mobile Number"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                  className="w-full rounded-xl border border-gray-300 py-3 pl-10 pr-4 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                   required
                 />
               </div>

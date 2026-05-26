@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiNavigation } from 'react-icons/fi';
 import Navbar from '../components/Navbar';
@@ -15,7 +15,18 @@ const toSixDigitPincode = (value) => {
 const getInitialName = (user) => {
   if (!user) return '';
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
-  return fullName || user.name || user.fullName || '';
+  if (fullName) return fullName;
+  const candidate = user.name || user.fullName || user.displayName;
+  if (candidate && String(candidate).trim()) return String(candidate).trim();
+
+  // Google auth payloads can sometimes include only email in session user data.
+  const emailPrefix = String(user.email || '').split('@')[0];
+  if (!emailPrefix) return '';
+  return emailPrefix
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
 };
 
 const OrderAddressPage = () => {
@@ -37,10 +48,13 @@ const OrderAddressPage = () => {
   const [locationResult, setLocationResult] = useState('');
   const [showManualFields, setShowManualFields] = useState(false);
 
-  const hasManualAddress = useMemo(
-    () => Boolean(addressForm.street.trim() || addressForm.city.trim() || addressForm.pincode.trim()),
-    [addressForm.city, addressForm.pincode, addressForm.street]
-  );
+  useEffect(() => {
+    setCustomerName((prev) => {
+      if (String(prev || '').trim()) return prev;
+      return getInitialName(user);
+    });
+  }, [user]);
+  const hasCurrentLocationSelected = Boolean(addressForm.geoLocation && addressForm.city && addressForm.pincode);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -76,6 +90,7 @@ const OrderAddressPage = () => {
   const handleUseCurrentLocation = () => {
     setLocationError('');
     setLocationResult('');
+    setShowManualFields(false);
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not supported by this browser.');
       return;
@@ -116,19 +131,26 @@ const OrderAddressPage = () => {
       return;
     }
 
-    if (!hasManualAddress) {
-      showErrorToast('Add address manually or use current location.');
-      return;
-    }
-
-    if (!addressForm.street.trim() || !addressForm.city.trim() || addressForm.pincode.length !== 6) {
-      showErrorToast('Street, city and valid 6-digit pincode are required.');
-      return;
+    if (showManualFields) {
+      if (!addressForm.street.trim() || !addressForm.city.trim() || addressForm.pincode.length !== 6) {
+        showErrorToast('Street, city and valid 6-digit pincode are required.');
+        return;
+      }
+    } else {
+      if (!addressForm.geoLocation) {
+        showErrorToast('Please use current location or enter address manually.');
+        return;
+      }
+      if (!addressForm.city.trim() || addressForm.pincode.length !== 6) {
+        showErrorToast('Current location must include city and valid 6-digit pincode.');
+        return;
+      }
     }
 
     try {
+      const streetValue = addressForm.street.trim() || (addressForm.geoLocation ? 'Current Location' : '');
       const savedAddress = await createAddress({
-        street: addressForm.street.trim(),
+        street: streetValue,
         housename: addressForm.housename.trim(),
         city: addressForm.city.trim(),
         pincode: addressForm.pincode ? Number(addressForm.pincode) : 0,
@@ -196,13 +218,12 @@ const OrderAddressPage = () => {
       <main className="relative z-10 flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-20 pb-8">
         <div className="mx-auto flex min-h-full w-full max-w-2xl items-start sm:items-center">
           <div className="w-full rounded-2xl border border-[#ddd8cc] bg-white p-4 sm:p-6 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
-          <h1 className="text-center text-2xl font-black text-[#1f2e2a]">Where should we deliver?</h1>
-          <p className="mt-1 text-center text-sm text-[#6b6a64]">Add your name and delivery address.</p>
+          <h1 className="text-center text-2xl font-black text-[#1f2e2a]">Where should we deliver ?</h1>
 
             <form onSubmit={handleContinue} className="mt-6 space-y-4">
             <div>
               <label htmlFor="customerName" className="mb-1 block text-sm font-semibold text-[#1f2e2a]">
-                Name <span className="text-red-500">*</span>
+                Your Name <span className="text-red-500">*</span>
               </label>
               <input
                 id="customerName"
@@ -215,47 +236,60 @@ const OrderAddressPage = () => {
               />
             </div>
 
-            <div className="rounded-xl border border-[#ece5d8] bg-[#fcfaf5] p-3">
-              <div className="flex flex-wrap gap-2">
+            {!showManualFields && (
+              <div className="space-y-4">
                 <button
                   type="button"
                   onClick={handleUseCurrentLocation}
                   disabled={isGettingLocation}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#1f6f5f] px-3 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[#1f6f5f] px-3 py-2.5 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isGettingLocation ? (
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   ) : (
                     <FiNavigation />
                   )}
-                  {isGettingLocation ? 'Getting current location...' : 'Get Current Location'}
+                  {isGettingLocation ? 'Getting current location...' : 'Use Current Location'}
                 </button>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[#e7e2d8]" />
+                  <span className="text-[11px] font-medium tracking-[0.04em] text-[#9b968b]">or</span>
+                  <div className="h-px flex-1 bg-[#e7e2d8]" />
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setShowManualFields((prev) => !prev)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-[#1f6f5f] px-3 py-2 text-sm font-semibold text-[#1f6f5f] transition hover:bg-[#eef7f4]"
+                  onClick={() => {
+                    setShowManualFields(true);
+                    setLocationError('');
+                  }}
+                  className="w-full rounded-lg border border-[#1f6f5f] px-3 py-2.5 text-sm font-semibold text-[#1f6f5f] transition hover:bg-[#eef7f4]"
                 >
-                  {showManualFields ? 'Use GPS' : 'Type Address'}
+                  Enter Address Manually
                 </button>
               </div>
-              <p className="mt-2 text-xs text-[#6b6a64]">Click Type Address to enter house, street, city, and pincode.</p>
-            </div>
+            )}
 
             {locationError ? (
               <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
                 {locationError}
               </div>
-            ) : locationResult ? (
-              <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-                <p className="break-words">{locationResult}</p>
-              </div>
             ) : null}
 
-            {showManualFields && (
-              <>
-                <div>
+            {!showManualFields && hasCurrentLocationSelected ? (
+              <div className="rounded-xl border border-[#cfe5df] bg-[#f4fbf8] p-4">
+                <p className="text-sm font-semibold text-[#1f2e2a]">Delivering to</p>
+                <p className="mt-1 text-sm text-[#244f46] break-words">{addressForm.city}</p>
+                {addressForm.pincode ? (
+                  <p className="text-sm font-semibold text-[#244f46]">{addressForm.pincode}</p>
+                ) : null}
+                {locationResult ? (
+                  <p className="mt-1 text-xs text-[#5f6f69] break-words">{locationResult}</p>
+                ) : null}
+                <div className="mt-4">
                   <label htmlFor="housename" className="mb-1 block text-sm font-semibold text-[#1f2e2a]">
-                    House / Building (optional)
+                    House / Flat / Landmark
                   </label>
                   <input
                     id="housename"
@@ -263,7 +297,45 @@ const OrderAddressPage = () => {
                     name="housename"
                     value={addressForm.housename}
                     onChange={handleChange}
-                    placeholder="Flat, villa, landmark"
+                    placeholder="Optional"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isCreating}
+                  className="mt-4 w-full rounded-xl bg-[#1f6f5f] px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCreating ? 'Saving address...' : 'Continue'}
+                </button>
+              </div>
+            ) : null}
+
+            {showManualFields && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowManualFields(false);
+                    setLocationError('');
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-[#1f6f5f] px-3 py-2.5 text-sm font-semibold text-[#1f6f5f] transition hover:bg-[#eef7f4]"
+                >
+                  <FiNavigation />
+                  Use Current Location
+                </button>
+
+                <div>
+                  <label htmlFor="housename" className="mb-1 block text-sm font-semibold text-[#1f2e2a]">
+                    House / Flat / Building
+                  </label>
+                  <input
+                    id="housename"
+                    type="text"
+                    name="housename"
+                    value={addressForm.housename}
+                    onChange={handleChange}
+                    placeholder="Flat, villa, apartment"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
                 </div>
@@ -314,16 +386,16 @@ const OrderAddressPage = () => {
                     />
                   </div>
                 </div>
+
+                <button
+                  type="submit"
+                  disabled={isCreating}
+                  className="w-full rounded-xl bg-[#1f6f5f] px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCreating ? 'Saving address...' : 'Continue'}
+                </button>
               </>
             )}
-
-              <button
-                type="submit"
-                disabled={isCreating}
-                className="w-full rounded-xl bg-[#1f6f5f] px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isCreating ? 'Saving address...' : 'Continue'}
-              </button>
             </form>
           </div>
         </div>
