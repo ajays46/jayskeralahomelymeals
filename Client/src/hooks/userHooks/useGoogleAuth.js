@@ -4,6 +4,7 @@ import useAuthStore, { applyAuthPersistMode } from '../../stores/Zustand.store';
 import { useNavigate } from 'react-router-dom';
 import {
   getDashboardRoute,
+  getOrderAddressRoute,
   getOrderPageRoute,
   getProtectedPageRoute,
   shouldEnforceAccountSetup,
@@ -90,12 +91,23 @@ export const useGoogleAuth = () => {
       if (!isMl && roles.length > 1) {
         setShowRoleSelector(true);
       }
-      setTimeout(() => {
+      setTimeout(async () => {
         if (isMl) {
           const dashboardRoute = getDashboardRoute(roles, targetBasePath);
           navigate(dashboardRoute, { replace: true });
         } else if (isCustomerOnly) {
-          navigate(getOrderPageRoute(targetBasePath), { replace: true });
+          let hasSavedAddress = false;
+          try {
+            const addressesResponse = await api.get('/addresses');
+            const addresses = addressesResponse?.data?.data?.addresses;
+            hasSavedAddress = Array.isArray(addresses) && addresses.length > 0;
+          } catch (error) {
+            hasSavedAddress = false;
+          }
+          navigate(
+            hasSavedAddress ? getOrderPageRoute(targetBasePath) : getOrderAddressRoute(targetBasePath),
+            { replace: true }
+          );
         } else if (roles.length > 1) {
           if (resolvedCompanyPath) navigate(targetBasePath, { replace: true });
         } else {

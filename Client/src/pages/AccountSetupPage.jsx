@@ -91,7 +91,7 @@ const AccountSetupPage = ({ variant = 'default' }) => {
           showSuccessToast('Account activated successfully.', 'Done');
           setIsSetupComplete(true);
           setShowPhoneGate(false);
-          navigate(`${basePath}/order`, { replace: true });
+          navigate(`${basePath}/order-address`, { replace: true });
         },
         onError: (error) => {
           const message = error?.response?.data?.message || 'Unable to update account details.';

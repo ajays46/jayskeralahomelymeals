@@ -1,29 +1,48 @@
-import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
 import { useMenusForBooking } from '../hooks/adminHook/adminHook';
+import { useAddress } from '../hooks/userHooks/userAddress';
 
 const fallbackImages = ['/hero/heroo.png', '/JLG.png', '/hero/heroo.png', '/JLG.png'];
 
 const OrderPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const tenant = useTenant();
   const basePath = useCompanyBasePath();
   const companyId = tenant?.companyId ?? null;
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme?.accentColor || theme?.primaryColor || '#FE8C00';
   const { data: menusData, isLoading } = useMenusForBooking(companyId);
+  const { addresses: userAddresses, isLoadingAddresses } = useAddress();
 
   const menuItems = useMemo(() => (Array.isArray(menusData?.data) ? menusData.data : []), [menusData]);
   const topItems = menuItems.slice(0, 6);
+  const hasStateAddress = Boolean(location.state?.prefilledAddressId);
+  const hasSavedAddress = Array.isArray(userAddresses) && userAddresses.length > 0;
+
+  useEffect(() => {
+    if (isLoadingAddresses) return;
+    if (!hasStateAddress && !hasSavedAddress) {
+      navigate(`${basePath}/order-address`, { replace: true });
+    }
+  }, [isLoadingAddresses, hasStateAddress, hasSavedAddress, navigate, basePath]);
 
   const handleOrder = () => {
+    if (!hasStateAddress && !hasSavedAddress) {
+      navigate(`${basePath}/order-address`);
+      return;
+    }
     navigate(`${basePath}/place-order`, {
       state: {
         initialTab: 'menu',
         skipToMenuSelection: true,
+        prefilledAddressId: location.state?.prefilledAddressId,
+        prefilledAddressDisplay: location.state?.prefilledAddressDisplay,
+        prefilledCustomerName: location.state?.prefilledCustomerName,
       },
     });
   };

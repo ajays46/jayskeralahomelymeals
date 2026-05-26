@@ -18,6 +18,7 @@ const TenantHome = lazy(() => import('./pages/TenantHome'));
 const PublicPage = lazy(() => import('./pages/Public'));
 const AccountSetupPage = lazy(() => import('./pages/AccountSetupPage'));
 const OrderPage = lazy(() => import('./pages/OrderPage'));
+const OrderAddressPage = lazy(() => import('./pages/OrderAddressPage'));
 const JLGProtectedPage = lazy(() => import('./pages/JLGProtectedPage'));
 const JLGHomePage = lazy(() => import('./pages/JLGHomePage'));
 const MLHomePage = lazy(() => import('./ml/pages/MLHomePage'));
@@ -89,8 +90,9 @@ const ConditionalFooter = () => {
   const isMenu = /^\/[^/]+\/menu$/.test(pathname);
   const isPublic = /^\/[^/]+\/public$/.test(pathname);
   const isAccountSetup = /^\/[^/]+\/account-setup$/.test(pathname);
+  const isOrderAddress = /^\/[^/]+\/order-address$/.test(pathname);
   const isProtected = /^\/[^/]+\/protected$/.test(pathname);
-  if (isHome || isMenu || isPublic || isAccountSetup || isProtected) return <Footer />;
+  if (isHome || isMenu || isPublic || isAccountSetup || isOrderAddress || isProtected) return <Footer />;
   return null;
 };
 
@@ -283,6 +285,7 @@ const App = () => {
             <Route path="public" element={<PublicPage />} />
             <Route path="terms" element={<Terms />} />
             <Route path="menu" element={<MenuPage />} />
+            <Route path="order-address" element={<OrderAddressPage />} />
             <Route path="place-order" element={<BookingWizardPage />} />
             <Route path="process-payment" element={<PaymentWizardPage />} />
 

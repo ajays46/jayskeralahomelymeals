@@ -49,6 +49,13 @@ export function getOrderPageRoute(basePath) {
   return `${normalizedBase}/order`;
 }
 
+export function getOrderAddressRoute(basePath) {
+  const normalizedBase = basePath && typeof basePath === 'string' && basePath.trim()
+    ? (basePath.trim().startsWith('/') ? basePath.trim() : `/${basePath.trim()}`)
+    : getCompanyBasePathFallback();
+  return `${normalizedBase}/order-address`;
+}
+
 /**
  * Whether persisted `activeRole` should drive `getDashboardRoute` (third arg).
  * CXO may use DM/Seller/DE dashboards without those roles in the JWT list.

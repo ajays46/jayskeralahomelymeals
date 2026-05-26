@@ -589,6 +589,18 @@ const BookingWizardPage = () => {
     }
   }, [location.state, navigate]);
 
+  // Handle prefilled address from the pre-order address screen
+  useEffect(() => {
+    if (!location.state?.prefilledAddressId || isSeller) return;
+
+    const prefilledAddressId = location.state.prefilledAddressId;
+    const prefilledAddressDisplay =
+      location.state.prefilledAddressDisplay || getAddressDisplayName(prefilledAddressId);
+
+    setDeliveryLocations((prev) => ({ ...prev, full: prefilledAddressId }));
+    setDeliveryLocationNames((prev) => ({ ...prev, full: prefilledAddressDisplay || '' }));
+  }, [location.state?.prefilledAddressId, location.state?.prefilledAddressDisplay, isSeller, userAddresses]);
+
   // Handle selected user from navigation state
   useEffect(() => {
     if (location.state?.selectedUser && isSeller) {
