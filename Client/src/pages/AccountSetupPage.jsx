@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPhone } from 'react-icons/fi';
+import { FiSmartphone } from 'react-icons/fi';
 import Navbar from '../components/Navbar';
 import Terms from '../components/Terms';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
@@ -157,7 +157,7 @@ const AccountSetupPage = ({ variant = 'default' }) => {
               <p className="text-center text-sm font-bold uppercase tracking-[0.12em] text-[#2c5d54]">
                 {pageCopy.sectionTitle}
               </p>
-              <div className="mx-auto mt-2 max-w-xl">
+              <div className="mx-auto mt-2 max-w-md">
                 {pageCopy.highlightItems.map((item) => (
                   <article
                     key={item.title}
@@ -176,7 +176,7 @@ const AccountSetupPage = ({ variant = 'default' }) => {
                       <img
                         src={item.image}
                         alt={item.title}
-                        className="max-h-full w-auto scale-105 object-contain"
+                        className="max-h-full w-auto scale-110 object-contain"
                         loading="lazy"
                         decoding="async"
                       />
@@ -192,7 +192,7 @@ const AccountSetupPage = ({ variant = 'default' }) => {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleReserveClick(); }}
-                        className="mt-3 w-full rounded-full px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
+                        className="mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:brightness-105 active:scale-[0.98]"
                         style={{ backgroundColor: '#1f6f5f' }}
                       >
                         {item.cta}
@@ -242,7 +242,7 @@ const AccountSetupPage = ({ variant = 'default' }) => {
               <label className="block text-sm font-semibold text-[#244f46]">Mobile Number:</label>
               <div className="relative">
                 <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-[#5f5f57]">
-                  <FiPhone className="h-4 w-4" aria-hidden="true" />
+                  <FiSmartphone className="h-4 w-4" aria-hidden="true" />
                 </span>
                 <input
                   type="tel"
@@ -282,7 +282,7 @@ const AccountSetupPage = ({ variant = 'default' }) => {
                   type="submit"
                   disabled={!canSubmitProfile}
                   className="w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                  style={{ backgroundColor: accent }}
+                  style={{ backgroundColor: '#1f6f5f' }}
                 >
                   {isPending ? 'Saving...' : 'Continue'}
                 </button>

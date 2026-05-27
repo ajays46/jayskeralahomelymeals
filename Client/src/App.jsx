@@ -19,6 +19,7 @@ const PublicPage = lazy(() => import('./pages/Public'));
 const AccountSetupPage = lazy(() => import('./pages/AccountSetupPage'));
 const OrderPage = lazy(() => import('./pages/OrderPage'));
 const OrderAddressPage = lazy(() => import('./pages/OrderAddressPage'));
+const OrderSchedulePage = lazy(() => import('./pages/OrderSchedulePage'));
 const JLGProtectedPage = lazy(() => import('./pages/JLGProtectedPage'));
 const JLGHomePage = lazy(() => import('./pages/JLGHomePage'));
 const MLHomePage = lazy(() => import('./ml/pages/MLHomePage'));
@@ -294,6 +295,7 @@ const App = () => {
               <Route path="account-setup" element={<AccountSetupPage />} />
               <Route path="protected" element={<JLGProtectedPage />} />
               <Route path="order" element={<OrderPage />} />
+              <Route path="order-schedule" element={<OrderSchedulePage />} />
               <Route path="dashboard" element={<MLRouteGuard><MLDeliveryPartnerDashboard /></MLRouteGuard>} />
               <Route path="trips" element={<MLRouteGuard><MLMyTripsPage /></MLRouteGuard>} />
               <Route path="trips/add" element={<MLRouteGuard><MLAddTripPage /></MLRouteGuard>} />

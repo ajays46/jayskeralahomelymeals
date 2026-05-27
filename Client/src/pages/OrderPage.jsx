@@ -188,7 +188,7 @@ const OrderPage = () => {
 
   const getTotalPrice = (item) => getMealTotal(item) + getAddonsTotal();
 
-  const handleOrder = (item) => {
+  const handleCheckout = (item) => {
     setSelectedItemId(item.id);
     if (!hasStateAddress && !hasSavedAddress) {
       navigate(`${basePath}/order-address`);
@@ -200,12 +200,10 @@ const OrderPage = () => {
       price: addon.price || 0,
       quantity: addon.quantity || 1,
     }));
-    navigate(`${basePath}/place-order`, {
+    navigate(`${basePath}/order-schedule`, {
       state: {
-        initialTab: 'menu',
-        skipToMenuSelection: true,
-        prefilledAddressId: location.state?.prefilledAddressId,
-        prefilledAddressDisplay: location.state?.prefilledAddressDisplay,
+        prefilledAddressId: currentAddressId || location.state?.prefilledAddressId,
+        prefilledAddressDisplay: currentAddressDisplay || location.state?.prefilledAddressDisplay,
         prefilledCustomerName: location.state?.prefilledCustomerName,
         selectedMenuFromOrder: item,
         menuQuantityFromOrder: getQuantity(item.id),
@@ -460,6 +458,14 @@ const OrderPage = () => {
                     ₹{getTotalPrice(selectedItem)}
                   </span>
                 </p>
+                <button
+                  type="button"
+                  onClick={() => handleCheckout(selectedItem)}
+                  className="mt-4 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:brightness-105"
+                  style={{ backgroundColor: accent }}
+                >
+                  Checkout
+                </button>
               </div>
             )}
           </div>
