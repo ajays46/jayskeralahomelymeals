@@ -1441,9 +1441,11 @@ export const getMenusForBookingService = async (companyId = null) => {
       const productName = item.product?.productName?.toLowerCase() || '';
       const menuName = menu.name?.toLowerCase() || '';
       
-      // Define comprehensive menu keywords
+      // Define comprehensive menu keywords (flat package price — not multiplied by days)
       const comprehensiveKeywords = [
-        'monthly', 'plan', 'weekly', 'weekday', 'week-day', 'full week', 'comprehensive'
+        'monthly', 'plan', 'weekly', 'weekday', 'week-day', 'week day',
+        'mon-sat', 'mon sat', 'mon–sat', 'monsat',
+        'full week', 'comprehensive'
       ];
       
       // Define daily rate keywords
@@ -1456,8 +1458,9 @@ export const getMenusForBookingService = async (companyId = null) => {
         itemName.includes(keyword) || productName.includes(keyword) || menuName.includes(keyword)
       );
       
-      // Check if item is daily rate (individual meals like breakfast)
-      const isDailyRateItem = dailyRateKeywords.some(keyword => 
+      // Check if item is daily rate (individual meals like breakfast).
+      // Package menus (weekly/monthly) take precedence — e.g. "Weekly Lunch" is ₹750/week, not per day.
+      const isDailyRateItem = !isComprehensiveItem && dailyRateKeywords.some(keyword => 
         itemName.includes(keyword) || productName.includes(keyword)
       );
       

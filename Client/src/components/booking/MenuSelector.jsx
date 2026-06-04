@@ -1,5 +1,6 @@
 import React from 'react';
 import { MdRestaurant, MdExpandMore, MdExpandLess } from 'react-icons/md';
+import { isMonSatPlanName, isWeekDayPlanName } from '../../utils/menuPlanUtils';
 
 const MenuSelector = ({
   menus,
@@ -133,7 +134,7 @@ const MenuSelector = ({
     }
     
     // Weekly menu - 7 days
-    if (itemName.includes('weekly') || itemName.includes('week')) {
+    if (itemName.includes('weekly') || itemName.includes('full week')) {
       return {
         text: 'Auto-selects 7 days',
         color: 'text-green-600',
@@ -143,10 +144,21 @@ const MenuSelector = ({
       };
     }
     
-    // Week-day plan - 5 days
-    if (itemName.includes('week-day') || itemName.includes('weekday')) {
+    // Mon–Sat plan - 6 days (flat package price)
+    if (isMonSatPlanName(itemName)) {
       return {
-        text: 'Auto-selects 5 weekdays',
+        text: 'Auto-selects 6 days (Mon–Sat)',
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-100',
+        borderColor: 'border-indigo-200',
+        icon: '🗓️'
+      };
+    }
+    
+    // Week-day plan - 5 days Mon–Fri (flat package price)
+    if (isWeekDayPlanName(itemName)) {
+      return {
+        text: 'Auto-selects 5 weekdays (Mon–Fri)',
         color: 'text-purple-600',
         bgColor: 'bg-purple-100',
         borderColor: 'border-purple-200',
@@ -157,7 +169,7 @@ const MenuSelector = ({
     // General weekday menu - 5 days (Monday to Friday)
     if (itemName.includes('monday') || itemName.includes('tuesday') || itemName.includes('wednesday') || itemName.includes('thursday') || itemName.includes('friday')) {
       return {
-        text: 'Auto-selects 5 weekdays',
+        text: 'Auto-selects 5 weekdays (Mon–Fri)',
         color: 'text-purple-600',
         bgColor: 'bg-purple-100',
         borderColor: 'border-purple-200',
@@ -169,6 +181,17 @@ const MenuSelector = ({
     if (itemName.includes('daily rates') || itemName.includes('daily rate')) {
       return {
         text: 'Manual date selection',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-100',
+        borderColor: 'border-gray-200',
+        icon: '✋'
+      };
+    }
+    
+    // Individual meals (breakfast/lunch/dinner) — pick multiple days
+    if (menuItem.isDailyRateItem) {
+      return {
+        text: 'Select multiple days',
         color: 'text-gray-600',
         bgColor: 'bg-gray-100',
         borderColor: 'border-gray-200',

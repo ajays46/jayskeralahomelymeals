@@ -38,6 +38,7 @@ import {
   showRequiredFieldError
 } from '../utils/toastConfig.jsx';
 import { saveDraftWithCleanup, cleanExpiredDrafts } from '../utils/draftOrderUtils';
+import { isMonSatPlanName, isWeekDayPlanName } from '../utils/menuPlanUtils';
 import useAuthStore from '../stores/Zustand.store';
 import AddressPicker from '../components/AddressPicker';
 import AdminOrderBlockedModal from '../components/AdminOrderBlockedModal';
@@ -353,19 +354,30 @@ const BookingWizardPage = () => {
       return 7;
     }
     
-    // Week-day plan - 5 days (exact match)
-    if (itemName.includes('week-day') || itemName.includes('weekday') || itemName.includes('week day')) {
+    // Mon–Sat plan - 6 days (flat package price)
+    if (isMonSatPlanName(itemName)) {
+      return 6;
+    }
+    
+    // Week-day plan - 5 days Mon–Fri (flat package price)
+    if (isWeekDayPlanName(itemName)) {
       return 5;
     }
     
-    // Daily menu - 1 day (auto-select tomorrow)
-    // Check for "daily" in name OR if it's marked as daily rate item from backend
-    if (itemName.includes('daily') || menu.isDailyRateItem) {
+    // Explicit "daily" plans only — auto-select 1 day (individual breakfast/lunch/dinner use manual multi-select)
+    if (itemName.includes('daily')) {
       return 1;
     }
     
-    // No auto-selection for any other menu types
+    // No auto-selection for individual meal rates (breakfast/lunch/dinner) or other menu types
     return 0;
+  };
+
+  const getTomorrowDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    return tomorrow;
   };
 
   const formatDateForDisplay = (date) => {
@@ -420,17 +432,17 @@ const BookingWizardPage = () => {
       return total;
     }
     
-    // Check if this is a daily rate menu item using the backend flag
+    // Package menus (weekly/monthly): flat price × quantity — not multiplied by days
+    if (selectedMenu.isComprehensiveMenu) {
+      return (selectedMenu.price || 0) * Math.max(1, menuQuantity || 1);
+    }
+    
+    // Daily rate items: price × number of selected days × quantity
     if (selectedMenu.isDailyRateItem) {
       const basePrice = selectedMenu.price || 0;
       const numberOfDays = selectedDates.length;
       const qty = Math.max(1, menuQuantity || 1);
       return basePrice * numberOfDays * qty;
-    }
-    
-    // For comprehensive menus: price × quantity
-    if (selectedMenu.isComprehensiveMenu) {
-      return (selectedMenu.price || 0) * Math.max(1, menuQuantity || 1);
     }
     
     // Regular/single: price × quantity (delivery items are created per date with this quantity)
@@ -945,10 +957,20 @@ const BookingWizardPage = () => {
         selectedDates.push(date);
       }
     } else if (days === 5) {
-      // Weekday: Start from next Monday from the clicked date, select Monday to Friday (5 weekdays)
+      // Week-day: next Monday to Friday (5 days)
       const nextMonday = getNextMonday(normalizedStartDate);
       
       for (let i = 0; i < 5; i++) {
+        const date = new Date(nextMonday);
+        date.setDate(nextMonday.getDate() + i);
+        date.setHours(0, 0, 0, 0);
+        selectedDates.push(date);
+      }
+    } else if (days === 6) {
+      // Mon–Sat: next Monday to Saturday (6 days)
+      const nextMonday = getNextMonday(normalizedStartDate);
+      
+      for (let i = 0; i < 6; i++) {
         const date = new Date(nextMonday);
         date.setDate(nextMonday.getDate() + i);
         date.setHours(0, 0, 0, 0);
@@ -977,9 +999,10 @@ const BookingWizardPage = () => {
     
     if (autoSelectionDays > 0) {
       // Start from tomorrow for initial selection
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      handleAutoDateSelection(tomorrow, autoSelectionDays);
+      handleAutoDateSelection(getTomorrowDate(), autoSelectionDays);
+    } else if (menu.isDailyRateItem) {
+      // Individual meals: pre-select tomorrow, then let user add/remove dates freely
+      setSelectedDates([getTomorrowDate()]);
     } else {
       // Clear existing dates when switching to a menu without auto-selection
       setSelectedDates([]);
@@ -1023,14 +1046,18 @@ const BookingWizardPage = () => {
     
     if (menu.name?.toLowerCase().includes('monthly') || menu.name?.toLowerCase().includes('month')) {
       menuMessage = 'Monthly Menu Selected! Click any date to auto-select 30 consecutive days.';
-    } else if (menu.name?.toLowerCase().includes('weekly') || menu.name?.toLowerCase().includes('week')) {
+    } else if (menu.name?.toLowerCase().includes('weekly') || menu.name?.toLowerCase().includes('full week')) {
       menuMessage = 'Weekly Menu Selected! Click any date to auto-select 7 consecutive days.';
-    } else if (menu.name?.toLowerCase().includes('WEEK DAY') || menu.name?.toLowerCase().includes('week day')) {
-      menuMessage = 'Week-Day Plan Selected! Click any date to auto-select 5 weekdays.';
-    } else if (menu.name?.toLowerCase().includes('daily') || menu.isDailyRateItem) {
+    } else if (isMonSatPlanName(menu.name)) {
+      menuMessage = 'Mon–Sat Plan Selected! Click any date to auto-select 6 days (Monday to Saturday).';
+    } else if (isWeekDayPlanName(menu.name)) {
+      menuMessage = 'Week-Day Plan Selected! Click any date to auto-select 5 weekdays (Monday to Friday).';
+    } else if (menu.name?.toLowerCase().includes('daily')) {
       menuMessage = 'Daily Menu Selected! Tomorrow has been auto-selected. You can change the date if needed.';
+    } else if (menu.isDailyRateItem) {
+      menuMessage = 'Meal selected! Tomorrow is pre-selected. Click more dates to add delivery days, or click a selected date to remove it.';
     } else if (isWeekdayMenu(menu)) {
-      menuMessage = 'Weekday Menu Selected! Click any date to auto-select 5 weekdays.';
+      menuMessage = 'Weekday Menu Selected! Click any date to auto-select 5 weekdays (Monday to Friday).';
     }
     
     if (menuMessage) {
@@ -1679,19 +1706,22 @@ const BookingWizardPage = () => {
                       {selectedMenu && getAutoSelectionDays(selectedMenu) > 0 
                         ? (() => {
                             const days = getAutoSelectionDays(selectedMenu);
-                            const menuName = selectedMenu.name?.toLowerCase() || '';
                             if (days === 1) {
                               return 'Tomorrow has been auto-selected. Click any date to change it.';
                             } else if (days === 30) {
                               return 'Click any date to auto-select 30 consecutive days from that date';
                             } else if (days === 7) {
                               return 'Click any date to auto-select next Monday to Sunday (7 days)';
+                            } else if (days === 6) {
+                              return 'Click any date to auto-select next Monday to Saturday (6 days)';
                             } else if (days === 5) {
                               return 'Click any date to auto-select next Monday to Friday (5 weekdays)';
                             }
                             return `Click any date to auto-select ${days} days from that date`;
                           })()
-                        : 'Choose your preferred delivery dates'
+                        : selectedMenu?.isDailyRateItem
+                          ? 'Tomorrow is pre-selected. Click dates to add or remove delivery days.'
+                          : 'Choose your preferred delivery dates'
                       }
                     </p>
                   </div>
