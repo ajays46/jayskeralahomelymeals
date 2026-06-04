@@ -1,0 +1,173 @@
+{
+  "resolveAtRuntime": {
+    "companyId": "tenantCompanyId"
+  },
+  "defaultPassword": "Demo@1234",
+  "scenarios": [
+    {
+      "id": "admin-role-admin",
+      "label": "Admin",
+      "formState": {
+        "email": "arun.menon@jkhm.demo",
+        "phone": "9876543210",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["ADMIN"],
+        "companyId": "",
+        "firstName": "Arun",
+        "lastName": "Menon"
+      }
+    },
+    {
+      "id": "admin-role-ceo",
+      "label": "CEO",
+      "formState": {
+        "email": "jay.gopi@jkhm.demo",
+        "phone": "9876543211",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["CEO"],
+        "companyId": "",
+        "firstName": "Jay",
+        "lastName": "Gopi"
+      }
+    },
+    {
+      "id": "admin-role-cfo",
+      "label": "CFO",
+      "formState": {
+        "email": "anitha.raj@jkhm.demo",
+        "phone": "9876543212",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["CFO"],
+        "companyId": "",
+        "firstName": "Anitha",
+        "lastName": "Raj"
+      }
+    },
+    {
+      "id": "admin-role-store-manager",
+      "label": "Store Manager",
+      "formState": {
+        "email": "rajesh.kumar@jkhm.demo",
+        "phone": "9876543213",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["STORE_MANAGER"],
+        "companyId": "",
+        "firstName": "Rajesh",
+        "lastName": "Kumar"
+      }
+    },
+    {
+      "id": "admin-role-store-operator",
+      "label": "Store Operator",
+      "formState": {
+        "email": "suresh.babu@jkhm.demo",
+        "phone": "9876543214",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["STORE_OPERATOR"],
+        "companyId": "",
+        "firstName": "Suresh",
+        "lastName": "Babu"
+      }
+    },
+    {
+      "id": "admin-role-seller",
+      "label": "Seller",
+      "formState": {
+        "email": "lakshmi.nair@jkhm.demo",
+        "phone": "9876543215",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["SELLER"],
+        "companyId": "",
+        "firstName": "Lakshmi",
+        "lastName": "Nair"
+      }
+    },
+    {
+      "id": "admin-role-delivery-manager",
+      "label": "Delivery Manager",
+      "formState": {
+        "email": "ramesh.iyer@jkhm.demo",
+        "phone": "9876543216",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["DELIVERY_MANAGER"],
+        "companyId": "",
+        "firstName": "Ramesh",
+        "lastName": "Iyer"
+      }
+    },
+    {
+      "id": "admin-role-delivery-executive",
+      "label": "Delivery Executive",
+      "formState": {
+        "email": "vinod.prasad@jkhm.demo",
+        "phone": "9876543217",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["DELIVERY_EXECUTIVE"],
+        "companyId": "",
+        "firstName": "Vinod",
+        "lastName": "Prasad"
+      }
+    },
+    {
+      "id": "admin-role-delivery-partner",
+      "label": "Delivery Partner (ML)",
+      "formState": {
+        "email": "ajay.gopi@jkhm.demo",
+        "phone": "9876543218",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["DELIVERY_PARTNER"],
+        "companyId": "",
+        "firstName": "Ajay",
+        "lastName": "Gopi"
+      }
+    },
+    {
+      "id": "admin-role-partner-manager",
+      "label": "Partner Manager",
+      "formState": {
+        "email": "deepa.krishnan@jkhm.demo",
+        "phone": "9876543219",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["PARTNER_MANAGER"],
+        "companyId": "",
+        "firstName": "Deepa",
+        "lastName": "Krishnan"
+      }
+    },
+    {
+      "id": "admin-role-user",
+      "label": "User (Customer)",
+      "formState": {
+        "email": "priya.nair@jkhm.demo",
+        "phone": "9876543220",
+        "password": "Demo@1234",
+        "confirmPassword": "Demo@1234",
+        "role": "",
+        "roles": ["USER"],
+        "companyId": "",
+        "firstName": "Priya",
+        "lastName": "Nair"
+      }
+    }
+  ]
+}

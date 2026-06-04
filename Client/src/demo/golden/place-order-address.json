@@ -1,0 +1,18 @@
+{
+  "id": "place-order-address",
+  "label": "Home Delivery Address",
+  "screen": "place-order",
+  "wizardStep": 3,
+  "formState": {
+    "street": "Round South",
+    "housename": "Jays Kerala Office",
+    "city": "Thrissur",
+    "pincode": "680001",
+    "geoLocation": "",
+    "googleMapsUrl": "",
+    "addressType": "HOME"
+  },
+  "uiActions": {
+    "openAddForm": true
+  }
+}

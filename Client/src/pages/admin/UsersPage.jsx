@@ -5,6 +5,8 @@ import AdminSlide from '../../components/AdminSlide';
 import Pagination from '../../components/Pagination';
 import { FiArrowLeft, FiUser, FiMail, FiPhone, FiLock, FiPlus, FiHome, FiCheckCircle, FiXCircle, FiSearch, FiFilter } from 'react-icons/fi';
 import { useCompanyList, useUserRoles, useAdminUsers, useCreateAdminUser, useUpdateUserStatus } from '../../hooks/adminHook/adminHook';
+import AdminGoldenDataLoader from '../../demo/AdminGoldenDataLoader';
+import { getGoldenFormState } from '../../demo/goldenData';
 
 /**
  * UsersPage - Simple admin user management page
@@ -285,6 +287,14 @@ const UsersPage = () => {
     setShowCreateForm(false);
   }, [createUserForm, validateCreateUserForm, createUser]);
 
+  const handleLoadGoldenUserData = useCallback((scenarioId) => {
+    const form = getGoldenFormState(scenarioId, { companyId: tenant?.companyId });
+    if (form) {
+      setCreateUserForm(form);
+      setCreateUserErrors({});
+    }
+  }, [tenant?.companyId]);
+
   const toggleCreateForm = useCallback(() => {
     setShowCreateForm(prev => !prev);
     if (!showCreateForm) {
@@ -353,10 +363,16 @@ const UsersPage = () => {
           {/* Create User Form */}
           {showCreateForm && (
             <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <FiUser size={20} />
-                Create New User
-              </h2>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <FiUser size={20} />
+                  Create New User
+                </h2>
+                <AdminGoldenDataLoader
+                  variant="dark"
+                  onLoad={handleLoadGoldenUserData}
+                />
+              </div>
               
               <form onSubmit={handleCreateUser} className="space-y-6">
                 {/* Basic Information */}
