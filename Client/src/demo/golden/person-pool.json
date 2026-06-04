@@ -1,0 +1,94 @@
+{
+  "people": [
+    {
+      "firstName": "Priya",
+      "lastName": "Nair",
+      "email": "priya.nair@jkhm.demo",
+      "phone": "9847100101"
+    },
+    {
+      "firstName": "Meera",
+      "lastName": "Krishnan",
+      "email": "meera.krishnan@jkhm.demo",
+      "phone": "9847100102"
+    },
+    {
+      "firstName": "Anjali",
+      "lastName": "Menon",
+      "email": "anjali.menon@jkhm.demo",
+      "phone": "9847100103"
+    },
+    {
+      "firstName": "Rahul",
+      "lastName": "Varma",
+      "email": "rahul.varma@jkhm.demo",
+      "phone": "9847100104"
+    },
+    {
+      "firstName": "Sanjay",
+      "lastName": "Pillai",
+      "email": "sanjay.pillai@jkhm.demo",
+      "phone": "9847100105"
+    },
+    {
+      "firstName": "Divya",
+      "lastName": "Raj",
+      "email": "divya.raj@jkhm.demo",
+      "phone": "9847100106"
+    },
+    {
+      "firstName": "Manoj",
+      "lastName": "Iyer",
+      "email": "manoj.iyer@jkhm.demo",
+      "phone": "9847100107"
+    },
+    {
+      "firstName": "Leela",
+      "lastName": "Nambiar",
+      "email": "leela.nambiar@jkhm.demo",
+      "phone": "9847100108"
+    },
+    {
+      "firstName": "Gopal",
+      "lastName": "Kurup",
+      "email": "gopal.kurup@jkhm.demo",
+      "phone": "9847100109"
+    },
+    {
+      "firstName": "Sindhu",
+      "lastName": "Thomas",
+      "email": "sindhu.thomas@jkhm.demo",
+      "phone": "9847100110"
+    },
+    {
+      "firstName": "Nithin",
+      "lastName": "Babu",
+      "email": "nithin.babu@jkhm.demo",
+      "phone": "9847100111"
+    },
+    {
+      "firstName": "Asha",
+      "lastName": "Gopi",
+      "email": "asha.gopi@jkhm.demo",
+      "phone": "9847100112"
+    },
+    {
+      "firstName": "Vivek",
+      "lastName": "Panicker",
+      "email": "vivek.panicker@jkhm.demo",
+      "phone": "9847100113"
+    },
+    {
+      "firstName": "Reshma",
+      "lastName": "Mohanan",
+      "email": "reshma.mohanan@jkhm.demo",
+      "phone": "9847100114"
+    },
+    {
+      "firstName": "Arun",
+      "lastName": "Menon",
+      "email": "arun.menon@jkhm.demo",
+      "phone": "9847100115"
+    }
+  ]
+}

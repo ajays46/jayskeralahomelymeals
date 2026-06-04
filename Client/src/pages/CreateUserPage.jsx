@@ -14,8 +14,7 @@ import {
 import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
-import DemoLoadButton from '../demo/DemoLoadButton';
-import { getGoldenFormState } from '../demo/goldenData';
+import RotatingDemoLoadButton from '../demo/RotatingDemoLoadButton';
 
 const CreateUserPage = () => {
   const navigate = useNavigate();
@@ -225,14 +224,11 @@ const CreateUserPage = () => {
     }
   };
 
-  const handleLoadGoldenCustomerData = () => {
-    const form = getGoldenFormState('seller-create-customer');
-    if (form) {
-      setFormData(form);
-      setErrors({});
-      setApiError('');
-      setSuccessMessage('');
-    }
+  const handleLoadGoldenCustomerData = (form) => {
+    setFormData(form);
+    setErrors({});
+    setApiError('');
+    setSuccessMessage('');
   };
 
   // Handle cancel
@@ -290,9 +286,9 @@ const CreateUserPage = () => {
             {/* Right Side - Action Buttons */}
             <div className="flex flex-row flex-wrap items-center gap-2">
               {!isEditMode && (
-                <DemoLoadButton
-                  label="Load demo data"
-                  onClick={handleLoadGoldenCustomerData}
+                <RotatingDemoLoadButton
+                  scenarioId="seller-create-customer"
+                  onLoad={handleLoadGoldenCustomerData}
                 />
               )}
               <button

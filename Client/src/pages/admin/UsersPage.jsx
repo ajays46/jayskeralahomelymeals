@@ -287,8 +287,11 @@ const UsersPage = () => {
     setShowCreateForm(false);
   }, [createUserForm, validateCreateUserForm, createUser]);
 
-  const handleLoadGoldenUserData = useCallback((scenarioId) => {
-    const form = getGoldenFormState(scenarioId, { companyId: tenant?.companyId });
+  const handleLoadGoldenUserData = useCallback((scenarioId, variantIndex = 0) => {
+    const form = getGoldenFormState(scenarioId, {
+      companyId: tenant?.companyId,
+      variantIndex,
+    });
     if (form) {
       setCreateUserForm(form);
       setCreateUserErrors({});
