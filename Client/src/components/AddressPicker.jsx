@@ -22,6 +22,8 @@ import {
   showInfoToast 
 } from '../utils/toastConfig.jsx';
 import ConfirmationModal from './ConfirmationModal';
+import DemoLoadButton from '../demo/DemoLoadButton';
+import { getGoldenFormState } from '../demo/goldenData';
 
 const AddressPicker = ({ 
   value, 
@@ -87,6 +89,14 @@ const AddressPicker = ({
     googleMapsUrl: '',
     addressType: 'HOME'
   });
+
+  const handleLoadGoldenAddressData = () => {
+    const form = getGoldenFormState('place-order-address');
+    if (!form) return;
+    setAddressForm(form);
+    setShowDropdown(true);
+    setShowAddFormDropdown(true);
+  };
 
   // Close dropdown when clicking outside and update position on scroll/resize
   useEffect(() => {
@@ -575,8 +585,16 @@ const AddressPicker = ({
             {/* Add/Edit Address Form Dropdown */}
             {showAddFormDropdown && (
               <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
-                <div className="text-xs sm:text-sm font-medium text-gray-800 mb-2 sm:mb-3">
-                  {selectedAddress ? 'Edit Address' : 'Add New Address'}
+                <div className="mb-2 sm:mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs sm:text-sm font-medium text-gray-800">
+                    {selectedAddress ? 'Edit Address' : 'Add New Address'}
+                  </div>
+                  {!selectedAddress && (
+                    <DemoLoadButton
+                      label="Load demo data"
+                      onClick={handleLoadGoldenAddressData}
+                    />
+                  )}
                 </div>
                 <form className="space-y-2 sm:space-y-3" onSubmit={(e) => {
                   e.preventDefault();

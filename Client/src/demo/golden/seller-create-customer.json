@@ -1,0 +1,14 @@
+{
+  "id": "seller-create-customer",
+  "label": "Create Customer with Address",
+  "screen": "create-user",
+  "formState": {
+    "firstName": "Priya",
+    "lastName": "Nair",
+    "phoneNumber": "9847123456",
+    "street": "MG Road",
+    "housename": "Green Villa",
+    "city": "Thrissur",
+    "pincode": "680001"
+  }
+}

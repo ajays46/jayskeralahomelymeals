@@ -14,6 +14,8 @@ import {
 import { useCompanyBasePath } from '../context/TenantContext';
 import useAuthStore from '../stores/Zustand.store';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
+import DemoLoadButton from '../demo/DemoLoadButton';
+import { getGoldenFormState } from '../demo/goldenData';
 
 const CreateUserPage = () => {
   const navigate = useNavigate();
@@ -223,6 +225,16 @@ const CreateUserPage = () => {
     }
   };
 
+  const handleLoadGoldenCustomerData = () => {
+    const form = getGoldenFormState('seller-create-customer');
+    if (form) {
+      setFormData(form);
+      setErrors({});
+      setApiError('');
+      setSuccessMessage('');
+    }
+  };
+
   // Handle cancel
   const handleCancel = () => {
     navigate(`${basePath}/seller/customers`);
@@ -276,7 +288,13 @@ const CreateUserPage = () => {
             </div>
             
             {/* Right Side - Action Buttons */}
-            <div className="flex flex-row items-center gap-2">
+            <div className="flex flex-row flex-wrap items-center gap-2">
+              {!isEditMode && (
+                <DemoLoadButton
+                  label="Load demo data"
+                  onClick={handleLoadGoldenCustomerData}
+                />
+              )}
               <button
                 type="button"
                 onClick={handleCancel}
