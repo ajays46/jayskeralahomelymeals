@@ -22,8 +22,7 @@ import {
   showInfoToast 
 } from '../utils/toastConfig.jsx';
 import ConfirmationModal from './ConfirmationModal';
-import DemoLoadButton from '../demo/DemoLoadButton';
-import { getGoldenFormState } from '../demo/goldenData';
+import RotatingDemoLoadButton from '../demo/RotatingDemoLoadButton';
 
 const AddressPicker = ({ 
   value, 
@@ -90,9 +89,7 @@ const AddressPicker = ({
     addressType: 'HOME'
   });
 
-  const handleLoadGoldenAddressData = () => {
-    const form = getGoldenFormState('place-order-address');
-    if (!form) return;
+  const handleLoadGoldenAddressData = (form) => {
     setAddressForm(form);
     setShowDropdown(true);
     setShowAddFormDropdown(true);
@@ -590,9 +587,9 @@ const AddressPicker = ({
                     {selectedAddress ? 'Edit Address' : 'Add New Address'}
                   </div>
                   {!selectedAddress && (
-                    <DemoLoadButton
-                      label="Load demo data"
-                      onClick={handleLoadGoldenAddressData}
+                    <RotatingDemoLoadButton
+                      scenarioId="place-order-address"
+                      onLoad={handleLoadGoldenAddressData}
                     />
                   )}
                 </div>

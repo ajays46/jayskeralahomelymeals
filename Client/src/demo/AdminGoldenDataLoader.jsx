@@ -1,21 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { isDemoMode } from './isDemoMode';
 import DemoLoadButton from './DemoLoadButton';
-import { getAdminUserGoldenScenarios } from './goldenData';
+import {
+  getAdminUserGoldenScenarios,
+} from './goldenData';
 
 /**
- * Role picker + load button for admin user creation demo.
+ * Role picker + rotating load button for admin user creation demo.
+ * Each click loads the next person from the pool for the selected role.
  */
 export default function AdminGoldenDataLoader({ onLoad, variant = 'dark' }) {
   const scenarios = getAdminUserGoldenScenarios();
   const [selectedId, setSelectedId] = useState(
     scenarios[0]?.id ?? 'admin-role-store-manager'
   );
+  const [variantIndex, setVariantIndex] = useState(0);
+
+  useEffect(() => {
+    setVariantIndex(0);
+  }, [selectedId]);
 
   if (!isDemoMode() || scenarios.length === 0) return null;
 
   const handleLoad = () => {
-    onLoad(selectedId);
+    onLoad(selectedId, variantIndex);
+    setVariantIndex((i) => i + 1);
   };
 
   const selectClass =
@@ -37,7 +46,11 @@ export default function AdminGoldenDataLoader({ onLoad, variant = 'dark' }) {
           </option>
         ))}
       </select>
-      <DemoLoadButton variant={variant} label="Load demo data" onClick={handleLoad} />
+      <DemoLoadButton
+        variant={variant}
+        label="Load demo data"
+        onClick={handleLoad}
+      />
     </div>
   );
 }

@@ -1,0 +1,88 @@
+{
+  "addresses": [
+    {
+      "housename": "Green Villa",
+      "street": "MG Road",
+      "city": "Thrissur",
+      "pincode": "680001",
+      "addressType": "HOME"
+    },
+    {
+      "housename": "Lakshmi Nivas",
+      "street": "Round South",
+      "city": "Thrissur",
+      "pincode": "680001",
+      "addressType": "HOME"
+    },
+    {
+      "housename": "Rose Cottage",
+      "street": "Swaraj Round",
+      "city": "Thrissur",
+      "pincode": "680001",
+      "addressType": "HOME"
+    },
+    {
+      "housename": "Hill View",
+      "street": "Palakkad Road",
+      "city": "Thrissur",
+      "pincode": "680007",
+      "addressType": "HOME"
+    },
+    {
+      "housename": "Sea Breeze",
+      "street": "Marine Drive",
+      "city": "Kochi",
+      "pincode": "682011",
+      "addressType": "HOME"
+    },
+    {
+      "housename": "Palm Grove",
+      "street": "MG Road",
+      "city": "Kochi",
+      "pincode": "682016",
+      "addressType": "OFFICE"
+    },
+    {
+      "housename": "Temple View",
+      "street": "East Fort",
+      "city": "Thiruvananthapuram",
+      "pincode": "695001",
+      "addressType": "HOME"
+    },
+    {
+      "housename": "Canal Side",
+      "street": "Banerji Road",
+      "city": "Ernakulam",
+      "pincode": "682018",
+      "addressType": "HOME"
+    },
+    {
+      "housename": "Riverside",
+      "street": "Bharathapuzha Lane",
+      "city": "Palakkad",
+      "pincode": "678001",
+      "addressType": "HOME"
+    },
+    {
+      "housename": "Heritage Home",
+      "street": "SM Street",
+      "city": "Kozhikode",
+      "pincode": "673001",
+      "addressType": "OTHER"
+    },
+    {
+      "housename": "Jays Kerala Office",
+      "street": "Round South",
+      "city": "Thrissur",
+      "pincode": "680001",
+      "addressType": "OFFICE"
+    },
+    {
+      "housename": "Sunrise Apartments",
+      "street": "Poothole Road",
+      "city": "Thrissur",
+      "pincode": "680004",
+      "addressType": "HOME"
+    }
+  ]
+}
