@@ -288,11 +288,15 @@ async function checkIfPackageMenu(menuItem) {
     // "WEEKLY RATES" = Package menu (1 product for 7 days)
     // "MONTHLY RATES" = Package menu (1 product for 30 days)
     // "WEEKDAY RATES" = Package menu (1 product for 5 days)
+    // "MON-SAT RATES" = Package menu (1 product for 6 days)
     // "WEEKEND RATES" = Package menu (1 product for 2 days)
     const isPackageMenu = 
       (menuName.includes('monthly') || menuName.includes('month') || menuItemName.includes('monthly') || menuItemName.includes('month')) ||
       (menuName.includes('weekly') || menuName.includes('week') || menuItemName.includes('weekly') || menuItemName.includes('week')) ||
-      (menuName.includes('weekday') || menuName.includes('week-day') || menuItemName.includes('weekday') || menuItemName.includes('week-day')) ||
+      (menuName.includes('weekday') || menuName.includes('week-day') || menuName.includes('week day') ||
+        menuItemName.includes('weekday') || menuItemName.includes('week-day') || menuItemName.includes('week day')) ||
+      (menuName.includes('mon-sat') || menuName.includes('mon sat') || menuName.includes('mon–sat') || menuName.includes('monsat') ||
+        menuItemName.includes('mon-sat') || menuItemName.includes('mon sat') || menuItemName.includes('mon–sat') || menuItemName.includes('monsat')) ||
       (menuName.includes('weekend') || menuName.includes('week-end') || menuItemName.includes('weekend') || menuItemName.includes('week-end')) ||
       (menuName.includes('saturday') || menuName.includes('sunday') || menuItemName.includes('saturday') || menuItemName.includes('sunday'));
     

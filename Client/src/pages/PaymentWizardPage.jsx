@@ -37,6 +37,7 @@ import {
   showOrderError
 } from '../utils/toastConfig.jsx';
 import { cleanExpiredDrafts } from '../utils/draftOrderUtils';
+import { isMonSatPlanName, isWeekDayPlanName } from '../utils/menuPlanUtils';
 import axiosInstance from '../api/axios.js';
 import useAuthStore from '../stores/Zustand.store.js';
 import { SkeletonWizardStep, SkeletonLoading } from '../components/Skeleton';
@@ -777,8 +778,13 @@ const PaymentWizardPage = () => {
       return 7;
     }
     
-    // Week-day plan - 5 days (Monday to Friday)
-    if (itemName.includes('week-day') || itemName.includes('weekday')) {
+    // Mon–Sat plan - 6 days (flat package price)
+    if (isMonSatPlanName(itemName)) {
+      return 6;
+    }
+    
+    // Week-day plan - 5 days Mon–Fri (flat package price)
+    if (isWeekDayPlanName(itemName)) {
       return 5;
     }
     
@@ -819,27 +825,32 @@ const PaymentWizardPage = () => {
     
     const selectedDates = [];
     const menuName = menu.name?.toLowerCase() || '';
-    const isWeekDayPlan = menuName.includes('week-day') || menuName.includes('weekday') || isWeekdayMenu(menu);
+    const isMonSat = isMonSatPlanName(menuName);
+    const isWeekDay = isWeekDayPlanName(menuName) || isWeekdayMenu(menu);
     
-    if (isWeekDayPlan) {
+    if (isMonSat || isWeekDay) {
       let currentDay = new Date(tomorrow);
       
-      // If tomorrow is weekend, start from next Monday
       if (currentDay.getDay() === 0) {
         currentDay.setDate(currentDay.getDate() + 1);
-      } else if (currentDay.getDay() === 6) {
+      } else if (isWeekDay && currentDay.getDay() === 6) {
         currentDay.setDate(currentDay.getDate() + 2);
       }
       
+      const targetDays = isMonSat ? 6 : 5;
       let daysSelected = 0;
-      while (daysSelected < 5) {
+      while (daysSelected < targetDays) {
         selectedDates.push(new Date(currentDay));
         daysSelected++;
         
         currentDay.setDate(currentDay.getDate() + 1);
         
-        if (currentDay.getDay() === 6) {
-          currentDay.setDate(currentDay.getDate() + 2);
+        if (isWeekDay) {
+          if (currentDay.getDay() === 6) {
+            currentDay.setDate(currentDay.getDate() + 2);
+          } else if (currentDay.getDay() === 0) {
+            currentDay.setDate(currentDay.getDate() + 1);
+          }
         } else if (currentDay.getDay() === 0) {
           currentDay.setDate(currentDay.getDate() + 1);
         }
@@ -854,10 +865,11 @@ const PaymentWizardPage = () => {
     setSelectedDates(selectedDates);
     
     // Show success message
-    if (isWeekDayPlan) {
+    if (isMonSat || isWeekDay) {
       const startDateDisplay = formatDateForDisplay(selectedDates[0]);
       const endDateDisplay = formatDateForDisplay(selectedDates[selectedDates.length - 1]);
-      showSuccessToast(`Auto-selected 5 weekdays from ${startDateDisplay} to ${endDateDisplay}`);
+      const dayLabel = isMonSat ? '6 days (Mon–Sat)' : '5 weekdays (Mon–Fri)';
+      showSuccessToast(`Auto-selected ${dayLabel} from ${startDateDisplay} to ${endDateDisplay}`);
     } else {
       let message = '';
       
@@ -880,26 +892,32 @@ const PaymentWizardPage = () => {
     const currentDate = new Date(startDate);
     
     const menuName = order?.menu?.name?.toLowerCase() || '';
-    const isWeekDayPlan = menuName.includes('week-day') || menuName.includes('weekday') || isWeekdayMenu(order?.menu);
+    const isMonSat = isMonSatPlanName(menuName);
+    const isWeekDay = isWeekDayPlanName(menuName) || isWeekdayMenu(order?.menu);
     
-    if (isWeekDayPlan) {
+    if (isMonSat || isWeekDay) {
       let currentDay = new Date(currentDate);
       
       if (currentDay.getDay() === 0) {
         currentDay.setDate(currentDay.getDate() + 1);
-      } else if (currentDay.getDay() === 6) {
+      } else if (isWeekDay && currentDay.getDay() === 6) {
         currentDay.setDate(currentDay.getDate() + 2);
       }
       
+      const targetDays = isMonSat ? 6 : 5;
       let daysSelected = 0;
-      while (daysSelected < 5) {
+      while (daysSelected < targetDays) {
         selectedDates.push(new Date(currentDay));
         daysSelected++;
         
         currentDay.setDate(currentDay.getDate() + 1);
         
-        if (currentDay.getDay() === 6) {
-          currentDay.setDate(currentDay.getDate() + 2);
+        if (isWeekDay) {
+          if (currentDay.getDay() === 6) {
+            currentDay.setDate(currentDay.getDate() + 2);
+          } else if (currentDay.getDay() === 0) {
+            currentDay.setDate(currentDay.getDate() + 1);
+          }
         } else if (currentDay.getDay() === 0) {
           currentDay.setDate(currentDay.getDate() + 1);
         }
@@ -913,10 +931,11 @@ const PaymentWizardPage = () => {
     
     setSelectedDates(selectedDates);
     
-    if (isWeekDayPlan) {
+    if (isMonSat || isWeekDay) {
       const startDateDisplay = formatDateForDisplay(selectedDates[0]);
       const endDateDisplay = formatDateForDisplay(selectedDates[selectedDates.length - 1]);
-      showSuccessToast(`Selected 5 weekdays from ${startDateDisplay} to ${endDateDisplay}`);
+      const dayLabel = isMonSat ? '6 days (Mon–Sat)' : '5 weekdays (Mon–Fri)';
+      showSuccessToast(`Selected ${dayLabel} from ${startDateDisplay} to ${endDateDisplay}`);
     } else {
       let message = '';
       
