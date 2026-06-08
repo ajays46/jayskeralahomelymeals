@@ -182,8 +182,14 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
           <div className="flex-grow h-px bg-gray-200" />
         </div>
         <div className="flex justify-center gap-4 mb-4">
-          <button className="bg-white border border-gray-200 rounded-full p-2 shadow-sm hover:shadow-md transition">
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="h-6 w-6" />
+          <button
+            type="button"
+            className="bg-white border border-gray-200 rounded-full p-2 shadow-sm transition"
+            aria-label="Sign in with Google (coming soon)"
+            title="Google sign-in — handled separately when Google auth is enabled"
+            disabled
+          >
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" className="h-6 w-6 opacity-50" />
           </button>
         </div>
       </div>

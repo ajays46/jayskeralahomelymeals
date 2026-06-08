@@ -15,7 +15,10 @@ dotenv.config();
  * Features: User registration, login validation, password management, role assignment, JWT token generation
  */
 
-export const registerUser = async ({ email, password, phone, companyPath }) => {
+export const registerUser = async ({ email, password, phone, companyPath, termsAccepted }) => {
+    if (termsAccepted !== true) {
+        throw new AppError('You must accept the Terms & Conditions', 400);
+    }
     if (!email || !password) {
         throw new AppError('Email and password are required', 400);
     }

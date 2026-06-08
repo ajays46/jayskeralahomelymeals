@@ -18,9 +18,9 @@ dotenv.config();
 // Register new user (companyPath from frontend for per-company phone uniqueness)
 export const register = async (req, res, next) => {
   try {
-    const { email, password, phone, companyPath } = req.body;
+    const { email, password, phone, companyPath, termsAccepted } = req.body;
 
-    const user = await registerUser({ email, password, phone, companyPath });
+    const user = await registerUser({ email, password, phone, companyPath, termsAccepted });
     res.status(201).json({
       status: 'success',
       data: user

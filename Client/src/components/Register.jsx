@@ -9,6 +9,7 @@ import { useRegister } from '../hooks/userHooks/useRegister';
  * Register - User registration form component with validation
  * Handles new user registration with email, phone, and password validation
  * Sends companyPath so phone is unique per company (same phone allowed in different companies).
+ * Terms: checkbox required for email/phone signup only (Google signup has no checkbox — handled separately when wired).
  */
 const Register = ({ accent: accentProp }) => {
   const tenant = useTenant();
@@ -17,11 +18,11 @@ const Register = ({ accent: accentProp }) => {
     email: '',
     phone: '',
     password: '',
-    agree: false,
+    termsAccepted: false,
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [errors, setErrors] = useState({});
 
   const { mutate: register, isPending } = useRegister();
@@ -32,7 +33,6 @@ const Register = ({ accent: accentProp }) => {
       ...prevState,
       [name]: type === 'checkbox' ? checked : value
     }));
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -49,37 +49,37 @@ const Register = ({ accent: accentProp }) => {
     e.preventDefault();
 
     try {
-      // Validate all fields
       registerSchema.parse(formData);
 
-      // Add default name and companyPath for per-company phone uniqueness
       const registrationData = {
-        ...formData,
-        name: formData.email.split('@')[0], // Use part of email as default name
-        companyPath: tenant?.companyPath
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        termsAccepted: formData.termsAccepted,
+        name: formData.email.split('@')[0],
+        companyPath: tenant?.companyPath,
       };
 
-      // If validation passes, proceed with registration
       register(registrationData, {
         onSuccess: () => {
-          // Show success message and switch to login form
           setFormData({
             email: '',
             phone: '',
             password: '',
-            agree: false,
+            termsAccepted: false,
           });
           setErrors({});
-          // Emit an event to switch to login form
           const switchToLoginEvent = new CustomEvent('switchToLogin', {
-            detail: { message: 'Registration successful! Please login.' }
+            detail: { message: 'Registration successful! Please sign in.' }
           });
           window.dispatchEvent(switchToLoginEvent);
         },
         onError: (error) => {
           const message = error.response?.data?.message || '';
 
-          if (message.includes('Email already registered')) {
+          if (message.includes('Terms & Conditions')) {
+            setErrors({ termsAccepted: message });
+          } else if (message.includes('Email already registered')) {
             setErrors({ email: 'This email is already registered. Please login instead.' });
           } else if (message.includes('phone number is already registered')) {
             setErrors({ phone: 'This phone number is already registered. Please login instead.' });
@@ -89,7 +89,6 @@ const Register = ({ accent: accentProp }) => {
             setErrors({ submit: 'Registration failed. Please try again.' });
           }
         }
-
       });
 
     } catch (error) {
@@ -120,6 +119,7 @@ const Register = ({ accent: accentProp }) => {
               value={formData.email}
               onChange={handleChange}
               onBlur={handleBlur}
+              disabled={isPending}
             />
             {errors.email && (
               <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
@@ -138,6 +138,7 @@ const Register = ({ accent: accentProp }) => {
               value={formData.phone}
               onChange={handleChange}
               onBlur={handleBlur}
+              disabled={isPending}
             />
             {errors.phone && (
               <div className="mt-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
@@ -156,6 +157,7 @@ const Register = ({ accent: accentProp }) => {
               value={formData.password}
               onChange={handleChange}
               onBlur={handleBlur}
+              disabled={isPending}
             />
             <button
               type="button"
@@ -163,6 +165,7 @@ const Register = ({ accent: accentProp }) => {
               onClick={() => setShowPassword(!showPassword)}
               tabIndex={-1}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
+              disabled={isPending}
             >
               {showPassword ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.403-3.221 1.125-4.575m1.875-2.25A9.956 9.956 0 0112 3c5.523 0 10 4.477 10 10 0 1.657-.403 3.221-1.125 4.575m-1.875 2.25A9.956 9.956 0 0112 21c-5.523 0-10-4.477-10-10 0-1.657.403-3.221 1.125-4.575" /></svg>
@@ -172,23 +175,35 @@ const Register = ({ accent: accentProp }) => {
             </button>
             {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
           </div>
-          <div className="flex items-center mb-2">
-            <input
-              id="agree"
-              name="agree"
-              type="checkbox"
-              checked={formData.agree}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`h-4 w-4 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded ${errors.agree ? 'border-red-500' : ''}`}
-              style={{ accentColor: accent }}
-              required
-            />
-            <label htmlFor="agree" className="ml-2 text-sm text-gray-700">
-              I Agree with <button type="button" onClick={() => setShowTerms(true)} className="font-medium hover:underline" style={{ color: accent }}>Terms of Service</button> and <a href="#" className="font-medium hover:underline" style={{ color: accent }}>Privacy Policy</a>
+          <div>
+            <label className="flex items-start gap-2 text-sm text-gray-700 leading-snug">
+              <input
+                id="termsAccepted"
+                name="termsAccepted"
+                type="checkbox"
+                checked={formData.termsAccepted}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`mt-0.5 h-4 w-4 shrink-0 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded ${errors.termsAccepted ? 'border-red-500' : ''}`}
+                style={{ accentColor: accent }}
+                disabled={isPending}
+              />
+              <span className="inline-flex flex-wrap items-center gap-1">
+                I agree to the{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="font-medium hover:underline bg-transparent border-none p-0 cursor-pointer"
+                  style={{ color: accent }}
+                >
+                  Terms & Conditions
+                </button>
+              </span>
             </label>
+            {errors.termsAccepted && (
+              <p className="mt-1 text-sm text-red-500">{errors.termsAccepted}</p>
+            )}
           </div>
-          {errors.agree && <p className="mt-1 text-sm text-red-500">{errors.agree}</p>}
           {errors.submit && <p className="mt-1 text-sm text-red-500">{errors.submit}</p>}
           <button
             type="submit"
@@ -201,16 +216,24 @@ const Register = ({ accent: accentProp }) => {
         </form>
         <div className="flex items-center my-6">
           <div className="flex-grow h-px bg-gray-200" />
-          <span className="mx-3 text-gray-400 text-sm">Or sign in with</span>
+          <span className="mx-3 text-gray-400 text-sm">Or sign up with</span>
           <div className="flex-grow h-px bg-gray-200" />
         </div>
         <div className="flex justify-center gap-4 mb-4">
-          <button className="bg-white border border-gray-200 rounded-full p-2 shadow-sm hover:shadow-md transition"><img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="h-6 w-6" /></button>
+          <button
+            type="button"
+            className="bg-white border border-gray-200 rounded-full p-2 shadow-sm hover:shadow-md transition"
+            aria-label="Sign up with Google (coming soon)"
+            title="Google sign-up — no terms checkbox; handled when Google auth is enabled"
+            disabled
+          >
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" className="h-6 w-6 opacity-50" />
+          </button>
         </div>
-        <Terms isOpen={showTerms} onClose={() => setShowTerms(false)} />
       </div>
+      <Terms isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} compact />
     </>
   );
 };
 
-export default Register; 
+export default Register;
