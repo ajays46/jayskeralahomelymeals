@@ -18,6 +18,7 @@ import CategoryGridModal from '../components/CategoryGridModal';
 
 const MenuPage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState('login');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedMealType, setSelectedMealType] = useState('All');
   const [showCategoryGrid, setShowCategoryGrid] = useState(false);
@@ -30,7 +31,10 @@ const MenuPage = () => {
   const gradient = theme.homeGradient || 'from-orange-50 via-white to-orange-50';
   const isJlgMenu = theme.featuredProducts?.length > 0;
 
-  const handleOpenAuthSlider = () => setAuthSliderOpen(true);
+  const handleOpenAuthSlider = (tab = 'login') => {
+    setAuthInitialTab(tab);
+    setAuthSliderOpen(true);
+  };
   const handleCloseAuthSlider = () => setAuthSliderOpen(false);
 
   // Define meal types
@@ -114,8 +118,11 @@ const MenuPage = () => {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${gradient}`}>
-      <Navbar onSignInClick={handleOpenAuthSlider} />
-      <AuthSlider isOpen={authSliderOpen} onClose={handleCloseAuthSlider} />
+      <Navbar
+        onSignInClick={() => handleOpenAuthSlider('login')}
+        onSignUpClick={() => handleOpenAuthSlider('register')}
+      />
+      <AuthSlider isOpen={authSliderOpen} onClose={handleCloseAuthSlider} initialTab={authInitialTab} />
       
       {/* Hero Section - theme-driven */}
       <div className="relative overflow-hidden">

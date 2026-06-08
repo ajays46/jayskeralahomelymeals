@@ -92,18 +92,36 @@ export const tenantThemes = {
     isLogisticsCompany: true,
   },
   jpk: {
-    primaryColor: '#B91C1C',
-    accentColor: '#FACC15',
+    primaryColor: '#7A151A',
+    accentColor: '#FFFFFF',
     logoUrl: '/jpk/jpk.jpeg',
     brandName: "Jay's Popular Kitchen",
-    navBg: 'bg-[#7f1d1d]/90',
-    heroLayout: 'brand',
-    heroImageOnly: true,
-    heroBgColor: '#4a3728',
+    brandTagline: 'Kerala Meals & Combos',
+    navBg: 'bg-[#7A151A]',
+    navbarLogoSize: 'small',
+    brandNameColor: '#1F2937',
+    navTaglineColor: '#7A151A',
+    glassNavbar: true,
+    modernSignInButton: true,
+    authAccentColor: '#7A151A',
+    heroLayout: 'premium',
+    heroBgColor: '#FDFBF7',
+    heroTextColor: '#1F2937',
+    heroSubtextColor: '#4B5563',
+    heroCtaColor: '#7A151A',
+    heroCtaHoverColor: '#5E1014',
+    heroShowcaseImage: '/combo.png',
     heroImage: '/jpk/jpk.jpeg',
-    heroTitle: "Jay's Popular Kitchen",
+    heroTitle: 'Authentic Kerala Meals. Packed Fresh. Delivered Daily.',
     heroSubtitle: 'Kerala Meals & Combos',
-    heroDescription: 'Authentic Kerala meals and combo plans prepared fresh every day. From homely breakfasts to hearty lunches and dinners — taste tradition in every bite.',
+    heroDescription:
+      'Homely Kerala lunch boxes made fresh every morning — individually packed, rider-delivered, and ready the moment hunger hits.',
+    heroCtaText: 'Secure Your Lunch Box',
+    heroImageCaption: 'Individual Kerala Lunch Boxes',
+    heroImageSubcaption: 'Packed fresh & delivered daily to your doorstep',
+    heroCtaLink: '/place-order',
+    homeGradient: '',
+    homePageBg: '#FDFBF7',
     featuredSectionTitle: 'Popular Kitchen Specials',
     adSectionTitle: "JAY'S POPULAR KITCHEN",
     adTagline: 'Kerala Meals & Combos',
@@ -200,4 +218,23 @@ export function getThemeForCompany(companyPath, companyName) {
   const key = (companyPath || companyName || '').toString().trim().toLowerCase();
   if (!key) return DEFAULT_THEME;
   return tenantThemes[key] || DEFAULT_THEME;
+}
+
+const LIGHT_ACCENTS = new Set(['#ffffff', '#fff', '#fefefe', '#fafafa']);
+
+/**
+ * Accent safe for auth forms (buttons/links on white). Avoids invisible white-on-white UI.
+ */
+export function getAuthAccentColor(theme) {
+  if (!theme) return '#FE8C00';
+  const candidate =
+    theme.authAccentColor ||
+    theme.primaryColor ||
+    theme.heroCtaColor ||
+    theme.accentColor;
+  if (!candidate) return '#FE8C00';
+  if (LIGHT_ACCENTS.has(candidate.toLowerCase())) {
+    return theme.primaryColor || theme.authAccentColor || '#7A151A';
+  }
+  return candidate;
 }

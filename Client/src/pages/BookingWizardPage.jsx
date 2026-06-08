@@ -1430,7 +1430,6 @@ const BookingWizardPage = () => {
                   />
                   <span className="text-sm font-medium text-gray-900">No specific session (Flexible delivery)</span>
                 </label>
-                <p className="text-xs text-gray-500 mt-1 ml-6">One delivery per day; session = ANY. Only primary address needed.</p>
               </div>
             )}
             

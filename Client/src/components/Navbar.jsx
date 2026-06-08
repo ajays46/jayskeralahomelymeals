@@ -20,7 +20,7 @@ import { isAdmin, isSeller, isDeliveryManager, isDeliveryExecutive, isCEO, isCFO
  * Handles user authentication, role-based navigation, and responsive mobile menu
  * Features: Auto-hide on scroll, role-based menu items, user dropdown, search functionality
  */
-const Navbar = ({ onSignInClick }) => {
+const Navbar = ({ onSignInClick, onSignUpClick }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -77,6 +77,13 @@ const Navbar = ({ onSignInClick }) => {
 
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
   const isMinimalNav = theme.minimalNavbar === true;
+  const isModernNav = theme.modernSignInButton === true;
+  const isGlassNav = theme.glassNavbar === true;
+  const isMaroonGlassNav = isGlassNav && theme.glassNavbarVariant === 'maroon';
+  const brandColor = theme.brandNameColor || (isMaroonGlassNav ? '#FFFFFF' : isGlassNav ? '#1F2937' : accent);
+  const taglineColor = theme.navTaglineColor || (isMaroonGlassNav ? 'rgba(255,255,255,0.82)' : isGlassNav ? '#7A151A' : brandColor);
+  const logoSizeClass = theme.navbarLogoSize === 'small' ? 'w-11 h-11' : 'w-16 h-16 lg:w-20 lg:h-20';
+  const navHeightClass = isModernNav ? 'h-[4.25rem] lg:h-[4.75rem]' : 'h-20 lg:h-24';
 
   const signInOrUser = user ? (
     <div className="relative">
@@ -192,33 +199,99 @@ const Navbar = ({ onSignInClick }) => {
         )}
       </AnimatePresence>
     </div>
+  ) : isModernNav ? (
+    <div className="flex items-center gap-2 sm:gap-3">
+      <button
+        type="button"
+        onClick={onSignUpClick || onSignInClick}
+        className={`px-4 sm:px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+          isMaroonGlassNav
+            ? 'border border-white/35 text-white hover:bg-white/10'
+            : isGlassNav
+              ? 'border border-[#7A151A]/20 text-[#7A151A] hover:bg-[#7A151A]/5'
+              : 'border border-white/40 text-white hover:bg-white/15'
+        }`}
+      >
+        Sign Up
+      </button>
+      <button
+        type="button"
+        onClick={onSignInClick}
+        className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
+          isMaroonGlassNav
+            ? 'bg-white text-[#7A151A] hover:bg-white/90 shadow-sm'
+            : isGlassNav
+              ? 'bg-[#7A151A] text-white hover:bg-[#5E1014] shadow-sm hover:shadow-md'
+              : 'border border-white/25 bg-white hover:bg-white/90 shadow-sm'
+        }`}
+        style={isMaroonGlassNav || (isGlassNav && !isMaroonGlassNav) ? undefined : { color: theme.primaryColor || '#7A151A' }}
+      >
+        Sign In
+      </button>
+    </div>
   ) : (
-    <button
-      onClick={onSignInClick}
-      className="text-white transition-all duration-300 font-medium flex items-center gap-1 group hover:opacity-90"
-      style={{ color: 'white' }}
-    >
-      <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> Sign In
-    </button>
+    <div className="flex items-center gap-4">
+      {onSignUpClick && (
+        <button
+          type="button"
+          onClick={onSignUpClick}
+          className="text-white transition-all duration-300 font-medium flex items-center gap-1 group hover:opacity-90"
+        >
+          Sign Up
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onSignInClick}
+        className="text-white transition-all duration-300 font-medium flex items-center gap-1 group hover:opacity-90"
+        style={{ color: 'white' }}
+      >
+        <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> Sign In
+      </button>
+    </div>
   );
 
   return (
-    <nav className={`tenant-nav ${theme.navBg || 'bg-[#989494]/50'} shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`} style={{ ['--tenant-accent']: accent }}>
+    <nav
+      className={`tenant-nav w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'} ${
+        isMaroonGlassNav
+          ? 'bg-[#7A151A]/90 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_20px_rgba(122,21,26,0.25)]'
+          : isGlassNav
+            ? 'bg-white/70 backdrop-blur-xl border-b border-[#7A151A]/10 shadow-[0_4px_24px_rgba(122,21,26,0.06)]'
+            : `${theme.navBg || 'bg-[#989494]/50'} shadow-md`
+      }`}
+      style={{ ['--tenant-accent']: accent, fontFamily: isGlassNav ? "'Inter', system-ui, sans-serif" : undefined }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-3">
-        <div className="flex justify-between items-center h-20 lg:h-24">
+        <div className={`flex justify-between items-center ${navHeightClass}`}>
           {/* Logo - company theme */}
           <div className="flex items-center">
             <Link to={base} className="flex items-center group">
               <motion.img
                 src={theme.logoUrl || '/logo.png'}
                 alt="Logo"
-                className="w-16 h-16 lg:w-20 lg:h-20 object-contain rounded-full shadow-lg group-hover:scale-105 transition-transform duration-300"
-                whileHover={{ rotate: 5 }}
+                className={`${logoSizeClass} object-cover rounded-full shadow-md ring-2 ${isMaroonGlassNav ? 'ring-white/25' : isGlassNav ? 'ring-[#7A151A]/15' : 'ring-white/20'} group-hover:scale-105 transition-transform duration-300`}
+                whileHover={isModernNav ? { scale: 1.05 } : { rotate: 5 }}
               />
-              <span className="text-white hover:opacity-90 transition-all duration-300 font-medium flex items-center gap-1 ml-3">
-                <span className="text-lg sm:text-xl md:text-[26px] tracking-wider whitespace-nowrap font-leagueSpartan font-black" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.5)', color: accent }}>
+              <span className={`${isMaroonGlassNav ? 'text-white' : isGlassNav ? 'text-gray-900' : 'text-white'} hover:opacity-90 transition-all duration-300 font-medium flex flex-col ml-3 min-w-0`}>
+                <span
+                  className={`${
+                    isModernNav || isGlassNav
+                      ? 'text-base sm:text-lg font-semibold tracking-tight leading-tight'
+                      : 'text-lg sm:text-xl md:text-[26px] tracking-wider font-leagueSpartan font-black whitespace-nowrap'
+                  }`}
+                  style={isModernNav || isGlassNav ? { color: brandColor } : { textShadow: '2px 2px 8px rgba(0,0,0,0.5)', color: brandColor }}
+                >
                   {theme.brandName || "Jay's Kerala Homely Meals"}
                 </span>
+                {theme.brandTagline && (
+                  <span
+                    className={`${isModernNav || isGlassNav ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'} font-medium tracking-wide mt-0.5 ${isMaroonGlassNav || isGlassNav ? 'opacity-90' : 'opacity-85'}`}
+                    style={{ color: isMaroonGlassNav || isGlassNav ? taglineColor : brandColor }}
+                  >
+                    {theme.brandTagline}
+                  </span>
+                )}
               </span>
             </Link>
           </div>

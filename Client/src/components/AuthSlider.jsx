@@ -4,7 +4,7 @@ import Register from './Register';
 import ForgotPassword from './ForgotPassword';
 import { IoClose } from 'react-icons/io5';
 import { useTenant } from '../context/TenantContext';
-import { getThemeForCompany } from '../config/tenantThemes';
+import { getThemeForCompany, getAuthAccentColor } from '../config/tenantThemes';
 
 /**
  * AuthSlider - Sliding authentication modal with tabbed interface
@@ -12,14 +12,21 @@ import { getThemeForCompany } from '../config/tenantThemes';
  * Features: Tab switching, form validation, success messages, responsive design
  * Uses tenant theme for tab colours (JLG green, JKHM orange).
  */
-const AuthSlider = ({ isOpen, onClose }) => {
+const AuthSlider = ({ isOpen, onClose, initialTab = 'login' }) => {
   const [activeTab, setActiveTab] = useState('login');
   const [showForgot, setShowForgot] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
-  const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+  const accent = getAuthAccentColor(theme);
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab === 'register' ? 'register' : 'login');
+      setShowForgot(false);
+    }
+  }, [isOpen, initialTab]);
 
   useEffect(() => {
     const handleSwitchToLogin = (event) => {
@@ -37,7 +44,7 @@ const AuthSlider = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-[100] overflow-hidden">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
@@ -54,10 +61,10 @@ const AuthSlider = ({ isOpen, onClose }) => {
                 <div className="flex space-x-4">
                   <button
                     onClick={() => { setActiveTab('login'); setShowForgot(false); }}
-                    className={`px-4 py-2 text-sm font-medium rounded-md border-b-2 ${
+                    className={`px-4 py-2 text-sm font-semibold rounded-md border-b-2 transition-colors ${
                       activeTab === 'login' && !showForgot
-                        ? ''
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'text-gray-900'
+                        : 'border-transparent text-gray-500 hover:text-gray-800'
                     }`}
                     style={activeTab === 'login' && !showForgot ? { color: accent, borderColor: accent } : undefined}
                   >
@@ -65,10 +72,10 @@ const AuthSlider = ({ isOpen, onClose }) => {
                   </button>
                   <button
                     onClick={() => { setActiveTab('register'); setShowForgot(false); }}
-                    className={`px-4 py-2 text-sm font-medium rounded-md border-b-2 ${
+                    className={`px-4 py-2 text-sm font-semibold rounded-md border-b-2 transition-colors ${
                       activeTab === 'register'
-                        ? ''
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'text-gray-900'
+                        : 'border-transparent text-gray-500 hover:text-gray-800'
                     }`}
                     style={activeTab === 'register' ? { color: accent, borderColor: accent } : undefined}
                   >

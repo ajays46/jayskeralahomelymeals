@@ -8,6 +8,7 @@ import Navbar from '../components/Navbar';
 import AuthSlider from '../components/AuthSlider';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
+import JPKHomeHero from '../components/home/JPKHomeHero';
 import vegBreakfastData from '../data/veg-breakfast.json';
 import vegLunchData from '../data/veg-lunch.json';
 import vegDinnerData from '../data/veg-dinner.json';
@@ -22,6 +23,7 @@ import nonVegDinnerData from '../data/non-veg-dinner.json';
  */
 const HomePage = () => {
   const [authSliderOpen, setAuthSliderOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState('login');
   const base = useCompanyBasePath();
   const tenant = useTenant();
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
@@ -30,7 +32,10 @@ const HomePage = () => {
   const isMinimalHome = theme.minimalHome === true;
 
   // Handle authentication slider open/close
-  const handleOpenAuthSlider = () => setAuthSliderOpen(true);
+  const handleOpenAuthSlider = (tab = 'login') => {
+    setAuthInitialTab(tab);
+    setAuthSliderOpen(true);
+  };
   const handleCloseAuthSlider = () => setAuthSliderOpen(false);
 
   // Get sample items from each meal category
@@ -41,14 +46,24 @@ const HomePage = () => {
   const sampleNonVegLunch = nonVegLunchData.slice(0, 3);
   const sampleNonVegDinner = nonVegDinnerData.slice(0, 3);
 
+  const pageBg = theme.homePageBg || (gradient ? undefined : '#ffffff');
+
   return (
-    <div className={`min-h-screen ${isMinimalHome ? 'flex flex-col' : ''} bg-gradient-to-br ${gradient}`}>
-      <Navbar onSignInClick={handleOpenAuthSlider} />
-      <AuthSlider isOpen={authSliderOpen} onClose={handleCloseAuthSlider} />
+    <div
+      className={`min-h-screen ${isMinimalHome ? 'flex flex-col' : ''} ${!pageBg ? `bg-gradient-to-br ${gradient}` : ''}`}
+      style={pageBg ? { backgroundColor: pageBg } : undefined}
+    >
+      <Navbar
+        onSignInClick={() => handleOpenAuthSlider('login')}
+        onSignUpClick={() => handleOpenAuthSlider('register')}
+      />
+      <AuthSlider isOpen={authSliderOpen} onClose={handleCloseAuthSlider} initialTab={authInitialTab} />
       
       {/* Hero Section - company theme */}
       <div className="relative overflow-hidden">
-        {theme.heroLayout === 'brand' ? (
+        {theme.heroLayout === 'premium' || theme.heroLayout === 'split' ? (
+          <JPKHomeHero theme={theme} base={base} />
+        ) : theme.heroLayout === 'brand' ? (
           <div
             className={`${isMinimalHome ? 'flex-1 min-h-[calc(100vh-5rem)]' : 'min-h-[28rem] sm:min-h-[32rem] md:min-h-[36rem]'} flex items-center justify-center pt-20 sm:pt-24 md:pt-28 pb-12 sm:pb-16`}
             style={{ backgroundColor: theme.heroBgColor || theme.primaryColor || '#1f2937' }}

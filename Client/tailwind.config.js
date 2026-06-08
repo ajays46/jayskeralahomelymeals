@@ -14,6 +14,7 @@ module.exports = {
         ],
         roboto: ['Roboto', 'sans-serif'],
         leagueSpartan: ['League Spartan', 'sans-serif'],
+        inter: ['Inter', 'system-ui', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-out',
