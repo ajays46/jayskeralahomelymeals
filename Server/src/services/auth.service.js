@@ -106,7 +106,7 @@ export const registerUser = async ({ email, password, phone, companyPath }) => {
     }
 };
 
-export const loginUser = async ({ identifier, password, companyPath }) => {
+export const loginUser = async ({ identifier, password, companyPath, remember = false }) => {
     try {
         let auth = null;
         if (validator.isEmail(identifier)) {
@@ -170,7 +170,7 @@ export const loginUser = async ({ identifier, password, companyPath }) => {
         // Get the primary role (first role or highest priority role)
         const primaryRole = user.userRoles[0];
         const accessToken = generateAccessToken(user.id, allRoles);
-        const refreshToken = generateRefreshToken(user.id, allRoles);
+        const refreshToken = generateRefreshToken(user.id, allRoles, Boolean(remember));
 
         // Company path for redirect: company admins go to their company URL (e.g. JKHM -> /jkhm)
         const resolvedCompanyPath = user.company?.name

@@ -1,7 +1,7 @@
 import { registerUser, loginUser, forgotPasswordService, resetPasswordService, adminLoginService, addUserRole, removeUserRole, getUserRoles, hasRole } from '../services/auth.service.js';
 import AppError from '../utils/AppError.js';
 import dotenv from 'dotenv';
-import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
+import { generateAccessToken, generateRefreshToken, REFRESH_REMEMBER_COOKIE_MAX_MS } from '../utils/jwt.config.js';
 import { clearJWTCookie, setJWTCookie } from '../utils/cookieUtils.js';
 import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
@@ -33,12 +33,13 @@ export const register = async (req, res, next) => {
 // Login user (companyPath from frontend for phone login when same phone in multiple companies)
 export const login = async (req, res, next) => {
   try {
-    const { identifier, password, companyPath } = req.body;
-    const userData = await loginUser({ identifier, password, companyPath });
+    const { identifier, password, companyPath, remember } = req.body;
+    const rememberMe = remember === true || remember === 'true';
+    const userData = await loginUser({ identifier, password, companyPath, remember: rememberMe });
 
     const { accessToken, refreshToken } = userData.token;
 
-    setJWTCookie(res, refreshToken);
+    setJWTCookie(res, refreshToken, 'jwt', rememberMe ? REFRESH_REMEMBER_COOKIE_MAX_MS : undefined);
 
 
     res.status(200).json({
@@ -106,9 +107,11 @@ export const refreshToken = async (req, res, next) => {
       // Get the primary role (first role or highest priority role)
       const primaryRole = user.userRoles[0];
       const newAccessToken = generateAccessToken(user.id, allRoles);
-      const newRefreshToken = generateRefreshToken(user.id, allRoles);
+      /** Legacy tokens omit `rm`; treat as persistent so existing users keep long-lived refresh. */
+      const persistent = decoded.rm !== 0;
+      const newRefreshToken = generateRefreshToken(user.id, allRoles, persistent);
 
-      setJWTCookie(res, newRefreshToken);
+      setJWTCookie(res, newRefreshToken, 'jwt', persistent ? REFRESH_REMEMBER_COOKIE_MAX_MS : undefined);
 
       return res.status(200).json({
         success: true,

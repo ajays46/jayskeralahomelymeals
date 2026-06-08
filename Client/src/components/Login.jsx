@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import { z } from 'zod';
 import { loginSchema, validateField } from '../validations/loginValidation';
-import { Link } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
-import { useLogin } from '../hooks/userHooks/useLogin';
+import { useLogin, getRememberedIdentifier } from '../hooks/userHooks/useLogin';
 
 /**
  * Login - Authentication form component with validation and error handling
@@ -21,6 +20,21 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  /** When a remembered email is restored, password stays read-only until focus so the browser does not auto-fill it. */
+  const [passwordUnlocked, setPasswordUnlocked] = useState(true);
+
+  useLayoutEffect(() => {
+    const saved = tenant?.companyPath
+      ? getRememberedIdentifier(tenant.companyPath)
+      : getRememberedIdentifier('');
+    if (!saved) return;
+    setPasswordUnlocked(false);
+    setFormData((prev) => ({
+      ...prev,
+      identifier: saved,
+      password: '',
+    }));
+  }, [tenant?.companyPath]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -28,7 +42,6 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
       ...prevState,
       [name]: value
     }));
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -44,13 +57,10 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
     e.preventDefault();
 
     try {
-      // Validate all fields
       loginSchema.parse(formData);
 
-      // If validation passes, proceed with login (include companyPath for phone login per company)
-      await loginMutation({ ...formData, companyPath: tenant?.companyPath }, {
+      loginMutation({ ...formData, remember: true, companyPath: tenant?.companyPath }, {
         onSuccess: () => {
-          // Close the auth slider on successful login
           onClose();
         },
         onError: (error) => {
@@ -88,6 +98,7 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
               id="identifier"
               name="identifier"
               type="text"
+              autoComplete="username"
               className={`block w-full rounded-lg border ${errors.identifier ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900`}
               placeholder="Enter your email or phone number"
               value={formData.identifier}
@@ -100,9 +111,13 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
           <div className="relative">
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input
+              key={passwordUnlocked ? 'login-pw-unlocked' : 'login-pw-locked'}
               id="password"
               name="password"
               type={showPassword ? 'text' : 'password'}
+              autoComplete={passwordUnlocked ? 'current-password' : 'off'}
+              readOnly={!passwordUnlocked}
+              onFocus={() => setPasswordUnlocked(true)}
               className={`block w-full rounded-lg border ${errors.password ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--auth-accent)] text-gray-900 pr-10`}
               placeholder="********"
               value={formData.password}
@@ -130,20 +145,7 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
               </div>
             )}
           </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember"
-                name="remember"
-                type="checkbox"
-                className="h-4 w-4 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded"
-                style={{ accentColor: accent }}
-                disabled={isPending}
-              />
-              <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
-                Remember me
-              </label>
-            </div>
+          <div className="flex items-center justify-end">
             <button
               type="button"
               className="text-sm hover:underline bg-transparent border-none p-0"
@@ -189,4 +191,4 @@ const Login = ({ onClose, onForgotPassword, accent: accentProp }) => {
   );
 };
 
-export default Login; 
+export default Login;

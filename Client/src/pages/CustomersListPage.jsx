@@ -24,6 +24,10 @@ import { useCompanyBasePath } from '../context/TenantContext';
 import { useSeller } from '../hooks/sellerHooks/useSeller';
 import useAuthStore from '../stores/Zustand.store';
 import axiosInstance from '../api/axios';
+import {
+  preserveRememberMeLocalStorageSnapshot,
+  restoreRememberMeLocalStorageSnapshot,
+} from '../hooks/userHooks/useLogin';
 import { isDeliveryManager, isSeller, isCXO, isCEO, isCFO } from '../utils/roleUtils';
 import { getValidDrafts, cleanExpiredDrafts } from '../utils/draftOrderUtils';
 
@@ -468,8 +472,10 @@ const CustomersListPage = () => {
       }
       
       // Clear all authentication data
+      const rememberSnap = preserveRememberMeLocalStorageSnapshot();
       localStorage.clear();
       sessionStorage.clear();
+      restoreRememberMeLocalStorageSnapshot(rememberSnap);
       
       // Clear any cookies if they exist
       document.cookie.split(";").forEach(function(c) { 

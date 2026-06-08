@@ -15,6 +15,10 @@ import { useTextCorrection } from '../hooks/useTextCorrection';
 import { useAllDeliveryExecutivesFromDb } from '../hooks/deliverymanager/useAllDeliveryExecutivesFromDb';
 import { useActiveExecutives } from '../hooks/deliverymanager/useActiveExecutives';
 import { showSuccessToast, showErrorToast } from '../utils/toastConfig.jsx';
+import {
+  preserveRememberMeLocalStorageSnapshot,
+  restoreRememberMeLocalStorageSnapshot,
+} from '../hooks/userHooks/useLogin';
 import TextCorrectionSuggestion from '../components/TextCorrectionSuggestion';
 import html2canvas from 'html2canvas';
 import { isCXO, isCEO, isCFO } from '../utils/roleUtils';
@@ -1816,8 +1820,10 @@ const DeliveryExecutivePage = () => {
       }
       
       // Clear all authentication data
+      const rememberSnap = preserveRememberMeLocalStorageSnapshot();
       localStorage.clear();
       sessionStorage.clear();
+      restoreRememberMeLocalStorageSnapshot(rememberSnap);
       
       // Clear any cookies if they exist
       document.cookie.split(";").forEach(function(c) { 
