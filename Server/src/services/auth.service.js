@@ -8,7 +8,112 @@ import validator from 'validator';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.config.js';
 import nodemailer from 'nodemailer';
 import { getCompanyByPath } from './tenant.service.js';
+import { OAuth2Client } from 'google-auth-library';
 dotenv.config();
+
+const getGoogleClientId = () => (process.env.GOOGLE_CLIENT_ID || '').trim();
+
+async function loadActiveUserForAuth(auth) {
+    if (auth.status !== 'ACTIVE') {
+        throw new AppError('Account is not active', 403);
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { authId: auth.id },
+        include: {
+            userRoles: true,
+            company: { select: { id: true, name: true } },
+        },
+    });
+
+    if (!user || !user.userRoles || user.userRoles.length === 0) {
+        throw new AppError('User or roles not found', 404);
+    }
+
+    if (user.status !== 'ACTIVE') {
+        throw new AppError('Your account is inactive. Please contact your administrator.', 403);
+    }
+
+    return user;
+}
+
+function createSessionPayload(user, auth, remember = false) {
+    const allRoles = user.userRoles.map((role) => role.name).join(',');
+    const primaryRole = user.userRoles[0];
+    const accessToken = generateAccessToken(user.id, allRoles);
+    const refreshToken = generateRefreshToken(user.id, allRoles, Boolean(remember));
+    const resolvedCompanyPath = user.company?.name
+        ? String(user.company.name).trim().toLowerCase()
+        : null;
+
+    return {
+        user: {
+            id: user.id,
+            email: auth.email,
+            phone: auth.phoneNumber,
+            api_key: auth.apiKey,
+            status: auth.status,
+            role: primaryRole.name,
+            roles: user.userRoles.map((role) => role.name),
+            companyId: user.companyId ?? undefined,
+            companyPath: resolvedCompanyPath,
+        },
+        token: {
+            accessToken,
+            refreshToken,
+        },
+    };
+}
+
+async function verifyGoogleCredential(credential) {
+    const clientId = getGoogleClientId();
+    if (!clientId) {
+        throw new AppError('Google sign-in is not configured', 503);
+    }
+
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: clientId,
+    });
+    const payload = ticket.getPayload();
+    if (!payload?.email) {
+        throw new AppError('Google account email not available', 400);
+    }
+    if (payload.email_verified === false) {
+        throw new AppError('Google email is not verified', 400);
+    }
+
+    return {
+        email: payload.email.trim().toLowerCase(),
+        name: payload.name || payload.email.split('@')[0],
+    };
+}
+
+async function resolveGoogleProfile({ credential, accessToken }) {
+    if (credential) {
+        return verifyGoogleCredential(credential);
+    }
+
+    if (accessToken) {
+        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) {
+            throw new AppError('Invalid Google token', 401);
+        }
+        const data = await res.json();
+        if (!data?.email) {
+            throw new AppError('Google account email not available', 400);
+        }
+        return {
+            email: String(data.email).trim().toLowerCase(),
+            name: data.name || String(data.email).split('@')[0],
+        };
+    }
+
+    throw new AppError('Google credential is required', 400);
+}
 
 /**
  * Auth Service - Handles user authentication and authorization business logic
@@ -151,56 +256,62 @@ export const loginUser = async ({ identifier, password, companyPath, remember = 
             throw new AppError('Account is not active', 403);
         }
 
-        const user = await prisma.user.findUnique({
-            where: { authId: auth.id },
-            include: {
-                userRoles: true,
-                company: { select: { id: true, name: true } }
-            }
-        });
+        const user = await loadActiveUserForAuth(auth);
 
-        if (!user || !user.userRoles || user.userRoles.length === 0) {
-            throw new AppError('User or roles not found', 404);
-        }
-
-        // Block login for inactive or blocked users
-        if (user.status !== 'ACTIVE') {
-            throw new AppError('Your account is inactive. Please contact your administrator.', 403);
-        }
-
-        // Get all roles as comma-separated string for JWT token
-        const allRoles = user.userRoles.map(role => role.name).join(',');
-        // Get the primary role (first role or highest priority role)
-        const primaryRole = user.userRoles[0];
-        const accessToken = generateAccessToken(user.id, allRoles);
-        const refreshToken = generateRefreshToken(user.id, allRoles, Boolean(remember));
-
-        // Company path for redirect: company admins go to their company URL (e.g. JKHM -> /jkhm)
-        const resolvedCompanyPath = user.company?.name
-            ? String(user.company.name).trim().toLowerCase()
-            : null;
-
-        return {
-            user: {
-                id: user.id,
-                email: auth.email,
-                phone: auth.phoneNumber,
-                api_key: auth.apiKey,
-                status: auth.status,
-                role: primaryRole.name,
-                roles: user.userRoles.map(role => role.name), // Include all roles
-                companyId: user.companyId ?? undefined,
-                companyPath: resolvedCompanyPath // e.g. "jkhm" or "jlg" for redirect after login
-            },
-            token: {
-                accessToken,
-                refreshToken
-            }
-        };
+        return createSessionPayload(user, auth, remember);
     } catch (error) {
         console.error('Login error:', error);
         throw error;
     }
+};
+
+export const googleAuthUser = async ({ credential, accessToken, mode = 'login', companyPath, remember = false }) => {
+    const { email } = await resolveGoogleProfile({ credential, accessToken });
+
+    let companyId = null;
+    if (companyPath && String(companyPath).trim()) {
+        const company = await getCompanyByPath(String(companyPath).trim());
+        if (company) companyId = company.id;
+    }
+
+    let auth = await prisma.auth.findUnique({ where: { email } });
+
+    if (mode === 'register') {
+        if (auth) {
+            throw new AppError('This email is already registered. Please sign in instead.', 409);
+        }
+
+        auth = await prisma.auth.create({
+            data: {
+                email,
+                password: 'NO_PASSWORD_NEEDED',
+                apiKey: generateApiKey(),
+                status: 'ACTIVE',
+            },
+        });
+
+        const user = await prisma.user.create({
+            data: {
+                authId: auth.id,
+                status: 'ACTIVE',
+                ...(companyId && { companyId }),
+            },
+        });
+
+        await prisma.userRole.create({
+            data: {
+                userId: user.id,
+                name: 'USER',
+            },
+        });
+    } else {
+        if (!auth) {
+            throw new AppError('No account found with this Google email. Please sign up first.', 404);
+        }
+    }
+
+    const user = await loadActiveUserForAuth(auth);
+    return createSessionPayload(user, auth, remember);
 };
 
 export const forgotPasswordService = async (identifier) => {

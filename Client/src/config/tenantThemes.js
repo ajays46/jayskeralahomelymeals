@@ -104,6 +104,8 @@ export const tenantThemes = {
     glassNavbar: true,
     modernSignInButton: true,
     authAccentColor: '#7A151A',
+    authHeadingColor: '#7A151A',
+    authFormPanelBg: '#F5F0E8',
     heroLayout: 'premium',
     heroBgColor: '#FDFBF7',
     heroTextColor: '#1F2937',
@@ -180,6 +182,9 @@ export const tenantThemes = {
     minimalHome: true,
     hideTermsAndConditions: true,
     footerCopyrightName: "Jay's Office Meals",
+    authAccentColor: '#2D6A4F',
+    authHeadingColor: '#3D2B1F',
+    authFormPanelBg: '#F5F0E8',
   },
 };
 
@@ -237,4 +242,26 @@ export function getAuthAccentColor(theme) {
     return theme.primaryColor || theme.authAccentColor || '#7A151A';
   }
   return candidate;
+}
+
+/** Headings and labels on auth forms — tenant brand text colour, not the reference orange/green. */
+export function getAuthHeadingColor(theme) {
+  if (!theme) return '#1F2937';
+  return (
+    theme.authHeadingColor ||
+    theme.brandNameColor ||
+    theme.heroTextColor ||
+    theme.primaryColor ||
+    '#1F2937'
+  );
+}
+
+export function getAuthFormBg(theme) {
+  if (!theme) return '#FDFBF7';
+  return theme.homePageBg || theme.heroBgColor || '#FDFBF7';
+}
+
+export function getAuthFormPanelBg(theme) {
+  if (!theme) return '#F5F0E8';
+  return theme.authFormPanelBg || '#F5F0E8';
 }

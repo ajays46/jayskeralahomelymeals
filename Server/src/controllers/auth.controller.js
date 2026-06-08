@@ -1,4 +1,4 @@
-import { registerUser, loginUser, forgotPasswordService, resetPasswordService, adminLoginService, addUserRole, removeUserRole, getUserRoles, hasRole } from '../services/auth.service.js';
+import { registerUser, loginUser, googleAuthUser, forgotPasswordService, resetPasswordService, adminLoginService, addUserRole, removeUserRole, getUserRoles, hasRole } from '../services/auth.service.js';
 import AppError from '../utils/AppError.js';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateRefreshToken, REFRESH_REMEMBER_COOKIE_MAX_MS } from '../utils/jwt.config.js';
@@ -53,6 +53,37 @@ export const login = async (req, res, next) => {
     logSecurityEvent('login_failure', null, req.ip || req.connection?.remoteAddress, {
       identifier: req.body?.identifier,
       reason: error.message
+    });
+    next(error);
+  }
+};
+
+export const googleAuth = async (req, res, next) => {
+  try {
+    const { credential, accessToken: googleAccessToken, mode, companyPath, remember } = req.body;
+    const rememberMe = remember === true || remember === 'true';
+    const userData = await googleAuthUser({
+      credential,
+      accessToken: googleAccessToken,
+      mode: mode === 'register' ? 'register' : 'login',
+      companyPath,
+      remember: rememberMe,
+    });
+
+    const { accessToken, refreshToken } = userData.token;
+    setJWTCookie(res, refreshToken, 'jwt', rememberMe ? REFRESH_REMEMBER_COOKIE_MAX_MS : undefined);
+
+    res.status(200).json({
+      success: true,
+      message: mode === 'register' ? 'Registration successful' : 'Login successful',
+      accessToken,
+      data: userData.user,
+    });
+  } catch (error) {
+    logSecurityEvent('login_failure', null, req.ip || req.connection?.remoteAddress, {
+      provider: 'google',
+      mode: req.body?.mode,
+      reason: error.message,
     });
     next(error);
   }
