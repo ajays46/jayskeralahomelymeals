@@ -27,6 +27,7 @@ const HomePage = () => {
   const theme = tenant?.theme ?? getThemeForCompany(tenant?.companyPath, tenant?.companyName);
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
   const gradient = theme.homeGradient || 'from-orange-50 via-white to-orange-50';
+  const isMinimalHome = theme.minimalHome === true;
 
   // Handle authentication slider open/close
   const handleOpenAuthSlider = () => setAuthSliderOpen(true);
@@ -41,50 +42,113 @@ const HomePage = () => {
   const sampleNonVegDinner = nonVegDinnerData.slice(0, 3);
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${gradient}`}>
+    <div className={`min-h-screen ${isMinimalHome ? 'flex flex-col' : ''} bg-gradient-to-br ${gradient}`}>
       <Navbar onSignInClick={handleOpenAuthSlider} />
       <AuthSlider isOpen={authSliderOpen} onClose={handleCloseAuthSlider} />
       
       {/* Hero Section - company theme */}
       <div className="relative overflow-hidden">
-        <div
-          className="bg-cover bg-center bg-no-repeat h-64 sm:h-80 md:h-96 lg:h-[400px] xl:h-[500px] flex items-center justify-center pt-16 sm:pt-18 md:pt-20 lg:pt-22"
-          style={{ backgroundImage: `url('${theme.heroImage || '/banner_one.jpg'}')` }}
-        >
-          <div className="absolute inset-0 bg-black/40 sm:bg-black/35 md:bg-black/30"></div>
-          <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-20 xl:py-24">
-            <div className="text-left sm:text-center max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto pl-2">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
-                {theme.heroTitle || 'Discover Authentic'}
-                <span className="block mt-1 sm:mt-2" style={{ color: accent }}>{theme.heroSubtitle || 'Kerala Cuisine'}</span>
-              </h1>
-              <p className="hidden sm:block text-sm sm:text-base md:text-lg lg:text-xl text-white/90 mb-6 sm:mb-8 leading-relaxed px-2 sm:px-4">
-                {theme.heroDescription || "Experience the rich flavors and traditional recipes from God's Own Country. From spicy curries to aromatic rice dishes, every bite tells a story."}
-              </p>
-              <div className="flex flex-row gap-3 sm:gap-4 justify-start sm:justify-center items-start sm:items-center">
-                <Link to={`${base}/menu`} className="w-auto">
-                  <button
-                    className="w-auto bg-white hover:bg-gray-100 px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full font-semibold text-xs sm:text-sm md:text-base transition-all duration-300 transform hover:scale-105 shadow-lg"
-                    style={{ color: accent }}
-                  >
-                    Explore Menu
-                  </button>
-                </Link>
-                <button
-                  className="w-auto border-2 border-white text-white hover:bg-white px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full font-semibold text-xs sm:text-sm md:text-base transition-all duration-300"
-                  style={{ ['--tw-bg-opacity']: 1, color: 'inherit' }}
-                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = accent; }}
-                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = 'white'; }}
-                >
-                  Learn More
-                </button>
+        {theme.heroLayout === 'brand' ? (
+          <div
+            className={`${isMinimalHome ? 'flex-1 min-h-[calc(100vh-5rem)]' : 'min-h-[28rem] sm:min-h-[32rem] md:min-h-[36rem]'} flex items-center justify-center pt-20 sm:pt-24 md:pt-28 pb-12 sm:pb-16`}
+            style={{ backgroundColor: theme.heroBgColor || theme.primaryColor || '#1f2937' }}
+          >
+            <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center max-w-3xl mx-auto">
+                {theme.heroImageOnly ? (
+                  <img
+                    src={theme.heroImage || theme.logoUrl || '/logo.png'}
+                    alt={theme.brandName || 'Company logo'}
+                    className="mx-auto mb-8 sm:mb-10 w-full max-w-sm sm:max-w-md md:max-w-lg object-contain drop-shadow-2xl"
+                  />
+                ) : (
+                  <>
+                    {theme.heroEyebrow && (
+                      <p className="text-xs sm:text-sm tracking-[0.35em] text-white/80 uppercase mb-4 sm:mb-6">
+                        {theme.heroEyebrow}
+                      </p>
+                    )}
+                    <div className="mx-auto mb-6 sm:mb-8 w-40 h-40 sm:w-52 sm:h-52 md:w-60 md:h-60 rounded-full border-2 border-white/25 flex items-center justify-center p-3 sm:p-4 bg-white/5 backdrop-blur-sm shadow-2xl">
+                      <img
+                        src={theme.heroImage || theme.logoUrl || '/logo.png'}
+                        alt={theme.brandName || 'Company logo'}
+                        className="w-full h-full object-contain rounded-full"
+                      />
+                    </div>
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-3 sm:mb-4 leading-tight">
+                      {theme.heroTitle || theme.brandName || 'Discover Authentic'}
+                    </h1>
+                    <p className="text-lg sm:text-xl md:text-2xl font-semibold mb-4 sm:mb-6" style={{ color: accent }}>
+                      {theme.heroSubtitle || 'Kerala Cuisine'}
+                    </p>
+                    <p className="text-sm sm:text-base md:text-lg text-white/85 mb-8 sm:mb-10 leading-relaxed max-w-2xl mx-auto px-2">
+                      {theme.heroDescription || "Experience the rich flavors and traditional recipes from God's Own Country."}
+                    </p>
+                  </>
+                )}
+                {!isMinimalHome && (
+                  <div className="flex flex-row gap-3 sm:gap-4 justify-center items-center">
+                    <Link to={`${base}/menu`} className="w-auto">
+                      <button
+                        className="w-auto bg-white hover:bg-gray-100 px-5 sm:px-7 md:px-8 py-2.5 sm:py-3 rounded-full font-semibold text-sm sm:text-base transition-all duration-300 transform hover:scale-105 shadow-lg"
+                        style={{ color: accent }}
+                      >
+                        Explore Menu
+                      </button>
+                    </Link>
+                    <button
+                      className="w-auto border-2 border-white text-white hover:bg-white px-5 sm:px-7 md:px-8 py-2.5 sm:py-3 rounded-full font-semibold text-sm sm:text-base transition-all duration-300"
+                      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = accent; }}
+                      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = 'white'; }}
+                    >
+                      Learn More
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div
+            className="bg-cover bg-center bg-no-repeat h-64 sm:h-80 md:h-96 lg:h-[400px] xl:h-[500px] flex items-center justify-center pt-16 sm:pt-18 md:pt-20 lg:pt-22"
+            style={{ backgroundImage: `url('${theme.heroImage || '/banner_one.jpg'}')` }}
+          >
+            <div className="absolute inset-0 bg-black/40 sm:bg-black/35 md:bg-black/30"></div>
+            <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-20 xl:py-24">
+              <div className="text-left sm:text-center max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto pl-2">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
+                  {theme.heroTitle || 'Discover Authentic'}
+                  <span className="block mt-1 sm:mt-2" style={{ color: accent }}>{theme.heroSubtitle || 'Kerala Cuisine'}</span>
+                </h1>
+                <p className="hidden sm:block text-sm sm:text-base md:text-lg lg:text-xl text-white/90 mb-6 sm:mb-8 leading-relaxed px-2 sm:px-4">
+                  {theme.heroDescription || "Experience the rich flavors and traditional recipes from God's Own Country. From spicy curries to aromatic rice dishes, every bite tells a story."}
+                </p>
+                <div className="flex flex-row gap-3 sm:gap-4 justify-start sm:justify-center items-start sm:items-center">
+                  <Link to={`${base}/menu`} className="w-auto">
+                    <button
+                      className="w-auto bg-white hover:bg-gray-100 px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full font-semibold text-xs sm:text-sm md:text-base transition-all duration-300 transform hover:scale-105 shadow-lg"
+                      style={{ color: accent }}
+                    >
+                      Explore Menu
+                    </button>
+                  </Link>
+                  <button
+                    className="w-auto border-2 border-white text-white hover:bg-white px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full font-semibold text-xs sm:text-sm md:text-base transition-all duration-300"
+                    style={{ ['--tw-bg-opacity']: 1, color: 'inherit' }}
+                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = accent; }}
+                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = 'white'; }}
+                  >
+                    Learn More
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Featured Items Section */}
+      {!isMinimalHome && (
       <section className="py-16 lg:py-20 bg-white relative">
         <div className="absolute inset-0 bg-[url('/pattern.jpg')] bg-repeat opacity-5"></div>
         <div className="relative z-10">
@@ -342,9 +406,10 @@ const HomePage = () => {
         </div>
         </div>
       </section>
+      )}
 
       {/* Featured Meals Advertisement Section + CTA - hidden for JLG (hideRatesAndCta) */}
-      {!theme.hideRatesAndCta && (
+      {!isMinimalHome && !theme.hideRatesAndCta && (
       <section className={`py-16 lg:py-20 bg-gradient-to-br ${theme.adSectionGradient || 'from-orange-50 to-yellow-50'}`}>
         <div className="container mx-auto px-4">
           {/* Section Header - company theme */}

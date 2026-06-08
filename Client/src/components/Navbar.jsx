@@ -76,6 +76,131 @@ const Navbar = ({ onSignInClick }) => {
   }, [menuOpen]);
 
   const accent = theme.accentColor || theme.primaryColor || '#FE8C00';
+  const isMinimalNav = theme.minimalNavbar === true;
+
+  const signInOrUser = user ? (
+    <div className="relative">
+      <button
+        onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+        className="text-white font-medium flex items-center gap-2 hover:opacity-90 cursor-pointer transition-all duration-300 group"
+        style={{ ['--hover-color']: accent }}
+      >
+        <FaUserCircle className="text-2xl group-hover:scale-110 transition-transform duration-300" />
+        <span className="hidden sm:inline">{user.name?.split(' ')[0] || 'User'}</span>
+      </button>
+
+      <AnimatePresence>
+        {userDropdownOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl py-2 z-50 border border-gray-100"
+          >
+            <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-orange-100/50">
+              <div className="flex items-center gap-2">
+                <FaUserCircle className="text-2xl flex-shrink-0" style={{ color: accent }} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-800 text-sm truncate">
+                    {user?.name || user?.contacts?.[0]?.firstName
+                      ? `${user?.contacts?.[0]?.firstName || ''} ${user?.contacts?.[0]?.lastName || ''}`.trim() || user?.name || 'User'
+                      : 'User'}
+                  </div>
+                  {user?.email && (
+                    <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-1">
+                      <MdEmail className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{user.email}</span>
+                    </div>
+                  )}
+                  {user?.phone && (
+                    <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-0.5">
+                      <MdPhone className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{user.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {!isMinimalNav && (
+              <>
+                <Link to={`${base}/profile`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                  <MdPerson className="text-xl" /> Profile
+                </Link>
+                <Link to={`${base}/customer-orders`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                  <MdRestaurantMenu className="text-xl" /> My Orders
+                </Link>
+              </>
+            )}
+
+            {userIsAdmin && (
+              <>
+                <div className="border-t border-gray-200 my-1"></div>
+                <div className="px-4 py-1 text-xs text-gray-500 font-medium">Admin Panel</div>
+                <Link to={`${base}/admin`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                  <MdAdminPanelSettings className="text-xl" /> Admin Dashboard
+                </Link>
+              </>
+            )}
+
+            {(userIsSeller || userIsCEO || userIsCFO) && (
+              <>
+                <div className="border-t border-gray-200 my-1"></div>
+                <div className="px-4 py-1 text-xs text-gray-500 font-medium">Seller Panel</div>
+                {(userIsCEO || userIsCFO) && (
+                  <Link to={`${base}/seller`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                    <MdStore className="text-xl" /> Seller Dashboard
+                  </Link>
+                )}
+                {userIsSeller && !userIsCEO && !userIsCFO && (
+                  <Link to={`${base}/seller/customers`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                    <MdStore className="text-xl" /> Customers List
+                  </Link>
+                )}
+              </>
+            )}
+
+            {(userIsDeliveryManager || userIsCEO || userIsCFO) && (
+              <>
+                <div className="border-t border-gray-200 my-1"></div>
+                <div className="px-4 py-1 text-xs text-gray-500 font-medium">Delivery Panel</div>
+                <Link to={`${base}/delivery-manager`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                  <MdLocalShipping className="text-xl" /> Delivery Manager Dashboard
+                </Link>
+              </>
+            )}
+
+            {(userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
+              <>
+                <div className="border-t border-gray-200 my-1"></div>
+                <div className="px-4 py-1 text-xs text-gray-500 font-medium">Delivery Panel</div>
+                <Link to={`${base}/delivery-executive`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
+                  <MdLocalShipping className="text-xl" /> Delivery Executive Dashboard
+                </Link>
+              </>
+            )}
+
+            <div className="border-t border-gray-200 my-1"></div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600 w-full text-left transition-all duration-200"
+            >
+              <MdLogout className="text-xl" /> Logout
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  ) : (
+    <button
+      onClick={onSignInClick}
+      className="text-white transition-all duration-300 font-medium flex items-center gap-1 group hover:opacity-90"
+      style={{ color: 'white' }}
+    >
+      <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> Sign In
+    </button>
+  );
 
   return (
     <nav className={`tenant-nav ${theme.navBg || 'bg-[#989494]/50'} shadow-md w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'}`} style={{ ['--tenant-accent']: accent }}>
@@ -100,181 +225,43 @@ const Navbar = ({ onSignInClick }) => {
 
           {/* Desktop Navigation - hover uses --tenant-accent */}
           <div className="hidden md:flex items-center space-x-6">
-            <Link to={base} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
-              <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
-            </Link>
-            <Link to={`${base}/menu`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
-              <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> Menu
-            </Link>
-            <Link to={`${base}/place-order`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
-              <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> Place Order
-            </Link>
-            <Link to="/help" className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
-              <MdHelp className="text-xl group-hover:scale-110 transition-transform duration-300" /> Help
-            </Link>
-
-            {/* User Profile Section */}
-            {user ? (
-              <div className="relative">
-                <button
-                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="text-white font-medium flex items-center gap-2 hover:text-[#FE8C00] cursor-pointer transition-all duration-300 group"
-                >
-                  <FaUserCircle className="text-2xl group-hover:scale-110 transition-transform duration-300" />
-                  <span>{user.name?.split(' ')[0] || 'User'}</span>
-                </button>
-
-                {/* Dropdown Menu */}
-                <AnimatePresence>
-                  {userDropdownOpen && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl py-2 z-50 border border-gray-100"
-                    >
-                      {/* User Info Section */}
-                      <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-orange-100/50">
-                        <div className="flex items-center gap-2">
-                          <FaUserCircle className="text-2xl text-[#FE8C00] flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-800 text-sm truncate">
-                              {user?.name || user?.contacts?.[0]?.firstName 
-                                ? `${user?.contacts?.[0]?.firstName || ''} ${user?.contacts?.[0]?.lastName || ''}`.trim() || user?.name || 'User'
-                                : 'User'}
-                            </div>
-                            {user?.email && (
-                              <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-1">
-                                <MdEmail className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate">{user.email}</span>
-                              </div>
-                            )}
-                            {user?.phone && (
-                              <div className="flex items-center gap-1 text-xs text-gray-600 truncate mt-0.5">
-                                <MdPhone className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate">{user.phone}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* User Profile Options */}
-                      <Link to={`${base}/profile`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                        <MdPerson className="text-xl" /> Profile
-                      </Link>
-                      <Link to={`${base}/customer-orders`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                        <MdRestaurantMenu className="text-xl" /> My Orders
-                      </Link>
-
-
-                      {/* Admin Options */}
-                      {userIsAdmin && (
-                        <>
-                          <div className="border-t border-gray-200 my-1"></div>
-                          <div className="px-4 py-1 text-xs text-gray-500 font-medium">Admin Panel</div>
-                          <Link to={`${base}/admin`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                            <MdAdminPanelSettings className="text-xl" /> Admin Dashboard
-                          </Link>
-                        </>
-                      )}
-
-                      {/* CEO/CFO Management Dashboard Options - commented out */}
-                      {/* {(userIsCEO || userIsCFO) && (
-                        <>
-                          <div className="border-t border-gray-200 my-1"></div>
-                          <div className="px-4 py-1 text-xs text-gray-500 font-medium">Management Panel</div>
-                          <Link to={`${base}/management-dashboard`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                            <MdDashboard className="text-xl" /> Management Dashboard
-                          </Link>
-                        </>
-                      )} */}
-
-                      {/* Seller Options - CXO sees Seller Dashboard only; normal sellers see Customers List only */}
-                      {(userIsSeller || userIsCEO || userIsCFO) && (
-                        <>
-                          <div className="border-t border-gray-200 my-1"></div>
-                          <div className="px-4 py-1 text-xs text-gray-500 font-medium">Seller Panel</div>
-                          {(userIsCEO || userIsCFO) && (
-                            <Link to={`${base}/seller`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                              <MdStore className="text-xl" /> Seller Dashboard
-                            </Link>
-                          )}
-                          {userIsSeller && !userIsCEO && !userIsCFO && (
-                            <Link to={`${base}/seller/customers`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                              <MdStore className="text-xl" /> Customers List
-                            </Link>
-                          )}
-                        </>
-                      )}
-
-                      {/* Delivery Manager Options - DM sees full dashboard; CXO sees managers list only */}
-                      {(userIsDeliveryManager || userIsCEO || userIsCFO) && (
-                        <>
-                          <div className="border-t border-gray-200 my-1"></div>
-                          <div className="px-4 py-1 text-xs text-gray-500 font-medium">Delivery Panel</div>
-                          <Link to={`${base}/delivery-manager`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                            <MdLocalShipping className="text-xl" /> Delivery Manager Dashboard
-                          </Link>
-                        </>
-                      )}
-
-                      {/* Delivery Executive Options — DE or CXO (CEO/CFO) for CXO view */}
-                      {(userIsDeliveryExecutive || userIsCEO || userIsCFO) && (
-                        <>
-                          <div className="border-t border-gray-200 my-1"></div>
-                          <div className="px-4 py-1 text-xs text-gray-500 font-medium">Delivery Panel</div>
-                          <Link to={`${base}/delivery-executive`} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-[#FE8C00] transition-all duration-200" onClick={() => setUserDropdownOpen(false)}>
-                            <MdLocalShipping className="text-xl" /> Delivery Executive Dashboard
-                          </Link>
-                        </>
-                      )}
-
-                      {/* Logout Option */}
-                      <div className="border-t border-gray-200 my-1"></div>
-                      <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600 w-full text-left transition-all duration-200"
-                      >
-                        <MdLogout className="text-xl" /> Logout
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ) : (
-              <button
-                onClick={onSignInClick}
-                className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group"
-              >
-                <MdPerson className="text-xl group-hover:scale-110 transition-transform duration-300" /> Sign In
-              </button>
+            {!isMinimalNav && (
+              <>
+                <Link to={base} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
+                  <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
+                </Link>
+                <Link to={`${base}/menu`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
+                  <MdRestaurantMenu className="text-xl group-hover:scale-110 transition-transform duration-300" /> Menu
+                </Link>
+                <Link to={`${base}/place-order`} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
+                  <MdCalendarToday className="text-xl group-hover:scale-110 transition-transform duration-300" /> Place Order
+                </Link>
+                <Link to="/help" className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
+                  <MdHelp className="text-xl group-hover:scale-110 transition-transform duration-300" /> Help
+                </Link>
+              </>
             )}
 
-            {/* Cart - Commented out
-            <a href="/cart" className="text-white hover:text-[#FE8C00] transition-all duration-300 font-medium flex items-center gap-1 group relative">
-              <MdShoppingCart className="text-xl group-hover:scale-110 transition-transform duration-300" /> Cart
-              <span className="absolute -top-2 -right-2 bg-[#FE8C00] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
-            </a>
-            */}
+            {signInOrUser}
 
-            {/* Search */}
-            <div className="relative group">
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search food..."
-                className="pl-10 pr-4 py-2 text-sm rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FE8C00] focus:border-transparent text-gray-700 bg-white/90 backdrop-blur-sm transition-all duration-300 group-hover:bg-white"
-              />
-              <span className="absolute left-3 top-2.5 text-gray-400 group-hover:text-[#FE8C00] transition-colors duration-300">
-                <MdSearch className="w-5 h-5" />
-              </span>
-            </div>
+            {!isMinimalNav && (
+              <div className="relative group">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search food..."
+                  className="pl-10 pr-4 py-2 text-sm rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FE8C00] focus:border-transparent text-gray-700 bg-white/90 backdrop-blur-sm transition-all duration-300 group-hover:bg-white"
+                />
+                <span className="absolute left-3 top-2.5 text-gray-400 group-hover:text-[#FE8C00] transition-colors duration-300">
+                  <MdSearch className="w-5 h-5" />
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
+          {!isMinimalNav && (
           <div className="md:hidden flex items-center">
             <motion.button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -288,12 +275,18 @@ const Navbar = ({ onSignInClick }) => {
               )}
             </motion.button>
           </div>
+          )}
+          {isMinimalNav && (
+            <div className="md:hidden flex items-center">
+              {signInOrUser}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
-        {menuOpen && (
+        {!isMinimalNav && menuOpen && (
           <>
             {/* Backdrop */}
             <motion.div
