@@ -80,10 +80,11 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
   const isModernNav = theme.modernSignInButton === true;
   const isGlassNav = theme.glassNavbar === true;
   const isMaroonGlassNav = isGlassNav && theme.glassNavbarVariant === 'maroon';
-  const brandColor = theme.brandNameColor || (isMaroonGlassNav ? '#FFFFFF' : isGlassNav ? '#1F2937' : accent);
+  const isJomEditorialNav = theme.navbarVariant === 'jom-editorial';
+  const brandColor = theme.brandNameColor || (isJomEditorialNav ? '#1A0F0B' : isMaroonGlassNav ? '#FFFFFF' : isGlassNav ? '#1F2937' : accent);
   const taglineColor = theme.navTaglineColor || (isMaroonGlassNav ? 'rgba(255,255,255,0.82)' : isGlassNav ? '#7A151A' : brandColor);
   const logoSizeClass = theme.navbarLogoSize === 'small' ? 'w-11 h-11' : 'w-16 h-16 lg:w-20 lg:h-20';
-  const navHeightClass = isModernNav ? 'h-[4.25rem] lg:h-[4.75rem]' : 'h-20 lg:h-24';
+  const navHeightClass = isModernNav || isJomEditorialNav ? 'h-[4.25rem] lg:h-[4.75rem]' : 'h-20 lg:h-24';
 
   const signInOrUser = user ? (
     <div className="relative">
@@ -199,6 +200,59 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
         )}
       </AnimatePresence>
     </div>
+  ) : isJomEditorialNav ? (
+    user ? (
+      <div className="relative">
+        <button
+          onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+          className="font-medium flex items-center gap-2 hover:opacity-80 cursor-pointer transition-all duration-300"
+          style={{ color: brandColor }}
+        >
+          <FaUserCircle className="text-2xl" />
+          <span className="hidden sm:inline">{user.name?.split(' ')[0] || 'User'}</span>
+        </button>
+        <AnimatePresence>
+          {userDropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl py-2 z-50 border border-[#1A0F0B]/8"
+            >
+              <div className="px-4 py-3 border-b border-gray-100">
+                <div className="font-semibold text-[#1A0F0B] text-sm truncate">{user?.name || 'User'}</div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 text-sm"
+              >
+                <MdLogout className="text-lg" /> Sign Out
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    ) : (
+      <div className="flex items-center gap-2 sm:gap-5 shrink-0">
+        <button
+          type="button"
+          onClick={onSignUpClick || onSignInClick}
+          className="text-xs font-medium transition-opacity duration-200 hover:opacity-60 sm:text-sm whitespace-nowrap"
+          style={{ color: brandColor }}
+        >
+          Sign Up
+        </button>
+        <button
+          type="button"
+          onClick={onSignInClick}
+          className="rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-300 hover:bg-[#1A0F0B]/[0.03] sm:px-5 sm:py-2 sm:text-sm whitespace-nowrap"
+          style={{ color: brandColor, borderColor: `${brandColor}33` }}
+        >
+          Sign In
+        </button>
+      </div>
+    )
   ) : isModernNav ? (
     <div className="flex items-center gap-2 sm:gap-3">
       <button
@@ -254,19 +308,35 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
   return (
     <nav
       className={`tenant-nav w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'} ${
-        isMaroonGlassNav
+        isJomEditorialNav
+          ? 'bg-[#FDFBF7] border-b border-[#1A0F0B]/[0.06]'
+          : isMaroonGlassNav
           ? 'bg-[#7A151A]/90 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_20px_rgba(122,21,26,0.25)]'
           : isGlassNav
             ? 'bg-white/70 backdrop-blur-xl border-b border-[#7A151A]/10 shadow-[0_4px_24px_rgba(122,21,26,0.06)]'
             : `${theme.navBg || 'bg-[#989494]/50'} shadow-md`
       }`}
-      style={{ ['--tenant-accent']: accent, fontFamily: isGlassNav ? "'Inter', system-ui, sans-serif" : undefined }}
+      style={{ ['--tenant-accent']: accent, fontFamily: isGlassNav || isJomEditorialNav ? "'Inter', system-ui, sans-serif" : undefined }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-3">
-        <div className={`flex justify-between items-center ${navHeightClass}`}>
+      <div className={`${isJomEditorialNav ? 'max-w-6xl' : 'max-w-7xl'} mx-auto ${isJomEditorialNav ? 'px-3 sm:px-6' : 'px-4 sm:px-6 lg:px-3'}`}>
+        <div className={`relative flex justify-between items-center gap-2 sm:gap-4 ${navHeightClass}`}>
           {/* Logo - company theme */}
-          <div className="flex items-center">
-            <Link to={base} className="flex items-center group">
+          <div className={`flex items-center min-w-0 ${isJomEditorialNav ? 'z-10 flex-1 sm:flex-initial' : ''}`}>
+            <Link to={base} className={`flex items-center group ${isJomEditorialNav ? 'min-w-0' : ''}`}>
+              {isJomEditorialNav ? (
+                <>
+                  <motion.img
+                    src={theme.logoUrl || '/logo.png'}
+                    alt={theme.brandName || "Jay's Office Meals"}
+                    className="w-11 h-11 min-[400px]:w-12 min-[400px]:h-12 sm:w-14 sm:h-14 object-cover rounded-full ring-1 ring-[#1A0F0B]/10 group-hover:scale-105 transition-transform duration-300 shrink-0"
+                    whileHover={{ scale: 1.05 }}
+                  />
+                  <span className="ml-2 min-w-0 text-left text-sm font-black leading-[1.15] tracking-tight text-[#1A0F0B] min-[400px]:text-base sm:ml-3 sm:text-xl sm:leading-tight md:text-2xl lg:text-3xl">
+                    <span className="block sm:inline">{theme.brandName || "Jay's Office Meals"}</span>
+                  </span>
+                </>
+              ) : (
+                <>
               <motion.img
                 src={theme.logoUrl || '/logo.png'}
                 alt="Logo"
@@ -293,12 +363,14 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
                   </span>
                 )}
               </span>
+                </>
+              )}
             </Link>
           </div>
 
           {/* Desktop Navigation - hover uses --tenant-accent */}
-          <div className="hidden md:flex items-center space-x-6">
-            {!isMinimalNav && (
+          <div className={`${isJomEditorialNav ? 'flex' : 'hidden md:flex'} items-center ${isJomEditorialNav ? 'z-10 shrink-0 ml-2 sm:ml-auto' : ''} ${isJomEditorialNav ? 'gap-0' : 'space-x-6'}`}>
+            {!isMinimalNav && !isJomEditorialNav && (
               <>
                 <Link to={base} className="text-white tenant-link transition-all duration-300 font-medium flex items-center gap-1 group">
                   <MdRestaurant className="text-xl group-hover:scale-110 transition-transform duration-300" /> Home
@@ -317,7 +389,7 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
 
             {signInOrUser}
 
-            {!isMinimalNav && (
+            {!isMinimalNav && !isJomEditorialNav && (
               <div className="relative group">
                 <input
                   type="text"
@@ -333,8 +405,7 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          {!isMinimalNav && (
+          {!isJomEditorialNav && !isMinimalNav && (
           <div className="md:hidden flex items-center">
             <motion.button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -349,7 +420,7 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
             </motion.button>
           </div>
           )}
-          {isMinimalNav && (
+          {!isJomEditorialNav && isMinimalNav && (
             <div className="md:hidden flex items-center">
               {signInOrUser}
             </div>

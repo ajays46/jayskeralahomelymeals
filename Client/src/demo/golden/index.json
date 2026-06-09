@@ -1,22 +1,22 @@
 {
   "version": "1.0",
-  "companyPath": "jkhm",
+  "companyPath": "jpk",
   "scenarios": [
     {
       "id": "admin-create-users",
       "file": "admin-create-users.json",
-      "route": "/jkhm/admin/users",
+      "route": "/jpk/admin/users",
       "description": "One golden record per role (11 roles)"
     },
     {
       "id": "seller-create-customer",
       "file": "seller-create-customer.json",
-      "route": "/jkhm/create-user"
+      "route": "/jpk/create-user"
     },
     {
       "id": "place-order-address",
       "file": "place-order-address.json",
-      "route": "/jkhm/place-order"
+      "route": "/jpk/place-order"
     }
   ]
 }

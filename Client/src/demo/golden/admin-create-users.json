@@ -8,7 +8,7 @@
       "id": "admin-role-admin",
       "label": "Admin",
       "formState": {
-        "email": "arun.menon@jkhm.demo",
+        "email": "arun.menon@jpk.demo",
         "phone": "9876543210",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -23,7 +23,7 @@
       "id": "admin-role-ceo",
       "label": "CEO",
       "formState": {
-        "email": "jay.gopi@jkhm.demo",
+        "email": "jay.gopi@jpk.demo",
         "phone": "9876543211",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -38,7 +38,7 @@
       "id": "admin-role-cfo",
       "label": "CFO",
       "formState": {
-        "email": "anitha.raj@jkhm.demo",
+        "email": "anitha.raj@jpk.demo",
         "phone": "9876543212",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -53,7 +53,7 @@
       "id": "admin-role-store-manager",
       "label": "Store Manager",
       "formState": {
-        "email": "rajesh.kumar@jkhm.demo",
+        "email": "rajesh.kumar@jpk.demo",
         "phone": "9876543213",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -68,7 +68,7 @@
       "id": "admin-role-store-operator",
       "label": "Store Operator",
       "formState": {
-        "email": "suresh.babu@jkhm.demo",
+        "email": "suresh.babu@jpk.demo",
         "phone": "9876543214",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -83,7 +83,7 @@
       "id": "admin-role-seller",
       "label": "Seller",
       "formState": {
-        "email": "lakshmi.nair@jkhm.demo",
+        "email": "lakshmi.nair@jpk.demo",
         "phone": "9876543215",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -98,7 +98,7 @@
       "id": "admin-role-delivery-manager",
       "label": "Delivery Manager",
       "formState": {
-        "email": "ramesh.iyer@jkhm.demo",
+        "email": "ramesh.iyer@jpk.demo",
         "phone": "9876543216",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -113,7 +113,7 @@
       "id": "admin-role-delivery-executive",
       "label": "Delivery Executive",
       "formState": {
-        "email": "vinod.prasad@jkhm.demo",
+        "email": "vinod.prasad@jpk.demo",
         "phone": "9876543217",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -128,7 +128,7 @@
       "id": "admin-role-delivery-partner",
       "label": "Delivery Partner (ML)",
       "formState": {
-        "email": "ajay.gopi@jkhm.demo",
+        "email": "ajay.gopi@jpk.demo",
         "phone": "9876543218",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -143,7 +143,7 @@
       "id": "admin-role-partner-manager",
       "label": "Partner Manager",
       "formState": {
-        "email": "deepa.krishnan@jkhm.demo",
+        "email": "deepa.krishnan@jpk.demo",
         "phone": "9876543219",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",
@@ -158,7 +158,7 @@
       "id": "admin-role-user",
       "label": "User (Customer)",
       "formState": {
-        "email": "priya.nair@jkhm.demo",
+        "email": "priya.nair@jpk.demo",
         "phone": "9876543220",
         "password": "Demo@1234",
         "confirmPassword": "Demo@1234",

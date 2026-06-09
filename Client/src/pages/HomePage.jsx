@@ -9,6 +9,7 @@ import AuthSlider from '../components/AuthSlider';
 import { useCompanyBasePath, useTenant } from '../context/TenantContext';
 import { getThemeForCompany } from '../config/tenantThemes';
 import JPKHomeHero from '../components/home/JPKHomeHero';
+import JOMHomeHero from '../components/home/JOMHomeHero';
 import vegBreakfastData from '../data/veg-breakfast.json';
 import vegLunchData from '../data/veg-lunch.json';
 import vegDinnerData from '../data/veg-dinner.json';
@@ -61,7 +62,9 @@ const HomePage = () => {
       
       {/* Hero Section - company theme */}
       <div className="relative overflow-hidden">
-        {theme.heroLayout === 'premium' || theme.heroLayout === 'split' ? (
+        {theme.heroLayout === 'jom-editorial' ? (
+          <JOMHomeHero theme={theme} base={base} />
+        ) : theme.heroLayout === 'premium' || theme.heroLayout === 'split' ? (
           <JPKHomeHero theme={theme} base={base} />
         ) : theme.heroLayout === 'brand' ? (
           <div
