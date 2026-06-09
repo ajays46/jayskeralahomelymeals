@@ -55,7 +55,6 @@ const Register = ({
   const [errors, setErrors] = useState({});
 
   const { mutate: register, isPending } = useRegister();
-  const hideTerms = tenant?.theme?.hideTermsAndConditions;
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -76,13 +75,12 @@ const Register = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = hideTerms ? { ...formData, termsAccepted: true } : formData;
-      registerSchema.parse(payload);
+      registerSchema.parse(formData);
       const registrationData = {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        termsAccepted: hideTerms ? true : formData.termsAccepted,
+        termsAccepted: formData.termsAccepted,
         name: formData.email.split('@')[0],
         companyPath: tenant?.companyPath,
       };
@@ -204,37 +202,35 @@ const Register = ({
             {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
           </div>
 
-          {!hideTerms && (
-            <div>
-              <label className="flex items-start gap-2 text-sm text-gray-700 leading-snug">
-                <input
-                  id="termsAccepted"
-                  name="termsAccepted"
-                  type="checkbox"
-                  checked={formData.termsAccepted}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`mt-0.5 h-4 w-4 shrink-0 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded ${errors.termsAccepted ? 'border-red-500' : ''}`}
-                  style={{ accentColor: accent }}
-                  disabled={isPending}
-                />
-                <span className="inline-flex flex-wrap items-center gap-1">
-                  I agree to the{' '}
-                  <button
-                    type="button"
-                    onClick={() => setShowTermsModal(true)}
-                    className="font-medium hover:underline bg-transparent border-none p-0 cursor-pointer"
-                    style={{ color: accent }}
-                  >
-                    Terms & Conditions
-                  </button>
-                </span>
-              </label>
-              {errors.termsAccepted && (
-                <p className="mt-1 text-sm text-red-500">{errors.termsAccepted}</p>
-              )}
-            </div>
-          )}
+          <div>
+            <label className="flex items-start gap-2 text-sm text-gray-700 leading-snug">
+              <input
+                id="termsAccepted"
+                name="termsAccepted"
+                type="checkbox"
+                checked={formData.termsAccepted}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`mt-0.5 h-4 w-4 shrink-0 focus:ring-[color:var(--auth-accent)] border-gray-300 rounded ${errors.termsAccepted ? 'border-red-500' : ''}`}
+                style={{ accentColor: accent }}
+                disabled={isPending}
+              />
+              <span className="inline-flex flex-wrap items-center gap-1">
+                I agree to the{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="font-medium hover:underline bg-transparent border-none p-0 cursor-pointer"
+                  style={{ color: accent }}
+                >
+                  Terms & Conditions
+                </button>
+              </span>
+            </label>
+            {errors.termsAccepted && (
+              <p className="mt-1 text-sm text-red-500">{errors.termsAccepted}</p>
+            )}
+          </div>
 
           {errors.submit && <p className="text-sm text-red-500">{errors.submit}</p>}
 

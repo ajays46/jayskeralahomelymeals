@@ -1,15 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-
-const MAROON = '#7A151A';
 
 /**
  * JPK – premium immersive hero for Jay's Popular Kitchen (retail delivery).
  */
-const JPKHomeHero = ({ theme, base }) => {
-  const ctaColor = theme.heroCtaColor || MAROON;
-  const ctaHover = theme.heroCtaHoverColor || '#5E1014';
+const JPKHomeHero = ({ theme }) => {
   const textColor = theme.heroTextColor || '#1F2937';
   const subtextColor = theme.heroSubtextColor || '#4B5563';
 
@@ -70,33 +65,12 @@ const JPKHomeHero = ({ theme, base }) => {
             </h1>
 
             <p
-              className="text-base sm:text-lg leading-relaxed max-w-md mx-auto lg:mx-0 mb-9"
+              className="text-base sm:text-lg leading-relaxed max-w-md mx-auto lg:mx-0"
               style={{ color: subtextColor }}
             >
               {theme.heroDescription ||
-                'Homely Kerala lunch boxes made fresh every morning — individually packed, rider-delivered, and ready the moment hunger hits.'}
+                'Home-style Kerala lunch boxes made fresh every morning — individually packed, delivered straight to you, and ready the moment hunger hits.'}
             </p>
-
-            <Link to={`${base}${theme.heroCtaLink || '/place-order'}`} className="inline-block">
-              <motion.button
-                type="button"
-                className="w-full sm:w-auto px-9 py-4 rounded-full text-white text-sm sm:text-base font-semibold tracking-tight"
-                style={{
-                  backgroundColor: ctaColor,
-                  boxShadow: '0 10px 32px rgba(122, 21, 26, 0.32)',
-                }}
-                whileHover={{
-                  y: -4,
-                  boxShadow: '0 18px 44px rgba(122, 21, 26, 0.42)',
-                }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = ctaHover; }}
-                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = ctaColor; }}
-              >
-                {theme.heroCtaText || 'Secure Your Lunch Box'}
-              </motion.button>
-            </Link>
           </motion.div>
 
           {/* Visual stage */}
@@ -119,9 +93,8 @@ const JPKHomeHero = ({ theme, base }) => {
                 transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }}
               >
                 <img
-                  src={theme.heroShowcaseImage || '/combo.png'}
-                  alt=""
-                  role="presentation"
+                  src={theme.heroShowcaseImage || '/jpk/jpk-hero.png'}
+                  alt="Traditional Kerala meal served on a banana leaf"
                   className="w-full h-auto object-contain drop-shadow-[0_28px_48px_rgba(122,21,26,0.22)]"
                   style={{ filter: 'saturate(1.05) contrast(1.02)' }}
                 />
