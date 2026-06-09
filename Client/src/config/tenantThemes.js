@@ -164,7 +164,6 @@ export const tenantThemes = {
     heroTitle: 'Fresh Kerala Lunch.',
     heroSubtitle: 'Delivered Fresh',
     heroDescription: 'AUTHENTIC MEALS, DELIVERED TO YOUR OFFICE',
-    homePageBg: '#FDFBF7',
     featuredSectionTitle: 'Office Meal Selection',
     adSectionTitle: "JAY'S OFFICE MEALS",
     adTagline: 'Authentic Meals • Delivered to Your Office',

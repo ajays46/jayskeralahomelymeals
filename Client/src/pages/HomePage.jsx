@@ -48,11 +48,23 @@ const HomePage = () => {
   const sampleNonVegDinner = nonVegDinnerData.slice(0, 3);
 
   const pageBg = theme.homePageBg || (gradient ? undefined : '#ffffff');
+  const isJomEditorial = theme.heroLayout === 'jom-editorial';
+  const pageStyle = isJomEditorial
+    ? {
+        background: `
+          radial-gradient(ellipse 80% 50% at 50% 0%, rgba(45,106,79,0.1) 0%, transparent 55%),
+          radial-gradient(ellipse 50% 40% at 50% 100%, rgba(212,168,83,0.12) 0%, transparent 50%),
+          linear-gradient(180deg, #FDFBF7 0%, #FAF4EA 50%, #F5EFE4 100%)
+        `,
+      }
+    : pageBg
+      ? { backgroundColor: pageBg }
+      : undefined;
 
   return (
     <div
-      className={`min-h-screen ${isMinimalHome ? 'flex flex-col' : ''} ${!pageBg ? `bg-gradient-to-br ${gradient}` : ''}`}
-      style={pageBg ? { backgroundColor: pageBg } : undefined}
+      className={`min-h-screen ${isMinimalHome ? 'flex flex-col' : ''} ${!pageBg && !isJomEditorial ? `bg-gradient-to-br ${gradient}` : ''}`}
+      style={pageStyle}
     >
       <Navbar
         onSignInClick={() => handleOpenAuthSlider('login')}

@@ -246,8 +246,7 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
         <button
           type="button"
           onClick={onSignInClick}
-          className="rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-300 hover:bg-[#1A0F0B]/[0.03] sm:px-5 sm:py-2 sm:text-sm whitespace-nowrap"
-          style={{ color: brandColor, borderColor: `${brandColor}33` }}
+          className="rounded-full border border-[#7A151A]/30 px-3 py-1.5 text-xs font-medium text-[#7A151A] transition-all duration-300 hover:bg-[#7A151A]/[0.04] sm:px-5 sm:py-2 sm:text-sm whitespace-nowrap"
         >
           Sign In
         </button>
@@ -309,7 +308,7 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
     <nav
       className={`tenant-nav w-full z-50 fixed top-0 left-0 transition-transform duration-300 ${showNavbar ? 'translate-y-0' : '-translate-y-full'} ${
         isJomEditorialNav
-          ? 'bg-[#FDFBF7] border-b border-[#1A0F0B]/[0.06]'
+          ? 'bg-[#FDFBF7]/80 backdrop-blur-sm border-b border-[#7A151A]/10'
           : isMaroonGlassNav
           ? 'bg-[#7A151A]/90 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_20px_rgba(122,21,26,0.25)]'
           : isGlassNav
@@ -328,11 +327,11 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
                   <motion.img
                     src={theme.logoUrl || '/logo.png'}
                     alt={theme.brandName || "Jay's Office Meals"}
-                    className="w-11 h-11 min-[400px]:w-12 min-[400px]:h-12 sm:w-14 sm:h-14 object-cover rounded-full ring-1 ring-[#1A0F0B]/10 group-hover:scale-105 transition-transform duration-300 shrink-0"
+                    className="w-11 h-11 min-[400px]:w-12 min-[400px]:h-12 sm:w-14 sm:h-14 shrink-0 rounded-full object-cover ring-1 ring-[#7A151A]/10 transition-transform duration-300 group-hover:scale-105"
                     whileHover={{ scale: 1.05 }}
                   />
-                  <span className="ml-2 min-w-0 text-left text-sm font-black leading-[1.15] tracking-tight text-[#1A0F0B] min-[400px]:text-base sm:ml-3 sm:text-xl sm:leading-tight md:text-2xl lg:text-3xl">
-                    <span className="block sm:inline">{theme.brandName || "Jay's Office Meals"}</span>
+                  <span className="ml-2 min-w-0 text-left text-base font-black tracking-tight text-[#1A0F0B] min-[400px]:ml-2.5 min-[400px]:text-lg sm:ml-3 sm:text-xl md:text-2xl lg:text-3xl">
+                    {theme.brandName || "Jay's Office Meals"}
                   </span>
                 </>
               ) : (
