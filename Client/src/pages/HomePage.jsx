@@ -63,7 +63,7 @@ const HomePage = () => {
 
   return (
     <div
-      className={`min-h-screen ${isMinimalHome ? 'flex flex-col' : ''} ${!pageBg && !isJomEditorial ? `bg-gradient-to-br ${gradient}` : ''}`}
+      className={`${isMinimalHome ? 'flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden' : 'min-h-screen'} ${!pageBg && !isJomEditorial ? `bg-gradient-to-br ${gradient}` : ''}`}
       style={pageStyle}
     >
       <Navbar
@@ -73,11 +73,15 @@ const HomePage = () => {
       <AuthSlider isOpen={authSliderOpen} onClose={handleCloseAuthSlider} initialTab={authInitialTab} />
       
       {/* Hero Section - company theme */}
-      <div className="relative overflow-hidden">
+      <div className={`relative min-h-0 overflow-hidden ${isMinimalHome ? 'flex flex-1 flex-col' : ''}`}>
         {theme.heroLayout === 'jom-editorial' ? (
           <JOMHomeHero theme={theme} base={base} />
         ) : theme.heroLayout === 'premium' || theme.heroLayout === 'split' ? (
-          <JPKHomeHero theme={theme} base={base} />
+          <JPKHomeHero
+            theme={theme}
+            base={base}
+            onSignUpClick={() => handleOpenAuthSlider('register')}
+          />
         ) : theme.heroLayout === 'brand' ? (
           <div
             className={`${isMinimalHome ? 'flex-1 min-h-[calc(100vh-5rem)]' : 'min-h-[28rem] sm:min-h-[32rem] md:min-h-[36rem]'} flex items-center justify-center pt-20 sm:pt-24 md:pt-28 pb-12 sm:pb-16`}

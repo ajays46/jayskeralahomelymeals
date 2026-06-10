@@ -83,7 +83,12 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
   const isJomEditorialNav = theme.navbarVariant === 'jom-editorial';
   const brandColor = theme.brandNameColor || (isJomEditorialNav ? '#1A0F0B' : isMaroonGlassNav ? '#FFFFFF' : isGlassNav ? '#1F2937' : accent);
   const taglineColor = theme.navTaglineColor || (isMaroonGlassNav ? 'rgba(255,255,255,0.82)' : isGlassNav ? '#7A151A' : brandColor);
-  const logoSizeClass = theme.navbarLogoSize === 'small' ? 'w-11 h-11' : 'w-16 h-16 lg:w-20 lg:h-20';
+  const logoSizeClass =
+    theme.navbarLogoSize === 'small'
+      ? isMinimalNav
+        ? 'w-9 h-9 min-[400px]:w-10 min-[400px]:h-10 sm:w-11 sm:h-11 shrink-0'
+        : 'w-11 h-11 shrink-0'
+      : 'w-16 h-16 lg:w-20 lg:h-20 shrink-0';
   const navHeightClass = isModernNav || isJomEditorialNav ? 'h-[4.25rem] lg:h-[4.75rem]' : 'h-20 lg:h-24';
 
   const signInOrUser = user ? (
@@ -253,11 +258,11 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
       </div>
     )
   ) : isModernNav ? (
-    <div className="flex items-center gap-2 sm:gap-3">
+    <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
       <button
         type="button"
         onClick={onSignUpClick || onSignInClick}
-        className={`px-4 sm:px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+        className={`rounded-full px-2.5 py-1.5 text-xs font-medium transition-all duration-300 sm:px-5 sm:py-2 sm:text-sm ${
           isMaroonGlassNav
             ? 'border border-white/35 text-white hover:bg-white/10'
             : isGlassNav
@@ -270,7 +275,7 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
       <button
         type="button"
         onClick={onSignInClick}
-        className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
+        className={`rounded-full px-2.5 py-1.5 text-xs font-semibold transition-all duration-300 sm:px-5 sm:py-2 sm:text-sm ${
           isMaroonGlassNav
             ? 'bg-white text-[#7A151A] hover:bg-white/90 shadow-sm'
             : isGlassNav
@@ -317,11 +322,11 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
       }`}
       style={{ ['--tenant-accent']: accent, fontFamily: isGlassNav || isJomEditorialNav ? "'Inter', system-ui, sans-serif" : undefined }}
     >
-      <div className={`${isJomEditorialNav ? 'max-w-6xl' : 'max-w-7xl'} mx-auto ${isJomEditorialNav ? 'px-3 sm:px-6' : 'px-4 sm:px-6 lg:px-3'}`}>
-        <div className={`relative flex justify-between items-center gap-2 sm:gap-4 ${navHeightClass}`}>
+      <div className={`${isJomEditorialNav ? 'max-w-6xl' : 'max-w-7xl'} mx-auto ${isJomEditorialNav || isMinimalNav ? 'px-3 sm:px-6' : 'px-4 sm:px-6 lg:px-3'}`}>
+        <div className={`relative flex justify-between items-center gap-1.5 sm:gap-4 ${navHeightClass}`}>
           {/* Logo - company theme */}
-          <div className={`flex items-center min-w-0 ${isJomEditorialNav ? 'z-10 flex-1 sm:flex-initial' : ''}`}>
-            <Link to={base} className={`flex items-center group ${isJomEditorialNav ? 'min-w-0' : ''}`}>
+          <div className={`flex min-w-0 flex-1 items-center sm:flex-initial ${isJomEditorialNav ? 'z-10' : ''}`}>
+            <Link to={base} className="flex min-w-0 items-center group">
               {isJomEditorialNav ? (
                 <>
                   <motion.img
@@ -342,12 +347,14 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
                 className={`${logoSizeClass} object-cover rounded-full shadow-md ring-2 ${isMaroonGlassNav ? 'ring-white/25' : isGlassNav ? 'ring-[#7A151A]/15' : 'ring-white/20'} group-hover:scale-105 transition-transform duration-300`}
                 whileHover={isModernNav ? { scale: 1.05 } : { rotate: 5 }}
               />
-              <span className={`${isMaroonGlassNav ? 'text-white' : isGlassNav ? 'text-gray-900' : 'text-white'} hover:opacity-90 transition-all duration-300 font-medium flex flex-col ml-3 min-w-0`}>
+              <span className={`${isMaroonGlassNav ? 'text-white' : isGlassNav ? 'text-gray-900' : 'text-white'} ml-2 min-w-0 transition-all duration-300 hover:opacity-90 min-[400px]:ml-2.5 sm:ml-3 ${isModernNav || isGlassNav ? 'flex flex-col' : 'flex flex-col font-medium'}`}>
                 <span
-                  className={`${
+                  className={`truncate ${
                     isModernNav || isGlassNav
-                      ? 'text-base sm:text-lg font-semibold tracking-tight leading-tight'
-                      : 'text-lg sm:text-xl md:text-[26px] tracking-wider font-leagueSpartan font-black whitespace-nowrap'
+                      ? isMinimalNav
+                        ? 'text-sm font-semibold leading-tight tracking-tight min-[400px]:text-base sm:text-lg'
+                        : 'text-base font-semibold leading-tight tracking-tight sm:text-lg'
+                      : 'whitespace-nowrap text-lg font-black tracking-wider font-leagueSpartan sm:text-xl md:text-[26px]'
                   }`}
                   style={isModernNav || isGlassNav ? { color: brandColor } : { textShadow: '2px 2px 8px rgba(0,0,0,0.5)', color: brandColor }}
                 >
@@ -355,7 +362,7 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
                 </span>
                 {theme.brandTagline && (
                   <span
-                    className={`${isModernNav || isGlassNav ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'} font-medium tracking-wide mt-0.5 ${isMaroonGlassNav || isGlassNav ? 'opacity-90' : 'opacity-85'}`}
+                    className={`truncate ${isModernNav || isGlassNav ? 'text-[10px] min-[400px]:text-[11px] sm:text-xs' : 'text-xs sm:text-sm'} mt-0.5 font-medium tracking-wide ${isMinimalNav ? 'hidden min-[420px]:block' : ''} ${isMaroonGlassNav || isGlassNav ? 'opacity-90' : 'opacity-85'}`}
                     style={{ color: isMaroonGlassNav || isGlassNav ? taglineColor : brandColor }}
                   >
                     {theme.brandTagline}
@@ -420,7 +427,7 @@ const Navbar = ({ onSignInClick, onSignUpClick }) => {
           </div>
           )}
           {!isJomEditorialNav && isMinimalNav && (
-            <div className="md:hidden flex items-center">
+            <div className="flex shrink-0 items-center md:hidden">
               {signInOrUser}
             </div>
           )}

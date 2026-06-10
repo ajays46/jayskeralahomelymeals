@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
+const AMBIENT_SHADOW = 'drop-shadow(0 25px 35px rgba(0, 0, 0, 0.12))';
+
 function renderHeadline(text) {
   return text.split(/(Kerala)/i).map((part, i) =>
     /^Kerala$/i.test(part) ? (
@@ -21,7 +23,8 @@ const JOMHomeHero = ({ theme }) => {
   const headline = theme.heroTitle || 'Fresh Kerala Lunch.';
   const subheadline =
     theme.heroDescription || 'AUTHENTIC MEALS, DELIVERED TO YOUR OFFICE';
-  const productImage = theme.heroShowcaseImage || theme.heroImage || '/jom/jom-hero.png';
+  const platterImage = theme.heroShowcaseImage || theme.heroImage || '/jom/jom-hero.png';
+  const bagImage = theme.heroPackagingImage || '/jom/jom-pckage.png';
 
   return (
     <section className="relative flex-1 w-full min-h-[calc(100vh-4.25rem)] overflow-hidden font-['Inter',system-ui,sans-serif] sm:min-h-[calc(100vh-4.75rem)]">
@@ -91,7 +94,7 @@ const JOMHomeHero = ({ theme }) => {
         </motion.p>
 
         <motion.div
-          className="relative mt-8 w-full max-w-[min(100%,340px)] sm:mt-10 md:mt-12"
+          className="relative mt-8 w-full max-w-[min(100%,380px)] sm:mt-10 md:mt-12"
           initial={{ opacity: 0, y: 24, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
@@ -105,25 +108,33 @@ const JOMHomeHero = ({ theme }) => {
             aria-hidden
           />
 
-          <div className="relative mx-auto w-full max-w-[260px] min-[400px]:max-w-[280px] sm:max-w-[320px] md:max-w-[340px]">
-            <div className="rounded-full p-[2px] sm:p-1">
-              <div
-                className="rounded-full p-1.5 sm:p-2.5"
-                style={{
-                  background:
-                    'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(245,239,228,0.85) 100%)',
-                  boxShadow: '0 0 0 1px rgba(122,21,26,0.06), inset 0 1px 0 rgba(255,255,255,0.95)',
-                }}
+          <div className="relative mx-auto w-full max-w-[270px] min-[400px]:max-w-[300px] sm:max-w-[340px] md:max-w-[380px]">
+            <div className="relative block w-full overflow-visible pr-4 sm:pr-6">
+              <motion.div
+                className="absolute bottom-0 right-[-10%] z-10 w-[54%] sm:right-[-12%] sm:w-[52%] md:right-[-14%] md:w-[50%]"
+                animate={{ y: [0, -5, 0] }}
+                transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+                style={{ filter: AMBIENT_SHADOW }}
               >
-                <div className="relative aspect-square w-full overflow-hidden rounded-full shadow-[0_35px_60px_-15px_rgba(122,21,26,0.12)]">
-                  <img
-                    src={productImage}
-                    alt="Fresh Kerala lunch box on a banana leaf"
-                    className="h-full w-full object-cover"
-                    style={{ filter: 'saturate(1.05) contrast(1.02)' }}
-                  />
-                </div>
-              </div>
+                <img
+                  src={platterImage}
+                  alt="Traditional Kerala meal served on a banana leaf"
+                  className="h-auto w-full object-contain object-bottom mix-blend-screen"
+                />
+              </motion.div>
+
+              <motion.div
+                className="relative z-20 w-[88%] sm:w-[84%]"
+                animate={{ y: [0, -7, 0] }}
+                transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }}
+                style={{ filter: AMBIENT_SHADOW }}
+              >
+                <img
+                  src={bagImage}
+                  alt="Jay's Office Meals stamped lunch delivery package"
+                  className="h-auto w-full object-contain mix-blend-screen sm:scale-[1.05]"
+                />
+              </motion.div>
             </div>
           </div>
         </motion.div>
