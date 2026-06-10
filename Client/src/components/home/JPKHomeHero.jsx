@@ -9,7 +9,7 @@ const AMBIENT_SHADOW = 'drop-shadow(0 25px 35px rgba(0, 0, 0, 0.12))';
 const JPKHomeHero = ({ theme, onSignUpClick }) => {
   const textColor = theme.heroTextColor || '#1F2937';
   const subtextColor = theme.heroSubtextColor || '#4B5563';
-  const ctaText = theme.heroCtaText || 'Explore Combos';
+  const ctaText = theme.heroCtaText || 'Explore';
   const ctaColor = theme.heroCtaColor || '#6B1D1D';
   const ctaHover = theme.heroCtaHoverColor || '#5E1014';
 
@@ -88,10 +88,10 @@ const JPKHomeHero = ({ theme, onSignUpClick }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.75, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div className="relative block w-full overflow-visible">
-                {/* Platter — smaller, behind bag's right edge */}
+              <div className="relative block w-full overflow-visible pr-4 sm:pr-6">
+                {/* Platter — behind bag's right edge with breathing room from package */}
                 <motion.div
-                  className="absolute right-[2%] bottom-0 z-10 w-[51%] sm:right-[4%] sm:w-[49%] lg:w-[47%]"
+                  className="absolute bottom-0 right-[-8%] z-10 w-[51%] sm:right-[-10%] sm:w-[49%] lg:right-[-12%] lg:w-[47%]"
                   animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
                   style={{ filter: AMBIENT_SHADOW }}

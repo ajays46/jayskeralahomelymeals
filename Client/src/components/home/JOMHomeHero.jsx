@@ -24,7 +24,6 @@ const JOMHomeHero = ({ theme }) => {
   const subheadline =
     theme.heroDescription || 'AUTHENTIC MEALS, DELIVERED TO YOUR OFFICE';
   const platterImage = theme.heroShowcaseImage || theme.heroImage || '/jom/jom-hero.png';
-  const bagImage = theme.heroPackagingImage || '/jom/jom-pckage.png';
 
   return (
     <section className="relative flex-1 w-full min-h-[calc(100vh-4.25rem)] overflow-hidden font-['Inter',system-ui,sans-serif] sm:min-h-[calc(100vh-4.75rem)]">
@@ -108,34 +107,19 @@ const JOMHomeHero = ({ theme }) => {
             aria-hidden
           />
 
-          <div className="relative mx-auto w-full max-w-[270px] min-[400px]:max-w-[300px] sm:max-w-[340px] md:max-w-[380px]">
-            <div className="relative block w-full overflow-visible pr-4 sm:pr-6">
-              <motion.div
-                className="absolute bottom-0 right-[-10%] z-10 w-[54%] sm:right-[-12%] sm:w-[52%] md:right-[-14%] md:w-[50%]"
-                animate={{ y: [0, -5, 0] }}
-                transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
-                style={{ filter: AMBIENT_SHADOW }}
-              >
-                <img
-                  src={platterImage}
-                  alt="Traditional Kerala meal served on a banana leaf"
-                  className="h-auto w-full object-contain object-bottom mix-blend-screen"
-                />
-              </motion.div>
-
-              <motion.div
-                className="relative z-20 w-[88%] sm:w-[84%]"
-                animate={{ y: [0, -7, 0] }}
-                transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }}
-                style={{ filter: AMBIENT_SHADOW }}
-              >
-                <img
-                  src={bagImage}
-                  alt="Jay's Office Meals stamped lunch delivery package"
-                  className="h-auto w-full object-contain mix-blend-screen sm:scale-[1.05]"
-                />
-              </motion.div>
-            </div>
+          <div className="relative mx-auto w-full max-w-[260px] min-[400px]:max-w-[280px] sm:max-w-[320px] md:max-w-[360px]">
+            <motion.div
+              className="relative w-full"
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ filter: AMBIENT_SHADOW }}
+            >
+              <img
+                src={platterImage}
+                alt="Fresh Kerala lunch served on a banana leaf"
+                className="h-auto w-full object-contain mix-blend-screen"
+              />
+            </motion.div>
           </div>
         </motion.div>
       </div>
